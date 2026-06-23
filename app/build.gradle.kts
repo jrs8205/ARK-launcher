@@ -1,6 +1,7 @@
 plugins {
     id("arkikeskus.android.application")
     id("arkikeskus.android.compose")
+    id("arkikeskus.android.hilt")
 }
 
 android {

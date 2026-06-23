@@ -28,5 +28,9 @@ gradlePlugin {
             id = "arkikeskus.android.compose"
             implementationClass = "AndroidComposeConventionPlugin"
         }
+        register("androidHilt") {
+            id = "arkikeskus.android.hilt"
+            implementationClass = "AndroidHiltConventionPlugin"
+        }
     }
 }

@@ -11,7 +11,7 @@
     <!-- Splash screen shown on cold start, then hands off to the launcher theme. -->
     <style name="Theme.ArkikeskusLauncher.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.ArkikeskusLauncher</item>
     </style>
 </resources>
