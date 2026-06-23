@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.component.AppIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,6 +104,14 @@ fun AppDrawerScreen(
                     ),
                 ) {
                     if (inDock) viewModel.removeFromDock(selected) else viewModel.addToDock(selected)
+                    selectedApp = null
+                }
+                ActionRow(stringResource(R.string.app_info)) {
+                    AppActions.openAppInfo(context, selected.packageName)
+                    selectedApp = null
+                }
+                ActionRow(stringResource(R.string.uninstall)) {
+                    AppActions.uninstall(context, selected.packageName)
                     selectedApp = null
                 }
             }

@@ -3,4 +3,6 @@
     <string name="home_open_drawer_hint">Pyyhkäise ylös avataksesi sovellukset</string>
     <string name="home_remove">Poista kotinäytöltä</string>
     <string name="home_add_to_dock">Lisää dockkiin</string>
+    <string name="app_info">Sovelluksen tiedot</string>
+    <string name="uninstall">Poista sovellus</string>
 </resources>

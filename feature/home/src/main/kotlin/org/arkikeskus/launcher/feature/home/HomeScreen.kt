@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.AppActions
 
 /**
  * Home screen: a non-scrolling grid of placed app shortcuts (top) + the dock (bottom).
@@ -122,6 +123,14 @@ fun HomeScreen(
                 }
                 HomeActionRow(stringResource(R.string.home_add_to_dock)) {
                     viewModel.addToDock(selected)
+                    selectedHomeApp = null
+                }
+                HomeActionRow(stringResource(R.string.app_info)) {
+                    AppActions.openAppInfo(context, selected.packageName)
+                    selectedHomeApp = null
+                }
+                HomeActionRow(stringResource(R.string.uninstall)) {
+                    AppActions.uninstall(context, selected.packageName)
                     selectedHomeApp = null
                 }
             }
