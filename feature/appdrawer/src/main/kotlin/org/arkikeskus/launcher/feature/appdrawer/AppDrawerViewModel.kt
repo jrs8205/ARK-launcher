@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.AppItem
@@ -17,33 +18,47 @@ data class AppDrawerUiState(
     val apps: List<AppItem> = emptyList(),
     val query: String = "",
     val columns: Int = 4,
+    val dockKeys: Set<String> = emptySet(),
 )
 
 @HiltViewModel
 class AppDrawerViewModel @Inject constructor(
     private val appRepository: AppRepository,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
 
-    val uiState: StateFlow<AppDrawerUiState> =
-        combine(appRepository.apps, query, settingsRepository.settings) { apps, q, settings ->
-            val filtered = if (q.isBlank()) {
-                apps
-            } else {
-                apps.filter { it.label.contains(q.trim(), ignoreCase = true) }
-            }
-            AppDrawerUiState(apps = filtered, query = q, columns = settings.drawerColumns)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = AppDrawerUiState(),
+    val uiState: StateFlow<AppDrawerUiState> = combine(
+        appRepository.apps,
+        query,
+        settingsRepository.settings,
+        settingsRepository.dockFavorites,
+    ) { apps, q, settings, favorites ->
+        val filtered = if (q.isBlank()) {
+            apps
+        } else {
+            apps.filter { it.label.contains(q.trim(), ignoreCase = true) }
+        }
+        AppDrawerUiState(
+            apps = filtered,
+            query = q,
+            columns = settings.drawerColumns,
+            dockKeys = favorites.toSet(),
         )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = AppDrawerUiState(),
+    )
 
     fun onQueryChange(value: String) {
         query.value = value
     }
 
     fun onAppClick(appItem: AppItem) = appRepository.launch(appItem)
+
+    fun addToDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.addToDock(appItem.key) }
+
+    fun removeFromDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
 }
