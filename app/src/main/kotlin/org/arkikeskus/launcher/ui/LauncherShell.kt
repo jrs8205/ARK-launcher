@@ -18,11 +18,13 @@ import org.arkikeskus.launcher.feature.home.HomeScreen
 
 /**
  * Hosts the launcher surface: the home screen with the app drawer as a slide-up overlay.
- * Both BACK and HOME (via [homeSignals]) close the drawer.
+ * Both BACK and HOME (via [homeSignals]) close the drawer. [onOpenSettings] is triggered by a
+ * long-press on the home screen and by tapping the launcher's own icon in the drawer.
  */
 @Composable
 fun LauncherShell(
     homeSignals: Flow<Unit>,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
@@ -33,6 +35,7 @@ fun LauncherShell(
 
     HomeScreen(
         onOpenDrawer = { drawerOpen = true },
+        onOpenSettings = onOpenSettings,
         modifier = modifier.fillMaxSize(),
     )
 
@@ -43,6 +46,10 @@ fun LauncherShell(
     ) {
         AppDrawerScreen(
             onClose = { drawerOpen = false },
+            onOpenSettings = {
+                drawerOpen = false
+                onOpenSettings()
+            },
             modifier = Modifier.fillMaxSize(),
         )
     }

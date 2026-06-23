@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Asetukset</string>
+    <string name="settings_gestures">Eleet</string>
+    <string name="settings_swipe_up_drawer">Pyyhkäise ylös → sovellukset</string>
+    <string name="settings_swipe_down_notif">Pyyhkäise alas → ilmoitukset</string>
+    <string name="settings_dock">Dockki</string>
+    <string name="settings_dock_show">Näytä dockki</string>
+    <string name="settings_dock_icons">Dockin ikonien määrä</string>
+    <string name="settings_drawer">Sovellusvalikko</string>
+    <string name="settings_home">Etusivu</string>
+    <string name="settings_columns">Sarakkeet</string>
+</resources>

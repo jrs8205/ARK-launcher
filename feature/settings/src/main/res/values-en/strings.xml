@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_gestures">Gestures</string>
+    <string name="settings_swipe_up_drawer">Swipe up → apps</string>
+    <string name="settings_swipe_down_notif">Swipe down → notifications</string>
+    <string name="settings_dock">Dock</string>
+    <string name="settings_dock_show">Show dock</string>
+    <string name="settings_dock_icons">Dock icon count</string>
+    <string name="settings_drawer">App drawer</string>
+    <string name="settings_home">Home screen</string>
+    <string name="settings_columns">Columns</string>
+</resources>

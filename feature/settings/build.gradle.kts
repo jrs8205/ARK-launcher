@@ -3,10 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "org.arkikeskus.launcher.feature.home"
+    namespace = "org.arkikeskus.launcher.feature.settings"
 }
 
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:model"))
+    implementation(project(":core:designsystem"))
 }

@@ -9,29 +9,32 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
 
 data class AppDrawerUiState(
     val apps: List<AppItem> = emptyList(),
     val query: String = "",
+    val columns: Int = 4,
 )
 
 @HiltViewModel
 class AppDrawerViewModel @Inject constructor(
     private val appRepository: AppRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
 
     val uiState: StateFlow<AppDrawerUiState> =
-        combine(appRepository.apps, query) { apps, q ->
+        combine(appRepository.apps, query, settingsRepository.settings) { apps, q, settings ->
             val filtered = if (q.isBlank()) {
                 apps
             } else {
                 apps.filter { it.label.contains(q.trim(), ignoreCase = true) }
             }
-            AppDrawerUiState(apps = filtered, query = q)
+            AppDrawerUiState(apps = filtered, query = q, columns = settings.drawerColumns)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,17 +28,25 @@ import org.arkikeskus.launcher.ui.component.AppIcon
 @Composable
 fun AppDrawerScreen(
     onClose: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AppDrawerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     AppDrawerContent(
         apps = uiState.apps,
         query = uiState.query,
+        columns = uiState.columns,
         onQueryChange = viewModel::onQueryChange,
-        onAppClick = {
-            viewModel.onAppClick(it)
-            onClose()
+        onAppClick = { app ->
+            if (app.packageName == context.packageName) {
+                // Tapping the launcher's own icon opens its settings.
+                onOpenSettings()
+            } else {
+                viewModel.onAppClick(app)
+                onClose()
+            }
         },
         modifier = modifier,
     )
@@ -47,6 +56,7 @@ fun AppDrawerScreen(
 private fun AppDrawerContent(
     apps: List<AppItem>,
     query: String,
+    columns: Int,
     onQueryChange: (String) -> Unit,
     onAppClick: (AppItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -68,7 +78,7 @@ private fun AppDrawerContent(
                     .padding(vertical = 8.dp),
             )
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+                columns = GridCells.Fixed(columns),
                 contentPadding = PaddingValues(vertical = 8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {

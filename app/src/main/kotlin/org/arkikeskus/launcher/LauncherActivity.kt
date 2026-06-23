@@ -23,7 +23,10 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             LauncherTheme {
-                LauncherShell(homeSignals = homeSignals)
+                LauncherShell(
+                    homeSignals = homeSignals,
+                    onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                )
             }
         }
     }

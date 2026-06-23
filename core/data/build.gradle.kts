@@ -12,4 +12,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.coil.core)
+    implementation(libs.androidx.datastore.preferences)
 }

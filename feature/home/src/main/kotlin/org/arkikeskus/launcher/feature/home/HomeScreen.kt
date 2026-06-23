@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.home
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -14,38 +16,46 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
- * Home screen. The system status bar is used as-is. Whole-screen vertical gestures: swipe up
- * opens the app drawer, swipe down opens the notification shade. Widgets and app shortcuts will
- * fill this area in later milestones.
+ * Home screen. Whole-screen gestures (toggleable in settings): swipe up = app drawer,
+ * swipe down = notification shade, long-press = launcher settings.
  */
 @Composable
 fun HomeScreen(
     onOpenDrawer: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = hiltViewModel(),
 ) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(settings.swipeUpForDrawer, settings.swipeDownForNotifications) {
                 var triggered = false
                 detectVerticalDragGestures(
                     onDragStart = { triggered = false },
                     onDragEnd = { triggered = false },
                     onVerticalDrag = { _, dragAmount ->
                         if (!triggered) {
-                            if (dragAmount < -30f) {
+                            if (dragAmount < -30f && settings.swipeUpForDrawer) {
                                 triggered = true
                                 onOpenDrawer()
-                            } else if (dragAmount > 30f) {
+                            } else if (dragAmount > 30f && settings.swipeDownForNotifications) {
                                 triggered = true
                                 NotificationShade.expand(context)
                             }
                         }
                     },
                 )
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(onLongPress = { onOpenSettings() })
             },
     ) {
         Text(
