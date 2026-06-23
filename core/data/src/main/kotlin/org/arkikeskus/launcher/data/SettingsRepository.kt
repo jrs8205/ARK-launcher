@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -33,6 +34,8 @@ class SettingsRepository @Inject constructor(
             showDockLabels = p[Keys.SHOW_DOCK_LABELS] ?: false,
             showHomeLabels = p[Keys.SHOW_HOME_LABELS] ?: true,
             showDrawerLabels = p[Keys.SHOW_DRAWER_LABELS] ?: true,
+            dockBackgroundOpacity = p[Keys.DOCK_OPACITY] ?: 0.35f,
+            showPageIndicator = p[Keys.SHOW_PAGE_INDICATOR] ?: true,
         )
     }
 
@@ -50,6 +53,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setShowDockLabels(value: Boolean) = edit { it[Keys.SHOW_DOCK_LABELS] = value }
     suspend fun setShowHomeLabels(value: Boolean) = edit { it[Keys.SHOW_HOME_LABELS] = value }
     suspend fun setShowDrawerLabels(value: Boolean) = edit { it[Keys.SHOW_DRAWER_LABELS] = value }
+    suspend fun setDockBackgroundOpacity(value: Float) = edit { it[Keys.DOCK_OPACITY] = value }
+    suspend fun setShowPageIndicator(value: Boolean) = edit { it[Keys.SHOW_PAGE_INDICATOR] = value }
 
     suspend fun addToDock(key: String) = edit { p ->
         val current = currentFavorites(p).toMutableList()
@@ -85,5 +90,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
         val SHOW_DRAWER_LABELS = booleanPreferencesKey("show_drawer_labels")
+        val DOCK_OPACITY = floatPreferencesKey("dock_opacity")
+        val SHOW_PAGE_INDICATOR = booleanPreferencesKey("show_page_indicator")
     }
 }

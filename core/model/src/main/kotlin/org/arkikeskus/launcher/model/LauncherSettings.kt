@@ -11,4 +11,6 @@ data class LauncherSettings(
     val showDockLabels: Boolean = false,
     val showHomeLabels: Boolean = true,
     val showDrawerLabels: Boolean = true,
+    val dockBackgroundOpacity: Float = 0.35f,
+    val showPageIndicator: Boolean = true,
 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -55,6 +56,7 @@ fun SettingsScreen(
             SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, viewModel::setDockEnabled)
             StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, viewModel::setDockColumns)
             SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, viewModel::setShowDockLabels)
+            SliderRow(stringResource(R.string.settings_dock_bg), s.dockBackgroundOpacity, viewModel::setDockBackgroundOpacity)
 
             SectionTitle(stringResource(R.string.settings_drawer))
             StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
@@ -63,6 +65,7 @@ fun SettingsScreen(
             SectionTitle(stringResource(R.string.settings_home))
             StepperRow(stringResource(R.string.settings_columns), s.homeColumns, 3, 7, viewModel::setHomeColumns)
             SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, viewModel::setShowHomeLabels)
+            SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, viewModel::setShowPageIndicator)
         }
     }
 }
@@ -85,6 +88,14 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+private fun SliderRow(label: String, value: Float, onValueChange: (Float) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Slider(value = value, onValueChange = onValueChange, valueRange = 0f..1f)
     }
 }
 

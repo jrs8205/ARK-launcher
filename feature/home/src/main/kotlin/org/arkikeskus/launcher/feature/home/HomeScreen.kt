@@ -92,6 +92,7 @@ fun HomeScreen(
             Dock(
                 apps = uiState.dockApps,
                 showLabels = settings.showDockLabels,
+                backgroundAlpha = settings.dockBackgroundOpacity,
                 onAppClick = viewModel::launch,
                 onReorder = viewModel::reorderDock,
                 modifier = Modifier

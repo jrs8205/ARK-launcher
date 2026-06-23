@@ -22,7 +22,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import org.arkikeskus.launcher.designsystem.theme.LocalLauncherColors
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.component.AppIcon
 import kotlin.math.roundToInt
@@ -35,18 +34,18 @@ import kotlin.math.roundToInt
 fun Dock(
     apps: List<AppItem>,
     showLabels: Boolean,
+    backgroundAlpha: Float,
     onAppClick: (AppItem) -> Unit,
     onReorder: (List<AppItem>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val launcherColors = LocalLauncherColors.current
     var rowWidthPx by remember { mutableIntStateOf(0) }
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
 
     Surface(
         modifier = modifier,
-        color = launcherColors.dockScrim,
+        color = Color.Black.copy(alpha = backgroundAlpha),
         shape = RoundedCornerShape(30.dp),
     ) {
         Row(
