@@ -34,7 +34,9 @@ object DataModule {
     @Provides
     @Singleton
     fun provideLauncherDatabase(@ApplicationContext context: Context): LauncherDatabase =
-        Room.databaseBuilder(context, LauncherDatabase::class.java, "launcher.db").build()
+        Room.databaseBuilder(context, LauncherDatabase::class.java, "launcher.db")
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
 
     @Provides
     fun provideHomeItemDao(database: LauncherDatabase): HomeItemDao = database.homeItemDao()

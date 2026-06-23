@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
@@ -69,7 +70,10 @@ class AppDrawerViewModel @Inject constructor(
 
     fun removeFromDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
 
-    fun addToHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.addToHome(appItem) }
+    fun addToHome(appItem: AppItem) = viewModelScope.launch {
+        val columns = settingsRepository.settings.first().homeColumns
+        homeLayoutRepository.addToHome(appItem, columns)
+    }
 
     fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 }
