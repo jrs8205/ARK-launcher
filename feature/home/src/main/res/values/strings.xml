@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_open_drawer_hint">Pyyhkäise ylös avataksesi sovellukset</string>
+</resources>

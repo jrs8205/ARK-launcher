@@ -24,4 +24,9 @@ dependencyResolutionManagement {
 rootProject.name = "arkikeskus-launcher"
 
 include(":app")
+include(":core:model")
 include(":core:designsystem")
+include(":core:data")
+include(":core:ui")
+include(":feature:home")
+include(":feature:appdrawer")

@@ -32,5 +32,9 @@ gradlePlugin {
             id = "arkikeskus.android.hilt"
             implementationClass = "AndroidHiltConventionPlugin"
         }
+        register("androidFeature") {
+            id = "arkikeskus.android.feature"
+            implementationClass = "AndroidFeatureConventionPlugin"
+        }
     }
 }

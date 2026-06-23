@@ -1,0 +1,46 @@
+package org.arkikeskus.launcher.feature.appdrawer
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.model.AppItem
+import javax.inject.Inject
+
+data class AppDrawerUiState(
+    val apps: List<AppItem> = emptyList(),
+    val query: String = "",
+)
+
+@HiltViewModel
+class AppDrawerViewModel @Inject constructor(
+    private val appRepository: AppRepository,
+) : ViewModel() {
+
+    private val query = MutableStateFlow("")
+
+    val uiState: StateFlow<AppDrawerUiState> =
+        combine(appRepository.apps, query) { apps, q ->
+            val filtered = if (q.isBlank()) {
+                apps
+            } else {
+                apps.filter { it.label.contains(q.trim(), ignoreCase = true) }
+            }
+            AppDrawerUiState(apps = filtered, query = q)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = AppDrawerUiState(),
+        )
+
+    fun onQueryChange(value: String) {
+        query.value = value
+    }
+
+    fun onAppClick(appItem: AppItem) = appRepository.launch(appItem)
+}

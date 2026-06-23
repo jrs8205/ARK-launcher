@@ -1,14 +1,11 @@
-package org.arkikeskus.launcher.ui
+package org.arkikeskus.launcher.feature.home
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,24 +16,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import org.arkikeskus.launcher.R
 import org.arkikeskus.launcher.designsystem.theme.LauncherTextStyles
-import org.arkikeskus.launcher.role.DefaultLauncher
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Minimal M0 home screen: live clock + date over the wallpaper, plus a button to become the
- * default launcher. The real paged home (grid, dock, status block) lands in M1+.
+ * The home screen (M1 = "Selkeä" style): a live clock + date over the wallpaper. Swiping up
+ * opens the app drawer. The paged grid, dock and other styles arrive in later milestones.
  */
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
+fun HomeScreen(
+    onOpenDrawer: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val finnish = remember { Locale("fi", "FI") }
     val timeFormatter = remember { DateTimeFormatter.ofPattern("H.mm", finnish) }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("EEEE d. MMMM", finnish) }
@@ -49,16 +46,22 @@ fun HomeScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    var isDefault by remember { mutableStateOf(DefaultLauncher.isDefault(context)) }
-    val roleLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) {
-        isDefault = DefaultLauncher.isDefault(context)
-    }
-
     Box(
         modifier = modifier
             .fillMaxSize()
+            .pointerInput(Unit) {
+                var triggered = false
+                detectVerticalDragGestures(
+                    onDragStart = { triggered = false },
+                    onDragEnd = { triggered = false },
+                    onVerticalDrag = { _, dragAmount ->
+                        if (!triggered && dragAmount < -30f) {
+                            triggered = true
+                            onOpenDrawer()
+                        }
+                    },
+                )
+            }
             .safeDrawingPadding()
             .padding(24.dp),
     ) {
@@ -73,30 +76,10 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 color = Color.White.copy(alpha = 0.85f),
             )
         }
-
         Text(
-            text = stringResource(R.string.app_name),
-            color = Color.White.copy(alpha = 0.9f),
-            modifier = Modifier.align(Alignment.Center),
-        )
-
-        Column(
+            text = stringResource(R.string.home_open_drawer_hint),
+            color = Color.White.copy(alpha = 0.7f),
             modifier = Modifier.align(Alignment.BottomCenter),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(
-                onClick = { roleLauncher.launch(DefaultLauncher.requestIntent(context)) },
-                enabled = !isDefault,
-            ) {
-                Text(
-                    text = if (isDefault) {
-                        stringResource(R.string.default_launcher_active)
-                    } else {
-                        stringResource(R.string.set_default_launcher)
-                    },
-                )
-            }
-        }
+        )
     }
 }

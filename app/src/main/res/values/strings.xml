@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Arkikeskus-käynnistin</string>
+    <string name="app_name">Arkikeskus-launcher</string>
     <string name="set_default_launcher">Aseta oletuskäynnistimeksi</string>
     <string name="default_launcher_active">Oletuskäynnistin käytössä</string>
 </resources>

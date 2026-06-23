@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
-import org.arkikeskus.launcher.ui.HomeScreen
+import org.arkikeskus.launcher.ui.LauncherShell
 
 @AndroidEntryPoint
 class LauncherActivity : ComponentActivity() {
@@ -17,7 +17,7 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             LauncherTheme {
-                HomeScreen()
+                LauncherShell()
             }
         }
     }
