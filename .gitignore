@@ -11,3 +11,5 @@
 *.ap_
 *.aab
 local.properties
+.kotlin/
+/.claude/settings.local.json
