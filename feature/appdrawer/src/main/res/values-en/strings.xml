@@ -3,4 +3,6 @@
     <string name="app_drawer_search_hint">Search apps</string>
     <string name="add_to_dock">Add to dock</string>
     <string name="remove_from_dock">Remove from dock</string>
+    <string name="add_to_home">Add to home</string>
+    <string name="remove_from_home">Remove from home</string>
 </resources>

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Swipe up to open apps</string>
+    <string name="home_remove">Remove from home</string>
+    <string name="home_add_to_dock">Add to dock</string>
 </resources>

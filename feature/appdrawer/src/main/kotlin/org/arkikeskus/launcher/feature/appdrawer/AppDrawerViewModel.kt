@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
@@ -19,6 +20,7 @@ data class AppDrawerUiState(
     val query: String = "",
     val columns: Int = 4,
     val dockKeys: Set<String> = emptySet(),
+    val homeKeys: Set<String> = emptySet(),
     val showLabels: Boolean = true,
 )
 
@@ -26,6 +28,7 @@ data class AppDrawerUiState(
 class AppDrawerViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val settingsRepository: SettingsRepository,
+    private val homeLayoutRepository: HomeLayoutRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -35,7 +38,8 @@ class AppDrawerViewModel @Inject constructor(
         query,
         settingsRepository.settings,
         settingsRepository.dockFavorites,
-    ) { apps, q, settings, favorites ->
+        homeLayoutRepository.homeItems,
+    ) { apps, q, settings, favorites, homeItems ->
         val filtered = if (q.isBlank()) {
             apps
         } else {
@@ -46,6 +50,7 @@ class AppDrawerViewModel @Inject constructor(
             query = q,
             columns = settings.drawerColumns,
             dockKeys = favorites.toSet(),
+            homeKeys = homeItems.map { it.key }.toSet(),
             showLabels = settings.showDrawerLabels,
         )
     }.stateIn(
@@ -63,4 +68,8 @@ class AppDrawerViewModel @Inject constructor(
     fun addToDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.addToDock(appItem.key) }
 
     fun removeFromDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
+
+    fun addToHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.addToHome(appItem) }
+
+    fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 }

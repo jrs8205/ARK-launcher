@@ -1,26 +1,40 @@
 package org.arkikeskus.launcher.feature.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.arkikeskus.launcher.model.AppItem
 
 /**
- * Home screen. Whole-screen gestures (toggleable in settings): swipe up = app drawer,
- * swipe down = notification shade, long-press = launcher settings. Shows the dock at the bottom.
+ * Home screen: a non-scrolling grid of placed app shortcuts (top) + the dock (bottom).
+ * Whole-screen gestures (toggleable): swipe up = drawer, swipe down = notifications,
+ * long-press empty area = settings. Long-press a home icon = remove it.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onOpenDrawer: () -> Unit,
@@ -31,6 +45,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = uiState.settings
     val context = LocalContext.current
+    var selectedHomeApp by remember { mutableStateOf<AppItem?>(null) }
 
     Box(
         modifier = modifier
@@ -57,6 +72,21 @@ fun HomeScreen(
                 detectTapGestures(onLongPress = { onOpenSettings() })
             },
     ) {
+        if (uiState.homeApps.isNotEmpty()) {
+            HomeGrid(
+                apps = uiState.homeApps,
+                columns = settings.homeColumns,
+                showLabels = settings.showHomeLabels,
+                onAppClick = viewModel::launch,
+                onAppLongClick = { selectedHomeApp = it },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 24.dp),
+            )
+        }
+
         if (settings.dockEnabled && uiState.dockApps.isNotEmpty()) {
             Dock(
                 apps = uiState.dockApps,
@@ -71,4 +101,42 @@ fun HomeScreen(
             )
         }
     }
+
+    val selected = selectedHomeApp
+    if (selected != null) {
+        ModalBottomSheet(onDismissRequest = { selectedHomeApp = null }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp),
+            ) {
+                Text(
+                    text = selected.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+                HomeActionRow(stringResource(R.string.home_remove)) {
+                    viewModel.removeFromHome(selected)
+                    selectedHomeApp = null
+                }
+                HomeActionRow(stringResource(R.string.home_add_to_dock)) {
+                    viewModel.addToDock(selected)
+                    selectedHomeApp = null
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeActionRow(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    )
 }

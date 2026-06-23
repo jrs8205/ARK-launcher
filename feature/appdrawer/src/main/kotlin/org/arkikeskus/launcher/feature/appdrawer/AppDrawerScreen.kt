@@ -88,6 +88,15 @@ fun AppDrawerScreen(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+                val inHome = selected.key in uiState.homeKeys
+                ActionRow(
+                    text = stringResource(
+                        if (inHome) R.string.remove_from_home else R.string.add_to_home,
+                    ),
+                ) {
+                    if (inHome) viewModel.removeFromHome(selected) else viewModel.addToHome(selected)
+                    selectedApp = null
+                }
                 ActionRow(
                     text = stringResource(
                         if (inDock) R.string.remove_from_dock else R.string.add_to_dock,
