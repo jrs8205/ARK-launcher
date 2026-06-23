@@ -10,6 +10,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
@@ -28,6 +31,13 @@ class LauncherActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Hide the system status bar on the launcher; our own StatusBlock replaces it. Swiping
+        // from the top still reveals it (and the notification shade) transiently.
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.statusBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)
             != PackageManager.PERMISSION_GRANTED

@@ -3,9 +3,12 @@ package org.arkikeskus.launcher.feature.home
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,8 +29,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * The home screen (M1 = "Selkeä" style): a live clock + date over the wallpaper. Swiping up
- * opens the app drawer. The paged grid, dock and other styles arrive in later milestones.
+ * Home screen (M1/M2): the two-row status bar pinned to the top, a big clock + date below, and a
+ * swipe-up gesture to open the app drawer. Other styles, dock and home grid arrive later.
  */
 @Composable
 fun HomeScreen(
@@ -61,11 +64,22 @@ fun HomeScreen(
                         }
                     },
                 )
-            }
-            .safeDrawingPadding()
-            .padding(24.dp),
+            },
     ) {
-        Column(modifier = Modifier.align(Alignment.TopStart)) {
+        StatusBlock(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .safeDrawingPadding()
+                .padding(start = 24.dp, top = 80.dp),
+        ) {
             Text(
                 text = now.format(timeFormatter),
                 style = LauncherTextStyles.clockSelkea,
@@ -76,12 +90,14 @@ fun HomeScreen(
                 color = Color.White.copy(alpha = 0.85f),
             )
         }
-        StatusBlock(modifier = Modifier.align(Alignment.TopEnd))
 
         Text(
             text = stringResource(R.string.home_open_drawer_hint),
             color = Color.White.copy(alpha = 0.7f),
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp),
         )
     }
 }

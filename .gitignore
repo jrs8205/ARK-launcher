@@ -15,3 +15,8 @@ local.properties
 /.claude/settings.local.json
 # Icon source export (assets already copied into app/src/main/res)
 /launcher_L/
+# Design reference artifacts kept locally (not part of the app)
+/.playwright-mcp/
+/design-full.png
+/statuspalkki.png
+/Launcher etusivu*.html

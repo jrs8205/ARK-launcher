@@ -3,18 +3,20 @@ package org.arkikeskus.launcher.feature.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AirplanemodeActive
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.DataSaverOn
+import androidx.compose.material.icons.filled.DoNotDisturbOn
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.VpnLock
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,7 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,10 +44,12 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+private val LegibilityShadow = Shadow(color = Color(0x99000000), offset = Offset(0f, 1f), blurRadius = 4f)
+
 /**
- * The two-row status square (top-right): time + flags + battery% on row 1; short date,
- * Wi-Fi (bars + band), mobile (bars + generation, hidden in airplane mode) and a battery glyph
- * on row 2. Battery and signal colors are dynamic (see LauncherColors).
+ * Full-width two-row status bar (matches the design): time + active system icons + battery% on
+ * row 1; short date + Wi-Fi (bars + band), mobile (bars + generation) and battery glyph on row 2.
+ * Left and right clusters are split with a centre gap that clears the camera punch-hole.
  */
 @Composable
 fun StatusBlock(
@@ -73,13 +80,30 @@ private fun StatusBlockContent(
 
     val batteryColor = launcherColors.batteryColor(state.battery.percent)
 
-    Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-        shape = RoundedCornerShape(16.dp),
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
     ) {
+        // Left: time + date
+        Column {
+            Text(
+                text = now.format(timeFormatter),
+                color = Color.White,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = now.format(dateFormatter),
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 12.sp,
+            )
+        }
+
+        // Centre gap that clears the camera hole.
+        androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+
+        // Right: indicators (two rows)
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -87,30 +111,18 @@ private fun StatusBlockContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(
-                    text = now.format(timeFormatter),
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
                 FlagIcons(state.flags)
                 Text(
                     text = "${state.battery.percent} %",
                     color = batteryColor,
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
-
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(
-                    text = now.format(dateFormatter),
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 11.sp,
-                )
                 if (state.wifi.connected) {
                     SignalCluster(
                         level = state.wifi.level,
@@ -139,7 +151,12 @@ private fun SignalCluster(level: Int, color: Color, label: String?) {
     ) {
         SignalBars(level = level, activeColor = color)
         if (label != null) {
-            Text(text = label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }
@@ -147,19 +164,35 @@ private fun SignalCluster(level: Int, color: Color, label: String?) {
 @Composable
 private fun FlagIcons(flags: SystemFlags) {
     val tint = Color.White
-    val iconModifier = Modifier.size(13.dp)
-    if (flags.airplane) {
-        Icon(Icons.Filled.AirplanemodeActive, contentDescription = null, tint = tint, modifier = iconModifier)
-    }
-    if (flags.silent) {
-        Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = tint, modifier = iconModifier)
-    }
-    if (flags.bluetooth) {
-        Icon(Icons.Filled.Bluetooth, contentDescription = null, tint = tint, modifier = iconModifier)
-    }
-    if (flags.alarm) {
-        Icon(Icons.Filled.Alarm, contentDescription = null, tint = tint, modifier = iconModifier)
-    }
+    val m = Modifier.size(14.dp)
+    if (flags.airplane) Icon(Icons.Filled.AirplanemodeActive, null, m, tint)
+    if (flags.silent) Icon(Icons.Filled.NotificationsOff, null, m, tint)
+    if (flags.vibrate) Icon(Icons.Filled.Vibration, null, m, tint)
+    if (flags.dnd) Icon(Icons.Filled.DoNotDisturbOn, null, m, tint)
+    if (flags.location) Icon(Icons.Filled.LocationOn, null, m, tint)
+    if (flags.dataSaver) Icon(Icons.Filled.DataSaverOn, null, m, tint)
+    if (flags.vpn) Icon(Icons.Filled.VpnLock, null, m, tint)
+    if (flags.nfc) Icon(Icons.Filled.Nfc, null, m, tint)
+    if (flags.bluetooth) Icon(Icons.Filled.Bluetooth, null, m, tint)
+    if (flags.alarm) Icon(Icons.Filled.Alarm, null, m, tint)
+}
+
+@Composable
+private fun Text(
+    text: String,
+    color: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    fontWeight: FontWeight = FontWeight.Normal,
+) {
+    androidx.compose.material3.Text(
+        text = text,
+        style = TextStyle(
+            color = color,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            shadow = LegibilityShadow,
+        ),
+    )
 }
 
 private fun bandLabel(band: WifiBand): String? = when (band) {
