@@ -1,8 +1,10 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,9 +12,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -24,7 +28,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -59,6 +68,7 @@ fun AppDrawerScreen(
             }
         },
         onAppLongClick = { selectedApp = it },
+        onPullDownToClose = onClose,
         modifier = modifier,
     )
 
@@ -111,15 +121,41 @@ private fun AppDrawerContent(
     onQueryChange: (String) -> Unit,
     onAppClick: (AppItem) -> Unit,
     onAppLongClick: (AppItem) -> Unit,
+    onPullDownToClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Pull-to-dismiss: when the grid is at the top and the user keeps dragging down, the leftover
+    // (over-scroll) reaches onPostScroll as a positive y; past a threshold we close the drawer.
+    val pullConnection = remember(onPullDownToClose) {
+        object : NestedScrollConnection {
+            private var pulled = 0f
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < 0f) pulled = 0f
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (available.y > 0f) {
+                    pulled += available.y
+                    if (pulled > 160f) {
+                        pulled = 0f
+                        onPullDownToClose()
+                    }
+                    return available
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
     Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .padding(horizontal = 12.dp),
+                .nestedScroll(pullConnection),
         ) {
+            DragHandle()
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
@@ -127,12 +163,14 @@ private fun AppDrawerContent(
                 placeholder = { Text(stringResource(R.string.app_drawer_search_hint)) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             )
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 contentPadding = PaddingValues(vertical = 8.dp),
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
             ) {
                 items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
                     AppIcon(
@@ -149,5 +187,25 @@ private fun AppDrawerContent(
                 }
             }
         }
+    }
+}
+
+/** Visual pull-down affordance: a small pill below the status bar. */
+@Composable
+private fun DragHandle() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 36.dp, height = 4.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(2.dp),
+                ),
+        )
     }
 }
