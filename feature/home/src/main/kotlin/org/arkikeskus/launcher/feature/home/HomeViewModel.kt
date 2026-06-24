@@ -1,15 +1,20 @@
 package org.arkikeskus.launcher.feature.home
 
+import android.content.Context
 import android.util.Log
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -17,6 +22,7 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.ui.AppShortcuts
 import javax.inject.Inject
 
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
@@ -44,6 +50,19 @@ data class PlacedFolder(
     override val cellY: Int,
 ) : HomeEntry
 
+/** A pinned deep shortcut placed at a free cell ([rowId] is the home_items row, used to move/remove). */
+data class PlacedShortcut(
+    val rowId: Long,
+    val packageName: String,
+    val shortcutId: String,
+    val userSerial: Long,
+    val label: String,
+    val icon: ImageBitmap?,
+    override val page: Int,
+    override val cellX: Int,
+    override val cellY: Int,
+) : HomeEntry
+
 data class HomeUiState(
     val settings: LauncherSettings = LauncherSettings(),
     val dockApps: List<AppItem> = emptyList(),
@@ -54,6 +73,7 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val appRepository: AppRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
@@ -61,6 +81,9 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     val rows: Int = HomeLayoutRepository.ROWS
+
+    /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial. */
+    private val shortcutCache = mutableMapOf<String, AppShortcuts.Resolved>()
 
     val uiState: StateFlow<HomeUiState> = combine(
         settingsRepository.settings,
@@ -75,14 +98,42 @@ class HomeViewModel @Inject constructor(
         val childrenByFolder = homeItems
             .filter { it.containerId != HomeItemEntity.HOME }
             .groupBy { it.containerId }
+        // Resolve any not-yet-cached pinned shortcuts (label + icon) off the main thread.
+        for (row in homeItems) {
+            if (row.containerId == HomeItemEntity.HOME && row.isShortcut) {
+                val k = "${row.packageName}/${row.shortcutId}/${row.userSerial}"
+                if (!shortcutCache.containsKey(k)) {
+                    withContext(Dispatchers.IO) {
+                        AppShortcuts.resolve(context, row.packageName, row.shortcutId!!, row.userSerial)
+                    }?.let { shortcutCache[k] = it }
+                }
+            }
+        }
         val entries = homeItems
             .filter { it.containerId == HomeItemEntity.HOME }
             .mapNotNull { row ->
-                if (row.isFolder) {
-                    val folderApps = childrenByFolder[row.id].orEmpty().mapNotNull { byKey[it.key] }
-                    PlacedFolder(row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY)
-                } else {
-                    byKey[row.key]?.let { PlacedApp(it, row.page, row.cellX, row.cellY) }
+                when {
+                    row.isFolder -> {
+                        val folderApps = childrenByFolder[row.id].orEmpty().mapNotNull { byKey[it.key] }
+                        PlacedFolder(row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY)
+                    }
+                    row.isShortcut -> {
+                        val k = "${row.packageName}/${row.shortcutId}/${row.userSerial}"
+                        shortcutCache[k]?.let { r ->
+                            PlacedShortcut(
+                                rowId = row.id,
+                                packageName = row.packageName,
+                                shortcutId = row.shortcutId!!,
+                                userSerial = row.userSerial,
+                                label = r.label,
+                                icon = r.icon,
+                                page = row.page,
+                                cellX = row.cellX,
+                                cellY = row.cellY,
+                            )
+                        }
+                    }
+                    else -> byKey[row.key]?.let { PlacedApp(it, row.page, row.cellX, row.cellY) }
                 }
             }
         val maxPage = entries.maxOfOrNull { it.page } ?: 0
@@ -105,6 +156,24 @@ class HomeViewModel @Inject constructor(
     fun launch(appItem: AppItem) {
         appRepository.launch(appItem).onFailure {
             Log.w("HomeViewModel", "Failed to launch ${appItem.key}", it)
+        }
+    }
+
+    /** Launches a pinned deep shortcut placed on the home screen. */
+    fun launchShortcut(shortcut: PlacedShortcut) =
+        AppShortcuts.startById(context, shortcut.packageName, shortcut.shortcutId, shortcut.userSerial)
+
+    /** Stores a pinned shortcut on home (the system-level pin is done by the caller, which has a
+     *  Context). Idempotent — the repository skips one already present. */
+    fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
+        val columns = settingsRepository.settings.first().homeColumns
+        homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, columns)
+    }
+
+    /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
+    fun removeShortcut(rowId: Long) = viewModelScope.launch {
+        homeLayoutRepository.removeShortcut(rowId)?.let { remaining ->
+            AppShortcuts.setPinned(context, remaining.packageName, remaining.userSerial, remaining.shortcutIds)
         }
     }
 

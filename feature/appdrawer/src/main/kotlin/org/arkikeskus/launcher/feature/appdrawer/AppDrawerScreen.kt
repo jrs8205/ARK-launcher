@@ -55,6 +55,7 @@ import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
+import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.PopupAction
@@ -145,6 +146,10 @@ fun AppDrawerScreen(
                 PopupAction(stringResource(R.string.uninstall)) { AppActions.uninstall(context, app) },
             ),
             onDismiss = { menuTarget = null },
+            onPinShortcut = { item ->
+                AppShortcuts.pin(context, item)
+                viewModel.addPinnedShortcut(item.packageName, item.id, item.userSerial)
+            },
         )
     }
 }

@@ -10,6 +10,9 @@ import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** The shortcut ids still pinned for a (package, user) after a removal — used to re-pin the set. */
+data class RemainingPins(val packageName: String, val userSerial: Long, val shortcutIds: List<String>)
+
 /**
  * Persists the home layout (Room): app shortcuts and folders placed at free cells, and the apps
  * inside each folder. Top-level items live in the [HOME] container; a folder's children live in the
@@ -60,13 +63,47 @@ class HomeLayoutRepository @Inject constructor(
         dao.deleteByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
     }
 
-    /** Moves/swaps a folder to a target home cell (folder relocation on the home grid). */
+    /** Moves/swaps a folder (or any home row, by id) to a target home cell. */
     suspend fun moveFolder(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
         db.withTransaction {
             val source = dao.getById(folderId) ?: return@withTransaction false
             moveOrSwap(source, page, cellX, cellY)
             true
         }
+
+    /** Pins a deep shortcut at the first free home cell (no-op if it's already on home). */
+    suspend fun addShortcut(packageName: String, shortcutId: String, userSerial: Long, columns: Int) {
+        db.withTransaction {
+            val present = dao.getContainer(HOME).any {
+                it.shortcutId == shortcutId && it.packageName == packageName && it.userSerial == userSerial
+            }
+            if (present) return@withTransaction
+            val (page, x, y) = firstFreeCell(dao.getContainer(HOME), columns)
+            dao.insert(
+                HomeItemEntity(
+                    containerId = HOME,
+                    packageName = packageName,
+                    userSerial = userSerial,
+                    shortcutId = shortcutId,
+                    page = page,
+                    cellX = x,
+                    cellY = y,
+                ),
+            )
+        }
+    }
+
+    /** Removes a pinned-shortcut row; returns the ids still pinned for its (package, user) so the
+     *  caller can re-pin the remaining set in the system (pinShortcuts replaces the whole set). */
+    suspend fun removeShortcut(rowId: Long): RemainingPins? = db.withTransaction {
+        val row = dao.getById(rowId) ?: return@withTransaction null
+        if (!row.isShortcut) return@withTransaction null
+        dao.deleteById(rowId)
+        val remaining = dao.getContainer(HOME)
+            .filter { it.shortcutId != null && it.packageName == row.packageName && it.userSerial == row.userSerial }
+            .mapNotNull { it.shortcutId }
+        RemainingPins(row.packageName, row.userSerial, remaining)
+    }
 
     /**
      * Repacks the top-level home items (apps and folders) into a [columns]-wide grid, preserving

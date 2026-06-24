@@ -12,6 +12,8 @@ import androidx.room.PrimaryKey
  *    Its [id] is the container id its children point at.
  *  - **App inside a folder**: [containerId] = the folder's id; [page]/[cellX]/[cellY] are the in-folder
  *    order rather than a home cell.
+ *  - **Pinned deep shortcut on home**: [containerId] = [HOME], [shortcutId] != null, [packageName] is
+ *    the publishing app, at a home cell. Launched via LauncherApps.startShortcut.
  *
  * The unique index on (containerId, page, cellX, cellY) enforces "one item per cell" *within each
  * container* (the home grid and each folder are independent cell spaces) — see [HomeLayoutRepository].
@@ -27,6 +29,8 @@ data class HomeItemEntity(
     val packageName: String = "",
     val className: String = "",
     val userSerial: Long = 0,
+    /** Non-null → this row is a pinned deep shortcut published by [packageName]. */
+    val shortcutId: String? = null,
     val page: Int,
     val cellX: Int,
     val cellY: Int,
@@ -35,6 +39,8 @@ data class HomeItemEntity(
     val key: String get() = "$packageName/$className/$userSerial"
 
     val isFolder: Boolean get() = folderName != null
+
+    val isShortcut: Boolean get() = shortcutId != null
 
     companion object {
         /** [containerId] sentinel meaning "placed directly on the home screen". */

@@ -110,4 +110,10 @@ class AppDrawerViewModel @Inject constructor(
     }
 
     fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
+
+    /** Stores a pinned shortcut on home (system-level pin done by the caller, which has a Context). */
+    fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
+        val columns = settingsRepository.settings.first().homeColumns
+        homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, columns)
+    }
 }

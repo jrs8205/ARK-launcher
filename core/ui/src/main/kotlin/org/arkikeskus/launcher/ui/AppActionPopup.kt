@@ -1,7 +1,9 @@
 package org.arkikeskus.launcher.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -57,6 +59,7 @@ fun AppActionPopup(
     preferAbove: Boolean,
     actions: List<PopupAction>,
     onDismiss: () -> Unit,
+    onPinShortcut: ((AppShortcuts.Item) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -107,10 +110,19 @@ fun AppActionPopup(
                         .padding(vertical = 8.dp),
                 ) {
                     shortcuts.forEach { shortcut ->
-                        PopupRow(shortcut.label) {
-                            AppShortcuts.start(context, shortcut)
-                            onDismiss()
-                        }
+                        ShortcutPopupRow(
+                            text = shortcut.label,
+                            onClick = {
+                                AppShortcuts.start(context, shortcut)
+                                onDismiss()
+                            },
+                            onLongClick = onPinShortcut?.let {
+                                {
+                                    it(shortcut)
+                                    onDismiss()
+                                }
+                            },
+                        )
                     }
                     if (shortcuts.isNotEmpty()) {
                         HorizontalDivider(
@@ -129,6 +141,21 @@ fun AppActionPopup(
             if (preferAbove) Caret(pointingUp = false, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
         }
     }
+}
+
+/** A shortcut row: tap launches it; a long-press (when [onLongClick] != null) pins it to home. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ShortcutPopupRow(text: String, onClick: () -> Unit, onLongClick: (() -> Unit)?) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+    )
 }
 
 @Composable

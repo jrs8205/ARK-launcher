@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.home
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -10,14 +11,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,9 +47,13 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -89,6 +99,8 @@ fun Workspace(
     onMoveFolder: suspend (Long, Int, Int, Int) -> Boolean,
     onMoveToDock: (AppItem, Int) -> Unit,
     onOpenFolder: (PlacedFolder) -> Unit,
+    onLaunchShortcut: (PlacedShortcut) -> Unit,
+    onRemoveShortcut: (Long) -> Unit,
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onDrawerDrag: (Float) -> Unit,
@@ -126,6 +138,7 @@ fun Workspace(
 
     val placedApps = remember(entries) { entries.filterIsInstance<PlacedApp>() }
     val folders = remember(entries) { entries.filterIsInstance<PlacedFolder>() }
+    val placedShortcuts = remember(entries) { entries.filterIsInstance<PlacedShortcut>() }
 
     // Optimistic placements (key -> page/cellX/cellY) applied on top of [placedApps] until the
     // database flow catches up, so an icon doesn't flash at its old cell for a frame on drop.
@@ -170,8 +183,10 @@ fun Workspace(
             if (f.id == opt.first) f.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else f
         }
     }
-    // Apps + folders together — what's actually on the grid, used for rendering and occupant lookup.
-    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders) { effectiveApps + effectiveFolders }
+    // Apps + folders + pinned shortcuts together — what's actually on the grid (rendering + occupants).
+    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, placedShortcuts) {
+        effectiveApps + effectiveFolders + placedShortcuts
+    }
     // The drag gesture's pointerInput block outlives recomposition (its keys don't include the entry
     // list), so it must read the *latest* placements through this state, not a stale closure capture.
     val latestEntries by rememberUpdatedState(effectiveEntries)
@@ -654,6 +669,18 @@ fun Workspace(
                                 )
                             }
                             }
+                            is PlacedShortcut -> {
+                                ShortcutCell(
+                                    shortcut = entry,
+                                    cellW = cellW,
+                                    cellH = cellH,
+                                    columns = columns,
+                                    rows = rows,
+                                    showLabels = showLabels,
+                                    onLaunch = { onLaunchShortcut(entry) },
+                                    onRemove = { onRemoveShortcut(entry.rowId) },
+                                )
+                            }
                             }
                         }
                 }
@@ -699,6 +726,94 @@ fun Workspace(
                     badgeScale = badgeScale,
                 )
             }
+        }
+    }
+}
+
+/**
+ * A pinned deep shortcut on the home grid. Tap launches it; a still long-press opens a small menu to
+ * remove it. (Not draggable yet — relocation is a follow-up; for now it sits where first pinned.)
+ */
+@Composable
+private fun ShortcutCell(
+    shortcut: PlacedShortcut,
+    cellW: Float,
+    cellH: Float,
+    columns: Int,
+    rows: Int,
+    showLabels: Boolean,
+    onLaunch: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    var menuOpen by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .offset {
+                val sx = shortcut.cellX.coerceIn(0, columns - 1)
+                val sy = shortcut.cellY.coerceIn(0, rows - 1)
+                IntOffset((sx * cellW).roundToInt(), (sy * cellH).roundToInt())
+            }
+            .size(with(density) { cellW.toDp() }, with(density) { cellH.toDp() })
+            .pointerInput(shortcut.rowId) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    down.consume()
+                    val slop = viewConfiguration.touchSlop
+                    var tapped = false
+                    var swiped = false
+                    withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val c = ev.changes.firstOrNull { it.id == down.id }
+                            if (c == null) { swiped = true; return@withTimeoutOrNull }
+                            c.consume()
+                            if (!c.pressed) { tapped = true; return@withTimeoutOrNull }
+                            if ((c.position - down.position).getDistance() > slop) {
+                                swiped = true
+                                return@withTimeoutOrNull
+                            }
+                        }
+                    }
+                    if (tapped) {
+                        onLaunch()
+                    } else if (!swiped) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        menuOpen = true
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            val icon = shortcut.icon
+            if (icon != null) {
+                Image(bitmap = icon, contentDescription = shortcut.label, modifier = Modifier.size(52.dp))
+            } else {
+                Box(Modifier.size(52.dp))
+            }
+            if (showLabels) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = shortcut.label,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.home_remove)) },
+                onClick = {
+                    menuOpen = false
+                    onRemove()
+                },
+            )
         }
     }
 }

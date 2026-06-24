@@ -66,6 +66,7 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
+import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.PopupAction
@@ -136,6 +137,8 @@ fun HomeScreen(
                 onMoveFolder = viewModel::moveFolder,
                 onMoveToDock = { app, index -> viewModel.moveToDock(app, index) },
                 onOpenFolder = { openFolderId = it.id },
+                onLaunchShortcut = { viewModel.launchShortcut(it) },
+                onRemoveShortcut = { viewModel.removeShortcut(it) },
                 onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
                 onDrawerDrag = onDrawerDrag,
@@ -191,6 +194,10 @@ fun HomeScreen(
                 PopupAction(stringResource(R.string.uninstall)) { AppActions.uninstall(context, menu.app) },
             ),
             onDismiss = { menuTarget = null },
+            onPinShortcut = { item ->
+                AppShortcuts.pin(context, item)
+                viewModel.addPinnedShortcut(item.packageName, item.id, item.userSerial)
+            },
         )
     }
 
