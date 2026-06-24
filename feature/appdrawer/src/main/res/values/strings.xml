@@ -7,5 +7,6 @@
     <string name="remove_from_home">Poista kotinäytöltä</string>
     <string name="app_info">Sovelluksen tiedot</string>
     <string name="hide_app">Piilota sovellus</string>
+    <string name="rename">Muokkaa nimeä</string>
     <string name="uninstall">Poista sovellus</string>
 </resources>

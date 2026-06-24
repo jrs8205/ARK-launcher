@@ -60,6 +60,23 @@ class SettingsRepository @Inject constructor(
         p[Keys.HIDDEN_APPS] = current.joinToString("\n")
     }
 
+    /** User-chosen custom app labels (AppItem.key -> label), applied over the system label. */
+    val customLabels: Flow<Map<String, String>> = dataStore.data.map { p -> parseLabels(p[Keys.CUSTOM_LABELS]) }
+
+    /** Sets (or, for a blank [label], clears) the custom label for [key]. */
+    suspend fun setCustomLabel(key: String, label: String?) = edit { p ->
+        val current = parseLabels(p[Keys.CUSTOM_LABELS]).toMutableMap()
+        val trimmed = label?.trim().orEmpty()
+        if (trimmed.isEmpty()) current.remove(key) else current[key] = trimmed
+        p[Keys.CUSTOM_LABELS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+    }
+
+    private fun parseLabels(raw: String?): Map<String, String> =
+        raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
+            val i = line.indexOf('\t')
+            if (i <= 0) null else line.substring(0, i) to line.substring(i + 1)
+        }?.toMap() ?: emptyMap()
+
     suspend fun setDockEnabled(value: Boolean) = edit { it[Keys.DOCK_ENABLED] = value }
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value }
     suspend fun setHomeColumns(value: Int) = edit { it[Keys.HOME_COLUMNS] = value }
@@ -128,6 +145,7 @@ class SettingsRepository @Inject constructor(
         val SWIPE_DOWN_NOTIF = booleanPreferencesKey("swipe_down_notif")
         val DOCK_FAVORITES = stringPreferencesKey("dock_favorites")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
+        val CUSTOM_LABELS = stringPreferencesKey("custom_labels")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
         val SHOW_DRAWER_LABELS = booleanPreferencesKey("show_drawer_labels")

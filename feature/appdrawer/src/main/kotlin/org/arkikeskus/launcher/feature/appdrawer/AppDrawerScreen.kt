@@ -59,6 +59,7 @@ import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.PopupAction
+import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 
@@ -78,6 +79,7 @@ fun AppDrawerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var menuTarget by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    var renameTarget by remember { mutableStateOf<AppItem?>(null) }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
 
     // HOME pressed → dismiss the popup at once, so it doesn't linger after the drawer slides away.
@@ -132,6 +134,7 @@ fun AppDrawerScreen(
             preferAbove = preferAbove,
             actions = listOf(
                 PopupAction(stringResource(R.string.app_info)) { AppActions.openAppInfo(context, app) },
+                PopupAction(stringResource(R.string.rename)) { renameTarget = app },
                 PopupAction(
                     stringResource(if (inHome) R.string.remove_from_home else R.string.add_to_home),
                 ) {
@@ -150,6 +153,15 @@ fun AppDrawerScreen(
                 AppShortcuts.pin(context, item)
                 viewModel.addPinnedShortcut(item.packageName, item.id, item.userSerial)
             },
+        )
+    }
+
+    renameTarget?.let { app ->
+        RenameDialog(
+            initialName = app.label,
+            onConfirm = { viewModel.setCustomLabel(app.key, it) },
+            onReset = { viewModel.setCustomLabel(app.key, null) },
+            onDismiss = { renameTarget = null },
         )
     }
 }

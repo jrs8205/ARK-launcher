@@ -7,5 +7,6 @@
     <string name="remove_from_home">Remove from home</string>
     <string name="app_info">App info</string>
     <string name="hide_app">Hide app</string>
+    <string name="rename">Rename</string>
     <string name="uninstall">Uninstall</string>
 </resources>

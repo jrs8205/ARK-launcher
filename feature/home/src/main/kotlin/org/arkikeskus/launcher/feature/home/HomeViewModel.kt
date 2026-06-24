@@ -234,4 +234,8 @@ class HomeViewModel @Inject constructor(
 
     fun renameFolder(folderId: Long, name: String) =
         viewModelScope.launch { homeLayoutRepository.renameFolder(folderId, name) }
+
+    /** Sets a custom display name for an app (blank/null clears it back to the system label). */
+    fun setCustomLabel(key: String, label: String?) =
+        viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
 }

@@ -116,4 +116,8 @@ class AppDrawerViewModel @Inject constructor(
         val columns = settingsRepository.settings.first().homeColumns
         homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, columns)
     }
+
+    /** Sets a custom display name for an app (blank/null clears it back to the system label). */
+    fun setCustomLabel(key: String, label: String?) =
+        viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rename_title">Muokkaa nimeä</string>
+    <string name="rename_label">Nimi</string>
+    <string name="rename_save">Tallenna</string>
+    <string name="rename_cancel">Peruuta</string>
+    <string name="rename_reset">Palauta oletus</string>
+</resources>

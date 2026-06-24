@@ -74,6 +74,7 @@ import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.PopupAction
+import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
 import kotlin.math.roundToInt
@@ -99,6 +100,7 @@ fun HomeScreen(
     val context = LocalContext.current
     // The single Pixel-style long-press menu, anchored to the long-pressed icon.
     var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
+    var renameTarget by remember { mutableStateOf<AppItem?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val defaultFolderName = stringResource(R.string.folder_default_name)
 
@@ -219,6 +221,7 @@ fun HomeScreen(
             preferAbove = menu.source == DragSource.Dock,
             actions = listOf(
                 PopupAction(stringResource(R.string.app_info)) { AppActions.openAppInfo(context, menu.app) },
+                PopupAction(stringResource(R.string.rename)) { renameTarget = menu.app },
                 PopupAction(
                     stringResource(if (menu.source == DragSource.Dock) R.string.dock_remove else R.string.home_remove),
                 ) {
@@ -232,6 +235,15 @@ fun HomeScreen(
                 AppShortcuts.pin(context, item)
                 viewModel.addPinnedShortcut(item.packageName, item.id, item.userSerial)
             },
+        )
+    }
+
+    renameTarget?.let { app ->
+        RenameDialog(
+            initialName = app.label,
+            onConfirm = { viewModel.setCustomLabel(app.key, it) },
+            onReset = { viewModel.setCustomLabel(app.key, null) },
+            onDismiss = { renameTarget = null },
         )
     }
 
