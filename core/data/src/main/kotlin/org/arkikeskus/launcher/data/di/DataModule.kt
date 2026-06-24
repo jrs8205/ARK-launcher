@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.data.di
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import coil3.ImageLoader
 import dagger.Module
@@ -15,9 +18,16 @@ import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import javax.inject.Singleton
 
+private val Context.settingsDataStore by preferencesDataStore(name = "launcher_settings")
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
+
+    @Provides
+    @Singleton
+    fun provideSettingsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        context.settingsDataStore
 
     @Provides
     @Singleton

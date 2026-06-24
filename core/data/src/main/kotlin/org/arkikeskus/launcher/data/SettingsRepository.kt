@@ -1,27 +1,28 @@
 package org.arkikeskus.launcher.data
 
-import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.settingsDataStore by preferencesDataStore(name = "launcher_settings")
-
+/**
+ * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
+ * `preferencesDataStore` in DataModule) so the repository's merge logic can be unit-tested on the
+ * JVM with a temp-file store.
+ */
 @Singleton
 class SettingsRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    private val dataStore: DataStore<Preferences>,
 ) {
-    private val dataStore = context.settingsDataStore
 
     val settings: Flow<LauncherSettings> = dataStore.data.map { p ->
         LauncherSettings(
