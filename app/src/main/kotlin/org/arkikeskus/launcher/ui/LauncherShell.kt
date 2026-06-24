@@ -66,8 +66,10 @@ fun LauncherShell(
     val drawerOpen by remember { derivedStateOf { progress.value > 0.001f } }
     // While an app is being dragged out of the drawer, keep the drawer composed even after it has
     // slid shut — otherwise removing it from composition would cancel the in-progress drag gesture.
+    // Keyed on [moving] (not [isDragging]): a still long-press only lifts (menu), and must NOT fade
+    // the drawer — otherwise it flashes out and back when the menu opens.
     val draggingFromDrawer by remember {
-        derivedStateOf { dragController.isDragging && dragController.source == DragSource.Drawer }
+        derivedStateOf { dragController.moving && dragController.source == DragSource.Drawer }
     }
     val drawerMounted by remember { derivedStateOf { drawerOpen || draggingFromDrawer } }
     // Smoothly cross-fade the drawer out as a drag-out begins (instead of a hard cut), then reset.

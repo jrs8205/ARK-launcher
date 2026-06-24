@@ -27,3 +27,6 @@ Launcher3-*.tar.gz
 # Lawnchair reference (GPL — local only, do NOT commit/redistribute)
 lawnchair-*.zip
 lawnchair-src/
+
+# Design reference drops (local only — extracted/applied, not committed as binaries)
+Android launcherin teeman asetukset.zip
