@@ -49,6 +49,17 @@ class SettingsRepository @Inject constructor(
         p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
     }
 
+    /** App keys hidden from the app drawer (see AppItem.key). */
+    val hiddenApps: Flow<Set<String>> = dataStore.data.map { p ->
+        p[Keys.HIDDEN_APPS]?.split("\n")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
+    }
+
+    suspend fun setAppHidden(key: String, hidden: Boolean) = edit { p ->
+        val current = (p[Keys.HIDDEN_APPS]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()).toMutableSet()
+        if (hidden) current.add(key) else current.remove(key)
+        p[Keys.HIDDEN_APPS] = current.joinToString("\n")
+    }
+
     suspend fun setDockEnabled(value: Boolean) = edit { it[Keys.DOCK_ENABLED] = value }
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value }
     suspend fun setHomeColumns(value: Int) = edit { it[Keys.HOME_COLUMNS] = value }
@@ -116,6 +127,7 @@ class SettingsRepository @Inject constructor(
         val SWIPE_UP_DRAWER = booleanPreferencesKey("swipe_up_drawer")
         val SWIPE_DOWN_NOTIF = booleanPreferencesKey("swipe_down_notif")
         val DOCK_FAVORITES = stringPreferencesKey("dock_favorites")
+        val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
         val SHOW_DRAWER_LABELS = booleanPreferencesKey("show_drawer_labels")

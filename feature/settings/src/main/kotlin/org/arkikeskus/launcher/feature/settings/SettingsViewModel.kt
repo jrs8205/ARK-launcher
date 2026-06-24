@@ -5,11 +5,14 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 
@@ -17,6 +20,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
+    appRepository: AppRepository,
 ) : ViewModel() {
 
     val settings: StateFlow<LauncherSettings> = repository.settings.stateIn(
@@ -24,6 +28,18 @@ class SettingsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = LauncherSettings(),
     )
+
+    /** Apps currently hidden from the drawer, resolved to [AppItem]s for the manage list. */
+    val hiddenApps: StateFlow<List<AppItem>> =
+        combine(appRepository.apps, repository.hiddenApps) { apps, hidden ->
+            apps.filter { it.key in hidden }.sortedBy { it.label.lowercase() }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
+    fun unhideApp(key: String) = update { repository.setAppHidden(key, false) }
 
     fun setSwipeUp(value: Boolean) = update { repository.setSwipeUpForDrawer(value) }
     fun setSwipeDown(value: Boolean) = update { repository.setSwipeDownForNotifications(value) }

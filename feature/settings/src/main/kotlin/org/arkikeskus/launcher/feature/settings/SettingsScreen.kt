@@ -43,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 
 @Composable
@@ -51,6 +52,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val s by viewModel.settings.collectAsStateWithLifecycle()
+    val hiddenApps by viewModel.hiddenApps.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val previewIcon = rememberLauncherIconBitmap()
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -82,6 +84,7 @@ fun SettingsScreen(
             StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
             SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, viewModel::setShowDrawerLabels)
             SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
+            HiddenAppsRow(hidden = hiddenApps, onUnhide = { viewModel.unhideApp(it) })
 
             SectionTitle(stringResource(R.string.settings_home))
             StepperRow(stringResource(R.string.settings_columns), s.homeColumns, 3, 7, viewModel::setHomeColumns)
@@ -151,6 +154,32 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
     ) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/** Lists apps hidden from the drawer with a tap-to-unhide action. Hidden via the drawer's menu. */
+@Composable
+private fun HiddenAppsRow(hidden: List<AppItem>, onUnhide: (String) -> Unit) {
+    if (hidden.isEmpty()) return
+    Text(
+        text = stringResource(R.string.settings_hidden_apps),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp),
+    )
+    hidden.forEach { app ->
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(app.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = stringResource(R.string.settings_unhide),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.clickable { onUnhide(app.key) }.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
     }
 }
 

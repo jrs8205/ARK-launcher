@@ -121,6 +121,10 @@ fun AppDrawerScreen(
                     AppActions.openAppInfo(context, selected)
                     selectedApp = null
                 }
+                ActionRow(stringResource(R.string.hide_app)) {
+                    viewModel.hideApp(selected)
+                    selectedApp = null
+                }
                 ActionRow(stringResource(R.string.uninstall)) {
                     AppActions.uninstall(context, selected)
                     selectedApp = null

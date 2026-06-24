@@ -73,6 +73,9 @@ class AppDrawerViewModel @Inject constructor(
         )
     }.combine(notificationBadgeRepository.badges) { state, badges ->
         state.copy(badges = badges)
+    }.combine(settingsRepository.hiddenApps) { state, hidden ->
+        // Hide selected apps from the drawer (also excludes them from search results).
+        if (hidden.isEmpty()) state else state.copy(apps = state.apps.filterNot { it.key in hidden })
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -82,6 +85,8 @@ class AppDrawerViewModel @Inject constructor(
     fun onQueryChange(value: String) {
         query.value = value
     }
+
+    fun hideApp(appItem: AppItem) = viewModelScope.launch { settingsRepository.setAppHidden(appItem.key, true) }
 
     /** Launches [appItem]; returns whether it started, so the drawer only closes on success. */
     fun onAppClick(appItem: AppItem): Boolean =

@@ -20,4 +20,6 @@
     <string name="settings_notif_access_desc">Required to show notification dots</string>
     <string name="settings_notif_size">Notification dot size</string>
     <string name="settings_drawer_search">Show search</string>
+    <string name="settings_hidden_apps">Hidden apps</string>
+    <string name="settings_unhide">Show</string>
 </resources>
