@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +58,7 @@ import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -362,41 +362,53 @@ fun Workspace(
                         // drives the drawer (finger-following, via onDrawerDrag/Settle); swipe down
                         // opens notifications (one-shot).
                         .pointerInput(swipeUpForDrawer, swipeDownForNotifications) {
-                            val velocityTracker = VelocityTracker()
-                            var totalDy = 0f
-                            var drawerMode = false
-                            var notified = false
-                            detectVerticalDragGestures(
-                                onDragStart = {
-                                    velocityTracker.resetTracking()
-                                    totalDy = 0f
-                                    drawerMode = false
-                                    notified = false
-                                },
-                                onVerticalDrag = { change, dy ->
-                                    totalDy += dy
-                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                    if (!drawerMode && !notified) {
-                                        // detectVerticalDragGestures already cleared touch-slop, so the
-                                        // first upward callback IS a real swipe — engage immediately so
-                                        // the drawer "catches" a quick flick instead of needing a long,
-                                        // slow drag. Down still waits a touch to avoid stealing taps.
-                                        if (totalDy < 0f && swipeUpForDrawer) {
-                                            drawerMode = true
-                                        } else if (totalDy > 30f && swipeDownForNotifications) {
-                                            notified = true
-                                            onOpenNotifications()
-                                        }
+                            // Custom vertical-swipe detector (adapted from AOSP Launcher3's
+                            // SingleAxisSwipeDetector.shouldScrollStart): a swipe counts as vertical
+                            // only when |dy| clears the touch slop AND dominates |dx|. We consume the
+                            // gesture only once that's decided, so the HorizontalPager still gets real
+                            // sideways swipes but a flick up reliably "catches" and drives the drawer.
+                            val touchSlop = viewConfiguration.touchSlop
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val velocityTracker = VelocityTracker()
+                                velocityTracker.addPosition(down.uptimeMillis, down.position)
+                                var mode = 0 // 0 undecided, 1 drawer (up-drag)
+                                var lastY = down.position.y
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) {
+                                        if (mode == 1) onDrawerSettle(velocityTracker.calculateVelocity().y)
+                                        break
                                     }
-                                    if (drawerMode) onDrawerDrag(dy)
-                                },
-                                onDragEnd = {
-                                    if (drawerMode) onDrawerSettle(velocityTracker.calculateVelocity().y)
-                                },
-                                onDragCancel = {
-                                    if (drawerMode) onDrawerSettle(0f)
-                                },
-                            )
+                                    if (change.isConsumed && mode != 1) break // a child (icon) took over
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                    val dx = change.position.x - down.position.x
+                                    val dy = change.position.y - down.position.y
+                                    if (mode == 0) {
+                                        if (abs(dy) > touchSlop && abs(dy) > abs(dx)) {
+                                            if (dy < 0 && swipeUpForDrawer) {
+                                                mode = 1
+                                                change.consume()
+                                                onDrawerDrag(dy) // jump to follow the finger (incl. slop)
+                                                lastY = change.position.y
+                                            } else if (dy > 0 && swipeDownForNotifications) {
+                                                change.consume()
+                                                onOpenNotifications()
+                                                break // one-shot
+                                            } else {
+                                                break // wrong direction or disabled
+                                            }
+                                        } else if (abs(dx) > touchSlop && abs(dx) >= abs(dy)) {
+                                            break // horizontal → leave it to the pager
+                                        }
+                                    } else if (mode == 1) {
+                                        change.consume()
+                                        onDrawerDrag(change.position.y - lastY)
+                                        lastY = change.position.y
+                                    }
+                                }
+                            }
                         }
                         .pointerInput(Unit) {
                             // Still long-press on empty space opens settings. Times out a touch
