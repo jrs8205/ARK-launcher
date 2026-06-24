@@ -51,6 +51,7 @@ fun Dock(
     onAppClick: (AppItem) -> Unit,
     onReorder: (List<AppItem>) -> Unit,
     onMoveToHome: (AppItem, Int, Int, Int) -> Unit,
+    onDropOnBar: (AppItem, DropAction) -> Unit,
     modifier: Modifier = Modifier,
     onAppMenu: (AppItem) -> Unit = {},
 ) {
@@ -121,7 +122,13 @@ fun Dock(
                                 },
                                 onDragEnd = {
                                     val rootPos = dragController.rootPosition
+                                    val barAction = dragController.barActionAt(rootPos)
                                     when {
+                                        // Dropped on the top drop-target bar.
+                                        barAction != null -> {
+                                            onDropOnBar(app, barAction)
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
                                         // Cross-surface: dropped on the home grid.
                                         dragController.isOverGrid(rootPos) -> {
                                             val (page, cx, cy) = dragController.cellAt(rootPos)

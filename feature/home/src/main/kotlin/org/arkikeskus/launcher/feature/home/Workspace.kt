@@ -80,6 +80,7 @@ fun Workspace(
     onAppMenu: (AppItem) -> Unit,
     onMove: suspend (AppItem, Int, Int, Int) -> Boolean,
     onMoveToDock: (AppItem, Int) -> Unit,
+    onDropOnBar: (AppItem, DropAction) -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenNotifications: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -190,9 +191,15 @@ fun Workspace(
                             // Placeholder cell: our own in-home drag uses [targetCell]; a dock→home
                             // drag (driven by the shared controller) computes it from the finger.
                             val tc: IntOffset? = when {
-                                // Our own home drag: hide the cell hint while hovering the dock.
-                                dragging != null ->
-                                    if (dragController.isOverDock(dragController.rootPosition)) null else targetCell
+                                // Our own home drag: hide the cell hint while hovering the dock or bar.
+                                dragging != null -> {
+                                    val p = dragController.rootPosition
+                                    if (dragController.isOverDock(p) || dragController.barActionAt(p) != null) {
+                                        null
+                                    } else {
+                                        targetCell
+                                    }
+                                }
                                 dragController.isDragging &&
                                     dragController.source == DragSource.Dock &&
                                     dragController.isOverGrid(dragController.rootPosition) -> {
@@ -381,8 +388,20 @@ fun Workspace(
                                             val d = dragging
                                             if (d != null && completed) {
                                                 val rootPos = dragController.gridBounds.topLeft + dragPos
+                                                val barAction = dragController.barActionAt(rootPos)
                                                 when {
                                                     dragDistance < moveThresholdPx -> onAppMenu(d.app)
+
+                                                    // Dropped on the top drop-target bar.
+                                                    barAction != null -> {
+                                                        if (barAction == DropAction.Remove) {
+                                                            removedKeys = removedKeys + d.app.key
+                                                        }
+                                                        onDropOnBar(d.app, barAction)
+                                                        haptics.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress,
+                                                        )
+                                                    }
 
                                                     // Cross-surface: dropped on the dock.
                                                     dragController.isOverDock(rootPos) -> {

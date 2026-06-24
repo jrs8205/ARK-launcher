@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.home
 
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -91,6 +92,7 @@ fun HomeScreen(
                 onAppMenu = { selectedHomeApp = it },
                 onMove = viewModel::moveItem,
                 onMoveToDock = { app, index -> viewModel.moveToDock(app, index) },
+                onDropOnBar = { app, action -> handleBarDrop(context, viewModel, dragController, app, action) },
                 onOpenDrawer = onOpenDrawer,
                 onOpenNotifications = { NotificationShade.expand(context) },
                 onOpenSettings = onOpenSettings,
@@ -110,6 +112,7 @@ fun HomeScreen(
                     onAppClick = viewModel::launch,
                     onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY) },
+                    onDropOnBar = { app, action -> handleBarDrop(context, viewModel, dragController, app, action) },
                     onAppMenu = { selectedDockApp = it },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -117,6 +120,18 @@ fun HomeScreen(
                         .padding(horizontal = 14.dp, vertical = 14.dp),
                 )
             }
+        }
+
+        // Drop-target bar at the top while dragging (remove / app info / uninstall zones).
+        if (dragController.isDragging) {
+            DragDropBar(
+                controller = dragController,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 12.dp, end = 12.dp),
+            )
         }
 
         // Single floating icon for any in-progress drag, drawn above both surfaces so it can travel
@@ -217,6 +232,22 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** Runs a drop-target-bar action against [app], targeting the surface it was dragged from. */
+private fun handleBarDrop(
+    context: Context,
+    viewModel: HomeViewModel,
+    controller: HomeDragController,
+    app: AppItem,
+    action: DropAction,
+) {
+    when (action) {
+        DropAction.Remove ->
+            if (controller.source == DragSource.Dock) viewModel.removeFromDock(app) else viewModel.removeFromHome(app)
+        DropAction.Info -> AppActions.openAppInfo(context, app)
+        DropAction.Uninstall -> AppActions.uninstall(context, app)
     }
 }
 
