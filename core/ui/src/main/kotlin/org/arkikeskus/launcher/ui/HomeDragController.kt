@@ -41,6 +41,11 @@ class HomeDragController {
     var gridBounds by mutableStateOf(Rect.Zero)
     var dockBounds by mutableStateOf(Rect.Zero)
 
+    // The top "remove" drop zone (published by the overlay). [localDragging] is set while a removable
+    // local drag (a pinned shortcut) is moving, so the same remove zone can show for it too.
+    var removeBounds by mutableStateOf(Rect.Zero)
+    var localDragging by mutableStateOf(false)
+
     // Home-grid metrics for cell math on a dock→home / drawer→home drop (published by Workspace).
     var columns by mutableStateOf(1)
     var rows by mutableStateOf(1)
@@ -77,6 +82,8 @@ class HomeDragController {
     fun isOverDock(p: Offset): Boolean = !dockBounds.isEmpty && dockBounds.contains(p)
 
     fun isOverGrid(p: Offset): Boolean = !gridBounds.isEmpty && gridBounds.contains(p)
+
+    fun isOverRemove(p: Offset): Boolean = !removeBounds.isEmpty && removeBounds.contains(p)
 
     /** Home cell (page, cellX, cellY) under [p] (root coords) — for a dock/drawer→home drop. */
     fun cellAt(p: Offset): Triple<Int, Int, Int> {

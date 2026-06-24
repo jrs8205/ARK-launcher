@@ -2,11 +2,17 @@
 <resources>
     <string name="home_open_drawer_hint">Pyyhkäise ylös avataksesi sovellukset</string>
     <string name="home_remove">Poista kotinäytöltä</string>
+    <string name="drag_remove">Poista</string>
     <string name="home_add">Lisää kotinäytölle</string>
     <string name="home_add_to_dock">Lisää dockkiin</string>
     <string name="dock_remove">Poista dockista</string>
     <string name="app_info">Sovelluksen tiedot</string>
     <string name="uninstall">Poista sovellus</string>
+    <string name="rename">Muokkaa nimeä</string>
+    <string name="rename_title">Muokkaa nimeä</string>
+    <string name="rename_reset">Palauta oletus</string>
+    <string name="cancel">Peruuta</string>
+    <string name="save">Tallenna</string>
     <string name="folder_default_name">Kansio</string>
     <string name="folder_name_label">Kansion nimi</string>
     <string name="folder_long_press_hint">Paina sovellusta pitkään poistaaksesi sen kansiosta</string>

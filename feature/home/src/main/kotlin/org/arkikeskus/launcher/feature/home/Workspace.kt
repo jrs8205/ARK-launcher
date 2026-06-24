@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,7 +45,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -98,6 +95,7 @@ fun Workspace(
     onMove: suspend (AppItem, Int, Int, Int) -> Boolean,
     onMoveFolder: suspend (Long, Int, Int, Int) -> Boolean,
     onMoveToDock: (AppItem, Int) -> Unit,
+    onRemoveFromHome: (AppItem) -> Unit,
     onOpenFolder: (PlacedFolder) -> Unit,
     onLaunchShortcut: (PlacedShortcut) -> Unit,
     onRemoveShortcut: (Long) -> Unit,
@@ -208,8 +206,10 @@ fun Workspace(
     fun Modifier.localEntryDrag(
         entry: HomeEntry,
         rowId: Long,
+        removable: Boolean,
         onTap: () -> Unit,
         onStillPress: () -> Unit,
+        onRemove: () -> Unit,
     ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, pageCount) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
@@ -238,7 +238,12 @@ fun Workspace(
                 val delta = change.positionChange()
                 change.consume()
                 localDragPos += delta
-                if (!localMoving) localMoving = true
+                if (!localMoving) {
+                    localMoving = true
+                    if (removable) dragController.localDragging = true
+                }
+                // Publish root coords so the remove zone can highlight + hit-test this local drag.
+                if (removable) dragController.update(dragController.gridBounds.topLeft + localDragPos)
                 if (!pagerState.isScrollInProgress) {
                     if (localDragPos.x > gridSize.width - edgePx && pagerState.currentPage < pageCount) {
                         scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
@@ -252,7 +257,11 @@ fun Workspace(
                 if (nc != targetCell) targetCell = nc
             }
             targetCell = null
-            if (completed && localMoving) {
+            val rootPos = dragController.gridBounds.topLeft + localDragPos
+            if (completed && localMoving && removable && dragController.isOverRemove(rootPos)) {
+                onRemove()
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            } else if (completed && localMoving) {
                 val tx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
                 val ty = (localDragPos.y / cellH).toInt().coerceIn(0, rows - 1)
                 val targetPage = pagerState.currentPage
@@ -266,6 +275,7 @@ fun Workspace(
             } else if (completed) {
                 onStillPress()
             }
+            dragController.localDragging = false
             draggingLocal = null
             localMoving = false
         }
@@ -437,8 +447,10 @@ fun Workspace(
                                         .localEntryDrag(
                                             entry = entry,
                                             rowId = entry.id,
+                                            removable = false,
                                             onTap = { onOpenFolder(entry) },
                                             onStillPress = { onOpenFolder(entry) },
+                                            onRemove = {},
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -595,6 +607,12 @@ fun Workspace(
                                             } else if (d != null && completed && dragController.moving) {
                                                 val rootPos = dragController.gridBounds.topLeft + dragPos
                                                 when {
+                                                    // Dropped on the top "remove" zone → take it off home.
+                                                    dragController.isOverRemove(rootPos) -> {
+                                                        removedKeys = removedKeys + d.app.key
+                                                        onRemoveFromHome(d.app)
+                                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    }
                                                     // Cross-surface: dropped on the dock.
                                                     dragController.isOverDock(rootPos) -> {
                                                         if (dragController.dockHasSpace) {
@@ -667,7 +685,6 @@ fun Workspace(
                             }
                             }
                             is PlacedShortcut -> {
-                                var menuOpen by remember(entry.rowId) { mutableStateOf(false) }
                                 Box(
                                     modifier = Modifier
                                         .offset {
@@ -679,24 +696,19 @@ fun Workspace(
                                         .graphicsLayer {
                                             alpha = if ((draggingLocal as? PlacedShortcut)?.rowId == entry.rowId && localMoving) 0f else 1f
                                         }
+                                        // Removable: drag up to the "Poista" zone to take it off home
+                                        // (no in-place menu — the remove zone replaces it).
                                         .localEntryDrag(
                                             entry = entry,
                                             rowId = entry.rowId,
+                                            removable = true,
                                             onTap = { onLaunchShortcut(entry) },
-                                            onStillPress = { menuOpen = true },
+                                            onStillPress = {},
+                                            onRemove = { onRemoveShortcut(entry.rowId) },
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     ShortcutIconContent(entry, showLabels)
-                                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(R.string.home_remove)) },
-                                            onClick = {
-                                                menuOpen = false
-                                                onRemoveShortcut(entry.rowId)
-                                            },
-                                        )
-                                    }
                                 }
                             }
                             }

@@ -2,11 +2,17 @@
 <resources>
     <string name="home_open_drawer_hint">Swipe up to open apps</string>
     <string name="home_remove">Remove from home</string>
+    <string name="drag_remove">Remove</string>
     <string name="home_add">Add to home</string>
     <string name="home_add_to_dock">Add to dock</string>
     <string name="dock_remove">Remove from dock</string>
     <string name="app_info">App info</string>
     <string name="uninstall">Uninstall</string>
+    <string name="rename">Rename</string>
+    <string name="rename_title">Rename</string>
+    <string name="rename_reset">Reset to default</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
     <string name="folder_default_name">Folder</string>
     <string name="folder_name_label">Folder name</string>
     <string name="folder_long_press_hint">Long-press an app to take it out of the folder</string>

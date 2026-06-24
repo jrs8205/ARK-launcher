@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,8 +45,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -136,6 +140,7 @@ fun HomeScreen(
                 onMove = viewModel::moveItem,
                 onMoveFolder = viewModel::moveFolder,
                 onMoveToDock = { app, index -> viewModel.moveToDock(app, index) },
+                onRemoveFromHome = { viewModel.removeFromHome(it) },
                 onOpenFolder = { openFolderId = it.id },
                 onLaunchShortcut = { viewModel.launchShortcut(it) },
                 onRemoveShortcut = { viewModel.removeShortcut(it) },
@@ -171,6 +176,35 @@ fun HomeScreen(
                         .navigationBarsPadding()
                         .padding(horizontal = 14.dp, vertical = 14.dp),
                 )
+            }
+        }
+
+        // Drop-to-remove zone: a "Poista" pill at the top during any removable home drag (an app, or a
+        // pinned shortcut via [localDragging]); dropping an icon on it removes it from home. Turns red
+        // while the dragged icon is over it. Publishes its bounds for the drag's hit-test.
+        if ((dragController.moving && dragController.source == DragSource.Home) || dragController.localDragging) {
+            val overRemove = dragController.isOverRemove(dragController.rootPosition)
+            Surface(
+                color = if (overRemove) Color(0xFFD32F2F) else Color.Black.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 16.dp)
+                    .onGloballyPositioned { dragController.removeBounds = it.boundsInRoot() },
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("✕", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.drag_remove),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
             }
         }
         // The floating dragged icon is drawn by LauncherShell (above the workspace, dock and the app
