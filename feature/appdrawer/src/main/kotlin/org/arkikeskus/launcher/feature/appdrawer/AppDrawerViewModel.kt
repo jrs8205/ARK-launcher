@@ -103,5 +103,11 @@ class AppDrawerViewModel @Inject constructor(
         homeLayoutRepository.addToHome(appItem, columns)
     }
 
+    /** Drag-and-drop from the drawer onto a specific home cell (free cell, or first free if taken). */
+    fun addToHomeAt(appItem: AppItem, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
+        val columns = settingsRepository.settings.first().homeColumns
+        homeLayoutRepository.placeAt(appItem, page, cellX, cellY, columns)
+    }
+
     fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 }

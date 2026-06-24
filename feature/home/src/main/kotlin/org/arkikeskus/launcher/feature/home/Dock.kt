@@ -34,6 +34,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
@@ -72,7 +74,7 @@ fun Dock(
     val highlighted by remember {
         derivedStateOf {
             dragController.moving &&
-                dragController.source == DragSource.Home &&
+                (dragController.source == DragSource.Home || dragController.source == DragSource.Drawer) &&
                 dragController.dockHasSpace &&
                 dragController.isOverDock(dragController.rootPosition)
         }

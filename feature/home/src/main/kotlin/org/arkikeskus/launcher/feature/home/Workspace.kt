@@ -48,6 +48,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlin.math.roundToInt
@@ -210,7 +212,8 @@ fun Workspace(
                                     if (dragController.isOverDock(dragController.rootPosition)) null else targetCell
                                 }
                                 dragController.moving &&
-                                    dragController.source == DragSource.Dock &&
+                                    (dragController.source == DragSource.Dock ||
+                                        dragController.source == DragSource.Drawer) &&
                                     dragController.isOverGrid(dragController.rootPosition) -> {
                                     val (_, cx, cy) = dragController.cellAt(dragController.rootPosition)
                                     IntOffset(cx, cy)

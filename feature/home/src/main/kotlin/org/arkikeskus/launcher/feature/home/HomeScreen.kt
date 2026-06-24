@@ -66,7 +66,10 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
+import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.PopupAction
+import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
 import kotlin.math.roundToInt
 
@@ -83,19 +86,20 @@ fun HomeScreen(
     homeSignals: Flow<Unit> = emptyFlow(),
     onDrawerDrag: (Float) -> Unit = {},
     onDrawerSettle: (Float) -> Unit = {},
+    dragController: HomeDragController = rememberHomeDragController(),
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = uiState.settings
     val context = LocalContext.current
-    val density = LocalDensity.current
     // The single Pixel-style long-press menu, anchored to the long-pressed icon.
     var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val defaultFolderName = stringResource(R.string.folder_default_name)
 
-    // Shared drag state spanning the workspace and the dock (Launcher3-style drag layer/controller).
-    val dragController = rememberHomeDragController()
+    // Shared drag state spanning the workspace, dock and drawer (Launcher3-style drag layer/controller).
+    // Created by LauncherShell and passed in so the app drawer can drag onto home; falls back to a
+    // local one when HomeScreen is used standalone (previews/tests).
     SideEffect {
         dragController.dockItemCount = uiState.dockApps.size
         dragController.dockHasSpace = settings.dockEnabled && uiState.dockApps.size < settings.dockColumns
@@ -104,19 +108,13 @@ fun HomeScreen(
     LaunchedEffect(dragController.moving) {
         if (dragController.moving) menuTarget = null
     }
-    // The floating icon is positioned in root coords; subtract this Box's origin to place it locally.
-    var screenOrigin by remember { mutableStateOf(Offset.Zero) }
 
     // Notification badges (empty when disabled), and whether to render the count or a plain dot.
     val badges = if (settings.showNotificationDots) uiState.badges else emptyMap()
     val badgeShowCount = settings.notificationDotCount
     val badgeScale = settings.notificationDotScale
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .onGloballyPositioned { screenOrigin = it.positionInRoot() },
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Workspace(
                 pageCount = uiState.pageCount,
@@ -171,37 +169,8 @@ fun HomeScreen(
                 )
             }
         }
-
-        // Single floating icon for any in-progress drag, drawn above both surfaces so it can travel
-        // between them. Positioned by the finger's root coords (minus this Box's origin).
-        val dragged = dragController.draggedApp
-        if (dragged != null && dragController.moving) {
-            val sizeDp = 56.dp
-            val halfPx = with(density) { (sizeDp / 2).toPx() }
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            (dragController.rootPosition.x - screenOrigin.x - halfPx).roundToInt(),
-                            (dragController.rootPosition.y - screenOrigin.y - halfPx).roundToInt(),
-                        )
-                    }
-                    .size(sizeDp)
-                    .graphicsLayer {
-                        alpha = 0.92f
-                        scaleX = 1.1f
-                        scaleY = 1.1f
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                AppIcon(
-                    appItem = dragged,
-                    labelColor = Color.White,
-                    showLabel = false,
-                    iconSize = 52.dp,
-                )
-            }
-        }
+        // The floating dragged icon is drawn by LauncherShell (above the workspace, dock and the app
+        // drawer), so it can travel across all three surfaces.
     }
 
     val menu = menuTarget
