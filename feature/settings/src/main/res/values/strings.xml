@@ -23,4 +23,7 @@
     <string name="settings_hidden_apps">Piilota sovelluksia</string>
     <string name="settings_hidden_apps_desc">%d piilotettu</string>
     <string name="settings_unhide">Näytä</string>
+    <string name="settings_new_drawer_folder">Tee kansio sovellusvalikkoon</string>
+    <string name="settings_new_drawer_folder_desc">Luo tyhjä kansio, johon voit siirtää sovelluksia</string>
+    <string name="drawer_folder_default">Kansio</string>
 </resources>

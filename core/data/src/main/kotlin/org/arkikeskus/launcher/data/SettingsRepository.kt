@@ -14,6 +14,9 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** A folder shown in the app drawer: a stable [id], a [name], and the keys of its member apps. */
+data class DrawerFolder(val id: Long, val name: String, val appKeys: List<String>)
+
 /**
  * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
  * `preferencesDataStore` in DataModule) so the repository's merge logic can be unit-tested on the
@@ -76,6 +79,53 @@ class SettingsRepository @Inject constructor(
             val i = line.indexOf('\t')
             if (i <= 0) null else line.substring(0, i) to line.substring(i + 1)
         }?.toMap() ?: emptyMap()
+
+    // --- App-drawer folders ----------------------------------------------------------------------
+    // Serialized one folder per line, tab-separated fields: "id\tname\tkey1\tkey2...". App keys and
+    // folder names never contain a tab, so a plain split round-trips cleanly.
+
+    val drawerFolders: Flow<List<DrawerFolder>> = dataStore.data.map { p -> parseFolders(p[Keys.DRAWER_FOLDERS]) }
+
+    /** Creates an empty drawer folder, returns its new id. */
+    suspend fun createDrawerFolder(name: String): Long {
+        var newId = 1L
+        edit { p ->
+            val folders = parseFolders(p[Keys.DRAWER_FOLDERS])
+            newId = (folders.maxOfOrNull { it.id } ?: 0L) + 1L
+            p[Keys.DRAWER_FOLDERS] = serializeFolders(folders + DrawerFolder(newId, name, emptyList()))
+        }
+        return newId
+    }
+
+    suspend fun renameDrawerFolder(id: Long, name: String) = editFolders { folders ->
+        folders.map { if (it.id == id) it.copy(name = name) else it }
+    }
+
+    suspend fun deleteDrawerFolder(id: Long) = editFolders { folders -> folders.filterNot { it.id == id } }
+
+    suspend fun addAppsToDrawerFolder(id: Long, keys: List<String>) = editFolders { folders ->
+        folders.map { f ->
+            if (f.id == id) f.copy(appKeys = (f.appKeys + keys).distinct()) else f
+        }
+    }
+
+    suspend fun removeAppFromDrawerFolder(id: Long, key: String) = editFolders { folders ->
+        folders.map { f -> if (f.id == id) f.copy(appKeys = f.appKeys - key) else f }
+    }
+
+    private suspend fun editFolders(block: (List<DrawerFolder>) -> List<DrawerFolder>) = edit { p ->
+        p[Keys.DRAWER_FOLDERS] = serializeFolders(block(parseFolders(p[Keys.DRAWER_FOLDERS])))
+    }
+
+    private fun parseFolders(raw: String?): List<DrawerFolder> =
+        raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
+            val parts = line.split('\t')
+            val id = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+            DrawerFolder(id, parts.getOrNull(1).orEmpty(), parts.drop(2).filter { it.isNotEmpty() })
+        } ?: emptyList()
+
+    private fun serializeFolders(folders: List<DrawerFolder>): String =
+        folders.joinToString("\n") { f -> (listOf(f.id.toString(), f.name) + f.appKeys).joinToString("\t") }
 
     suspend fun setDockEnabled(value: Boolean) = edit { it[Keys.DOCK_ENABLED] = value }
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value }
@@ -146,6 +196,7 @@ class SettingsRepository @Inject constructor(
         val DOCK_FAVORITES = stringPreferencesKey("dock_favorites")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val CUSTOM_LABELS = stringPreferencesKey("custom_labels")
+        val DRAWER_FOLDERS = stringPreferencesKey("drawer_folders")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
         val SHOW_DRAWER_LABELS = booleanPreferencesKey("show_drawer_labels")

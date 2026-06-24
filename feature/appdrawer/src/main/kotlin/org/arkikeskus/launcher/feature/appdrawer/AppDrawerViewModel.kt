@@ -19,8 +19,12 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
 
+/** A drawer folder resolved to its member [apps] (for rendering). */
+data class DrawerFolderUi(val id: Long, val name: String, val apps: List<AppItem>)
+
 data class AppDrawerUiState(
     val apps: List<AppItem> = emptyList(),
+    val folders: List<DrawerFolderUi> = emptyList(),
     val query: String = "",
     val columns: Int = 4,
     val dockKeys: Set<String> = emptySet(),
@@ -76,6 +80,16 @@ class AppDrawerViewModel @Inject constructor(
     }.combine(settingsRepository.hiddenApps) { state, hidden ->
         // Hide selected apps from the drawer (also excludes them from search results).
         if (hidden.isEmpty()) state else state.copy(apps = state.apps.filterNot { it.key in hidden })
+    }.combine(settingsRepository.drawerFolders) { state, folders ->
+        // While searching (or with no folders) keep a flat list so folder members stay findable.
+        if (state.query.isNotBlank() || folders.isEmpty()) {
+            state
+        } else {
+            val byKey = state.apps.associateBy { it.key }
+            val folderUis = folders.map { f -> DrawerFolderUi(f.id, f.name, f.appKeys.mapNotNull { byKey[it] }) }
+            val inFolder = folders.flatMap { it.appKeys }.toSet()
+            state.copy(apps = state.apps.filterNot { it.key in inFolder }, folders = folderUis)
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -120,4 +134,17 @@ class AppDrawerViewModel @Inject constructor(
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */
     fun setCustomLabel(key: String, label: String?) =
         viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
+
+    // --- Drawer folders --------------------------------------------------------------------------
+    fun renameDrawerFolder(id: Long, name: String) =
+        viewModelScope.launch { settingsRepository.renameDrawerFolder(id, name) }
+
+    fun deleteDrawerFolder(id: Long) =
+        viewModelScope.launch { settingsRepository.deleteDrawerFolder(id) }
+
+    fun addAppsToDrawerFolder(id: Long, keys: List<String>) =
+        viewModelScope.launch { settingsRepository.addAppsToDrawerFolder(id, keys) }
+
+    fun removeAppFromDrawerFolder(id: Long, key: String) =
+        viewModelScope.launch { settingsRepository.removeAppFromDrawerFolder(id, key) }
 }

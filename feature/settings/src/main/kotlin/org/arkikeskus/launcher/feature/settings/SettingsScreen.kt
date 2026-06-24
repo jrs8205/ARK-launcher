@@ -164,6 +164,15 @@ fun SettingsScreen(
                     label = stringResource(R.string.settings_hidden_apps),
                     description = stringResource(R.string.settings_hidden_apps_desc, hiddenKeys.size),
                 ) { showHiddenManager = true }
+                val newFolderName = stringResource(R.string.drawer_folder_default)
+                val folderCreatedMsg = stringResource(R.string.settings_new_drawer_folder)
+                ActionRow(
+                    label = stringResource(R.string.settings_new_drawer_folder),
+                    description = stringResource(R.string.settings_new_drawer_folder_desc),
+                ) {
+                    viewModel.createDrawerFolder(newFolderName)
+                    android.widget.Toast.makeText(context, folderCreatedMsg, android.widget.Toast.LENGTH_SHORT).show()
+                }
 
                 SectionTitle(stringResource(R.string.settings_home))
                 StepperRow(stringResource(R.string.settings_columns), s.homeColumns, 3, 7, viewModel::setHomeColumns)

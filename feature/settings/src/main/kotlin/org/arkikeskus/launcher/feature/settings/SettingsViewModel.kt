@@ -40,6 +40,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setAppHidden(key: String, hidden: Boolean) = update { repository.setAppHidden(key, hidden) }
 
+    /** Creates a new empty folder in the app drawer (named [name]); it's filled from the drawer. */
+    fun createDrawerFolder(name: String) = update { repository.createDrawerFolder(name) }
+
     fun setSwipeUp(value: Boolean) = update { repository.setSwipeUpForDrawer(value) }
     fun setSwipeDown(value: Boolean) = update { repository.setSwipeDownForNotifications(value) }
     fun setDockEnabled(value: Boolean) = update { repository.setDockEnabled(value) }

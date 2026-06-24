@@ -9,4 +9,10 @@
     <string name="hide_app">Hide app</string>
     <string name="rename">Rename</string>
     <string name="uninstall">Uninstall</string>
+    <string name="folder_name_label">Folder name</string>
+    <string name="folder_add_apps">Add apps</string>
+    <string name="folder_delete">Delete folder</string>
+    <string name="folder_remove_hint">Long-press an app to remove it from the folder</string>
+    <string name="folder_add">Add</string>
+    <string name="folder_cancel">Cancel</string>
 </resources>
