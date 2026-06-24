@@ -26,6 +26,7 @@ data class AppDrawerUiState(
     val dockKeys: Set<String> = emptySet(),
     val homeKeys: Set<String> = emptySet(),
     val showLabels: Boolean = true,
+    val showSearch: Boolean = true,
     val badges: Map<String, Int> = emptyMap(),
     val showNotificationDots: Boolean = true,
     val notificationDotCount: Boolean = true,
@@ -65,6 +66,7 @@ class AppDrawerViewModel @Inject constructor(
                 .map { it.key }
                 .toSet(),
             showLabels = settings.showDrawerLabels,
+            showSearch = settings.showDrawerSearch,
             showNotificationDots = settings.showNotificationDots,
             notificationDotCount = settings.notificationDotCount,
             notificationDotScale = settings.notificationDotScale,

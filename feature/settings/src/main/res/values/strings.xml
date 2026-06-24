@@ -19,4 +19,5 @@
     <string name="settings_notif_access">Myönnä ilmoitusten käyttöoikeus</string>
     <string name="settings_notif_access_desc">Tarvitaan ilmoituspisteiden näyttämiseen</string>
     <string name="settings_notif_size">Ilmoituspisteen koko</string>
+    <string name="settings_drawer_search">Näytä haku</string>
 </resources>

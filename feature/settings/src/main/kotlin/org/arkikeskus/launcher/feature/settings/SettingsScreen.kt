@@ -81,6 +81,7 @@ fun SettingsScreen(
             SectionTitle(stringResource(R.string.settings_drawer))
             StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
             SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, viewModel::setShowDrawerLabels)
+            SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
 
             SectionTitle(stringResource(R.string.settings_home))
             StepperRow(stringResource(R.string.settings_columns), s.homeColumns, 3, 7, viewModel::setHomeColumns)
@@ -200,23 +201,32 @@ private fun rememberLauncherIconBitmap(): ImageBitmap? {
     }
 }
 
-/** Live preview of the dock at the chosen background opacity. */
+/** Live preview of the dock at the chosen background opacity, over a neutral backdrop so the dark
+ *  dock scrim stays visible on both light and dark themes. */
 @Composable
 private fun DockPreview(opacity: Float, icon: ImageBitmap?) {
-    Surface(
-        color = Color.Black.copy(alpha = opacity),
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 4.dp)
+            .background(Color(0xFFB9C3D4), RoundedCornerShape(22.dp))
+            .padding(8.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        Surface(
+            color = Color.Black.copy(alpha = opacity),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            repeat(4) {
-                if (icon != null) {
-                    Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(36.dp))
-                } else {
-                    Box(Modifier.size(36.dp).background(Color.White.copy(alpha = 0.6f), CircleShape))
+            Row(
+                modifier = Modifier.padding(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            ) {
+                repeat(4) {
+                    if (icon != null) {
+                        Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(36.dp))
+                    } else {
+                        Box(Modifier.size(36.dp).background(Color.White.copy(alpha = 0.6f), CircleShape))
+                    }
                 }
             }
         }

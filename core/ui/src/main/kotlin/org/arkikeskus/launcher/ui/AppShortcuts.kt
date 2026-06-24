@@ -20,8 +20,6 @@ object AppShortcuts {
         val label: String,
     )
 
-    private const val MAX = 4
-
     fun query(context: Context, appItem: AppItem): List<Item> {
         val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return emptyList()
         return runCatching {
@@ -44,7 +42,6 @@ object AppShortcuts {
                         Item(info.`package`, info.id, info.userHandle, label)
                     }
                 }
-                .take(MAX)
         }.getOrDefault(emptyList())
     }
 

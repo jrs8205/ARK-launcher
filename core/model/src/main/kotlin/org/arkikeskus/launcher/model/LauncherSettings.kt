@@ -6,6 +6,7 @@ data class LauncherSettings(
     val dockColumns: Int = 4,
     val homeColumns: Int = 4,
     val drawerColumns: Int = 4,
+    val showDrawerSearch: Boolean = true,
     val swipeUpForDrawer: Boolean = true,
     val swipeDownForNotifications: Boolean = true,
     val showDockLabels: Boolean = false,

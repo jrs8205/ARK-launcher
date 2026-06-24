@@ -64,6 +64,7 @@ fun AppDrawerScreen(
         badges = badges,
         badgeShowCount = uiState.notificationDotCount,
         badgeScale = uiState.notificationDotScale,
+        showSearch = uiState.showSearch,
         onQueryChange = viewModel::onQueryChange,
         onAppClick = { app ->
             if (app.packageName == context.packageName) {
@@ -146,6 +147,7 @@ private fun AppDrawerContent(
     badges: Map<String, Int>,
     badgeShowCount: Boolean,
     badgeScale: Float,
+    showSearch: Boolean,
     onQueryChange: (String) -> Unit,
     onAppClick: (AppItem) -> Unit,
     onAppLongClick: (AppItem) -> Unit,
@@ -185,15 +187,17 @@ private fun AppDrawerContent(
                 .nestedScroll(pullConnection),
         ) {
             DragHandle()
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.app_drawer_search_hint)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            )
+            if (showSearch) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    placeholder = { Text(stringResource(R.string.app_drawer_search_hint)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 contentPadding = PaddingValues(vertical = 8.dp),

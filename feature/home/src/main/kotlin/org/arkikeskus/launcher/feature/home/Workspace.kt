@@ -325,7 +325,10 @@ fun Workspace(
                                             dragController.moving
                                         ) 0f else 1f
                                     }
-                                    .pointerInput(placed.app.key, cellW, cellH, columns, rows, pageCount) {
+                                    .pointerInput(
+                                        placed.app.key, placed.page, placed.cellX, placed.cellY,
+                                        cellW, cellH, columns, rows, pageCount,
+                                    ) {
                                         awaitEachGesture {
                                             val down = awaitFirstDown(requireUnconsumed = false)
                                             // Claim the gesture immediately: an icon touch belongs
@@ -385,9 +388,10 @@ fun Workspace(
                                                 change.consume()
                                                 dragPos += delta
                                                 dragDistance += delta.getDistance()
-                                                if (!dragController.moving && dragDistance > moveThresholdPx) {
-                                                    dragController.beginMove()
-                                                }
+                                                // Any movement past the touch slop (drag() already
+                                                // enforces it) is a drag → start moving immediately so
+                                                // the floating icon tracks the finger from the start.
+                                                if (!dragController.moving) dragController.beginMove()
                                                 dragController.update(
                                                     dragController.gridBounds.topLeft + dragPos,
                                                 )

@@ -30,6 +30,7 @@ class SettingsRepository @Inject constructor(
             dockColumns = p[Keys.DOCK_COLUMNS] ?: 4,
             homeColumns = p[Keys.HOME_COLUMNS] ?: 4,
             drawerColumns = p[Keys.DRAWER_COLUMNS] ?: 4,
+            showDrawerSearch = p[Keys.SHOW_DRAWER_SEARCH] ?: true,
             swipeUpForDrawer = p[Keys.SWIPE_UP_DRAWER] ?: true,
             swipeDownForNotifications = p[Keys.SWIPE_DOWN_NOTIF] ?: true,
             showDockLabels = p[Keys.SHOW_DOCK_LABELS] ?: false,
@@ -52,6 +53,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value }
     suspend fun setHomeColumns(value: Int) = edit { it[Keys.HOME_COLUMNS] = value }
     suspend fun setDrawerColumns(value: Int) = edit { it[Keys.DRAWER_COLUMNS] = value }
+    suspend fun setShowDrawerSearch(value: Boolean) = edit { it[Keys.SHOW_DRAWER_SEARCH] = value }
     suspend fun setSwipeUpForDrawer(value: Boolean) = edit { it[Keys.SWIPE_UP_DRAWER] = value }
     suspend fun setSwipeDownForNotifications(value: Boolean) = edit { it[Keys.SWIPE_DOWN_NOTIF] = value }
     suspend fun setShowDockLabels(value: Boolean) = edit { it[Keys.SHOW_DOCK_LABELS] = value }
@@ -110,6 +112,7 @@ class SettingsRepository @Inject constructor(
         val DOCK_COLUMNS = intPreferencesKey("dock_columns")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
         val DRAWER_COLUMNS = intPreferencesKey("drawer_columns")
+        val SHOW_DRAWER_SEARCH = booleanPreferencesKey("show_drawer_search")
         val SWIPE_UP_DRAWER = booleanPreferencesKey("swipe_up_drawer")
         val SWIPE_DOWN_NOTIF = booleanPreferencesKey("swipe_down_notif")
         val DOCK_FAVORITES = stringPreferencesKey("dock_favorites")

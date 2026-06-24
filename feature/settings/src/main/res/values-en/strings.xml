@@ -19,4 +19,5 @@
     <string name="settings_notif_access">Grant notification access</string>
     <string name="settings_notif_access_desc">Required to show notification dots</string>
     <string name="settings_notif_size">Notification dot size</string>
+    <string name="settings_drawer_search">Show search</string>
 </resources>
