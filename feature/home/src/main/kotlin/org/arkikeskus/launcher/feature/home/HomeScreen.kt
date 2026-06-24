@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -45,6 +45,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -320,20 +321,39 @@ private fun AppActionPopup(
         shortcuts = withContext(Dispatchers.IO) { AppShortcuts.query(context, target.app) }
     }
     val cardColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val density = LocalDensity.current
+    val windowWidthPx = LocalWindowInfo.current.containerSize.width.toFloat()
+    val cardWidth = 280.dp
     Popup(
         popupPositionProvider = positionProvider,
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true),
     ) {
+        // Compute the caret's x within the (fixed-width) card so it points at the icon even when the
+        // card is clamped to the screen edge — using the same clamp as the position provider.
+        val cardWidthPx = with(density) { cardWidth.toPx() }
+        val caretWidth = 22.dp
+        val caretWidthPx = with(density) { caretWidth.toPx() }
+        val cardLeft = (target.anchor.x - cardWidthPx / 2f).coerceIn(
+            POPUP_MARGIN_PX.toFloat(),
+            (windowWidthPx - cardWidthPx - POPUP_MARGIN_PX).coerceAtLeast(POPUP_MARGIN_PX.toFloat()),
+        )
+        val caretStart = with(density) {
+            ((target.anchor.x - cardLeft) - caretWidthPx / 2f)
+                .coerceIn(14f, cardWidthPx - caretWidthPx - 14f)
+                .toDp()
+        }
         // Card + a small caret pointing at the icon (above the card for home, below it for dock).
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (!fromDock) Caret(pointingUp = true, color = cardColor)
+        Column(modifier = Modifier.width(cardWidth)) {
+            if (!fromDock) {
+                Caret(pointingUp = true, color = cardColor, modifier = Modifier.padding(start = caretStart))
+            }
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = cardColor,
                 tonalElevation = 3.dp,
                 shadowElevation = 10.dp,
-                modifier = Modifier.widthIn(min = 240.dp, max = 320.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     shortcuts.forEach { shortcut ->
@@ -355,15 +375,17 @@ private fun AppActionPopup(
                     PopupRow(stringResource(R.string.uninstall)) { onUninstall(); onDismiss() }
                 }
             }
-            if (fromDock) Caret(pointingUp = false, color = cardColor)
+            if (fromDock) {
+                Caret(pointingUp = false, color = cardColor, modifier = Modifier.padding(start = caretStart))
+            }
         }
     }
 }
 
 /** Small triangle that visually ties the popup to the icon it acts on. */
 @Composable
-private fun Caret(pointingUp: Boolean, color: Color) {
-    Canvas(modifier = Modifier.size(width = 22.dp, height = 10.dp)) {
+private fun Caret(pointingUp: Boolean, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(width = 22.dp, height = 10.dp)) {
         val path = Path().apply {
             if (pointingUp) {
                 moveTo(0f, size.height)
@@ -393,6 +415,8 @@ private fun PopupRow(text: String, onClick: () -> Unit) {
     )
 }
 
+private const val POPUP_MARGIN_PX = 24
+
 /** Places the menu centered under (or above, for dock) the icon, clamped to the screen. */
 private class AnchoredPopupPositionProvider(
     private val anchor: IntOffset,
@@ -404,7 +428,7 @@ private class AnchoredPopupPositionProvider(
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
     ): IntOffset {
-        val margin = 16
+        val margin = POPUP_MARGIN_PX
         val x = (anchor.x - popupContentSize.width / 2)
             .coerceIn(margin, (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin))
         val y = if (preferAbove) {
