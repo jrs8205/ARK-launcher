@@ -16,13 +16,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,7 +45,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
@@ -69,8 +78,8 @@ fun HomeScreen(
     val settings = uiState.settings
     val context = LocalContext.current
     val density = LocalDensity.current
-    var selectedHomeApp by remember { mutableStateOf<AppItem?>(null) }
-    var selectedDockApp by remember { mutableStateOf<AppItem?>(null) }
+    // The single Pixel-style long-press menu, anchored to the long-pressed icon.
+    var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val defaultFolderName = stringResource(R.string.folder_default_name)
 
@@ -79,6 +88,10 @@ fun HomeScreen(
     SideEffect {
         dragController.dockItemCount = uiState.dockApps.size
         dragController.dockHasSpace = settings.dockEnabled && uiState.dockApps.size < settings.dockColumns
+    }
+    // A drag that starts moving dismisses the menu (so the menu and drop bar never coexist).
+    LaunchedEffect(dragController.moving) {
+        if (dragController.moving) menuTarget = null
     }
     // The floating icon is positioned in root coords; subtract this Box's origin to place it locally.
     var screenOrigin by remember { mutableStateOf(Offset.Zero) }
@@ -109,10 +122,9 @@ fun HomeScreen(
                 homeSignals = homeSignals,
                 dragController = dragController,
                 onAppClick = viewModel::launch,
-                onAppMenu = { selectedHomeApp = it },
+                onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home) },
                 onMove = viewModel::moveItem,
                 onMoveToDock = { app, index -> viewModel.moveToDock(app, index) },
-                onDropOnBar = { app, action -> handleBarDrop(context, viewModel, dragController, app, action) },
                 onOpenFolder = { openFolderId = it.id },
                 onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
@@ -138,8 +150,7 @@ fun HomeScreen(
                     onAppClick = viewModel::launch,
                     onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY) },
-                    onDropOnBar = { app, action -> handleBarDrop(context, viewModel, dragController, app, action) },
-                    onAppMenu = { selectedDockApp = it },
+                    onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -148,22 +159,10 @@ fun HomeScreen(
             }
         }
 
-        // Drop-target bar at the top while dragging (remove / app info / uninstall zones).
-        if (dragController.isDragging) {
-            DragDropBar(
-                controller = dragController,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, start = 12.dp, end = 12.dp),
-            )
-        }
-
         // Single floating icon for any in-progress drag, drawn above both surfaces so it can travel
         // between them. Positioned by the finger's root coords (minus this Box's origin).
         val dragged = dragController.draggedApp
-        if (dragged != null) {
+        if (dragged != null && dragController.moving) {
             val sizeDp = 56.dp
             val halfPx = with(density) { (sizeDp / 2).toPx() }
             Box(
@@ -192,72 +191,22 @@ fun HomeScreen(
         }
     }
 
-    val selected = selectedHomeApp
-    if (selected != null) {
-        ModalBottomSheet(onDismissRequest = { selectedHomeApp = null }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp),
-            ) {
-                Text(
-                    text = selected.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                HomeActionRow(stringResource(R.string.home_remove)) {
-                    viewModel.removeFromHome(selected)
-                    selectedHomeApp = null
-                }
-                HomeActionRow(stringResource(R.string.home_add_to_dock)) {
-                    viewModel.addToDock(selected)
-                    selectedHomeApp = null
-                }
-                HomeActionRow(stringResource(R.string.app_info)) {
-                    AppActions.openAppInfo(context, selected)
-                    selectedHomeApp = null
-                }
-                HomeActionRow(stringResource(R.string.uninstall)) {
-                    AppActions.uninstall(context, selected)
-                    selectedHomeApp = null
-                }
-            }
-        }
-    }
-
-    val dockSelected = selectedDockApp
-    if (dockSelected != null) {
-        ModalBottomSheet(onDismissRequest = { selectedDockApp = null }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(bottom = 16.dp),
-            ) {
-                Text(
-                    text = dockSelected.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                HomeActionRow(stringResource(R.string.dock_remove)) {
-                    viewModel.removeFromDock(dockSelected)
-                    selectedDockApp = null
-                }
-                HomeActionRow(stringResource(R.string.home_add)) {
-                    viewModel.addToHome(dockSelected)
-                    selectedDockApp = null
-                }
-                HomeActionRow(stringResource(R.string.app_info)) {
-                    AppActions.openAppInfo(context, dockSelected)
-                    selectedDockApp = null
-                }
-                HomeActionRow(stringResource(R.string.uninstall)) {
-                    AppActions.uninstall(context, dockSelected)
-                    selectedDockApp = null
-                }
-            }
-        }
+    val menu = menuTarget
+    if (menu != null) {
+        AppActionPopup(
+            target = menu,
+            onAppInfo = { AppActions.openAppInfo(context, menu.app) },
+            onUninstall = { AppActions.uninstall(context, menu.app) },
+            onRemove = {
+                if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app)
+                else viewModel.removeFromHome(menu.app)
+            },
+            onAddToOtherSurface = {
+                if (menu.source == DragSource.Dock) viewModel.addToHome(menu.app)
+                else viewModel.addToDock(menu.app)
+            },
+            onDismiss = { menuTarget = null },
+        )
     }
 
     val openFolder = openFolderId?.let { id ->
@@ -347,30 +296,82 @@ private fun FolderSheet(
     }
 }
 
-/** Runs a drop-target-bar action against [app], targeting the surface it was dragged from. */
-private fun handleBarDrop(
-    context: Context,
-    viewModel: HomeViewModel,
-    controller: HomeDragController,
-    app: AppItem,
-    action: DropAction,
+/** The long-pressed app and where its menu should anchor (which surface it came from). */
+private data class AppMenuTarget(val app: AppItem, val anchor: IntOffset, val source: DragSource)
+
+/** The single Pixel-style long-press menu, anchored to the icon (above it for dock items). */
+@Composable
+private fun AppActionPopup(
+    target: AppMenuTarget,
+    onAppInfo: () -> Unit,
+    onUninstall: () -> Unit,
+    onRemove: () -> Unit,
+    onAddToOtherSurface: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    when (action) {
-        DropAction.Remove ->
-            if (controller.source == DragSource.Dock) viewModel.removeFromDock(app) else viewModel.removeFromHome(app)
-        DropAction.Info -> AppActions.openAppInfo(context, app)
-        DropAction.Uninstall -> AppActions.uninstall(context, app)
+    val fromDock = target.source == DragSource.Dock
+    val positionProvider = remember(target.anchor, fromDock) {
+        AnchoredPopupPositionProvider(target.anchor, preferAbove = fromDock)
+    }
+    Popup(
+        popupPositionProvider = positionProvider,
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 3.dp,
+            shadowElevation = 10.dp,
+            modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
+        ) {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                PopupRow(stringResource(R.string.app_info)) { onAppInfo(); onDismiss() }
+                PopupRow(
+                    stringResource(if (fromDock) R.string.home_add else R.string.home_add_to_dock),
+                ) { onAddToOtherSurface(); onDismiss() }
+                PopupRow(
+                    stringResource(if (fromDock) R.string.dock_remove else R.string.home_remove),
+                ) { onRemove(); onDismiss() }
+                PopupRow(stringResource(R.string.uninstall)) { onUninstall(); onDismiss() }
+            }
+        }
     }
 }
 
 @Composable
-private fun HomeActionRow(text: String, onClick: () -> Unit) {
+private fun PopupRow(text: String, onClick: () -> Unit) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
     )
+}
+
+/** Places the menu centered under (or above, for dock) the icon, clamped to the screen. */
+private class AnchoredPopupPositionProvider(
+    private val anchor: IntOffset,
+    private val preferAbove: Boolean,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val margin = 16
+        val x = (anchor.x - popupContentSize.width / 2)
+            .coerceIn(margin, (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin))
+        val y = if (preferAbove) {
+            (anchor.y - popupContentSize.height - margin).coerceAtLeast(margin)
+        } else {
+            (anchor.y + margin)
+                .coerceAtMost((windowSize.height - popupContentSize.height - margin).coerceAtLeast(margin))
+        }
+        return IntOffset(x, y)
+    }
 }

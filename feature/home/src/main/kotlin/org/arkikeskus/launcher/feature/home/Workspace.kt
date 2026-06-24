@@ -81,10 +81,9 @@ fun Workspace(
     homeSignals: Flow<Unit>,
     dragController: HomeDragController,
     onAppClick: (AppItem) -> Unit,
-    onAppMenu: (AppItem) -> Unit,
+    onAppMenu: (AppItem, IntOffset) -> Unit,
     onMove: suspend (AppItem, Int, Int, Int) -> Boolean,
     onMoveToDock: (AppItem, Int) -> Unit,
-    onDropOnBar: (AppItem, DropAction) -> Unit,
     onOpenFolder: (PlacedFolder) -> Unit,
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
@@ -203,16 +202,11 @@ fun Workspace(
                             // Placeholder cell: our own in-home drag uses [targetCell]; a dock→home
                             // drag (driven by the shared controller) computes it from the finger.
                             val tc: IntOffset? = when {
-                                // Our own home drag: hide the cell hint while hovering the dock or bar.
-                                dragging != null -> {
-                                    val p = dragController.rootPosition
-                                    if (dragController.isOverDock(p) || dragController.barActionAt(p) != null) {
-                                        null
-                                    } else {
-                                        targetCell
-                                    }
+                                // Our own home drag: hide the cell hint while hovering the dock.
+                                dragging != null && dragController.moving -> {
+                                    if (dragController.isOverDock(dragController.rootPosition)) null else targetCell
                                 }
-                                dragController.isDragging &&
+                                dragController.moving &&
                                     dragController.source == DragSource.Dock &&
                                     dragController.isOverGrid(dragController.rootPosition) -> {
                                     val (_, cx, cy) = dragController.cellAt(dragController.rootPosition)
@@ -323,10 +317,13 @@ fun Workspace(
                                         with(density) { cellW.toDp() },
                                         with(density) { cellH.toDp() },
                                     )
-                                    // Hide (but keep in composition) the icon being dragged so its
-                                    // gesture coroutine survives — the floating copy is drawn on top.
+                                    // Hide (but keep in composition) the icon once it's actually
+                                    // moving — the floating copy is drawn on top. While only lifted
+                                    // (menu showing) it stays visible.
                                     .graphicsLayer {
-                                        alpha = if (dragging?.app?.key == placed.app.key) 0f else 1f
+                                        alpha = if (dragging?.app?.key == placed.app.key &&
+                                            dragController.moving
+                                        ) 0f else 1f
                                     }
                                     .pointerInput(placed.app.key, cellW, cellH, columns, rows, pageCount) {
                                         awaitEachGesture {
@@ -375,8 +372,7 @@ fun Workspace(
                                                 placed.cellX * cellW + down.position.x,
                                                 placed.cellY * cellH + down.position.y,
                                             )
-                                            // Feed the shared controller so HomeScreen draws the
-                                            // floating icon across both surfaces (root coords).
+                                            // Lift into the shared controller (not yet "moving").
                                             dragController.start(
                                                 placed.app,
                                                 DragSource.Home,
@@ -389,6 +385,9 @@ fun Workspace(
                                                 change.consume()
                                                 dragPos += delta
                                                 dragDistance += delta.getDistance()
+                                                if (!dragController.moving && dragDistance > moveThresholdPx) {
+                                                    dragController.beginMove()
+                                                }
                                                 dragController.update(
                                                     dragController.gridBounds.topLeft + dragPos,
                                                 )
@@ -424,23 +423,20 @@ fun Workspace(
                                             // never on a cancellation, so the menu can't pop up
                                             // under a still-pressed finger.
                                             val d = dragging
-                                            if (d != null && completed) {
+                                            if (d != null && completed && !dragController.moving) {
+                                                // Static long-press → show the menu anchored under the
+                                                // icon (after release, so it can't steal the drag).
+                                                val anchor = dragController.gridBounds.topLeft + Offset(
+                                                    d.cellX * cellW + cellW / 2f,
+                                                    d.cellY * cellH + cellH,
+                                                )
+                                                onAppMenu(
+                                                    d.app,
+                                                    IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()),
+                                                )
+                                            } else if (d != null && completed && dragController.moving) {
                                                 val rootPos = dragController.gridBounds.topLeft + dragPos
-                                                val barAction = dragController.barActionAt(rootPos)
                                                 when {
-                                                    dragDistance < moveThresholdPx -> onAppMenu(d.app)
-
-                                                    // Dropped on the top drop-target bar.
-                                                    barAction != null -> {
-                                                        if (barAction == DropAction.Remove) {
-                                                            removedKeys = removedKeys + d.app.key
-                                                        }
-                                                        onDropOnBar(d.app, barAction)
-                                                        haptics.performHapticFeedback(
-                                                            HapticFeedbackType.LongPress,
-                                                        )
-                                                    }
-
                                                     // Cross-surface: dropped on the dock.
                                                     dragController.isOverDock(rootPos) -> {
                                                         if (dragController.dockHasSpace) {

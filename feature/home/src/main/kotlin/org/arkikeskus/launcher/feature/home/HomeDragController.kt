@@ -12,9 +12,6 @@ import org.arkikeskus.launcher.model.AppItem
 /** Which surface an in-progress drag was picked up from. */
 enum class DragSource { Home, Dock }
 
-/** Actions offered by the drag drop-target bar (Launcher3's DropTargetBar). */
-enum class DropAction { Remove, Info, Uninstall }
-
 /**
  * Shared drag state hoisted to `HomeScreen` — the Compose equivalent of Launcher3's drag layer +
  * drag controller. Compose can't transfer a pointer gesture between nodes mid-drag, so the source
@@ -32,6 +29,14 @@ class HomeDragController {
     var rootPosition by mutableStateOf(Offset.Zero)
         private set
 
+    /**
+     * True once a lifted icon actually starts moving. While false the icon is merely "lifted" and the
+     * long-press menu is showing; the floating icon and drop-target bar only appear once moving — so
+     * the menu and the bar never show at the same time.
+     */
+    var moving by mutableStateOf(false)
+        private set
+
     // Drop-target geometry, published by the surfaces via onGloballyPositioned.
     var gridBounds by mutableStateOf(Rect.Zero)
     var dockBounds by mutableStateOf(Rect.Zero)
@@ -45,34 +50,28 @@ class HomeDragController {
     var dockItemCount by mutableStateOf(0)
     var dockHasSpace by mutableStateOf(false)
 
-    // Drop-target bar button bounds (root coords), published by the bar's buttons.
-    var removeBounds by mutableStateOf(Rect.Zero)
-    var infoBounds by mutableStateOf(Rect.Zero)
-    var uninstallBounds by mutableStateOf(Rect.Zero)
-
     val isDragging: Boolean get() = draggedApp != null
 
+    /** Lift [app] (long-press) — menu shows; not yet "moving". */
     fun start(app: AppItem, from: DragSource, root: Offset) {
         draggedApp = app
         source = from
         rootPosition = root
+        moving = false
     }
 
     fun update(root: Offset) {
         rootPosition = root
     }
 
-    fun stop() {
-        draggedApp = null
+    /** The lifted icon started moving → becomes a real drag (floating icon + bar). */
+    fun beginMove() {
+        moving = true
     }
 
-    /** Which drop-bar action is under [p] (root coords), or null. Bar wins over dock/grid. */
-    fun barActionAt(p: Offset): DropAction? = when {
-        !isDragging -> null
-        !removeBounds.isEmpty && removeBounds.contains(p) -> DropAction.Remove
-        !infoBounds.isEmpty && infoBounds.contains(p) -> DropAction.Info
-        !uninstallBounds.isEmpty && uninstallBounds.contains(p) -> DropAction.Uninstall
-        else -> null
+    fun stop() {
+        draggedApp = null
+        moving = false
     }
 
     fun isOverDock(p: Offset): Boolean = !dockBounds.isEmpty && dockBounds.contains(p)

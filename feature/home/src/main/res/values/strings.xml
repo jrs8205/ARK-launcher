@@ -7,9 +7,6 @@
     <string name="dock_remove">Poista dockista</string>
     <string name="app_info">Sovelluksen tiedot</string>
     <string name="uninstall">Poista sovellus</string>
-    <string name="drop_remove">Poista</string>
-    <string name="drop_info">Tiedot</string>
-    <string name="drop_uninstall">Poista sovellus</string>
     <string name="folder_default_name">Kansio</string>
     <string name="folder_name_label">Kansion nimi</string>
     <string name="folder_long_press_hint">Paina sovellusta pitkään poistaaksesi sen kansiosta</string>

@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.component.AppIcon
@@ -54,13 +55,13 @@ fun Dock(
     onAppClick: (AppItem) -> Unit,
     onReorder: (List<AppItem>) -> Unit,
     onMoveToHome: (AppItem, Int, Int, Int) -> Unit,
-    onDropOnBar: (AppItem, DropAction) -> Unit,
     modifier: Modifier = Modifier,
-    onAppMenu: (AppItem) -> Unit = {},
+    onAppMenu: (AppItem, IntOffset) -> Unit = { _, _ -> },
 ) {
     var rowWidthPx by remember { mutableIntStateOf(0) }
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var dragDist by remember { mutableFloatStateOf(0f) }
     // Each item's top-left in root coords, so a drag can be reported to the controller in root space.
     val itemRoots = remember { mutableStateMapOf<Int, Offset>() }
     val haptics = LocalHapticFeedback.current
@@ -74,7 +75,7 @@ fun Dock(
     // onDragEnter/acceptDrop). derivedStateOf so we recompose only when crossing in/out, not per frame.
     val highlighted by remember {
         derivedStateOf {
-            dragController.isDragging &&
+            dragController.moving &&
                 dragController.source == DragSource.Home &&
                 dragController.dockHasSpace &&
                 dragController.isOverDock(dragController.rootPosition)
@@ -101,13 +102,15 @@ fun Dock(
                     modifier = Modifier
                         .weight(1f)
                         .onGloballyPositioned { itemRoots[index] = it.positionInRoot() }
-                        // Hide the in-dock copy while dragging; HomeScreen draws the floating copy.
-                        .graphicsLayer { alpha = if (isDragging) 0f else 1f }
+                        // Hide the in-dock copy only once it's moving; HomeScreen draws the floating
+                        // copy. While merely lifted (menu showing) it stays visible.
+                        .graphicsLayer { alpha = if (isDragging && dragController.moving) 0f else 1f }
                         .pointerInput(app.key, apps.size) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = { offset ->
                                     draggingIndex = index
                                     dragOffsetX = 0f
+                                    dragDist = 0f
                                     reorderArmed[0] = false
                                     val root = (itemRoots[index] ?: Offset.Zero) + offset
                                     dragController.start(app, DragSource.Dock, root)
@@ -115,44 +118,44 @@ fun Dock(
                                 onDrag = { change, amount ->
                                     change.consume()
                                     dragOffsetX += amount.x
+                                    dragDist += amount.getDistance()
                                     val root = (itemRoots[index] ?: Offset.Zero) + change.position
                                     dragController.update(root)
-                                    // Tick once when a sideways reorder clearly begins (not a menu).
+                                    // Past the threshold this is a real drag (dismisses the menu).
+                                    if (!dragController.moving && dragDist > menuThresholdPx) {
+                                        dragController.beginMove()
+                                    }
+                                    // Tick once when a sideways reorder clearly begins.
                                     if (!reorderArmed[0] && abs(dragOffsetX) >= menuThresholdPx) {
                                         reorderArmed[0] = true
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     }
                                 },
                                 onDragEnd = {
-                                    val rootPos = dragController.rootPosition
-                                    val barAction = dragController.barActionAt(rootPos)
-                                    when {
-                                        // Dropped on the top drop-target bar.
-                                        barAction != null -> {
-                                            onDropOnBar(app, barAction)
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        // Cross-surface: dropped on the home grid.
-                                        dragController.isOverGrid(rootPos) -> {
-                                            val (page, cx, cy) = dragController.cellAt(rootPos)
-                                            onMoveToHome(app, page, cx, cy)
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
-                                        // Long-press without sideways travel → open the menu.
-                                        abs(dragOffsetX) < menuThresholdPx -> {
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onAppMenu(app)
-                                        }
-                                        // Otherwise reorder within the dock.
-                                        else -> {
-                                            val slot = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 1f
-                                            val shift = if (slot > 0f) (dragOffsetX / slot).roundToInt() else 0
-                                            val target = (index + shift).coerceIn(0, apps.size - 1)
-                                            if (target != index) {
-                                                val reordered = apps.toMutableList().also {
-                                                    it.add(target, it.removeAt(index))
+                                    if (!dragController.moving) {
+                                        // Static long-press → show the menu anchored above the item.
+                                        val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
+                                        val itemRoot = itemRoots[index] ?: Offset.Zero
+                                        val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
+                                        onAppMenu(app, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
+                                    } else {
+                                        val rootPos = dragController.rootPosition
+                                        when {
+                                            dragController.isOverGrid(rootPos) -> {
+                                                val (page, cx, cy) = dragController.cellAt(rootPos)
+                                                onMoveToHome(app, page, cx, cy)
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            }
+                                            else -> {
+                                                val slot = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 1f
+                                                val shift = if (slot > 0f) (dragOffsetX / slot).roundToInt() else 0
+                                                val target = (index + shift).coerceIn(0, apps.size - 1)
+                                                if (target != index) {
+                                                    val reordered = apps.toMutableList().also {
+                                                        it.add(target, it.removeAt(index))
+                                                    }
+                                                    onReorder(reordered)
                                                 }
-                                                onReorder(reordered)
                                             }
                                         }
                                     }

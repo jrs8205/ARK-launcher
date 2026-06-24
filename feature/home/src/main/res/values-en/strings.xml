@@ -7,9 +7,6 @@
     <string name="dock_remove">Remove from dock</string>
     <string name="app_info">App info</string>
     <string name="uninstall">Uninstall</string>
-    <string name="drop_remove">Remove</string>
-    <string name="drop_info">Info</string>
-    <string name="drop_uninstall">Uninstall</string>
     <string name="folder_default_name">Folder</string>
     <string name="folder_name_label">Folder name</string>
     <string name="folder_long_press_hint">Long-press an app to take it out of the folder</string>
