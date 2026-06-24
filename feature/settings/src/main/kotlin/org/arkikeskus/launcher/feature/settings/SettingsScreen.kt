@@ -2,17 +2,24 @@ package org.arkikeskus.launcher.feature.settings
 
 import android.content.ComponentName
 import android.content.Intent
+import android.graphics.Bitmap
 import android.provider.Settings
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,8 +30,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.ui.component.NotificationBadge
 
 @Composable
 fun SettingsScreen(
@@ -40,6 +52,7 @@ fun SettingsScreen(
 ) {
     val s by viewModel.settings.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val previewIcon = rememberLauncherIconBitmap()
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier
@@ -63,6 +76,7 @@ fun SettingsScreen(
             StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, viewModel::setDockColumns)
             SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, viewModel::setShowDockLabels)
             SliderRow(stringResource(R.string.settings_dock_bg), s.dockBackgroundOpacity, viewModel::setDockBackgroundOpacity)
+            DockPreview(opacity = s.dockBackgroundOpacity, icon = previewIcon)
 
             SectionTitle(stringResource(R.string.settings_drawer))
             StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
@@ -81,6 +95,12 @@ fun SettingsScreen(
                 value = s.notificationDotScale,
                 onValueChange = viewModel::setNotificationDotScale,
                 valueRange = 0.6f..1.8f,
+            )
+            BadgePreview(
+                icon = previewIcon,
+                showDots = s.showNotificationDots,
+                showCount = s.notificationDotCount,
+                scale = s.notificationDotScale,
             )
             ActionRow(
                 label = stringResource(R.string.settings_notif_access),
@@ -160,6 +180,64 @@ private fun SliderRow(
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Slider(value = value, onValueChange = onValueChange, valueRange = valueRange)
+    }
+}
+
+/** The launcher's own app icon, for use as the settings preview sample. */
+@Composable
+private fun rememberLauncherIconBitmap(): ImageBitmap? {
+    val context = LocalContext.current
+    return remember {
+        runCatching {
+            val drawable = context.packageManager.getApplicationIcon(context.packageName)
+            val size = 144
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, size, size)
+            drawable.draw(canvas)
+            bitmap.asImageBitmap()
+        }.getOrNull()
+    }
+}
+
+/** Live preview of the dock at the chosen background opacity. */
+@Composable
+private fun DockPreview(opacity: Float, icon: ImageBitmap?) {
+    Surface(
+        color = Color.Black.copy(alpha = opacity),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        ) {
+            repeat(4) {
+                if (icon != null) {
+                    Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(36.dp))
+                } else {
+                    Box(Modifier.size(36.dp).background(Color.White.copy(alpha = 0.6f), CircleShape))
+                }
+            }
+        }
+    }
+}
+
+/** Live preview of the notification badge on a sample icon (the launcher's own). */
+@Composable
+private fun BadgePreview(icon: ImageBitmap?, showDots: Boolean, showCount: Boolean, scale: Float) {
+    Box(
+        modifier = Modifier.padding(vertical = 8.dp),
+        contentAlignment = Alignment.TopEnd,
+    ) {
+        if (icon != null) {
+            Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(56.dp))
+        } else {
+            Box(Modifier.size(56.dp).background(MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)))
+        }
+        if (showDots) {
+            NotificationBadge(count = 5, showCount = showCount, scale = scale)
+        }
     }
 }
 
