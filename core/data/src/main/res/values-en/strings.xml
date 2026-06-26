@@ -30,4 +30,6 @@
     <string name="setting_language_aliases">language,languages,keyboard,input</string>
     <string name="setting_about">About phone</string>
     <string name="setting_about_aliases">about,version,model,android</string>
+    <string name="setting_systemupdate">Software updates</string>
+    <string name="setting_systemupdate_aliases">software update,system update,update,updates</string>
 </resources>

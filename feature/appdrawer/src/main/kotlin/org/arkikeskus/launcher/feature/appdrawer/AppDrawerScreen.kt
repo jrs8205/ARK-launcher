@@ -63,6 +63,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
@@ -119,10 +120,16 @@ fun AppDrawerScreen(
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
+    val focusManager = LocalFocusManager.current
 
-    // HOME pressed → dismiss the popup at once, so it doesn't linger after the drawer slides away.
+    // HOME pressed → dismiss the popup, drop search focus (which hides the soft keyboard) and reset the
+    // query, so the keyboard never lingers after the drawer slides away and the drawer reopens fresh.
     LaunchedEffect(homeSignals) {
-        homeSignals.collect { menuTarget = null }
+        homeSignals.collect {
+            menuTarget = null
+            focusManager.clearFocus()
+            viewModel.onQueryChange("")
+        }
     }
 
     val badges = if (uiState.showNotificationDots) uiState.badges else emptyMap()
@@ -334,6 +341,13 @@ private fun AppDrawerContent(
                     onValueChange = onQueryChange,
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.app_drawer_search_hint)) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { onQueryChange("") }) {
+                                Text("✕", color = Accent)
+                            }
+                        }
+                    },
                     shape = RoundedCornerShape(20.dp),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = searchPalette.surfaceHi,

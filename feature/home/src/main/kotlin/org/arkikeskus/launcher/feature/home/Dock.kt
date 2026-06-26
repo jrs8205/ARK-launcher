@@ -142,8 +142,12 @@ fun Dock(
                                 dragController.start(app, DragSource.Dock, itemRoot + down.position)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 val completed = drag(down.id) { change ->
-                                    change.consume()
+                                    // Accumulate the delta BEFORE consuming: positionChange() returns
+                                    // Offset.Zero once the change is consumed, which silently zeroed
+                                    // dragOffsetX and broke in-dock reordering (the drag-out path still
+                                    // worked because it uses the absolute change.position below).
                                     dragOffsetX += change.positionChange().x
+                                    change.consume()
                                     if (!dragController.moving) dragController.beginMove()
                                     dragController.update((itemRoots[index] ?: itemRoot) + change.position)
                                 }

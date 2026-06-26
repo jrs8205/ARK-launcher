@@ -30,4 +30,6 @@
     <string name="setting_language_aliases">kieli,kielet,näppäimistö,syöttö</string>
     <string name="setting_about">Tietoja puhelimesta</string>
     <string name="setting_about_aliases">tietoja,versio,malli,android</string>
+    <string name="setting_systemupdate">Ohjelmistopäivitykset</string>
+    <string name="setting_systemupdate_aliases">ohjelmistopäivitykset,ohjelmisto,päivitys,päivitykset,system update</string>
 </resources>

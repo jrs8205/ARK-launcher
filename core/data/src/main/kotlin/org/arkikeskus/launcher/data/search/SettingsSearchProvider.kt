@@ -63,6 +63,7 @@ class SettingsSearchProvider @Inject constructor(
             Quad("accessibility", "android.settings.ACCESSIBILITY_SETTINGS", R.string.setting_accessibility, R.string.setting_accessibility_aliases),
             Quad("language", "android.settings.LOCALE_SETTINGS", R.string.setting_language, R.string.setting_language_aliases),
             Quad("about", "android.settings.DEVICE_INFO_SETTINGS", R.string.setting_about, R.string.setting_about_aliases),
+            Quad("systemupdate", "android.settings.SYSTEM_UPDATE_SETTINGS", R.string.setting_systemupdate, R.string.setting_systemupdate_aliases),
         )
     }
 }
