@@ -89,4 +89,16 @@ class SettingsRepositoryTest {
 
         assertThat(repo.dockFavorites.first()).containsExactly("c", "a", "b").inOrder()
     }
+
+    @Test
+    fun `searchContacts defaults to false and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().searchContacts).isFalse()
+
+        repo.setSearchContacts(true)
+        assertThat(repo.settings.first().searchContacts).isTrue()
+
+        repo.setSearchContacts(false)
+        assertThat(repo.settings.first().searchContacts).isFalse()
+    }
 }

@@ -21,4 +21,6 @@ data class LauncherSettings(
     val notificationDotScale: Float = 1.0f,
     /** Render app icons as Material You themed (monochrome) icons where the app provides one. */
     val useThemedIcons: Boolean = false,
+    /** Include contacts in app-drawer search (gated by READ_CONTACTS; requested when enabled). */
+    val searchContacts: Boolean = false,
 )

@@ -48,6 +48,7 @@ class SettingsRepository @Inject constructor(
             notificationDotCount = p[Keys.NOTIF_DOT_COUNT] ?: true,
             notificationDotScale = (p[Keys.NOTIF_DOT_SCALE] ?: 1.0f).coerceIn(MIN_DOT_SCALE, MAX_DOT_SCALE),
             useThemedIcons = p[Keys.USE_THEMED_ICONS] ?: false,
+            searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
         )
     }
 
@@ -148,6 +149,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setNotificationDotScale(value: Float) =
         edit { it[Keys.NOTIF_DOT_SCALE] = value.coerceIn(MIN_DOT_SCALE, MAX_DOT_SCALE) }
     suspend fun setUseThemedIcons(value: Boolean) = edit { it[Keys.USE_THEMED_ICONS] = value }
+    suspend fun setSearchContacts(value: Boolean) = edit { it[Keys.SEARCH_CONTACTS] = value }
 
     suspend fun addToDock(key: String) = edit { p ->
         val current = currentFavorites(p).toMutableList()
@@ -212,6 +214,7 @@ class SettingsRepository @Inject constructor(
         val NOTIF_DOT_COUNT = booleanPreferencesKey("notif_dot_count")
         val NOTIF_DOT_SCALE = floatPreferencesKey("notif_dot_scale")
         val USE_THEMED_ICONS = booleanPreferencesKey("use_themed_icons")
+        val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
     }
 
     companion object {
