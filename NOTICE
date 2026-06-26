@@ -1,0 +1,27 @@
+Arkikeskus Launcher
+Copyright 2026 Arkikeskus Launcher contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+------------------------------------------------------------------------------
+Third-party attributions
+------------------------------------------------------------------------------
+
+This product includes design and implementation patterns adapted from the
+Android Open Source Project (AOSP) Launcher3, licensed under the
+Apache License, Version 2.0:
+
+    https://android.googlesource.com/platform/packages/apps/Launcher3/
+    Copyright (C) The Android Open Source Project
+
+Launcher3 is a View-system application; the patterns below were re-implemented
+from scratch in Jetpack Compose for this project (the model was adapted, not
+the code copied verbatim):
+
+  - the drag layer / drag controller model (cross-surface icon drag between
+    the workspace, dock and app drawer);
+  - live drop feedback and drop targets;
+  - folders (drop icon-on-icon), notification dots, and pinned deep shortcuts.
+
+This project does not include source code from Lawnchair (GPL-3.0); only
+high-level concepts were studied from it.
