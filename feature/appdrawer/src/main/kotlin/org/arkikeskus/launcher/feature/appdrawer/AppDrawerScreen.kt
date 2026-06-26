@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -31,6 +33,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -74,6 +77,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
@@ -82,7 +86,14 @@ import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
+import org.arkikeskus.launcher.ui.expressive.Accent
+import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
+import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
+import org.arkikeskus.launcher.ui.expressive.ExpressiveSectionTitle
+import org.arkikeskus.launcher.ui.expressive.ExpressiveTheme
+import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,6 +125,7 @@ fun AppDrawerScreen(
 
     // All app icons in the drawer (grid, folder sheet, popup) honour the themed-icons setting.
     CompositionLocalProvider(LocalThemedIcons provides uiState.useThemedIcons) {
+    ExpressiveTheme {
     AppDrawerContent(
         apps = uiState.apps,
         folders = uiState.folders,
@@ -142,6 +154,9 @@ fun AppDrawerScreen(
         onDropOnHome = { app, page, cellX, cellY -> viewModel.addToHomeAt(app, page, cellX, cellY) },
         onDropOnDock = { app -> viewModel.addToDock(app) },
         showLabels = uiState.showLabels,
+        calc = uiState.calc,
+        settingResults = uiState.settingResults,
+        contactResults = uiState.contactResults,
         modifier = modifier,
     )
 
@@ -221,6 +236,7 @@ fun AppDrawerScreen(
         )
     }
     }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -245,6 +261,9 @@ private fun AppDrawerContent(
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
     onDropOnDock: (AppItem) -> Unit,
     showLabels: Boolean,
+    calc: SearchResult.Calculation?,
+    settingResults: List<SearchResult.Setting>,
+    contactResults: List<SearchResult.Contact>,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -314,6 +333,8 @@ private fun AppDrawerContent(
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
+            val context = LocalContext.current
+            val searching = query.isNotBlank()
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 contentPadding = PaddingValues(vertical = 8.dp),
@@ -321,106 +342,57 @@ private fun AppDrawerContent(
                     .fillMaxSize()
                     .padding(horizontal = 12.dp),
             ) {
-                items(items = folders, key = { "folder-${it.id}" }, contentType = { "folder" }) { folder ->
-                    DrawerFolderTile(
-                        folder = folder,
-                        showLabel = showLabels,
-                        onClick = { onFolderClick(folder) },
-                    )
-                }
-                items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
-                    var bounds by remember { mutableStateOf(Rect.Zero) }
-                    AppIcon(
-                        appItem = app,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
-                        showLabel = showLabels,
-                        maxLabelLines = 2,
-                        badgeCount = badges[app.badgeKey] ?: 0,
-                        badgeShowCount = badgeShowCount,
-                        badgeScale = badgeScale,
-                        modifier = Modifier
-                            .onGloballyPositioned { bounds = it.boundsInRoot() }
-                            // One unified gesture (like Workspace/Dock) but non-consuming until the
-                            // long-press fires, so a quick drag still scrolls the grid: quick tap
-                            // launches; a still long-press lifts → drag out to home/dock, or with no
-                            // movement opens the long-press menu.
-                            .pointerInput(app.key) {
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-                                    val slop = viewConfiguration.touchSlop
-                                    // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
-                                    var outcome = 0
-                                    withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                                        while (true) {
-                                            val ev = awaitPointerEvent()
-                                            val c = ev.changes.firstOrNull { it.id == down.id }
-                                            if (c == null) {
-                                                outcome = 2
-                                                return@withTimeoutOrNull
-                                            }
-                                            if (!c.pressed) {
-                                                outcome = 1
-                                                return@withTimeoutOrNull
-                                            }
-                                            // Don't consume: let the LazyGrid scroll a quick drag.
-                                            if (c.isConsumed ||
-                                                (c.position - down.position).getDistance() > slop
-                                            ) {
-                                                outcome = 2
-                                                return@withTimeoutOrNull
-                                            }
-                                        }
-                                    }
-                                    when (outcome) {
-                                        1 -> {
-                                            onAppClick(app)
-                                            return@awaitEachGesture
-                                        }
-                                        2 -> return@awaitEachGesture
-                                    }
-                                    // LONG PRESS → lift into the shared controller (drawer source).
-                                    // The finger's root position is the icon's [bounds] top-left
-                                    // (captured while the drawer is open) plus the pointer's local
-                                    // position. The drawer is hidden with alpha (not translated) during
-                                    // the drag, so its local coordinate space stays put and this stays
-                                    // accurate.
-                                    dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position)
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    val completed = drag(down.id) { change ->
-                                        change.consume()
-                                        // Only commit to a drag-out once the finger has moved past the
-                                        // slop — otherwise a still long-press (with finger jitter) would
-                                        // collapse the drawer instead of just showing the menu.
-                                        if (!dragController.moving &&
-                                            (change.position - down.position).getDistance() > slop
-                                        ) {
-                                            dragController.beginMove()
-                                            onDragOutStart()
-                                        }
-                                        if (dragController.moving) {
-                                            dragController.update(bounds.topLeft + change.position)
-                                        }
-                                    }
-                                    if (completed && dragController.moving) {
-                                        val root = dragController.rootPosition
-                                        when {
-                                            dragController.isOverDock(root) && dragController.dockHasSpace ->
-                                                onDropOnDock(app)
-                                            dragController.isOverGrid(root) -> {
-                                                val (page, cx, cy) = dragController.cellAt(root)
-                                                onDropOnHome(app, page, cx, cy)
-                                            }
-                                        }
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    } else if (completed) {
-                                        // No movement → static long-press → show the menu by the icon.
-                                        onAppLongClick(app, bounds)
-                                    }
-                                    dragController.stop()
+                if (!searching) {
+                    items(items = folders, key = { "folder-${it.id}" }, contentType = { "folder" }) { folder ->
+                        DrawerFolderTile(folder = folder, showLabel = showLabels, onClick = { onFolderClick(folder) })
+                    }
+                    appCells(apps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
+                        dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics)
+                } else {
+                    calc?.let { c ->
+                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "calc" }) {
+                            CalcResultCard(c) {
+                                val clip = context.getSystemService(android.content.ClipboardManager::class.java)
+                                clip?.setPrimaryClip(android.content.ClipData.newPlainText("result", c.result))
+                                android.widget.Toast.makeText(
+                                    context, context.getString(R.string.search_calc_copied),
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        }
+                    }
+                    if (apps.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
+                            ExpressiveSectionTitle(stringResource(R.string.search_section_apps))
+                        }
+                        appCells(apps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
+                            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics)
+                    }
+                    if (settingResults.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
+                            ExpressiveSectionTitle(stringResource(R.string.search_section_settings))
+                        }
+                        items(items = settingResults, key = { it.id }, span = { GridItemSpan(maxLineSpan) },
+                            contentType = { "setting" }) { setting ->
+                            ExpressiveActionRow(label = setting.title, description = "", trailing = "›") {
+                                runCatching {
+                                    context.startActivity(
+                                        android.content.Intent(setting.action)
+                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
                                 }
                             }
-                            .padding(vertical = 10.dp, horizontal = 4.dp),
-                    )
+                        }
+                    }
+                    if (contactResults.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
+                            ExpressiveSectionTitle(stringResource(R.string.search_section_contacts))
+                        }
+                        items(items = contactResults, key = { it.id }, span = { GridItemSpan(maxLineSpan) },
+                            contentType = { "contact" }) { contact ->
+                            ContactResultRow(contact, context)
+                        }
+                    }
                 }
             }
         }
@@ -634,4 +606,162 @@ private fun AddAppsDialog(apps: List<AppItem>, onConfirm: (List<String>) -> Unit
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.folder_cancel)) } },
     )
+}
+
+/** The drawer app-grid cell, shared by the idle and searching layouts. */
+private fun LazyGridScope.appCells(
+    apps: List<AppItem>,
+    badges: Map<String, Int>,
+    badgeShowCount: Boolean,
+    badgeScale: Float,
+    showLabels: Boolean,
+    onAppClick: (AppItem) -> Unit,
+    onAppLongClick: (AppItem, Rect) -> Unit,
+    dragController: HomeDragController,
+    onDragOutStart: () -> Unit,
+    onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
+    onDropOnDock: (AppItem) -> Unit,
+    haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
+) {
+    items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
+        var bounds by remember { mutableStateOf(Rect.Zero) }
+        AppIcon(
+            appItem = app,
+            labelColor = MaterialTheme.colorScheme.onSurface,
+            showLabel = showLabels,
+            maxLabelLines = 2,
+            badgeCount = badges[app.badgeKey] ?: 0,
+            badgeShowCount = badgeShowCount,
+            badgeScale = badgeScale,
+            modifier = Modifier
+                .onGloballyPositioned { bounds = it.boundsInRoot() }
+                // One unified gesture (like Workspace/Dock) but non-consuming until the
+                // long-press fires, so a quick drag still scrolls the grid: quick tap
+                // launches; a still long-press lifts → drag out to home/dock, or with no
+                // movement opens the long-press menu.
+                .pointerInput(app.key) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val slop = viewConfiguration.touchSlop
+                        // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
+                        var outcome = 0
+                        withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            while (true) {
+                                val ev = awaitPointerEvent()
+                                val c = ev.changes.firstOrNull { it.id == down.id }
+                                if (c == null) {
+                                    outcome = 2
+                                    return@withTimeoutOrNull
+                                }
+                                if (!c.pressed) {
+                                    outcome = 1
+                                    return@withTimeoutOrNull
+                                }
+                                // Don't consume: let the LazyGrid scroll a quick drag.
+                                if (c.isConsumed ||
+                                    (c.position - down.position).getDistance() > slop
+                                ) {
+                                    outcome = 2
+                                    return@withTimeoutOrNull
+                                }
+                            }
+                        }
+                        when (outcome) {
+                            1 -> {
+                                onAppClick(app)
+                                return@awaitEachGesture
+                            }
+                            2 -> return@awaitEachGesture
+                        }
+                        // LONG PRESS → lift into the shared controller (drawer source).
+                        // The finger's root position is the icon's [bounds] top-left
+                        // (captured while the drawer is open) plus the pointer's local
+                        // position. The drawer is hidden with alpha (not translated) during
+                        // the drag, so its local coordinate space stays put and this stays
+                        // accurate.
+                        dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position)
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val completed = drag(down.id) { change ->
+                            change.consume()
+                            // Only commit to a drag-out once the finger has moved past the
+                            // slop — otherwise a still long-press (with finger jitter) would
+                            // collapse the drawer instead of just showing the menu.
+                            if (!dragController.moving &&
+                                (change.position - down.position).getDistance() > slop
+                            ) {
+                                dragController.beginMove()
+                                onDragOutStart()
+                            }
+                            if (dragController.moving) {
+                                dragController.update(bounds.topLeft + change.position)
+                            }
+                        }
+                        if (completed && dragController.moving) {
+                            val root = dragController.rootPosition
+                            when {
+                                dragController.isOverDock(root) && dragController.dockHasSpace ->
+                                    onDropOnDock(app)
+                                dragController.isOverGrid(root) -> {
+                                    val (page, cx, cy) = dragController.cellAt(root)
+                                    onDropOnHome(app, page, cx, cy)
+                                }
+                            }
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        } else if (completed) {
+                            // No movement → static long-press → show the menu by the icon.
+                            onAppLongClick(app, bounds)
+                        }
+                        dragController.stop()
+                    }
+                }
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun CalcResultCard(calc: SearchResult.Calculation, onCopy: () -> Unit) {
+    val p = LocalExpressivePalette.current
+    ExpressiveCard(onClick = onCopy) {
+        Text("${calc.expression} = ", color = p.dim, fontSize = 18.sp)
+        Text(calc.result, color = Accent, fontSize = 22.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun ContactResultRow(contact: SearchResult.Contact, context: android.content.Context) {
+    val p = LocalExpressivePalette.current
+    ExpressiveCard(onClick = {
+        runCatching {
+            context.startActivity(
+                android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(contact.lookupUri))
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }) {
+        ContactAvatar(name = contact.name, photoUri = contact.photoUri)
+        Text(contact.name, color = p.text, fontSize = 16.sp,
+            modifier = Modifier.weight(1f).padding(start = 14.dp))
+        if (contact.number != null) {
+            IconButton(onClick = {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_DIAL,
+                            android.net.Uri.parse("tel:${contact.number}"))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            }) { Text("📞", color = Accent) }
+            IconButton(onClick = {
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_SENDTO,
+                            android.net.Uri.parse("smsto:${contact.number}"))
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            }) { Text("✉", color = Accent) }
+        }
+    }
 }

@@ -15,4 +15,10 @@
     <string name="folder_remove_hint">Paina sovellusta pitkään poistaaksesi sen kansiosta</string>
     <string name="folder_add">Lisää</string>
     <string name="folder_cancel">Peruuta</string>
+    <string name="search_section_apps">Sovellukset</string>
+    <string name="search_section_settings">Asetukset</string>
+    <string name="search_section_contacts">Yhteystiedot</string>
+    <string name="search_calc_copied">Kopioitu leikepöydälle</string>
+    <string name="search_contact_call">Soita</string>
+    <string name="search_contact_message">Viesti</string>
 </resources>
