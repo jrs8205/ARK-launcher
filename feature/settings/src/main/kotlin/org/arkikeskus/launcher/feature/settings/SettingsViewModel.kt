@@ -67,6 +67,9 @@ class SettingsViewModel @Inject constructor(
     fun setUseThemedIcons(value: Boolean) = update { repository.setUseThemedIcons(value) }
     fun setSearchContacts(value: Boolean) = update { repository.setSearchContacts(value) }
 
+    /** Sets (or clears, for null) the app launched by the left-edge home swipe. */
+    fun setLeftSwipeAppKey(key: String?) = update { repository.setLeftSwipeAppKey(key) }
+
     private fun update(block: suspend () -> Unit) {
         viewModelScope.launch { block() }
     }

@@ -31,4 +31,8 @@
     <string name="settings_themed_icons">Teemakuvakkeet (Material You)</string>
     <string name="settings_search">Haku</string>
     <string name="settings_search_contacts">Hae yhteystietoja</string>
+    <string name="settings_left_edge">Vasen reuna</string>
+    <string name="settings_left_edge_none">Ei mitään</string>
+    <string name="settings_left_edge_pick">Valitse sovellus</string>
+    <string name="settings_close">Sulje</string>
 </resources>

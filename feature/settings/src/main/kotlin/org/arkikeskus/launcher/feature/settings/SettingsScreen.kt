@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -29,12 +30,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -78,6 +81,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val previewIcon = rememberLauncherIconBitmap()
     var showHiddenManager by remember { mutableStateOf(false) }
+    var showLeftSwipePicker by remember { mutableStateOf(false) }
     val palette = if (isSystemInDarkTheme()) DarkExpressivePalette else LightExpressivePalette
 
     CompositionLocalProvider(LocalExpressivePalette provides palette) {
@@ -113,6 +117,12 @@ fun SettingsScreen(
                 ExpressiveSectionTitle(stringResource(R.string.settings_gestures))
                 SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, viewModel::setSwipeUp)
                 SwitchRow(stringResource(R.string.settings_swipe_down_notif), s.swipeDownForNotifications, viewModel::setSwipeDown)
+                val leftSwipeLabel = allApps.firstOrNull { it.key == s.leftSwipeAppKey }?.label
+                    ?: stringResource(R.string.settings_left_edge_none)
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_left_edge),
+                    description = leftSwipeLabel,
+                ) { showLeftSwipePicker = true }
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_dock))
                 SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, viewModel::setDockEnabled)
@@ -184,7 +194,65 @@ fun SettingsScreen(
                 )
             }
         }
+
+        if (showLeftSwipePicker) {
+            LeftSwipeAppPicker(
+                apps = allApps,
+                onPick = { key ->
+                    viewModel.setLeftSwipeAppKey(key)
+                    showLeftSwipePicker = false
+                },
+                onDismiss = { showLeftSwipePicker = false },
+            )
+        }
     }
+}
+
+/** Single-select picker for the left-edge swipe app: a "None" entry on top, then every app. */
+@Composable
+private fun LeftSwipeAppPicker(
+    apps: List<AppItem>,
+    onPick: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val p = LocalExpressivePalette.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = p.surfaceHi,
+        title = { Text(stringResource(R.string.settings_left_edge_pick), color = p.text) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(null) }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.settings_left_edge_none), color = Accent, fontSize = 16.sp)
+                }
+                apps.forEach { app ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(app.key) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        AppIcon(appItem = app, labelColor = p.text, showLabel = false, iconSize = 32.dp)
+                        Text(app.label, modifier = Modifier.padding(start = 12.dp), color = p.text)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+        },
+    )
 }
 
 /** Opens the system notification-access screen (deep-linked to this app when supported). */

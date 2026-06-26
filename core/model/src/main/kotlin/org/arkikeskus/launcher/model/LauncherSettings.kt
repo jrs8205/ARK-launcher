@@ -23,4 +23,6 @@ data class LauncherSettings(
     val useThemedIcons: Boolean = false,
     /** Include contacts in app-drawer search (gated by READ_CONTACTS; requested when enabled). */
     val searchContacts: Boolean = false,
+    /** App key launched by the left-edge home swipe (Settings ▸ Eleet); blank = gesture disabled. */
+    val leftSwipeAppKey: String = "",
 )

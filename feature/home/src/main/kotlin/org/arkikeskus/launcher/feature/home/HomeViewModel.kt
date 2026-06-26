@@ -159,6 +159,16 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Launches the app bound to the home left-edge swipe (Settings ▸ Eleet ▸ Vasen reuna). No-op when
+     * none is configured (blank key) or the app no longer resolves (e.g. uninstalled).
+     */
+    fun onLeftSwipe() = viewModelScope.launch {
+        val key = settingsRepository.settings.first().leftSwipeAppKey
+        if (key.isBlank()) return@launch
+        appRepository.apps.first().firstOrNull { it.key == key }?.let { launch(it) }
+    }
+
     /** Launches a pinned deep shortcut placed on the home screen. */
     fun launchShortcut(shortcut: PlacedShortcut) =
         AppShortcuts.startById(context, shortcut.packageName, shortcut.shortcutId, shortcut.userSerial)

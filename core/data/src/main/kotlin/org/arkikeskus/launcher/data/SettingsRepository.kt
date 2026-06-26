@@ -49,6 +49,7 @@ class SettingsRepository @Inject constructor(
             notificationDotScale = (p[Keys.NOTIF_DOT_SCALE] ?: 1.0f).coerceIn(MIN_DOT_SCALE, MAX_DOT_SCALE),
             useThemedIcons = p[Keys.USE_THEMED_ICONS] ?: false,
             searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
+            leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
         )
     }
 
@@ -151,6 +152,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setUseThemedIcons(value: Boolean) = edit { it[Keys.USE_THEMED_ICONS] = value }
     suspend fun setSearchContacts(value: Boolean) = edit { it[Keys.SEARCH_CONTACTS] = value }
 
+    /** Sets (or, for a blank/null [key], clears) the app launched by the left-edge home swipe. */
+    suspend fun setLeftSwipeAppKey(key: String?) = edit { it[Keys.LEFT_SWIPE_APP_KEY] = key?.trim().orEmpty() }
+
     suspend fun addToDock(key: String) = edit { p ->
         val current = currentFavorites(p).toMutableList()
         if (key !in current) current.add(key)
@@ -215,6 +219,7 @@ class SettingsRepository @Inject constructor(
         val NOTIF_DOT_SCALE = floatPreferencesKey("notif_dot_scale")
         val USE_THEMED_ICONS = booleanPreferencesKey("use_themed_icons")
         val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
+        val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
     }
 
     companion object {

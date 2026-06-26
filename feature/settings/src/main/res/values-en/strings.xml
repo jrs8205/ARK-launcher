@@ -31,4 +31,8 @@
     <string name="settings_themed_icons">Themed icons (Material You)</string>
     <string name="settings_search">Search</string>
     <string name="settings_search_contacts">Search contacts</string>
+    <string name="settings_left_edge">Left edge</string>
+    <string name="settings_left_edge_none">None</string>
+    <string name="settings_left_edge_pick">Choose app</string>
+    <string name="settings_close">Close</string>
 </resources>
