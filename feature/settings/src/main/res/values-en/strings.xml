@@ -35,4 +35,5 @@
     <string name="settings_left_edge_none">None</string>
     <string name="settings_left_edge_pick">Choose app</string>
     <string name="settings_close">Close</string>
+    <string name="settings_lock_desktop">Lock desktop</string>
 </resources>

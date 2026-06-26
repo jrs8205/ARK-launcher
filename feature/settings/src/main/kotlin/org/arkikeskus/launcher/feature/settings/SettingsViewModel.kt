@@ -70,6 +70,8 @@ class SettingsViewModel @Inject constructor(
     /** Sets (or clears, for null) the app launched by the left-edge home swipe. */
     fun setLeftSwipeAppKey(key: String?) = update { repository.setLeftSwipeAppKey(key) }
 
+    fun setDesktopLocked(value: Boolean) = update { repository.setDesktopLocked(value) }
+
     private fun update(block: suspend () -> Unit) {
         viewModelScope.launch { block() }
     }

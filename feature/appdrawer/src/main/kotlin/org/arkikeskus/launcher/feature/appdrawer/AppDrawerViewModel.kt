@@ -47,6 +47,7 @@ data class AppDrawerUiState(
     val calc: SearchResult.Calculation? = null,
     val settingResults: List<SearchResult.Setting> = emptyList(),
     val contactResults: List<SearchResult.Contact> = emptyList(),
+    val desktopLocked: Boolean = false,
 )
 
 @HiltViewModel
@@ -88,6 +89,7 @@ class AppDrawerViewModel @Inject constructor(
             notificationDotCount = settings.notificationDotCount,
             notificationDotScale = settings.notificationDotScale,
             useThemedIcons = settings.useThemedIcons,
+            desktopLocked = settings.desktopLocked,
         )
     }.combine(notificationBadgeRepository.badges) { state, badges ->
         state.copy(badges = badges)

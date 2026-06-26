@@ -43,6 +43,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -85,10 +86,11 @@ fun Workspace(
     badgeScale: Float,
     showLabels: Boolean,
     showPageIndicator: Boolean,
+    locked: Boolean,
     homeSignals: Flow<Unit>,
     dragController: HomeDragController,
     onAppClick: (AppItem) -> Unit,
-    onAppMenu: (AppItem, IntOffset) -> Unit,
+    onAppMenu: (AppItem, IntOffset, Boolean) -> Unit,
     onMove: suspend (AppItem, Int, Int, Int) -> Boolean,
     onMoveFolder: suspend (Long, Int, Int, Int) -> Boolean,
     onMoveToDock: (AppItem, Int) -> Unit,
@@ -104,6 +106,7 @@ fun Workspace(
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
+    val windowHeightPx = LocalWindowInfo.current.containerSize.height
 
     var gridSize by remember { mutableStateOf(IntSize.Zero) }
     var dragging by remember { mutableStateOf<PlacedApp?>(null) }
@@ -203,7 +206,7 @@ fun Workspace(
         onTap: () -> Unit,
         onStillPress: () -> Unit,
         onRemove: () -> Unit,
-    ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, pageCount) {
+    ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, pageCount, locked) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             down.consume()
@@ -222,6 +225,8 @@ fun Workspace(
             }
             if (tapped) { onTap(); return@awaitEachGesture }
             if (swiped) return@awaitEachGesture
+            // Desktop locked: long-press does nothing (no move/remove); tap (above) still opens.
+            if (locked) return@awaitEachGesture
             // PICK UP
             draggingLocal = entry
             localMoving = false
@@ -464,7 +469,7 @@ fun Workspace(
                                     }
                                     .pointerInput(
                                         placed.app.key, placed.page, placed.cellX, placed.cellY,
-                                        cellW, cellH, columns, rows, pageCount,
+                                        cellW, cellH, columns, rows, pageCount, locked,
                                     ) {
                                         awaitEachGesture {
                                             val down = awaitFirstDown(requireUnconsumed = false)
@@ -505,6 +510,8 @@ fun Workspace(
                                                 return@awaitEachGesture
                                             }
                                             if (swiped) return@awaitEachGesture
+                                            // Desktop locked: long-press does nothing (no menu, no drag); tap still launches.
+                                            if (locked) return@awaitEachGesture
                                             // PICK UP
                                             dragging = placed
                                             dragDistance = 0f
@@ -565,15 +572,19 @@ fun Workspace(
                                             // under a still-pressed finger.
                                             val d = dragging
                                             if (d != null && completed && !dragController.moving) {
-                                                // Static long-press → show the menu anchored under the
-                                                // icon (after release, so it can't steal the drag).
-                                                val anchor = dragController.gridBounds.topLeft + Offset(
-                                                    d.cellX * cellW + cellW / 2f,
-                                                    d.cellY * cellH + cellH,
-                                                )
+                                                // Static long-press → show the menu next to the icon
+                                                // (after release, so it can't steal the drag). Anchor at
+                                                // the icon's TOP edge when it's in the lower half (popup
+                                                // flips above) and its BOTTOM edge otherwise (popup
+                                                // below) — so the popup never covers the icon.
+                                                val cellTop = dragController.gridBounds.top + d.cellY * cellH
+                                                val above = cellTop + cellH / 2f > windowHeightPx / 2f
+                                                val anchorX = dragController.gridBounds.left + d.cellX * cellW + cellW / 2f
+                                                val anchorY = if (above) cellTop else cellTop + cellH
                                                 onAppMenu(
                                                     d.app,
-                                                    IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()),
+                                                    IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
+                                                    above,
                                                 )
                                             } else if (d != null && completed && dragController.moving) {
                                                 val rootPos = dragController.gridBounds.topLeft + dragPos

@@ -54,6 +54,7 @@ fun Dock(
     badgeScale: Float,
     showLabels: Boolean,
     backgroundAlpha: Float,
+    locked: Boolean,
     dragController: HomeDragController,
     onAppClick: (AppItem) -> Unit,
     onReorder: (List<AppItem>) -> Unit,
@@ -106,7 +107,7 @@ fun Dock(
                         // One unified gesture (like Workspace): quick tap launches; a still long-press
                         // lifts → drag (reorder / drop onto home) or, with no movement, opens the menu.
                         // A single detector avoids the tap-vs-long-press conflict that fired both.
-                        .pointerInput(app.key, apps.size, rowWidthPx) {
+                        .pointerInput(app.key, apps.size, rowWidthPx, locked) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
                                 val slop = viewConfiguration.touchSlop
@@ -135,6 +136,8 @@ fun Dock(
                                     return@awaitEachGesture
                                 }
                                 if (abandoned) return@awaitEachGesture
+                                // Desktop locked: long-press does nothing (no menu, no lift); tap still launches.
+                                if (locked) return@awaitEachGesture
                                 // LONG PRESS → lift
                                 draggingIndex = index
                                 dragOffsetX = 0f

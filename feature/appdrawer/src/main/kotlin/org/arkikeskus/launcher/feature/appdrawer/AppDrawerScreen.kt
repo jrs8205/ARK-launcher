@@ -168,6 +168,7 @@ fun AppDrawerScreen(
         calc = uiState.calc,
         settingResults = uiState.settingResults,
         contactResults = uiState.contactResults,
+        locked = uiState.desktopLocked,
         modifier = modifier,
     )
 
@@ -275,6 +276,7 @@ private fun AppDrawerContent(
     calc: SearchResult.Calculation?,
     settingResults: List<SearchResult.Setting>,
     contactResults: List<SearchResult.Contact>,
+    locked: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -377,7 +379,7 @@ private fun AppDrawerContent(
                         DrawerFolderTile(folder = folder, showLabel = showLabels, onClick = { onFolderClick(folder) })
                     }
                     appCells(apps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
-                        dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics)
+                        dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
                 } else {
                     calc?.let { c ->
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "calc" }) {
@@ -396,7 +398,7 @@ private fun AppDrawerContent(
                             ExpressiveSectionTitle(stringResource(R.string.search_section_apps))
                         }
                         appCells(apps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
-                            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics)
+                            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
                     }
                     if (settingResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
@@ -652,6 +654,7 @@ private fun LazyGridScope.appCells(
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
     onDropOnDock: (AppItem) -> Unit,
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    locked: Boolean,
 ) {
     items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
         var bounds by remember { mutableStateOf(Rect.Zero) }
@@ -669,7 +672,7 @@ private fun LazyGridScope.appCells(
                 // long-press fires, so a quick drag still scrolls the grid: quick tap
                 // launches; a still long-press lifts → drag out to home/dock, or with no
                 // movement opens the long-press menu.
-                .pointerInput(app.key) {
+                .pointerInput(app.key, locked) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val slop = viewConfiguration.touchSlop
@@ -703,6 +706,8 @@ private fun LazyGridScope.appCells(
                             }
                             2 -> return@awaitEachGesture
                         }
+                        // Desktop locked: long-press does nothing (no menu, no drag-out); tap still launches.
+                        if (locked) return@awaitEachGesture
                         // LONG PRESS → lift into the shared controller (drawer source).
                         // The finger's root position is the icon's [bounds] top-left
                         // (captured while the drawer is open) plus the pointer's local

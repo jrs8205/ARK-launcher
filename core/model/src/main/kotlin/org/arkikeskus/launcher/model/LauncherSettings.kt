@@ -25,4 +25,6 @@ data class LauncherSettings(
     val searchContacts: Boolean = false,
     /** App key launched by the left-edge home swipe (Settings ▸ Eleet); blank = gesture disabled. */
     val leftSwipeAppKey: String = "",
+    /** Lock the desktop layout: when true, home + dock items can't be moved, removed, or added. */
+    val desktopLocked: Boolean = false,
 )

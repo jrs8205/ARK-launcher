@@ -50,6 +50,7 @@ class SettingsRepository @Inject constructor(
             useThemedIcons = p[Keys.USE_THEMED_ICONS] ?: false,
             searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
+            desktopLocked = p[Keys.DESKTOP_LOCKED] ?: false,
         )
     }
 
@@ -155,6 +156,9 @@ class SettingsRepository @Inject constructor(
     /** Sets (or, for a blank/null [key], clears) the app launched by the left-edge home swipe. */
     suspend fun setLeftSwipeAppKey(key: String?) = edit { it[Keys.LEFT_SWIPE_APP_KEY] = key?.trim().orEmpty() }
 
+    /** Locks/unlocks the desktop layout (blocks moving/removing/adding home + dock items). */
+    suspend fun setDesktopLocked(value: Boolean) = edit { it[Keys.DESKTOP_LOCKED] = value }
+
     suspend fun addToDock(key: String) = edit { p ->
         val current = currentFavorites(p).toMutableList()
         if (key !in current) current.add(key)
@@ -220,6 +224,7 @@ class SettingsRepository @Inject constructor(
         val USE_THEMED_ICONS = booleanPreferencesKey("use_themed_icons")
         val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
+        val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
     }
 
     companion object {

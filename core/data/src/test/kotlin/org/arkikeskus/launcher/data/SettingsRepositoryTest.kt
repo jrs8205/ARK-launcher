@@ -100,4 +100,16 @@ class SettingsRepositoryTest {
         repo.setLeftSwipeAppKey(null)
         assertThat(repo.settings.first().leftSwipeAppKey).isEmpty()
     }
+
+    @Test
+    fun `desktopLocked defaults to false and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().desktopLocked).isFalse()
+
+        repo.setDesktopLocked(true)
+        assertThat(repo.settings.first().desktopLocked).isTrue()
+
+        repo.setDesktopLocked(false)
+        assertThat(repo.settings.first().desktopLocked).isFalse()
+    }
 }

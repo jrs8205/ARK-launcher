@@ -107,6 +107,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = uiState.settings
     val context = LocalContext.current
+    val windowHeightPx = LocalWindowInfo.current.containerSize.height
     // The single Pixel-style long-press menu, anchored to the long-pressed icon.
     var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
@@ -161,10 +162,11 @@ fun HomeScreen(
                 badgeScale = badgeScale,
                 showLabels = settings.showHomeLabels,
                 showPageIndicator = settings.showPageIndicator,
+                locked = settings.desktopLocked,
                 homeSignals = homeSignals,
                 dragController = dragController,
                 onAppClick = viewModel::launch,
-                onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home) },
+                onAppMenu = { app, anchor, above -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home, above) },
                 onMove = viewModel::moveItem,
                 onMoveFolder = viewModel::moveFolder,
                 onMoveToDock = { app, index -> viewModel.moveToDock(app, index) },
@@ -190,11 +192,12 @@ fun HomeScreen(
                     badgeScale = badgeScale,
                     showLabels = settings.showDockLabels,
                     backgroundAlpha = settings.dockBackgroundOpacity,
+                    locked = settings.desktopLocked,
                     dragController = dragController,
                     onAppClick = viewModel::launch,
                     onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY) },
-                    onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock) },
+                    onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -240,7 +243,9 @@ fun HomeScreen(
         AppActionPopup(
             app = menu.app,
             anchor = menu.anchor,
-            preferAbove = menu.source == DragSource.Dock,
+            // Flip the popup above the icon when it's in the lower half (e.g. dock or a bottom-row
+            // icon), so it never runs off the bottom of the screen. Decided where the anchor is built.
+            preferAbove = menu.preferAbove,
             actions = listOf(
                 PopupAction(stringResource(R.string.app_info)) { AppActions.openAppInfo(context, menu.app) },
                 PopupAction(stringResource(R.string.rename)) { renameTarget = menu.app },
@@ -487,6 +492,11 @@ private fun Modifier.pixelHomeSwipe(
 }
 
 /** The long-pressed app and where its menu should anchor (which surface it came from). */
-private data class AppMenuTarget(val app: AppItem, val anchor: IntOffset, val source: DragSource)
+private data class AppMenuTarget(
+    val app: AppItem,
+    val anchor: IntOffset,
+    val source: DragSource,
+    val preferAbove: Boolean,
+)
 
 /** The long-press menu is the shared [org.arkikeskus.launcher.ui.AppActionPopup] (core/ui). */

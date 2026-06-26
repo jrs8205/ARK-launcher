@@ -69,7 +69,7 @@ fun AppActionPopup(
     val density = LocalDensity.current
     val windowWidthPx = LocalWindowInfo.current.containerSize.width.toFloat()
     val cardColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val cardWidth = 280.dp
+    val cardWidth = 232.dp
 
     var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>>(emptyList()) }
     LaunchedEffect(app.key) {
@@ -109,7 +109,7 @@ fun AppActionPopup(
             ) {
                 Column(
                     modifier = Modifier
-                        .heightIn(max = 420.dp)
+                        .heightIn(max = 520.dp)
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = 8.dp),
                 ) {
