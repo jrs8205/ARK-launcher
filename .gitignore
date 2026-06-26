@@ -12,11 +12,9 @@
 *.aab
 local.properties
 .kotlin/
-/.claude/settings.local.json
 # Icon source export (assets already copied into app/src/main/res)
 /launcher_L/
 # Design reference artifacts kept locally (not part of the app)
-/.playwright-mcp/
 /design-full.png
 /statuspalkki.png
 /Launcher etusivu*.html
@@ -24,9 +22,6 @@ local.properties
 # AOSP Launcher3 reference (local only, do not commit)
 Launcher3-*.tar.gz
 launcher3_src/
-
-# Local agent/tooling scratch (not part of the app)
-.agents/
 
 # Lawnchair reference (GPL — local only, do NOT commit/redistribute)
 lawnchair-*.zip
