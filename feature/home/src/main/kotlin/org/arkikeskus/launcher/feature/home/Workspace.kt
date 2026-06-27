@@ -791,9 +791,17 @@ fun Workspace(
                                                 }
                                                 // held == null → timed out while still pressed (and not moved) → PICK UP.
                                                 if (held != null || movedEarly) return@awaitEachGesture
-                                                // held long-press → enter edit mode; move/resize happen in the overlay
+                                                // held long-press → enter edit mode. Consume the REST of this
+                                                // gesture (until the finger lifts) so the embedded
+                                                // AppWidgetHostView receives a CANCEL instead of an UP and does
+                                                // not also launch the widget's own click action.
                                                 editingWidget = widget
                                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                while (true) {
+                                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                                    ev.changes.forEach { it.consume() }
+                                                    if (ev.changes.none { it.id == down.id && it.pressed }) break
+                                                }
                                                 return@awaitEachGesture
                                             }
                                         },
@@ -985,11 +993,18 @@ private fun WidgetEditOverlay(
         )
     }
 
-    // Candidate-rect border.
+    // Candidate-rect border. While body-dragging it follows the finger CONTINUOUSLY: the offset reads
+    // dragTopLeft in the layout phase, so it re-positions every frame without recomposition (smooth, like
+    // Pixel); the per-cell snap target is shown by the placeholder above. A faint fill makes the moving
+    // card readable.
     Box(
         modifier = Modifier
-            .offset { IntOffset((cx * cellW).roundToInt(), (cy * cellH).roundToInt()) }
+            .offset {
+                if (dragging) IntOffset(dragTopLeft.x.roundToInt(), dragTopLeft.y.roundToInt())
+                else IntOffset((cx * cellW).roundToInt(), (cy * cellH).roundToInt())
+            }
             .size(with(density) { (sx * cellW).toDp() }, with(density) { (sy * cellH).toDp() })
+            .then(if (dragging) Modifier.background(primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp)) else Modifier)
             .border(2.dp, primary, RoundedCornerShape(12.dp)),
     )
 
