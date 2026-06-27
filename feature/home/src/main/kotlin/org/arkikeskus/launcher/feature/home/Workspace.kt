@@ -1064,7 +1064,12 @@ private fun WidgetEditOverlay(
     if (reconfigurable) {
         Box(
             modifier = Modifier
-                .offset { IntOffset(((cx + sx) * cellW - handlePx).roundToInt(), (cy * cellH).roundToInt()) }
+                .offset {
+                    IntOffset(
+                        ((cx + sx) * cellW - handlePx - 8.dp.toPx()).roundToInt(),
+                        (cy * cellH + 8.dp.toPx()).roundToInt()
+                    )
+                }
                 .size(with(density) { handlePx.toDp() })
                 .background(primary, CircleShape)
                 .clickable { onReconfigure() },

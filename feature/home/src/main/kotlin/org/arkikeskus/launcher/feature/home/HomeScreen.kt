@@ -545,7 +545,6 @@ private fun Modifier.pixelHomeSwipe(
         val touchSlop = viewConfiguration.touchSlop
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-            android.util.Log.d("AntigravitySwipe", "Down event detected at ${down.position}")
             val velocityTracker = VelocityTracker()
             velocityTracker.addPosition(down.uptimeMillis, down.position)
             var mode = 0 // 0 = undecided, 1 = drawer up-drag, 2 = left-edge action (right-drag on page 0)
@@ -561,22 +560,18 @@ private fun Modifier.pixelHomeSwipe(
                     dragController.localGestureActive ||
                     dragController.localDragging
                 ) {
-                    android.util.Log.d("AntigravitySwipe", "Bailing out: drag active in controller")
                     break
                 }
 
                 if (!change.pressed) {
                     if (mode == 1) {
                         val finalDy = change.position.y - lastY
-                        android.util.Log.d("AntigravitySwipe", "UP event: mode=1, finalDy=$finalDy")
                         if (finalDy != 0f) latestOnDrawerDrag(finalDy)
                         latestOnDrawerSettle(velocityTracker.calculateVelocity().y)
                     } else if (mode == 2) {
                         // Left-edge action: commit only when dragged far enough right (a short drag
                         // cancels, so the gesture can be aborted by releasing early).
                         if (change.position.x - down.position.x > size.width * 0.25f) latestOnLeftEdgeAction()
-                    } else {
-                        android.util.Log.d("AntigravitySwipe", "UP event: mode=0 (not in drawer mode)")
                     }
                     break
                 }
@@ -588,20 +583,17 @@ private fun Modifier.pixelHomeSwipe(
                     when {
                         abs(dy) > touchSlop && abs(dy) > abs(dx) -> when {
                             dy < 0f && swipeUpForDrawer -> {
-                                android.util.Log.d("AntigravitySwipe", "Engaging drawer swipe UP! dy=$dy, slop=$touchSlop")
                                 mode = 1
                                 change.consume()
                                 latestOnDrawerDrag(dy) // jump to the finger, including the slop moved
                                 lastY = change.position.y
                             }
                             dy > 0f && swipeDownForNotifications -> {
-                                android.util.Log.d("AntigravitySwipe", "Engaging notifications swipe DOWN! dy=$dy, slop=$touchSlop")
                                 change.consume()
                                 latestOnOpenNotifications()
                                 break // one-shot
                             }
                             else -> {
-                                android.util.Log.d("AntigravitySwipe", "Gesture direction wrong or disabled: dy=$dy")
                                 break
                             }
                         }
@@ -614,13 +606,11 @@ private fun Modifier.pixelHomeSwipe(
                                 change.consume()
                             } else {
                                 // Other horizontal → don't consume; leave it to the HorizontalPager.
-                                android.util.Log.d("AntigravitySwipe", "Horizontal swipe: dx=$dx, dy=$dy. Handing to pager.")
                                 break
                             }
                         }
                     }
                 } else if (mode == 1) {
-                    android.util.Log.d("AntigravitySwipe", "Drawer drag active, dy=${change.position.y - lastY}")
                     change.consume()
                     latestOnDrawerDrag(change.position.y - lastY)
                     lastY = change.position.y

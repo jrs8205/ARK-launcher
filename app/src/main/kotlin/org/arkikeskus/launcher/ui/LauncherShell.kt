@@ -179,7 +179,6 @@ fun LauncherShell(
                         alpha = dragOutAlpha.value
                     } else {
                         val ty = (1f - currentProgress) * size.height
-                        android.util.Log.d("AntigravitySwipe", "graphicsLayer: currentProgress=$currentProgress, size.height=${size.height}, translationY=$ty")
                         translationY = ty
                     }
                 },

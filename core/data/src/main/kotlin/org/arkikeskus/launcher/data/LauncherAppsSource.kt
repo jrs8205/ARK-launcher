@@ -55,9 +55,9 @@ class LauncherAppsSource @Inject constructor(
     }
 
     private fun queryApps(): List<AppItem> {
-        val profiles = userManager?.userProfiles ?: listOf(Process.myUserHandle())
+        val profiles = runCatching { userManager?.userProfiles }.getOrNull() ?: listOf(Process.myUserHandle())
         return profiles.flatMap { user ->
-            val serial = userManager?.getSerialNumberForUser(user) ?: 0L
+            val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
             val list = runCatching {
                 launcherApps.getActivityList(null, user)
             }.getOrElse { emptyList() }

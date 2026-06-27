@@ -56,7 +56,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         val counts = HashMap<String, Int>()
         for (sbn in active) {
             if (sbn == null || !isBadgeWorthy(sbn, ranking, tmp)) continue
-            val serial = userManager?.getSerialNumberForUser(sbn.user) ?: 0L
+            val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
             counts[key] = (counts[key] ?: 0) + 1
         }

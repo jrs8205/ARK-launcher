@@ -298,11 +298,6 @@ class HomeLayoutRepository @Inject constructor(
         /** Off-grid parking slot used while swapping two cells inside a transaction. */
         private const val TEMP_SLOT = -1
 
-        /**
-         * First top-left cell where a [spanX]×[spanY] rectangle fits on the home grid without
-         * overlapping any item (each item occupies its own spanX×spanY cells; apps/folders/shortcuts
-         * are 1×1). Spans are clamped to the grid; advances to a fresh trailing page when needed.
-         */
         /** True if a [spanX]×[spanY] rect at (page,cellX,cellY) is on-grid and free of every item
          *  except [excludeRowId] (so a widget never blocks its own move/resize). */
         fun rectFitsForRow(
@@ -321,6 +316,11 @@ class HomeLayoutRepository @Inject constructor(
             return true
         }
 
+        /**
+         * First top-left cell where a [spanX]×[spanY] rectangle fits on the home grid without
+         * overlapping any item (each item occupies its own spanX×spanY cells; apps/folders/shortcuts
+         * are 1×1). Spans are clamped to the grid; advances to a fresh trailing page when needed.
+         */
         fun firstFreeRect(items: List<HomeItemEntity>, columns: Int, spanX: Int, spanY: Int): Triple<Int, Int, Int> {
             val cols = columns.coerceAtLeast(1)
             val sx = spanX.coerceIn(1, cols)
