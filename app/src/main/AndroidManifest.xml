@@ -7,7 +7,16 @@
     <!-- Optional: contacts in app-drawer search; requested at runtime, gated by a setting. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
-    <!-- See which apps expose a launcher activity (for the future app drawer). -->
+    <!-- A home launcher legitimately interacts with every installed app (open, uninstall, app info,
+         notification badges). Without this, package-visibility filtering in a non-debuggable build
+         silently blocks those cross-app intents (e.g. uninstall opens nothing). -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <!-- Required so the system package installer honors our ACTION_DELETE uninstall request; without
+         it the uninstaller silently rejects the call ("does not have REQUEST_DELETE_PACKAGES"). -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
+    <!-- See which apps expose a launcher activity (for the app drawer). -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />

@@ -192,7 +192,9 @@ fun HomeScreen(
                     .padding(horizontal = 8.dp, vertical = 12.dp),
             )
 
-            if (settings.dockEnabled && uiState.dockApps.isNotEmpty()) {
+            // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
+            // can be populated by dragging apps onto it (there is no "add to dock" menu item).
+            if (settings.dockEnabled) {
                 Dock(
                     apps = uiState.dockApps,
                     badges = badges,

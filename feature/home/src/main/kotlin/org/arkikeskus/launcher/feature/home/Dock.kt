@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -89,7 +90,9 @@ fun Dock(
         shape = shape,
     ) {
         Row(
+            // Keep a full-height bar even when empty (no favorites yet) so apps can be dragged in.
             modifier = Modifier
+                .heightIn(min = 72.dp)
                 .padding(horizontal = 8.dp, vertical = 10.dp)
                 .onSizeChanged { rowWidthPx = it.width },
             horizontalArrangement = Arrangement.spacedBy(4.dp),
