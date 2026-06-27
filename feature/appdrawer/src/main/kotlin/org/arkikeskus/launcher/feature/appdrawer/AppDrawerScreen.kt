@@ -69,6 +69,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -381,11 +382,18 @@ private fun AppDrawerContent(
             ) {
                 if (!searching) {
                     if (frequentApps.isNotEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
-                            ExpressiveSectionTitle(stringResource(R.string.drawer_frequent_apps))
+                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "frequent" }) {
+                            FrequentAppsCard(
+                                apps = frequentApps,
+                                columns = columns,
+                                badges = badges,
+                                badgeShowCount = badgeShowCount,
+                                badgeScale = badgeScale,
+                                showLabels = showLabels,
+                                onAppClick = onAppClick,
+                                onAppLongClick = onAppLongClick,
+                            )
                         }
-                        appCells(frequentApps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
-                            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, keyPrefix = "freq-")
                     }
                     items(items = folders, key = { "folder-${it.id}" }, contentType = { "folder" }) { folder ->
                         DrawerFolderTile(folder = folder, showLabel = showLabels, onClick = { onFolderClick(folder) })
@@ -652,6 +660,68 @@ private fun AddAppsDialog(apps: List<AppItem>, onConfirm: (List<String>) -> Unit
     )
 }
 
+/** The "most used" apps in a rounded Version C card above the alphabetical grid. The same apps also
+ *  stay in the A–Z list below; this card is just a distinct quick-access shortcut row. Icons span
+ *  the drawer columns (left-aligned), so the row tracks the icon-count setting. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FrequentAppsCard(
+    apps: List<AppItem>,
+    columns: Int,
+    badges: Map<String, Int>,
+    badgeShowCount: Boolean,
+    badgeScale: Float,
+    showLabels: Boolean,
+    onAppClick: (AppItem) -> Unit,
+    onAppLongClick: (AppItem, Rect) -> Unit,
+) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
+            Text(
+                text = stringResource(R.string.drawer_frequent_apps),
+                color = p.dim,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(start = 8.dp, bottom = 4.dp),
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                apps.forEach { app ->
+                    var bounds by remember(app.key) { mutableStateOf(Rect.Zero) }
+                    AppIcon(
+                        appItem = app,
+                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        showLabel = showLabels,
+                        maxLabelLines = 2,
+                        badgeCount = badges[app.badgeKey] ?: 0,
+                        badgeShowCount = badgeShowCount,
+                        badgeScale = badgeScale,
+                        modifier = Modifier
+                            .weight(1f)
+                            .onGloballyPositioned { bounds = it.boundsInRoot() }
+                            .combinedClickable(
+                                onClick = { onAppClick(app) },
+                                onLongClick = { onAppLongClick(app, bounds) },
+                            )
+                            .padding(vertical = 4.dp, horizontal = 2.dp),
+                    )
+                }
+                // Keep icons aligned to the leftmost columns when fewer than a full row are used.
+                if (apps.size < columns) {
+                    Spacer(Modifier.weight((columns - apps.size).toFloat()))
+                }
+            }
+        }
+    }
+}
+
 /** The drawer app-grid cell, shared by the idle and searching layouts. */
 private fun LazyGridScope.appCells(
     apps: List<AppItem>,
@@ -667,9 +737,8 @@ private fun LazyGridScope.appCells(
     onDropOnDock: (AppItem) -> Unit,
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
     locked: Boolean,
-    keyPrefix: String = "",
 ) {
-    items(items = apps, key = { keyPrefix + it.key }, contentType = { "app" }) { app ->
+    items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
         var bounds by remember { mutableStateOf(Rect.Zero) }
         AppIcon(
             appItem = app,
