@@ -139,6 +139,7 @@ fun SettingsScreen(
                 StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
                 SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, viewModel::setShowDrawerLabels)
                 SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
+                SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_hidden_apps),
                     description = stringResource(R.string.settings_hidden_apps_desc, hiddenKeys.size),
