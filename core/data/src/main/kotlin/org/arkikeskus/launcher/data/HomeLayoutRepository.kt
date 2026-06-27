@@ -274,6 +274,23 @@ class HomeLayoutRepository @Inject constructor(
         dao.deleteById(rowId)
     }
 
+    /** Atomically sets a widget row's full grid bounds (used by both move and resize). Returns false
+     *  (no change) if the row is gone, isn't a widget, or the target rect doesn't fit. */
+    suspend fun setWidgetBounds(
+        rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int,
+    ): Boolean = db.withTransaction {
+        val row = dao.getById(rowId) ?: return@withTransaction false
+        if (!row.isWidget) return@withTransaction false
+        val sx = spanX.coerceAtLeast(1)
+        val sy = spanY.coerceAtLeast(1)
+        if (!rectFitsForRow(dao.getContainer(HOME), rowId, page, cellX, cellY, sx, sy, columns)) {
+            return@withTransaction false
+        }
+        dao.moveById(rowId, HOME, page, cellX, cellY)
+        dao.updateSpans(rowId, sx, sy)
+        true
+    }
+
     companion object {
         /** Rows per home page (fixed for now). */
         const val ROWS = 6
@@ -286,6 +303,24 @@ class HomeLayoutRepository @Inject constructor(
          * overlapping any item (each item occupies its own spanX×spanY cells; apps/folders/shortcuts
          * are 1×1). Spans are clamped to the grid; advances to a fresh trailing page when needed.
          */
+        /** True if a [spanX]×[spanY] rect at (page,cellX,cellY) is on-grid and free of every item
+         *  except [excludeRowId] (so a widget never blocks its own move/resize). */
+        fun rectFitsForRow(
+            items: List<HomeItemEntity>, excludeRowId: Long,
+            page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int,
+        ): Boolean {
+            val cols = columns.coerceAtLeast(1)
+            if (cellX < 0 || cellY < 0 || cellX + spanX > cols || cellY + spanY > ROWS) return false
+            val occupied = HashSet<Triple<Int, Int, Int>>()
+            for (e in items) if (e.id != excludeRowId) for (dx in 0 until e.spanX) for (dy in 0 until e.spanY) {
+                occupied += Triple(e.page, e.cellX + dx, e.cellY + dy)
+            }
+            for (dx in 0 until spanX) for (dy in 0 until spanY) {
+                if (Triple(page, cellX + dx, cellY + dy) in occupied) return false
+            }
+            return true
+        }
+
         fun firstFreeRect(items: List<HomeItemEntity>, columns: Int, spanX: Int, spanY: Int): Triple<Int, Int, Int> {
             val cols = columns.coerceAtLeast(1)
             val sx = spanX.coerceIn(1, cols)

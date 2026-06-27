@@ -64,4 +64,7 @@ interface HomeItemDao {
 
     @Query("UPDATE home_items SET folderName = :name WHERE id = :id")
     suspend fun renameFolder(id: Long, name: String)
+
+    @Query("UPDATE home_items SET spanX = :spanX, spanY = :spanY WHERE id = :id")
+    suspend fun updateSpans(id: Long, spanX: Int, spanY: Int)
 }
