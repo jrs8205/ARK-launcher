@@ -772,7 +772,7 @@ fun Workspace(
                                             with(density) { (widget.spanY * cellH).toDp() },
                                         )
                                         .graphicsLayer { alpha = if (draggingWidget?.rowId == widget.rowId) 0.4f else 1f }
-                                        .pointerInput(widget.rowId, locked, cellW, cellH, columns, rows, pageCount) {
+                                        .pointerInput(widget.rowId, widget.page, widget.cellX, widget.cellY, widget.spanX, widget.spanY, locked, cellW, cellH, columns, rows, pageCount) {
                                             if (locked) return@pointerInput
                                             awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
