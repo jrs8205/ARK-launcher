@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import coil3.ImageLoader
 import dagger.Module
 import dagger.Provides
@@ -22,6 +24,15 @@ import org.arkikeskus.launcher.data.local.LauncherDatabase
 import javax.inject.Singleton
 
 private val Context.settingsDataStore by preferencesDataStore(name = "launcher_settings")
+
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE home_items ADD COLUMN spanX INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE home_items ADD COLUMN spanY INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE home_items ADD COLUMN appWidgetId INTEGER")
+        db.execSQL("ALTER TABLE home_items ADD COLUMN widgetProvider TEXT")
+    }
+}
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -59,6 +70,7 @@ object DataModule {
             // pre-v5 dev versions (1–4, which never shipped a migration) so an old test install resets
             // instead of crashing; v5 onward is migrated, so the user's home layout survives upgrades.
             .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2, 3, 4)
+            .addMigrations(MIGRATION_5_6)
             .build()
 
     @Provides

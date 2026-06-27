@@ -34,6 +34,12 @@ data class HomeItemEntity(
     val page: Int,
     val cellX: Int,
     val cellY: Int,
+    val spanX: Int = 1,
+    val spanY: Int = 1,
+    /** Non-null → this row is a bound app widget occupying spanX×spanY cells. */
+    val appWidgetId: Int? = null,
+    /** The widget provider's ComponentName.flattenToString() (set when [appWidgetId] is). */
+    val widgetProvider: String? = null,
 ) {
     /** Matches AppItem.key so app entities can be resolved against the live app list. */
     val key: String get() = "$packageName/$className/$userSerial"
@@ -41,6 +47,8 @@ data class HomeItemEntity(
     val isFolder: Boolean get() = folderName != null
 
     val isShortcut: Boolean get() = shortcutId != null
+
+    val isWidget: Boolean get() = appWidgetId != null
 
     companion object {
         /** [containerId] sentinel meaning "placed directly on the home screen". */
