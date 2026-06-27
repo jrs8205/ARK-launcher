@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.home
 
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetProviderInfo
+import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -57,3 +58,8 @@ fun widgetResizeRange(info: AppWidgetProviderInfo, context: Context, gridColumns
         vertical = vertical,
     )
 }
+
+/** True if [info] has a configuration activity AND declares the reconfigurable feature (Launcher3's
+ *  `isReconfigurable()` gate). Such widgets can be re-configured after placement. */
+fun isReconfigurableWidget(info: AppWidgetProviderInfo): Boolean =
+    info.configure != null && (info.widgetFeatures and WIDGET_FEATURE_RECONFIGURABLE) != 0
