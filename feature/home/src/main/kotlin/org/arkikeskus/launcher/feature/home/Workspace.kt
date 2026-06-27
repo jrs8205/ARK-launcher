@@ -3,9 +3,12 @@ package org.arkikeskus.launcher.feature.home
 import android.appwidget.AppWidgetManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,6 +128,7 @@ fun Workspace(
     var dragPos by remember { mutableStateOf(Offset.Zero) }
     var dragDistance by remember { mutableStateOf(0f) }
     var widgetMenu by remember { mutableStateOf<PlacedWidget?>(null) }
+    var resizingWidget by remember { mutableStateOf<PlacedWidget?>(null) }
     var draggingWidget by remember { mutableStateOf<PlacedWidget?>(null) }
     var widgetDragTopLeft by remember { mutableStateOf(Offset.Zero) }       // px, the widget's top-left while dragging
     var widgetTargetCell by remember { mutableStateOf<IntOffset?>(null) }   // grid cell of the drag target (null = no fit)
@@ -863,6 +867,17 @@ fun Workspace(
                                         expanded = widgetMenu?.rowId == widget.rowId,
                                         onDismissRequest = { widgetMenu = null },
                                     ) {
+                                        val ctxR = LocalContext.current
+                                        val range = remember(widget.appWidgetId) {
+                                            AppWidgetManager.getInstance(ctxR).getAppWidgetInfo(widget.appWidgetId)
+                                                ?.let { widgetResizeRange(it, ctxR, columns) }
+                                        }
+                                        if (range?.isResizable == true) {
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(R.string.widget_resize)) },
+                                                onClick = { resizingWidget = widget; widgetMenu = null },
+                                            )
+                                        }
                                         DropdownMenuItem(
                                             text = { Text(stringResource(R.string.widget_remove)) },
                                             onClick = {
@@ -885,6 +900,28 @@ fun Workspace(
                                 .padding(4.dp)
                                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f), RoundedCornerShape(12.dp)),
                         )
+                    }
+                    val rw = resizingWidget
+                    if (rw != null && rw.page == page) {
+                        val ctxRz = LocalContext.current
+                        val info = remember(rw.appWidgetId) { AppWidgetManager.getInstance(ctxRz).getAppWidgetInfo(rw.appWidgetId) }
+                        val range = remember(rw.appWidgetId) { info?.let { widgetResizeRange(it, ctxRz, columns) } }
+                        if (range != null) {
+                            WidgetResizeOverlay(
+                                widget = rw,
+                                range = range,
+                                cellW = cellW,
+                                cellH = cellH,
+                                columns = columns,
+                                rows = rows,
+                                density = density,
+                                rectFree = { x, y, sx, sy -> rectFreeOnGrid(rw.rowId, rw.page, x, y, sx, sy) },
+                                onCommit = { x, y, sx, sy ->
+                                    resizingWidget = null
+                                    scope.launch { onSetWidgetBounds(rw.rowId, rw.page, x, y, sx, sy) }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -934,6 +971,86 @@ fun Workspace(
                 }
             }
         }
+    }
+}
+
+/** Edge-handle resize overlay: a scrim that commits on tap, the live candidate rect, and one handle
+ *  per resizable edge. Each handle moves its own edge (opposite edge fixed), snapping to cells and
+ *  clamped to the provider min/max, the grid, and a free-rectangle check. */
+@Composable
+private fun WidgetResizeOverlay(
+    widget: PlacedWidget,
+    range: WidgetResizeRange,
+    cellW: Float,
+    cellH: Float,
+    columns: Int,
+    rows: Int,
+    density: androidx.compose.ui.unit.Density,
+    rectFree: (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
+    onCommit: (x: Int, y: Int, spanX: Int, spanY: Int) -> Unit,
+) {
+    var cx by remember { mutableStateOf(widget.cellX) }
+    var cy by remember { mutableStateOf(widget.cellY) }
+    var sx by remember { mutableStateOf(widget.spanX) }
+    var sy by remember { mutableStateOf(widget.spanY) }
+    // Full-grid scrim: a tap commits and exits.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) { detectTapGestures { onCommit(cx, cy, sx, sy) } },
+    )
+    // Candidate rect outline.
+    Box(
+        modifier = Modifier
+            .offset { IntOffset((cx * cellW).roundToInt(), (cy * cellH).roundToInt()) }
+            .size(with(density) { (sx * cellW).toDp() }, with(density) { (sy * cellH).toDp() })
+            .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
+    )
+    val handle = with(density) { 28.dp.toPx() }
+    val primaryColor = MaterialTheme.colorScheme.primary
+    fun handleMod(centerX: Float, centerY: Float, onDrag: (Offset) -> Unit) = Modifier
+        .offset { IntOffset((centerX - handle / 2).roundToInt(), (centerY - handle / 2).roundToInt()) }
+        .size(with(density) { handle.toDp() })
+        .background(primaryColor, CircleShape)
+        .pointerInput(widget.rowId) { detectDragGestures { change, dragAmount -> change.consume(); onDrag(dragAmount) } }
+    val left = cx * cellW; val top = cy * cellH; val right = (cx + sx) * cellW; val bottom = (cy + sy) * cellH
+    var accX by remember { mutableStateOf(0f) }
+    var accY by remember { mutableStateOf(0f) }
+    if (range.horizontal) {
+        // RIGHT handle: change sx (left edge fixed).
+        Box(handleMod(right, (top + bottom) / 2f) { d ->
+            accX += d.x
+            val target = (((cx + sx) * cellW + accX) / cellW).roundToInt()
+            val newSx = (target - cx).coerceIn(range.minX, range.maxX)
+            if (newSx != sx && rectFree(cx, cy, newSx, sy)) { sx = newSx; accX = 0f }
+        })
+        // LEFT handle: move left edge, right edge (cx+sx) fixed.
+        Box(handleMod(left, (top + bottom) / 2f) { d ->
+            accX += d.x
+            val rightEdge = cx + sx
+            val target = ((cx * cellW + accX) / cellW).roundToInt().coerceIn(0, rightEdge - range.minX)
+            val newSx = (rightEdge - target).coerceIn(range.minX, range.maxX)
+            val newCx = rightEdge - newSx
+            if ((newCx != cx || newSx != sx) && rectFree(newCx, cy, newSx, sy)) { cx = newCx; sx = newSx; accX = 0f }
+        })
+    }
+    if (range.vertical) {
+        // BOTTOM handle: change sy (top edge fixed).
+        Box(handleMod((left + right) / 2f, bottom) { d ->
+            accY += d.y
+            val target = (((cy + sy) * cellH + accY) / cellH).roundToInt()
+            val newSy = (target - cy).coerceIn(range.minY, range.maxY)
+            if (newSy != sy && rectFree(cx, cy, sx, newSy)) { sy = newSy; accY = 0f }
+        })
+        // TOP handle: move top edge, bottom edge (cy+sy) fixed.
+        Box(handleMod((left + right) / 2f, top) { d ->
+            accY += d.y
+            val bottomEdge = cy + sy
+            val target = ((cy * cellH + accY) / cellH).roundToInt().coerceIn(0, bottomEdge - range.minY)
+            val newSy = (bottomEdge - target).coerceIn(range.minY, range.maxY)
+            val newCy = bottomEdge - newSy
+            if ((newCy != cy || newSy != sy) && rectFree(cx, newCy, sx, newSy)) { cy = newCy; sy = newSy; accY = 0f }
+        })
     }
 }
 

@@ -21,5 +21,6 @@
     <string name="home_options_wallpaper">Wallpaper</string>
     <string name="widget_remove">Remove widget</string>
     <string name="widget_unavailable">Widget unavailable</string>
+    <string name="widget_resize">Resize</string>
     <string name="widget_picker_title">Choose a widget</string>
 </resources>

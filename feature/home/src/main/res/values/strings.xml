@@ -21,5 +21,6 @@
     <string name="home_options_wallpaper">Taustakuva</string>
     <string name="widget_remove">Poista widget</string>
     <string name="widget_unavailable">Widget ei käytettävissä</string>
+    <string name="widget_resize">Muuta kokoa</string>
     <string name="widget_picker_title">Valitse widget</string>
 </resources>
