@@ -245,6 +245,13 @@ class HomeViewModel @Inject constructor(
     suspend fun moveFolder(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
         homeLayoutRepository.moveFolder(folderId, page, cellX, cellY)
 
+    /** Moves or resizes a widget to the given bounds; returns whether the repository accepted it
+     *  (the Workspace clears its optimistic override on false). */
+    suspend fun setWidgetBounds(rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int): Boolean {
+        val columns = settingsRepository.settings.first().homeColumns
+        return homeLayoutRepository.setWidgetBounds(rowId, page, cellX, cellY, spanX, spanY, columns)
+    }
+
     /** Cross-surface: an icon dragged from the dock onto a home cell — place it and leave the dock. */
     fun moveToHome(appItem: AppItem, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
         val columns = settingsRepository.settings.first().homeColumns
