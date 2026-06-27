@@ -116,6 +116,7 @@ fun Workspace(
     onRemoveWidget: (PlacedWidget) -> Unit = {},
     onSetWidgetBounds: suspend (rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int) -> Boolean =
         { _, _, _, _, _, _ -> false },
+    onReconfigureWidget: (appWidgetId: Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current

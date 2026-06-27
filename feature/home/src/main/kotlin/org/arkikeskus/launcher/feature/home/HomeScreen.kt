@@ -148,6 +148,10 @@ fun HomeScreen(
         }
     }
 
+    val reconfigureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { /* the widget reconfigures itself via RemoteViews; no DB change needed */ }
+
     fun configureOrFinish(id: Int, provider: AppWidgetProviderInfo) {
         if (provider.configure != null) {
             pendingWidget = id to provider
@@ -257,6 +261,19 @@ fun HomeScreen(
                     viewModel.removeWidget(w.rowId)
                 },
                 onSetWidgetBounds = viewModel::setWidgetBounds,
+                onReconfigureWidget = { id ->
+                    val info = appWidgetManager.getAppWidgetInfo(id)
+                    val configure = info?.configure
+                    if (configure != null) {
+                        runCatching {
+                            reconfigureLauncher.launch(
+                                android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                                    .setComponent(configure)
+                                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
+                            )
+                        }
+                    }
+                },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
