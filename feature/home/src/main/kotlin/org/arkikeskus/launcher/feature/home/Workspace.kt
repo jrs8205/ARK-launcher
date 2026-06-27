@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.home
 
+import android.appwidget.AppWidgetManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,14 +41,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -101,6 +110,7 @@ fun Workspace(
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
+    onRemoveWidget: (PlacedWidget) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -112,6 +122,7 @@ fun Workspace(
     var dragging by remember { mutableStateOf<PlacedApp?>(null) }
     var dragPos by remember { mutableStateOf(Offset.Zero) }
     var dragDistance by remember { mutableStateOf(0f) }
+    var widgetMenu by remember { mutableStateOf<PlacedWidget?>(null) }
 
     // Relocation of a folder or pinned shortcut, kept local: neither travels to the dock/drawer, so
     // they don't use the shared cross-surface controller — Workspace owns the gesture, floating
@@ -703,8 +714,78 @@ fun Workspace(
                                     ShortcutIconContent(entry, showLabels)
                                 }
                             }
-                            // Widget host rendering is implemented in a later milestone.
-                            is PlacedWidget -> {}
+                            is PlacedWidget -> {
+                                val widget = entry
+                                val ctx = LocalContext.current
+                                val host = LocalAppWidgetHost.current
+                                val info = remember(widget.appWidgetId) {
+                                    AppWidgetManager.getInstance(ctx).getAppWidgetInfo(widget.appWidgetId)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .offset {
+                                            IntOffset(
+                                                (widget.cellX.coerceIn(0, columns - 1) * cellW).roundToInt(),
+                                                (widget.cellY.coerceIn(0, rows - 1) * cellH).roundToInt(),
+                                            )
+                                        }
+                                        .size(
+                                            with(density) { (widget.spanX * cellW).toDp() },
+                                            with(density) { (widget.spanY * cellH).toDp() },
+                                        )
+                                        // Initial-pass long-press WITHOUT consuming, so taps/scrolls still
+                                        // reach the widget; a held long-press opens the remove menu.
+                                        .pointerInput(widget.rowId, locked) {
+                                            if (locked) return@pointerInput
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                                val slop = viewConfiguration.touchSlop
+                                                var moved = false
+                                                val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                                    while (true) {
+                                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull Unit
+                                                        if (!c.pressed) return@withTimeoutOrNull Unit
+                                                        if ((c.position - down.position).getDistance() > slop) { moved = true; return@withTimeoutOrNull Unit }
+                                                    }
+                                                    @Suppress("UNREACHABLE_CODE") Unit
+                                                }
+                                                if (ended == null && !moved) widgetMenu = widget
+                                            }
+                                        },
+                                ) {
+                                    if (info != null && host != null) {
+                                        AndroidView(
+                                            factory = { c -> host.createView(c.applicationContext, widget.appWidgetId, info) },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text(
+                                                stringResource(R.string.widget_unavailable),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    DropdownMenu(
+                                        expanded = widgetMenu?.rowId == widget.rowId,
+                                        onDismissRequest = { widgetMenu = null },
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.widget_remove)) },
+                                            onClick = {
+                                                onRemoveWidget(widget)
+                                                widgetMenu = null
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                             }
                         }
                 }

@@ -18,4 +18,6 @@
     <string name="folder_long_press_hint">Paina sovellusta pitkään poistaaksesi sen kansiosta</string>
     <string name="home_options_settings">Aloitusnäyttö</string>
     <string name="home_options_wallpaper">Taustakuva</string>
+    <string name="widget_remove">Poista widget</string>
+    <string name="widget_unavailable">Widget ei käytettävissä</string>
 </resources>

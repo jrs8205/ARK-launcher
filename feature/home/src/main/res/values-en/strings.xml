@@ -18,4 +18,6 @@
     <string name="folder_long_press_hint">Long-press an app to take it out of the folder</string>
     <string name="home_options_settings">Launcher</string>
     <string name="home_options_wallpaper">Wallpaper</string>
+    <string name="widget_remove">Remove widget</string>
+    <string name="widget_unavailable">Widget unavailable</string>
 </resources>
