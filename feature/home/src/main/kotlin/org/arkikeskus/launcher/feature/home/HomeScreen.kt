@@ -256,6 +256,7 @@ fun HomeScreen(
                     widgetHost?.deleteAppWidgetId(w.appWidgetId)
                     viewModel.removeWidget(w.rowId)
                 },
+                onSetWidgetBounds = viewModel::setWidgetBounds,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()

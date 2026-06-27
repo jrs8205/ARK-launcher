@@ -111,6 +111,8 @@ fun Workspace(
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
     onRemoveWidget: (PlacedWidget) -> Unit = {},
+    onSetWidgetBounds: suspend (rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int) -> Boolean =
+        { _, _, _, _, _, _ -> false },
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -123,6 +125,10 @@ fun Workspace(
     var dragPos by remember { mutableStateOf(Offset.Zero) }
     var dragDistance by remember { mutableStateOf(0f) }
     var widgetMenu by remember { mutableStateOf<PlacedWidget?>(null) }
+    var draggingWidget by remember { mutableStateOf<PlacedWidget?>(null) }
+    var widgetDragTopLeft by remember { mutableStateOf(Offset.Zero) }       // px, the widget's top-left while dragging
+    var widgetTargetCell by remember { mutableStateOf<IntOffset?>(null) }   // grid cell of the drag target (null = no fit)
+    var widgetOptimistic by remember { mutableStateOf<Pair<Long, Triple<Int, Int, Int>>?>(null) }
 
     // Relocation of a folder or pinned shortcut, kept local: neither travels to the dock/drawer, so
     // they don't use the shared cross-surface controller — Workspace owns the gesture, floating
@@ -146,6 +152,19 @@ fun Workspace(
     val folders = remember(entries) { entries.filterIsInstance<PlacedFolder>() }
     val placedShortcuts = remember(entries) { entries.filterIsInstance<PlacedShortcut>() }
     val placedWidgets = remember(entries) { entries.filterIsInstance<PlacedWidget>() }
+    val effectiveWidgets = remember(placedWidgets, widgetOptimistic) {
+        val opt = widgetOptimistic
+        if (opt == null) placedWidgets else placedWidgets.map { w ->
+            if (w.rowId == opt.first) w.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else w
+        }
+    }
+    // clear the optimistic override once the DB flow reports the widget at its new cell
+    LaunchedEffect(placedWidgets) {
+        val opt = widgetOptimistic ?: return@LaunchedEffect
+        if (placedWidgets.any { it.rowId == opt.first && it.page == opt.second.first && it.cellX == opt.second.second && it.cellY == opt.second.third }) {
+            widgetOptimistic = null
+        }
+    }
 
     // Optimistic placements (key -> page/cellX/cellY) applied on top of [placedApps] until the
     // database flow catches up, so an icon doesn't flash at its old cell for a frame on drop.
@@ -195,8 +214,8 @@ fun Workspace(
         }
     }
     // Apps + folders + pinned shortcuts together — what's actually on the grid (rendering + occupants).
-    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, placedWidgets) {
-        effectiveApps + effectiveFolders + effectiveShortcuts + placedWidgets
+    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets) {
+        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets
     }
     // The drag gesture's pointerInput block outlives recomposition (its keys don't include the entry
     // list), so it must read the *latest* placements through this state, not a stale closure capture.
@@ -207,6 +226,20 @@ fun Workspace(
     val moveThresholdPx = with(density) { 16.dp.toPx() }
     // Page flips only when the dragged icon is pushed right against the screen edge.
     val edgePx = with(density) { 20.dp.toPx() }
+
+    // Client-side mirror of rectFitsForRow over the rendered entries, for the live drag placeholder.
+    fun rectFreeOnGrid(excludeRowId: Long, page: Int, x: Int, y: Int, spanX: Int, spanY: Int): Boolean {
+        if (x < 0 || y < 0 || x + spanX > columns || y + spanY > rows) return false
+        val occupied = HashSet<Triple<Int, Int, Int>>()
+        for (e in effectiveEntries) {
+            val (ex, ey) = when (e) { is PlacedWidget -> e.spanX to e.spanY; else -> 1 to 1 }
+            val erow = when (e) { is PlacedWidget -> e.rowId; else -> -2L }
+            if (erow == excludeRowId) continue
+            for (dx in 0 until ex) for (dy in 0 until ey) occupied += Triple(e.page, e.cellX + dx, e.cellY + dy)
+        }
+        for (dx in 0 until spanX) for (dy in 0 until spanY) if (Triple(page, x + dx, y + dy) in occupied) return false
+        return true
+    }
 
     // Shared drag for a local home entry (folder or pinned shortcut): long-press lifts; drag moves it
     // by [rowId] to a cell (swapping any occupant); a tap is [onTap]; a still long-press is
@@ -734,24 +767,72 @@ fun Workspace(
                                             with(density) { (widget.spanX * cellW).toDp() },
                                             with(density) { (widget.spanY * cellH).toDp() },
                                         )
-                                        // Initial-pass long-press WITHOUT consuming, so taps/scrolls still
-                                        // reach the widget; a held long-press opens the remove menu.
-                                        .pointerInput(widget.rowId, locked) {
+                                        .graphicsLayer { alpha = if (draggingWidget?.rowId == widget.rowId) 0.4f else 1f }
+                                        .pointerInput(widget.rowId, locked, cellW, cellH, columns, rows, pageCount) {
                                             if (locked) return@pointerInput
                                             awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                                                 val slop = viewConfiguration.touchSlop
-                                                var moved = false
-                                                val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                                var movedEarly = false
+                                                val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                                                     while (true) {
                                                         val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull Unit
-                                                        if (!c.pressed) return@withTimeoutOrNull Unit
-                                                        if ((c.position - down.position).getDistance() > slop) { moved = true; return@withTimeoutOrNull Unit }
+                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
+                                                        if (!c.pressed) return@withTimeoutOrNull false
+                                                        if ((c.position - down.position).getDistance() > slop) { movedEarly = true; return@withTimeoutOrNull false }
                                                     }
-                                                    @Suppress("UNREACHABLE_CODE") Unit
+                                                    @Suppress("UNREACHABLE_CODE") false
                                                 }
-                                                if (ended == null && !moved) widgetMenu = widget
+                                                // held == null → timed out while still pressed (and not moved) → PICK UP.
+                                                if (held != null || movedEarly) return@awaitEachGesture
+                                                // PICK UP
+                                                draggingWidget = widget
+                                                dragController.localGestureActive = true
+                                                widgetDragTopLeft = Offset(widget.cellX * cellW, widget.cellY * cellH)
+                                                widgetTargetCell = IntOffset(widget.cellX, widget.cellY)
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                var moved = false
+                                                try {
+                                                    while (true) {
+                                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: break
+                                                        val delta = c.positionChange()
+                                                        c.consume()
+                                                        if (!c.pressed) break
+                                                        if (delta != Offset.Zero) {
+                                                            moved = true
+                                                            widgetDragTopLeft += delta
+                                                            val tx = (widgetDragTopLeft.x / cellW).roundToInt().coerceIn(0, (columns - widget.spanX).coerceAtLeast(0))
+                                                            val ty = (widgetDragTopLeft.y / cellH).roundToInt().coerceIn(0, (rows - widget.spanY).coerceAtLeast(0))
+                                                            val page = pagerState.currentPage
+                                                            widgetTargetCell = if (rectFreeOnGrid(widget.rowId, page, tx, ty, widget.spanX, widget.spanY)) IntOffset(tx, ty) else null
+                                                            if (!pagerState.isScrollInProgress) {
+                                                                if (widgetDragTopLeft.x > gridSize.width - edgePx && pagerState.currentPage < pageCount) {
+                                                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                                                } else if (widgetDragTopLeft.x < edgePx && pagerState.currentPage > 0) {
+                                                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    val target = widgetTargetCell
+                                                    if (moved && target != null) {
+                                                        val page = pagerState.currentPage
+                                                        if (page != widget.page || target.x != widget.cellX || target.y != widget.cellY) {
+                                                            widgetOptimistic = widget.rowId to Triple(page, target.x, target.y)
+                                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            scope.launch {
+                                                                if (!onSetWidgetBounds(widget.rowId, page, target.x, target.y, widget.spanX, widget.spanY)) widgetOptimistic = null
+                                                            }
+                                                        }
+                                                    } else if (!moved) {
+                                                        widgetMenu = widget   // still long-press → menu
+                                                    }
+                                                } finally {
+                                                    draggingWidget = null
+                                                    widgetTargetCell = null
+                                                    dragController.localGestureActive = false
+                                                }
                                             }
                                         },
                                 ) {
@@ -794,6 +875,17 @@ fun Workspace(
                             }
                             }
                         }
+                    val dw = draggingWidget
+                    val wt = widgetTargetCell
+                    if (dw != null && wt != null && page == pagerState.currentPage) {
+                        Box(
+                            modifier = Modifier
+                                .offset { IntOffset((wt.x * cellW).roundToInt(), (wt.y * cellH).roundToInt()) }
+                                .size(with(density) { (dw.spanX * cellW).toDp() }, with(density) { (dw.spanY * cellH).toDp() })
+                                .padding(4.dp)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f), RoundedCornerShape(12.dp)),
+                        )
+                    }
                 }
             }
 
