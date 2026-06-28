@@ -13,4 +13,11 @@
     <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets must be re-added manually.</string>
     <string name="backup_restore_confirm_ok">Restore</string>
     <string name="backup_cancel">Cancel</string>
+    <string name="backup_drive_section">Google Drive</string>
+    <string name="backup_drive_enable">Enable Drive backup</string>
+    <string name="backup_now">Back up now</string>
+    <string name="backup_restore_drive">Restore from Drive</string>
+    <string name="backup_last_time">Last: %1$s</string>
+    <string name="backup_auth_failed">Sign-in failed</string>
+    <string name="backup_daily_toggle">Daily backup</string>
 </resources>

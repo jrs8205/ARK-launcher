@@ -1,13 +1,18 @@
 package org.arkikeskus.launcher.feature.backup
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -17,6 +22,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,15 +30,29 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.flowWithLifecycle
+import com.google.android.gms.auth.api.identity.Identity
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.feature.backup.drive.DriveAuth
+import org.arkikeskus.launcher.feature.backup.drive.DriveFile
+
+/** Actions that can be queued while waiting for Drive consent resolution. */
+private sealed interface DriveAction {
+    data object Backup : DriveAction
+    data object List : DriveAction
+    data class Restore(val fileId: String) : DriveAction
+}
 
 @Composable
 fun BackupScreen(
@@ -42,9 +62,100 @@ fun BackupScreen(
 ) {
     BackHandler(onBack = onBack)
     val context = LocalContext.current
+    val activity = context as Activity
     val snackbar = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // --- File-import state ---
     var pendingImport by remember { mutableStateOf<android.net.Uri?>(null) }
 
+    // --- Drive state ---
+    val driveState by viewModel.driveState.collectAsStateWithLifecycle()
+    /**
+     * Access token cached within the screen's lifetime.
+     * Identity's auth client caches tokens server-side; caching here avoids redundant auth calls
+     * within a single screen session.
+     */
+    var cachedToken by remember { mutableStateOf<String?>(null) }
+    /** The Drive action waiting for the consent-resolution result. */
+    var pendingDriveAction by remember { mutableStateOf<DriveAction?>(null) }
+    var showDriveFiles by remember { mutableStateOf(false) }
+    var pendingDriveRestore by remember { mutableStateOf<DriveFile?>(null) }
+
+    /**
+     * Dispatches a resolved Drive action to the ViewModel.
+     * Must only be called after a valid [token] has been obtained.
+     */
+    fun dispatchDriveAction(action: DriveAction, token: String) {
+        when (action) {
+            DriveAction.Backup -> viewModel.backupToDrive(token)
+            DriveAction.List -> {
+                viewModel.listDriveBackups(token)
+                showDriveFiles = true
+            }
+            is DriveAction.Restore -> viewModel.restoreFromDrive(token, action.fileId)
+        }
+    }
+
+    /**
+     * Launcher for the Drive consent resolution intent (the "hasResolution" path from
+     * [DriveAuth.authorizeOrNull]).  After the user grants consent, reads the access token
+     * from the result intent and re-dispatches the queued [pendingDriveAction].
+     *
+     * NOTE (device-verify): [Identity.getAuthorizationClient].getAuthorizationResultFromIntent
+     * returns an [AuthorizationResult] whose [accessToken] may still be null if the user denied
+     * consent.  The null-safe `getOrNull()` guard handles that case by emitting [AuthFailed].
+     */
+    val driveResolver = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        val token = runCatching {
+            Identity.getAuthorizationClient(activity)
+                .getAuthorizationResultFromIntent(result.data).accessToken
+        }.getOrNull()
+        if (token == null) {
+            viewModel.emitAuthFailed()
+            pendingDriveAction = null
+            return@rememberLauncherForActivityResult
+        }
+        cachedToken = token
+        val action = pendingDriveAction ?: return@rememberLauncherForActivityResult
+        pendingDriveAction = null
+        dispatchDriveAction(action, token)
+    }
+
+    /**
+     * Authorizes with Drive (or uses the cached token) then dispatches [action].
+     * If the authorization result requires a resolution UI ([hasResolution] == true), stores
+     * [action] in [pendingDriveAction] and launches the consent intent; the [driveResolver]
+     * callback will re-dispatch once consent is granted.
+     */
+    fun launchDriveOp(action: DriveAction) {
+        coroutineScope.launch {
+            val existing = cachedToken
+            if (existing != null) {
+                dispatchDriveAction(action, existing)
+                return@launch
+            }
+            val result = runCatching { DriveAuth(activity).authorizeOrNull() }.getOrElse { err ->
+                if (err is kotlinx.coroutines.CancellationException) throw err
+                viewModel.emitAuthFailed()
+                return@launch
+            }
+            if (result.hasResolution()) {
+                pendingDriveAction = action
+                driveResolver.launch(
+                    IntentSenderRequest.Builder(result.pendingIntent!!.intentSender).build(),
+                )
+            } else {
+                val token = result.accessToken!!
+                cachedToken = token
+                dispatchDriveAction(action, token)
+            }
+        }
+    }
+
+    // --- File launchers ---
     val createDoc = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri -> if (uri != null) viewModel.exportTo(uri) }
@@ -53,10 +164,12 @@ fun BackupScreen(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) pendingImport = uri }
 
+    // --- Event handler ---
     val restoredMsg = stringResource(R.string.backup_restored)
     val invalidMsg = stringResource(R.string.backup_import_invalid)
     val failedMsg = stringResource(R.string.backup_failed)
     val exportedMsg = stringResource(R.string.backup_exported)
+    val authFailedMsg = stringResource(R.string.backup_auth_failed)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(Unit) {
         viewModel.events.flowWithLifecycle(lifecycle).collectLatest { e ->
@@ -66,6 +179,8 @@ fun BackupScreen(
                     is BackupEvent.Restored -> String.format(restoredMsg, e.restored, e.skipped)
                     BackupEvent.InvalidFile -> invalidMsg
                     is BackupEvent.Failed -> failedMsg
+                    BackupEvent.DriveUploaded -> exportedMsg
+                    BackupEvent.AuthFailed -> authFailedMsg
                 },
             )
         }
@@ -81,6 +196,8 @@ fun BackupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.headlineMedium)
+
+            // --- File section ---
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             Button(
                 onClick = { createDoc.launch(context.getString(R.string.backup_default_name) + ".json") },
@@ -90,9 +207,46 @@ fun BackupScreen(
                 onClick = { openDoc.launch(arrayOf("application/json")) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_import)) }
+
+            // --- Drive section ---
+            Text(stringResource(R.string.backup_drive_section), style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.backup_daily_toggle))
+                Switch(
+                    checked = driveState.enabled,
+                    onCheckedChange = { viewModel.setDriveEnabled(it) },
+                )
+            }
+            if (driveState.lastBackupMs > 0L) {
+                val formatted = java.text.DateFormat.getDateTimeInstance(
+                    java.text.DateFormat.SHORT,
+                    java.text.DateFormat.SHORT,
+                ).format(java.util.Date(driveState.lastBackupMs))
+                Text(
+                    stringResource(R.string.backup_last_time, formatted),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (driveState.enabled) {
+                Button(
+                    onClick = { launchDriveOp(DriveAction.Backup) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !driveState.isLoading,
+                ) { Text(stringResource(R.string.backup_now)) }
+                OutlinedButton(
+                    onClick = { launchDriveOp(DriveAction.List) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !driveState.isLoading,
+                ) { Text(stringResource(R.string.backup_restore_drive)) }
+            }
         }
     }
 
+    // --- File import confirm dialog ---
     pendingImport?.let { uri ->
         AlertDialog(
             onDismissRequest = { pendingImport = null },
@@ -105,6 +259,52 @@ fun BackupScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.backup_cancel)) }
+            },
+        )
+    }
+
+    // --- Drive files list dialog ---
+    if (showDriveFiles) {
+        AlertDialog(
+            onDismissRequest = { showDriveFiles = false },
+            title = { Text(stringResource(R.string.backup_restore_drive)) },
+            text = {
+                if (driveState.availableFiles.isEmpty()) {
+                    Text(stringResource(R.string.backup_drive_section)) // placeholder while loading
+                } else {
+                    LazyColumn {
+                        items(driveState.availableFiles) { file ->
+                            TextButton(
+                                onClick = { pendingDriveRestore = file; showDriveFiles = false },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(file.name, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDriveFiles = false }) { Text(stringResource(R.string.backup_cancel)) }
+            },
+        )
+    }
+
+    // --- Drive restore confirm dialog ---
+    pendingDriveRestore?.let { file ->
+        AlertDialog(
+            onDismissRequest = { pendingDriveRestore = null },
+            title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
+            text = { Text(stringResource(R.string.backup_restore_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val fileId = file.id
+                    pendingDriveRestore = null
+                    launchDriveOp(DriveAction.Restore(fileId))
+                }) { Text(stringResource(R.string.backup_restore_confirm_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDriveRestore = null }) { Text(stringResource(R.string.backup_cancel)) }
             },
         )
     }

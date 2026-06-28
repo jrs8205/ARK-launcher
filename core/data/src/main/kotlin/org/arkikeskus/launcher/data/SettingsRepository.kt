@@ -203,9 +203,30 @@ class SettingsRepository @Inject constructor(
     private fun currentFavorites(p: MutablePreferences): List<String> =
         p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
 
-    /** Snapshot of every persisted preference (name -> value) for backup. */
+    // --- Drive backup bookkeeping ---
+
+    val driveEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_ENABLED] ?: false }
+    val driveLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.DRIVE_LAST_TIME] ?: 0L }
+
+    suspend fun setDriveEnabled(v: Boolean) = edit { it[Keys.DRIVE_ENABLED] = v }
+
+    suspend fun setDriveLastBackup(timeMs: Long, hash: String) = edit {
+        it[Keys.DRIVE_LAST_TIME] = timeMs; it[Keys.DRIVE_LAST_HASH] = hash
+    }
+
+    suspend fun driveLastHash(): String? = dataStore.data.first()[Keys.DRIVE_LAST_HASH]
+
+    /** One-shot read for use in background workers (Task 7). */
+    suspend fun driveEnabledOnce(): Boolean = dataStore.data.first()[Keys.DRIVE_ENABLED] ?: false
+
+    /**
+     * Snapshot of every persisted preference (name -> value) for backup.
+     * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state.
+     */
     suspend fun exportRaw(): Map<String, Any> =
-        dataStore.data.first().asMap().entries.associate { (k, v) -> k.name to v }
+        dataStore.data.first().asMap().entries
+            .filterNot { it.key.name in DRIVE_INTERNAL_KEYS }
+            .associate { (k, v) -> k.name to v }
 
     /**
      * Replaces all preferences with [values]. JSON collapses Int/Float into "number", so numeric
@@ -255,6 +276,9 @@ class SettingsRepository @Inject constructor(
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
+        val DRIVE_ENABLED = booleanPreferencesKey("drive_backup_enabled")
+        val DRIVE_LAST_TIME = longPreferencesKey("drive_last_backup_time")
+        val DRIVE_LAST_HASH = stringPreferencesKey("drive_last_backup_hash")
     }
 
     companion object {
@@ -269,5 +293,8 @@ class SettingsRepository @Inject constructor(
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale")
         val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns")
+
+        /** Keys that must never appear in an exported backup (device-local Drive bookkeeping). */
+        val DRIVE_INTERNAL_KEYS = setOf("drive_backup_enabled", "drive_last_backup_time", "drive_last_backup_hash")
     }
 }
