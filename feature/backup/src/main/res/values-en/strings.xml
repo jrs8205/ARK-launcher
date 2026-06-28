@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Backup</string>
+    <string name="backup_file_section">File</string>
+    <string name="backup_export">Export to file</string>
+    <string name="backup_import">Import from file</string>
+    <string name="backup_default_name">arkikeskus-launcher-backup</string>
+    <string name="backup_exported">Backup saved</string>
+    <string name="backup_restored">Restored %1$d items (%2$d skipped)</string>
+    <string name="backup_import_invalid">Invalid or incompatible backup file</string>
+    <string name="backup_failed">Operation failed</string>
+    <string name="backup_restore_confirm_title">Restore backup?</string>
+    <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets must be re-added manually.</string>
+    <string name="backup_restore_confirm_ok">Restore</string>
+    <string name="backup_cancel">Cancel</string>
+</resources>
