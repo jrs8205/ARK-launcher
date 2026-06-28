@@ -47,7 +47,10 @@ class BackupViewModel @Inject constructor(
             context.contentResolver.openOutputStream(uri)?.use { it.write(BackupCodec.encode(doc).toByteArray()) }
                 ?: error("Could not open output stream")
         }.onSuccess { _events.emit(BackupEvent.Exported(uri.lastPathSegment ?: "")) }
-            .onFailure { _events.emit(BackupEvent.Failed(it.message ?: "export failed")) }
+            .onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                _events.emit(BackupEvent.Failed(it.message ?: "export failed"))
+            }
     }
 
     fun importFrom(uri: Uri) = viewModelScope.launch {
@@ -65,6 +68,7 @@ class BackupViewModel @Inject constructor(
             )
         }.onSuccess { _events.emit(BackupEvent.Restored(it.restored, it.skipped)) }
             .onFailure {
+                if (it is kotlinx.coroutines.CancellationException) throw it
                 if (it is BackupFormatException || it is JSONException) _events.emit(BackupEvent.InvalidFile)
                 else _events.emit(BackupEvent.Failed(it.message ?: "restore failed"))
             }
