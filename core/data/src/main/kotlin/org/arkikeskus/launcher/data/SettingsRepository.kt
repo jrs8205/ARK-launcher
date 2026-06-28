@@ -247,9 +247,10 @@ class SettingsRepository @Inject constructor(
      * Replaces all preferences with [values]. JSON collapses Int/Float into "number", so numeric
      * values are coerced back by the known-key registry; unknown keys fall back to their JSON type.
      *
-     * Drive bookkeeping keys ([Keys.DRIVE_ENABLED], [Keys.DRIVE_LAST_TIME], [Keys.DRIVE_LAST_HASH])
-     * are snapshotted before the clear and re-applied afterward so that restoring a backup never
-     * wipes this device's Drive enable state or last-backup timestamp.
+     * The device-local bookkeeping keys in [DRIVE_INTERNAL_KEYS] (Drive enable / last-time / last-hash,
+     * the local file-backup time, and the Drive scheduling options interval/Wi-Fi/charging) are
+     * snapshotted before the clear and re-applied afterward, so restoring a backup never wipes this
+     * device's Drive enable state, last-backup timestamps, or scheduling preferences.
      */
     suspend fun importRaw(values: Map<String, Any>) {
         dataStore.edit { prefs ->

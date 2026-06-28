@@ -268,7 +268,7 @@ fun BackupScreen(
                 Text(stringResource(R.string.backup_frequency), style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = driveState.intervalDays <= 1,
+                        selected = driveState.intervalDays < 7,
                         onClick = { viewModel.setDriveIntervalDays(1) },
                         label = { Text(stringResource(R.string.backup_freq_daily)) },
                     )
