@@ -16,6 +16,9 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+# OAuth credentials — never commit (secrets are not used in the app anyway)
+client_secret*.json
+*.apps.googleusercontent.com.json
 # Icon source export (assets already copied into app/src/main/res)
 /launcher_L/
 # Design reference artifacts kept locally (not part of the app)

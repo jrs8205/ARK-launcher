@@ -61,6 +61,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.feature.backup.BackupScreen
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
@@ -86,9 +87,15 @@ fun SettingsScreen(
     val previewIcon = rememberLauncherIconBitmap()
     var showHiddenManager by remember { mutableStateOf(false) }
     var showLeftSwipePicker by remember { mutableStateOf(false) }
+    var showBackup by remember { mutableStateOf(false) }
     val palette = if (isSystemInDarkTheme()) DarkExpressivePalette else LightExpressivePalette
 
     CompositionLocalProvider(LocalExpressivePalette provides palette) {
+        if (showBackup) {
+            BackupScreen(onBack = { showBackup = false }, modifier = modifier.fillMaxSize())
+            return@CompositionLocalProvider
+        }
+
         if (showHiddenManager) {
             HiddenAppsManager(
                 apps = allApps,
@@ -198,6 +205,12 @@ fun SettingsScreen(
                     enabled = s.searchContacts,
                     onSetEnabled = viewModel::setSearchContacts,
                 )
+
+                ExpressiveSectionTitle(stringResource(R.string.settings_backup))
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_backup),
+                    description = "",
+                ) { showBackup = true }
             }
         }
 

@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data.local
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -67,4 +68,14 @@ interface HomeItemDao {
 
     @Query("UPDATE home_items SET spanX = :spanX, spanY = :spanY WHERE id = :id")
     suspend fun updateSpans(id: Long, spanX: Int, spanY: Int)
+
+    @Query("SELECT * FROM home_items")
+    suspend fun getAllOnce(): List<HomeItemEntity>
+
+    /** Atomically replaces the entire layout (wipes all rows incl. widgets, inserts [items]). */
+    @Transaction
+    suspend fun replaceLayout(items: List<HomeItemEntity>) {
+        clear()
+        for (item in items) insert(item)
+    }
 }

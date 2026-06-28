@@ -37,4 +37,5 @@
     <string name="settings_close">Close</string>
     <string name="settings_lock_desktop">Lock desktop</string>
     <string name="settings_frequent_apps">Most used at the top</string>
+    <string name="settings_backup">Backup</string>
 </resources>

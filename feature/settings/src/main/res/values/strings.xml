@@ -37,4 +37,5 @@
     <string name="settings_close">Sulje</string>
     <string name="settings_lock_desktop">Lukitse työpöytä</string>
     <string name="settings_frequent_apps">Eniten käytetyt ylimmäisinä</string>
+    <string name="settings_backup">Varmuuskopiointi</string>
 </resources>

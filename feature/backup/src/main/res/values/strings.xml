@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Varmuuskopiointi</string>
+    <string name="backup_file_section">Tiedosto</string>
+    <string name="backup_export">Vie tiedostoon</string>
+    <string name="backup_import">Tuo tiedostosta</string>
+    <string name="backup_default_name">arkikeskus-launcher-backup</string>
+    <string name="backup_exported">Varmuuskopio tallennettu</string>
+    <string name="backup_restored">Varmuuskopio palautettu</string>
+    <string name="backup_restored_skipped">Varmuuskopio palautettu — %1$d ohitettu (ei asennettu)</string>
+    <string name="backup_import_invalid">Virheellinen tai yhteensopimaton varmuuskopiotiedosto</string>
+    <string name="backup_failed">Toiminto epäonnistui</string>
+    <string name="backup_restore_confirm_title">Palauta varmuuskopio?</string>
+    <string name="backup_restore_confirm_msg">Nykyinen kotinäyttö ja asetukset korvataan. Widgetit on lisättävä uudelleen käsin.</string>
+    <string name="backup_restore_confirm_ok">Palauta</string>
+    <string name="backup_cancel">Peruuta</string>
+    <string name="backup_drive_section">Google Drive</string>
+    <string name="backup_no_backups">Ei varmuuskopioita Drivessä</string>
+    <string name="backup_now">Varmuuskopioi nyt</string>
+    <string name="backup_restore_drive">Palauta Drivestä</string>
+    <string name="backup_last_time">Viimeksi: %1$s</string>
+    <string name="backup_auth_failed">Kirjautuminen epäonnistui</string>
+    <string name="backup_daily_toggle">Automaattinen varmuuskopio</string>
+    <string name="backup_frequency">Tiheys</string>
+    <string name="backup_freq_daily">Päivittäin</string>
+    <string name="backup_freq_weekly">Viikoittain</string>
+    <string name="backup_wifi_only">Vain Wi-Fi-yhteydellä</string>
+    <string name="backup_charging_only">Vain latauksen aikana</string>
+</resources>

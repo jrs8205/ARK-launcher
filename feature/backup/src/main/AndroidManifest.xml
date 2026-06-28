@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Google Drive backup uploads/downloads over the network. The launcher itself needs no
+         network, so this permission is declared by the backup feature module and merges into the app. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Backup</string>
+    <string name="backup_file_section">File</string>
+    <string name="backup_export">Export to file</string>
+    <string name="backup_import">Import from file</string>
+    <string name="backup_default_name">arkikeskus-launcher-backup</string>
+    <string name="backup_exported">Backup saved</string>
+    <string name="backup_restored">Backup restored</string>
+    <string name="backup_restored_skipped">Backup restored — %1$d skipped (not installed)</string>
+    <string name="backup_import_invalid">Invalid or incompatible backup file</string>
+    <string name="backup_failed">Operation failed</string>
+    <string name="backup_restore_confirm_title">Restore backup?</string>
+    <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets must be re-added manually.</string>
+    <string name="backup_restore_confirm_ok">Restore</string>
+    <string name="backup_cancel">Cancel</string>
+    <string name="backup_drive_section">Google Drive</string>
+    <string name="backup_no_backups">No backups in Drive</string>
+    <string name="backup_now">Back up now</string>
+    <string name="backup_restore_drive">Restore from Drive</string>
+    <string name="backup_last_time">Last: %1$s</string>
+    <string name="backup_auth_failed">Sign-in failed</string>
+    <string name="backup_daily_toggle">Automatic backup</string>
+    <string name="backup_frequency">Frequency</string>
+    <string name="backup_freq_daily">Daily</string>
+    <string name="backup_freq_weekly">Weekly</string>
+    <string name="backup_wifi_only">Wi-Fi only</string>
+    <string name="backup_charging_only">While charging only</string>
+</resources>

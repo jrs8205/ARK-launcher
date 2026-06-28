@@ -7,8 +7,10 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
@@ -201,6 +203,86 @@ class SettingsRepository @Inject constructor(
     private fun currentFavorites(p: MutablePreferences): List<String> =
         p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
 
+    // --- Drive backup bookkeeping ---
+
+    val driveEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_ENABLED] ?: false }
+    val driveLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.DRIVE_LAST_TIME] ?: 0L }
+
+    suspend fun setDriveEnabled(v: Boolean) = edit { it[Keys.DRIVE_ENABLED] = v }
+
+    suspend fun setDriveLastBackup(timeMs: Long, hash: String) = edit {
+        it[Keys.DRIVE_LAST_TIME] = timeMs; it[Keys.DRIVE_LAST_HASH] = hash
+    }
+
+    suspend fun driveLastHash(): String? = dataStore.data.first()[Keys.DRIVE_LAST_HASH]
+
+    /** One-shot read for use in background workers (Task 7). */
+    suspend fun driveEnabledOnce(): Boolean = dataStore.data.first()[Keys.DRIVE_ENABLED] ?: false
+
+    /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */
+    val localLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.LOCAL_LAST_BACKUP] ?: 0L }
+
+    suspend fun setLocalLastBackup(timeMs: Long) = edit { it[Keys.LOCAL_LAST_BACKUP] = timeMs }
+
+    // --- Drive backup scheduling options (device-local) ---
+    /** Periodic backup interval in days (1 = daily, 7 = weekly). */
+    val driveIntervalDays: Flow<Int> = dataStore.data.map { it[Keys.DRIVE_INTERVAL_DAYS] ?: 1 }
+    val driveWifiOnly: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_WIFI_ONLY] ?: false }
+    val driveChargingOnly: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_CHARGING_ONLY] ?: false }
+
+    suspend fun setDriveIntervalDays(days: Int) = edit { it[Keys.DRIVE_INTERVAL_DAYS] = days }
+    suspend fun setDriveWifiOnly(v: Boolean) = edit { it[Keys.DRIVE_WIFI_ONLY] = v }
+    suspend fun setDriveChargingOnly(v: Boolean) = edit { it[Keys.DRIVE_CHARGING_ONLY] = v }
+
+    /**
+     * Snapshot of every persisted preference (name -> value) for backup.
+     * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state.
+     */
+    suspend fun exportRaw(): Map<String, Any> =
+        dataStore.data.first().asMap().entries
+            .filterNot { it.key.name in DRIVE_INTERNAL_KEYS }
+            .associate { (k, v) -> k.name to v }
+
+    /**
+     * Replaces all preferences with [values]. JSON collapses Int/Float into "number", so numeric
+     * values are coerced back by the known-key registry; unknown keys fall back to their JSON type.
+     *
+     * The device-local bookkeeping keys in [DRIVE_INTERNAL_KEYS] (Drive enable / last-time / last-hash,
+     * the local file-backup time, and the Drive scheduling options interval/Wi-Fi/charging) are
+     * snapshotted before the clear and re-applied afterward, so restoring a backup never wipes this
+     * device's Drive enable state, last-backup timestamps, or scheduling preferences.
+     */
+    suspend fun importRaw(values: Map<String, Any>) {
+        dataStore.edit { prefs ->
+            // Snapshot Drive bookkeeping before clearing.
+            val driveEnabled = prefs[Keys.DRIVE_ENABLED]
+            val driveLastTime = prefs[Keys.DRIVE_LAST_TIME]
+            val driveLastHash = prefs[Keys.DRIVE_LAST_HASH]
+            val localLastBackup = prefs[Keys.LOCAL_LAST_BACKUP]
+            val driveInterval = prefs[Keys.DRIVE_INTERVAL_DAYS]
+            val driveWifiOnly = prefs[Keys.DRIVE_WIFI_ONLY]
+            val driveChargingOnly = prefs[Keys.DRIVE_CHARGING_ONLY]
+            prefs.clear()
+            for ((name, value) in values) {
+                when {
+                    value is Boolean -> prefs[booleanPreferencesKey(name)] = value
+                    value is String -> prefs[stringPreferencesKey(name)] = value
+                    name in FLOAT_KEYS && value is Number -> prefs[floatPreferencesKey(name)] = value.toFloat()
+                    name in INT_KEYS && value is Number -> prefs[intPreferencesKey(name)] = value.toInt()
+                    value is Number -> prefs[longPreferencesKey(name)] = value.toLong()
+                }
+            }
+            // Re-apply Drive bookkeeping so this device's Drive state is preserved.
+            if (driveEnabled != null) prefs[Keys.DRIVE_ENABLED] = driveEnabled
+            if (driveLastTime != null) prefs[Keys.DRIVE_LAST_TIME] = driveLastTime
+            if (driveLastHash != null) prefs[Keys.DRIVE_LAST_HASH] = driveLastHash
+            if (localLastBackup != null) prefs[Keys.LOCAL_LAST_BACKUP] = localLastBackup
+            if (driveInterval != null) prefs[Keys.DRIVE_INTERVAL_DAYS] = driveInterval
+            if (driveWifiOnly != null) prefs[Keys.DRIVE_WIFI_ONLY] = driveWifiOnly
+            if (driveChargingOnly != null) prefs[Keys.DRIVE_CHARGING_ONLY] = driveChargingOnly
+        }
+    }
+
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }
@@ -230,6 +312,13 @@ class SettingsRepository @Inject constructor(
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
+        val DRIVE_ENABLED = booleanPreferencesKey("drive_backup_enabled")
+        val DRIVE_LAST_TIME = longPreferencesKey("drive_last_backup_time")
+        val DRIVE_LAST_HASH = stringPreferencesKey("drive_last_backup_hash")
+        val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
+        val DRIVE_INTERVAL_DAYS = intPreferencesKey("drive_interval_days")
+        val DRIVE_WIFI_ONLY = booleanPreferencesKey("drive_wifi_only")
+        val DRIVE_CHARGING_ONLY = booleanPreferencesKey("drive_charging_only")
     }
 
     companion object {
@@ -240,5 +329,17 @@ class SettingsRepository @Inject constructor(
         /** Valid range for the notification-dot scale slider. */
         const val MIN_DOT_SCALE = 0.6f
         const val MAX_DOT_SCALE = 1.8f
+
+        /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
+        val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale")
+        val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns")
+
+        /** Device-local bookkeeping keys excluded from an exported backup and preserved across a
+         *  restore: Drive enable/last-backup/hash + the local file-backup timestamp. */
+        val DRIVE_INTERNAL_KEYS = setOf(
+            "drive_backup_enabled", "drive_last_backup_time", "drive_last_backup_hash",
+            "local_last_backup_time",
+            "drive_interval_days", "drive_wifi_only", "drive_charging_only",
+        )
     }
 }

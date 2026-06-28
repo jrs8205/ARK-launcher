@@ -34,6 +34,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.google.truth)
+    testImplementation(libs.json)
 
     // Instrumented tests (HomeLayoutRepository against a real in-memory Room database).
     androidTestImplementation(libs.androidx.test.ext.junit)

@@ -20,6 +20,10 @@ androidxTestExtJunit = "1.2.1"
 androidxTestRunner = "1.6.2"
 androidxTestCore = "1.6.1"
 truth = "1.4.4"
+work = "2.10.1"
+playServicesAuth = "21.3.0"
+okhttp = "4.12.0"
+orgJson = "20240303"
 
 [libraries]
 # --- build-logic plugin classpath (compileOnly in convention project) ---
@@ -84,6 +88,11 @@ androidx-test-runner = { group = "androidx.test", name = "runner", version.ref =
 androidx-test-core-ktx = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 google-truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "androidxHilt" }
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+json = { group = "org.json", name = "json", version.ref = "orgJson" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

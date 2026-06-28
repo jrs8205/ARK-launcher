@@ -124,4 +124,21 @@ class SettingsRepositoryTest {
         repo.setShowFrequentApps(false)
         assertThat(repo.settings.first().showFrequentApps).isFalse()
     }
+
+    @Test
+    fun `importRaw preserves Drive state and applies restored values`() = runTest {
+        val repo = newRepository()
+        // Arrange: enable Drive with known last-backup metadata.
+        repo.setDriveEnabled(true)
+        repo.setDriveLastBackup(123L, "testhash")
+
+        // Act: restore a backup that does not include any Drive keys.
+        repo.importRaw(mapOf("home_columns" to 5))
+
+        // Assert: Drive enable and last-backup time survive the restore.
+        assertThat(repo.driveEnabled.first()).isTrue()
+        assertThat(repo.driveLastBackupTime.first()).isEqualTo(123L)
+        // Assert: the restored setting was actually applied.
+        assertThat(repo.settings.first().homeColumns).isEqualTo(5)
+    }
 }
