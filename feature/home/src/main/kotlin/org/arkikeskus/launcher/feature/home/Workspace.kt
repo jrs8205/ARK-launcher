@@ -446,7 +446,10 @@ fun Workspace(
                                 }
                                 // Fired only on a still empty-area hold. If an icon picked up
                                 // (dragging != null) the hold belonged to that icon, not settings.
-                                if (held == null && !resolved && dragging == null) {
+                                // Also suppressed while a widget is in edit mode (editingWidget != null):
+                                // a still dwell on the widget during a move/remove drag must not also
+                                // open the home-options menu underneath the edit scrim.
+                                if (held == null && !resolved && dragging == null && editingWidget == null) {
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     // Anchor the options popup at the press point (root coords); flip it
                                     // above when the press is in the lower half of the screen.
