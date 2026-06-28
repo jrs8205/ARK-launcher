@@ -45,6 +45,9 @@ data class DriveState(
     val lastBackupMs: Long = 0L,
     val availableFiles: List<DriveFile> = emptyList(),
     val isLoading: Boolean = false,
+    val intervalDays: Int = 1,
+    val wifiOnly: Boolean = false,
+    val chargingOnly: Boolean = false,
 )
 
 @HiltViewModel
@@ -86,6 +89,15 @@ class BackupViewModel @Inject constructor(
         }
         viewModelScope.launch {
             settings.localLastBackupTime.collect { time -> _localLastBackupMs.value = time }
+        }
+        viewModelScope.launch {
+            settings.driveIntervalDays.collect { d -> _driveState.update { it.copy(intervalDays = d) } }
+        }
+        viewModelScope.launch {
+            settings.driveWifiOnly.collect { w -> _driveState.update { it.copy(wifiOnly = w) } }
+        }
+        viewModelScope.launch {
+            settings.driveChargingOnly.collect { c -> _driveState.update { it.copy(chargingOnly = c) } }
         }
     }
 
@@ -152,8 +164,32 @@ class BackupViewModel @Inject constructor(
     fun setDriveEnabled(enabled: Boolean) = viewModelScope.launch {
         settings.setDriveEnabled(enabled)
         // _driveState.enabled will auto-update via the settings.driveEnabled collector in init.
-        if (enabled) BackupScheduler.scheduleDaily(context)
-        else BackupScheduler.cancel(context)
+        if (enabled) rescheduleDrive() else BackupScheduler.cancel(context)
+    }
+
+    fun setDriveIntervalDays(days: Int) = viewModelScope.launch {
+        settings.setDriveIntervalDays(days)
+        if (settings.driveEnabledOnce()) rescheduleDrive()
+    }
+
+    fun setDriveWifiOnly(value: Boolean) = viewModelScope.launch {
+        settings.setDriveWifiOnly(value)
+        if (settings.driveEnabledOnce()) rescheduleDrive()
+    }
+
+    fun setDriveChargingOnly(value: Boolean) = viewModelScope.launch {
+        settings.setDriveChargingOnly(value)
+        if (settings.driveEnabledOnce()) rescheduleDrive()
+    }
+
+    /** (Re)schedules the periodic Drive worker with the current interval + network/charging options. */
+    private suspend fun rescheduleDrive() {
+        BackupScheduler.schedule(
+            context,
+            intervalDays = settings.driveIntervalDays.first(),
+            wifiOnly = settings.driveWifiOnly.first(),
+            chargingOnly = settings.driveChargingOnly.first(),
+        )
     }
 
     /**

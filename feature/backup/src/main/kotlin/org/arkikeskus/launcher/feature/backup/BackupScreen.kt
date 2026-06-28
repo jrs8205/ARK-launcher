@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -262,6 +263,43 @@ fun BackupScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !driveState.isLoading,
                 ) { Text(stringResource(R.string.backup_restore_drive)) }
+
+                // --- Drive scheduling options ---
+                Text(stringResource(R.string.backup_frequency), style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = driveState.intervalDays <= 1,
+                        onClick = { viewModel.setDriveIntervalDays(1) },
+                        label = { Text(stringResource(R.string.backup_freq_daily)) },
+                    )
+                    FilterChip(
+                        selected = driveState.intervalDays >= 7,
+                        onClick = { viewModel.setDriveIntervalDays(7) },
+                        label = { Text(stringResource(R.string.backup_freq_weekly)) },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.backup_wifi_only))
+                    Switch(
+                        checked = driveState.wifiOnly,
+                        onCheckedChange = { viewModel.setDriveWifiOnly(it) },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.backup_charging_only))
+                    Switch(
+                        checked = driveState.chargingOnly,
+                        onCheckedChange = { viewModel.setDriveChargingOnly(it) },
+                    )
+                }
             }
         }
     }

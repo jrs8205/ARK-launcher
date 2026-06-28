@@ -20,5 +20,10 @@
     <string name="backup_restore_drive">Restore from Drive</string>
     <string name="backup_last_time">Last: %1$s</string>
     <string name="backup_auth_failed">Sign-in failed</string>
-    <string name="backup_daily_toggle">Daily backup</string>
+    <string name="backup_daily_toggle">Automatic backup</string>
+    <string name="backup_frequency">Frequency</string>
+    <string name="backup_freq_daily">Daily</string>
+    <string name="backup_freq_weekly">Weekly</string>
+    <string name="backup_wifi_only">Wi-Fi only</string>
+    <string name="backup_charging_only">While charging only</string>
 </resources>

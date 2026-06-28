@@ -224,6 +224,16 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setLocalLastBackup(timeMs: Long) = edit { it[Keys.LOCAL_LAST_BACKUP] = timeMs }
 
+    // --- Drive backup scheduling options (device-local) ---
+    /** Periodic backup interval in days (1 = daily, 7 = weekly). */
+    val driveIntervalDays: Flow<Int> = dataStore.data.map { it[Keys.DRIVE_INTERVAL_DAYS] ?: 1 }
+    val driveWifiOnly: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_WIFI_ONLY] ?: false }
+    val driveChargingOnly: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_CHARGING_ONLY] ?: false }
+
+    suspend fun setDriveIntervalDays(days: Int) = edit { it[Keys.DRIVE_INTERVAL_DAYS] = days }
+    suspend fun setDriveWifiOnly(v: Boolean) = edit { it[Keys.DRIVE_WIFI_ONLY] = v }
+    suspend fun setDriveChargingOnly(v: Boolean) = edit { it[Keys.DRIVE_CHARGING_ONLY] = v }
+
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
      * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state.
@@ -248,6 +258,9 @@ class SettingsRepository @Inject constructor(
             val driveLastTime = prefs[Keys.DRIVE_LAST_TIME]
             val driveLastHash = prefs[Keys.DRIVE_LAST_HASH]
             val localLastBackup = prefs[Keys.LOCAL_LAST_BACKUP]
+            val driveInterval = prefs[Keys.DRIVE_INTERVAL_DAYS]
+            val driveWifiOnly = prefs[Keys.DRIVE_WIFI_ONLY]
+            val driveChargingOnly = prefs[Keys.DRIVE_CHARGING_ONLY]
             prefs.clear()
             for ((name, value) in values) {
                 when {
@@ -263,6 +276,9 @@ class SettingsRepository @Inject constructor(
             if (driveLastTime != null) prefs[Keys.DRIVE_LAST_TIME] = driveLastTime
             if (driveLastHash != null) prefs[Keys.DRIVE_LAST_HASH] = driveLastHash
             if (localLastBackup != null) prefs[Keys.LOCAL_LAST_BACKUP] = localLastBackup
+            if (driveInterval != null) prefs[Keys.DRIVE_INTERVAL_DAYS] = driveInterval
+            if (driveWifiOnly != null) prefs[Keys.DRIVE_WIFI_ONLY] = driveWifiOnly
+            if (driveChargingOnly != null) prefs[Keys.DRIVE_CHARGING_ONLY] = driveChargingOnly
         }
     }
 
@@ -299,6 +315,9 @@ class SettingsRepository @Inject constructor(
         val DRIVE_LAST_TIME = longPreferencesKey("drive_last_backup_time")
         val DRIVE_LAST_HASH = stringPreferencesKey("drive_last_backup_hash")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
+        val DRIVE_INTERVAL_DAYS = intPreferencesKey("drive_interval_days")
+        val DRIVE_WIFI_ONLY = booleanPreferencesKey("drive_wifi_only")
+        val DRIVE_CHARGING_ONLY = booleanPreferencesKey("drive_charging_only")
     }
 
     companion object {
@@ -319,6 +338,7 @@ class SettingsRepository @Inject constructor(
         val DRIVE_INTERNAL_KEYS = setOf(
             "drive_backup_enabled", "drive_last_backup_time", "drive_last_backup_hash",
             "local_last_backup_time",
+            "drive_interval_days", "drive_wifi_only", "drive_charging_only",
         )
     }
 }
