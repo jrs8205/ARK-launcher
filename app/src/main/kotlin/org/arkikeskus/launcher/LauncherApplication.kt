@@ -12,6 +12,13 @@ import javax.inject.Inject
 @HiltAndroidApp
 class LauncherApplication : Application(), SingletonImageLoader.Factory, Configuration.Provider {
 
+    override fun onCreate() {
+        super.onCreate()
+        if (org.arkikeskus.launcher.feature.updater.isReleaseBuild(this)) {
+            org.arkikeskus.launcher.feature.updater.UpdateScheduler.schedule(this)
+        }
+    }
+
     /** Hilt-provided ImageLoader with the app-icon fetcher/keyer (see DataModule). */
     @Inject
     lateinit var imageLoader: ImageLoader

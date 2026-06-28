@@ -234,6 +234,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setDriveWifiOnly(v: Boolean) = edit { it[Keys.DRIVE_WIFI_ONLY] = v }
     suspend fun setDriveChargingOnly(v: Boolean) = edit { it[Keys.DRIVE_CHARGING_ONLY] = v }
 
+    // --- In-app updater bookkeeping (device-local) ---
+    val autoUpdateEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_UPDATE_ENABLED] ?: true }
+    val updateLastCheck: Flow<Long> = dataStore.data.map { it[Keys.UPDATE_LAST_CHECK] ?: 0L }
+
+    suspend fun setAutoUpdateEnabled(v: Boolean) = edit { it[Keys.AUTO_UPDATE_ENABLED] = v }
+    suspend fun setUpdateLastCheck(timeMs: Long) = edit { it[Keys.UPDATE_LAST_CHECK] = timeMs }
+    suspend fun setUpdateLastNotifiedVersion(v: String) = edit { it[Keys.UPDATE_LAST_NOTIFIED] = v }
+    suspend fun updateLastNotifiedVersion(): String? = dataStore.data.first()[Keys.UPDATE_LAST_NOTIFIED]
+    suspend fun autoUpdateEnabledOnce(): Boolean = dataStore.data.first()[Keys.AUTO_UPDATE_ENABLED] ?: true
+
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
      * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state.
@@ -262,6 +272,9 @@ class SettingsRepository @Inject constructor(
             val driveInterval = prefs[Keys.DRIVE_INTERVAL_DAYS]
             val driveWifiOnly = prefs[Keys.DRIVE_WIFI_ONLY]
             val driveChargingOnly = prefs[Keys.DRIVE_CHARGING_ONLY]
+            val autoUpdate = prefs[Keys.AUTO_UPDATE_ENABLED]
+            val updateLastCheck = prefs[Keys.UPDATE_LAST_CHECK]
+            val updateLastNotified = prefs[Keys.UPDATE_LAST_NOTIFIED]
             prefs.clear()
             for ((name, value) in values) {
                 when {
@@ -280,6 +293,9 @@ class SettingsRepository @Inject constructor(
             if (driveInterval != null) prefs[Keys.DRIVE_INTERVAL_DAYS] = driveInterval
             if (driveWifiOnly != null) prefs[Keys.DRIVE_WIFI_ONLY] = driveWifiOnly
             if (driveChargingOnly != null) prefs[Keys.DRIVE_CHARGING_ONLY] = driveChargingOnly
+            if (autoUpdate != null) prefs[Keys.AUTO_UPDATE_ENABLED] = autoUpdate
+            if (updateLastCheck != null) prefs[Keys.UPDATE_LAST_CHECK] = updateLastCheck
+            if (updateLastNotified != null) prefs[Keys.UPDATE_LAST_NOTIFIED] = updateLastNotified
         }
     }
 
@@ -319,6 +335,9 @@ class SettingsRepository @Inject constructor(
         val DRIVE_INTERVAL_DAYS = intPreferencesKey("drive_interval_days")
         val DRIVE_WIFI_ONLY = booleanPreferencesKey("drive_wifi_only")
         val DRIVE_CHARGING_ONLY = booleanPreferencesKey("drive_charging_only")
+        val AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
+        val UPDATE_LAST_CHECK = longPreferencesKey("update_last_check")
+        val UPDATE_LAST_NOTIFIED = stringPreferencesKey("update_last_notified_version")
     }
 
     companion object {
@@ -340,6 +359,7 @@ class SettingsRepository @Inject constructor(
             "drive_backup_enabled", "drive_last_backup_time", "drive_last_backup_hash",
             "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
+            "auto_update_enabled", "update_last_check", "update_last_notified_version",
         )
     }
 }
