@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_section">Päivitykset</string>
+    <string name="update_current_version">Versio %1$s</string>
+    <string name="update_check_now">Tarkista päivitykset</string>
+    <string name="update_checking">Tarkistetaan…</string>
+    <string name="update_auto_toggle">Tarkista päivitykset automaattisesti</string>
+    <string name="update_last_check">Tarkistettu viimeksi: %1$s</string>
+    <string name="update_up_to_date">Uusin versio on jo asennettu</string>
+    <string name="update_error">Päivitysten tarkistus epäonnistui</string>
+    <string name="update_available_title">Uusi versio %1$s saatavilla</string>
+    <string name="update_whats_new">Mitä uutta</string>
+    <string name="update_install">Päivitä</string>
+    <string name="update_never_checked">Ei vielä tarkistettu</string>
+</resources>

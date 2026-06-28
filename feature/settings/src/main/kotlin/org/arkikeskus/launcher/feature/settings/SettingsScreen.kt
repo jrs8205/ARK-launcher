@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.feature.backup.BackupScreen
+import org.arkikeskus.launcher.feature.updater.UpdateSection
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
@@ -211,6 +212,8 @@ fun SettingsScreen(
                     label = stringResource(R.string.settings_backup),
                     description = "",
                 ) { showBackup = true }
+
+                UpdateSection(modifier = Modifier.padding(top = 8.dp))
             }
         }
 
