@@ -231,9 +231,17 @@ class SettingsRepository @Inject constructor(
     /**
      * Replaces all preferences with [values]. JSON collapses Int/Float into "number", so numeric
      * values are coerced back by the known-key registry; unknown keys fall back to their JSON type.
+     *
+     * Drive bookkeeping keys ([Keys.DRIVE_ENABLED], [Keys.DRIVE_LAST_TIME], [Keys.DRIVE_LAST_HASH])
+     * are snapshotted before the clear and re-applied afterward so that restoring a backup never
+     * wipes this device's Drive enable state or last-backup timestamp.
      */
     suspend fun importRaw(values: Map<String, Any>) {
         dataStore.edit { prefs ->
+            // Snapshot Drive bookkeeping before clearing.
+            val driveEnabled = prefs[Keys.DRIVE_ENABLED]
+            val driveLastTime = prefs[Keys.DRIVE_LAST_TIME]
+            val driveLastHash = prefs[Keys.DRIVE_LAST_HASH]
             prefs.clear()
             for ((name, value) in values) {
                 when {
@@ -244,6 +252,10 @@ class SettingsRepository @Inject constructor(
                     value is Number -> prefs[longPreferencesKey(name)] = value.toLong()
                 }
             }
+            // Re-apply Drive bookkeeping so this device's Drive state is preserved.
+            if (driveEnabled != null) prefs[Keys.DRIVE_ENABLED] = driveEnabled
+            if (driveLastTime != null) prefs[Keys.DRIVE_LAST_TIME] = driveLastTime
+            if (driveLastHash != null) prefs[Keys.DRIVE_LAST_HASH] = driveLastHash
         }
     }
 

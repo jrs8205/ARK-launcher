@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -176,6 +177,9 @@ fun BackupScreen(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(Unit) {
         viewModel.events.flowWithLifecycle(lifecycle).collectLatest { e ->
+            // Clear the cached token on any Drive failure so the next action re-authorizes
+            // instead of reusing an expired token (tokens last ~1 h).
+            if (e is BackupEvent.Failed || e == BackupEvent.AuthFailed) cachedToken = null
             snackbar.showMessage(
                 when (e) {
                     is BackupEvent.Exported -> exportedMsg
@@ -276,7 +280,7 @@ fun BackupScreen(
                     driveState.isLoading -> CircularProgressIndicator()
                     driveState.availableFiles.isEmpty() ->
                         Text(stringResource(R.string.backup_no_backups))
-                    else -> LazyColumn {
+                    else -> LazyColumn(modifier = Modifier.heightIn(max = 320.dp).fillMaxWidth()) {
                         items(driveState.availableFiles) { file ->
                             TextButton(
                                 onClick = { pendingDriveRestore = file; showDriveFiles = false },

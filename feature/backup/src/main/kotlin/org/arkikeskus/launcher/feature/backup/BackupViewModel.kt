@@ -156,7 +156,7 @@ class BackupViewModel @Inject constructor(
                 val nowMs = System.currentTimeMillis()
                 withContext(Dispatchers.IO) {
                     DriveRestClient(token, driveHttp).upload(
-                        "arkikeskus-backup-$nowMs.json", json,
+                        "arkikeskus-launcher-backup-$nowMs.json", json,
                     )
                 }
                 settings.setDriveLastBackup(nowMs, hash)
