@@ -296,6 +296,7 @@ fun HomeScreen(
                     onAppClick = viewModel::launch,
                     onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY) },
+                    onRemoveFromDock = { viewModel.removeFromDock(it) },
                     onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -308,7 +309,7 @@ fun HomeScreen(
         // Drop-to-remove zone: a "Poista" pill at the top during any removable home drag (an app, or a
         // pinned shortcut via [localDragging]); dropping an icon on it removes it from home. Turns red
         // while the dragged icon is over it. Publishes its bounds for the drag's hit-test.
-        if ((dragController.moving && dragController.source == DragSource.Home) || dragController.localDragging) {
+        if ((dragController.moving && (dragController.source == DragSource.Home || dragController.source == DragSource.Dock)) || dragController.localDragging) {
             val overRemove = dragController.isOverRemove(dragController.rootPosition)
             Surface(
                 color = if (overRemove) Color(0xFFD32F2F) else Color.Black.copy(alpha = 0.55f),

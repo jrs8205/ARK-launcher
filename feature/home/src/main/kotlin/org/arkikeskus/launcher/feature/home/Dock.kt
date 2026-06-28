@@ -60,6 +60,7 @@ fun Dock(
     onAppClick: (AppItem) -> Unit,
     onReorder: (List<AppItem>) -> Unit,
     onMoveToHome: (AppItem, Int, Int, Int) -> Unit,
+    onRemoveFromDock: (AppItem) -> Unit = {},
     modifier: Modifier = Modifier,
     onAppMenu: (AppItem, IntOffset) -> Unit = { _, _ -> },
 ) {
@@ -159,7 +160,9 @@ fun Dock(
                                 }
                                 if (completed && dragController.moving) {
                                     val rootPos = dragController.rootPosition
-                                    if (dragController.isOverGrid(rootPos)) {
+                                    if (dragController.isOverRemove(rootPos)) {
+                                        onRemoveFromDock(app)
+                                    } else if (dragController.isOverGrid(rootPos)) {
                                         val (page, cx, cy) = dragController.cellAt(rootPos)
                                         onMoveToHome(app, page, cx, cy)
                                     } else {
