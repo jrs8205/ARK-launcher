@@ -29,4 +29,9 @@ data class LauncherSettings(
     val desktopLocked: Boolean = false,
     /** Show a "most used" row (top apps by decayed launch frequency) above the drawer's app list. */
     val showFrequentApps: Boolean = false,
+    /** Size multiplier for app icon labels across home/dock/drawer/folders (1.0 = the default 11sp). */
+    val appLabelTextScale: Float = 1.0f,
+    /** ARGB color for app icon labels on the home surfaces (home/dock/folders); default white. The
+     *  app drawer keeps its theme color for readability over its solid background. */
+    val appLabelColor: Int = 0xFFFFFFFF.toInt(),
 )

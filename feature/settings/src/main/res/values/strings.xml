@@ -29,6 +29,8 @@
     <string name="drawer_folder_default">Kansio</string>
     <string name="settings_icons">Kuvakkeet</string>
     <string name="settings_themed_icons">Teemakuvakkeet (Material You)</string>
+    <string name="settings_label_size">Tekstin koko</string>
+    <string name="settings_label_color">Tekstin väri</string>
     <string name="settings_search">Haku</string>
     <string name="settings_search_contacts">Hae yhteystietoja</string>
     <string name="settings_left_edge">Vasen reuna</string>

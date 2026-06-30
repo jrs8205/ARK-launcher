@@ -30,6 +30,14 @@ import org.arkikeskus.launcher.model.IconRequest
 val LocalThemedIcons = compositionLocalOf { false }
 
 /**
+ * Size multiplier for [AppIcon] labels under this subtree (1.0 = the default 11sp). Provided per
+ * surface (home, dock, drawer) from the user's setting so the label-size slider scales every app
+ * label at once without threading the value through each composable's parameters. Default 1.0 keeps
+ * standalone callers (settings previews, pickers) unchanged.
+ */
+val LocalAppLabelScale = compositionLocalOf { 1f }
+
+/**
  * An app icon plus optional label. The icon is loaded via Coil (see AppIconFetcher), so it is
  * cached and loaded off the main thread. Caller supplies [labelColor] (white on wallpaper, the
  * theme on-surface color inside the drawer). When [badgeCount] > 0 a notification badge is drawn at
@@ -60,12 +68,13 @@ fun AppIcon(
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         if (showLabel) {
+            val scale = LocalAppLabelScale.current
             Spacer(Modifier.height(4.dp))
             Text(
                 text = appItem.label,
                 color = labelColor,
-                fontSize = 11.sp,
-                lineHeight = 13.sp,
+                fontSize = (11f * scale).sp,
+                lineHeight = (13f * scale).sp,
                 maxLines = maxLabelLines,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,

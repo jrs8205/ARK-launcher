@@ -15,6 +15,17 @@ const val APPWIDGET_HOST_ID = 0x41524B31
 val LocalAppWidgetHost = staticCompositionLocalOf<AppWidgetHost?> { null }
 
 /**
+ * Launches a placed widget's configuration activity via the SYSTEM (Activity-routed
+ * `AppWidgetHost.startAppWidgetConfigureActivityForResult`), invoking [onResult] with whether it
+ * completed (RESULT_OK). Must go through the system so the framework records the widget as configured —
+ * a raw `ACTION_APPWIDGET_CONFIGURE` Intent leaves it "configuration pending", which makes some
+ * providers (e.g. WhatsApp, whose config is an auth screen) refuse to populate. Provided by
+ * LauncherActivity; null outside it.
+ */
+val LocalWidgetConfigLauncher =
+    staticCompositionLocalOf<((appWidgetId: Int, onResult: (Boolean) -> Unit) -> Unit)?> { null }
+
+/**
  * Default home-grid span for [provider]. Prefers the API 31+ cell hints; otherwise converts the
  * provider's min size (px) to dp and applies the classic `(dp + 30) / 70` heuristic. Min 1×1.
  */

@@ -45,6 +45,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -94,6 +95,7 @@ import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -127,10 +129,55 @@ fun HomeScreen(
     val defaultFolderName = stringResource(R.string.folder_default_name)
 
     val widgetHost = LocalAppWidgetHost.current
+    val widgetConfigLauncher = LocalWidgetConfigLauncher.current
     val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     // Pending widget across the bind/configure result steps: appWidgetId + provider.
     var pendingWidget by remember { mutableStateOf<Pair<Int, AppWidgetProviderInfo>?>(null) }
+
+    // Persistent, page-independent host views: created once per placed widget id and kept alive so the
+    // AppWidgetHost listener is never lost when a pager page scrolls off-screen. A lost listener drops a
+    // collection widget's deferred row update (notifyAppWidgetViewDataChanged) — the empty-WhatsApp bug.
+    // Mirrors Launcher3's LauncherWidgetHolder keeping every host view registered for the app's lifetime.
+    val widgetViews = remember { mutableStateMapOf<Int, android.appwidget.AppWidgetHostView>() }
+    val widgetScrollableById = remember { mutableStateMapOf<Int, Boolean>() }
+    val placedWidgetIds = remember(uiState.entries) {
+        uiState.entries.filterIsInstance<PlacedWidget>().map { it.appWidgetId }.toSet()
+    }
+    LaunchedEffect(placedWidgetIds, widgetHost) {
+        val host = widgetHost ?: return@LaunchedEffect
+        placedWidgetIds.forEach { id ->
+            if (widgetViews[id] == null) {
+                val info = appWidgetManager.getAppWidgetInfo(id)
+                if (info != null) {
+                    runCatching {
+                        // Mark the widget as living on the HOME screen up front — some providers
+                        // (WhatsApp's chat list) won't populate until the host category is set.
+                        appWidgetManager.updateAppWidgetOptions(
+                            id,
+                            android.os.Bundle().apply {
+                                putInt(
+                                    AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY,
+                                    AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+                                )
+                            },
+                        )
+                        val v = host.createView(context, id, info)
+                        v.setPadding(0, 0, 0, 0)
+                        v.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                            widgetScrollableById[id] = v.containsScrollableCollection()
+                        }
+                        widgetScrollableById[id] = v.containsScrollableCollection()
+                        widgetViews[id] = v
+                    }
+                }
+            }
+        }
+        (widgetViews.keys - placedWidgetIds).forEach {
+            widgetViews.remove(it)
+            widgetScrollableById.remove(it)
+        }
+    }
 
     fun finishWidget(id: Int, provider: AppWidgetProviderInfo) {
         val (sx, sy) = defaultWidgetSpans(provider, context)
@@ -138,29 +185,25 @@ fun HomeScreen(
         pendingWidget = null
     }
 
-    val configureLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        val p = pendingWidget
-        if (p != null) {
-            if (result.resultCode == android.app.Activity.RESULT_OK) finishWidget(p.first, p.second)
-            else { widgetHost?.deleteAppWidgetId(p.first); pendingWidget = null }
-        }
-    }
-
     val reconfigureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { /* the widget reconfigures itself via RemoteViews; no DB change needed */ }
 
     fun configureOrFinish(id: Int, provider: AppWidgetProviderInfo) {
-        if (provider.configure != null) {
+        // Launch the configuration activity through the SYSTEM (Activity-routed), not a raw
+        // ACTION_APPWIDGET_CONFIGURE Intent, so the framework records the widget as configured.
+        // Otherwise some providers (WhatsApp's auth-gated chat widget) stay "configuration pending" and
+        // never populate. If there's no config activity, finish immediately.
+        val launcher = widgetConfigLauncher
+        if (provider.configure != null && launcher != null) {
             pendingWidget = id to provider
-            val intent = android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
-                component = provider.configure
-                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+            launcher(id) { ok ->
+                val p = pendingWidget
+                if (p != null) {
+                    if (ok) finishWidget(p.first, p.second)
+                    else { widgetHost?.deleteAppWidgetId(p.first); pendingWidget = null }
+                }
             }
-            runCatching { configureLauncher.launch(intent) }
-                .onFailure { widgetHost?.deleteAppWidgetId(id); pendingWidget = null }
         } else {
             finishWidget(id, provider)
         }
@@ -210,8 +253,12 @@ fun HomeScreen(
     val badgeShowCount = settings.notificationDotCount
     val badgeScale = settings.notificationDotScale
 
-    // All app icons on home (workspace, dock, folders) honour the themed-icons setting.
-    CompositionLocalProvider(LocalThemedIcons provides settings.useThemedIcons) {
+    // All app icons on home (workspace, dock, folders) honour the themed-icons setting and the
+    // user's app-label text-size multiplier.
+    CompositionLocalProvider(
+        LocalThemedIcons provides settings.useThemedIcons,
+        LocalAppLabelScale provides settings.appLabelTextScale,
+    ) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -240,6 +287,7 @@ fun HomeScreen(
                 badgeShowCount = badgeShowCount,
                 badgeScale = badgeScale,
                 showLabels = settings.showHomeLabels,
+                labelColor = Color(settings.appLabelColor),
                 showPageIndicator = settings.showPageIndicator,
                 locked = settings.desktopLocked,
                 homeSignals = homeSignals,
@@ -274,11 +322,16 @@ fun HomeScreen(
                         }
                     }
                 },
+                widgetViews = widgetViews,
+                widgetScrollableById = widgetScrollableById,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                    // No horizontal padding: the grid spans the full width so a "full width" widget
+                    // (spanX = columns at cellX 0) reaches both screen edges with no side gap. Icons
+                    // shift outward by a negligible ~8dp.
+                    .padding(vertical = 12.dp),
             )
 
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
@@ -290,6 +343,7 @@ fun HomeScreen(
                     badgeShowCount = badgeShowCount,
                     badgeScale = badgeScale,
                     showLabels = settings.showDockLabels,
+                    labelColor = Color(settings.appLabelColor),
                     backgroundAlpha = settings.dockBackgroundOpacity,
                     locked = settings.desktopLocked,
                     dragController = dragController,
@@ -546,6 +600,10 @@ private fun Modifier.pixelHomeSwipe(
         val touchSlop = viewConfiguration.touchSlop
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            // A touch that starts inside a scrollable collection widget (e.g. WhatsApp's chat list)
+            // belongs to that widget's own list — bail without consuming so the scroll falls through to
+            // the embedded AppWidgetHostView instead of the swipe-up stealing the vertical drag.
+            if (dragController.isOverScrollableWidget(down.position)) return@awaitEachGesture
             val velocityTracker = VelocityTracker()
             velocityTracker.addPosition(down.uptimeMillis, down.position)
             var mode = 0 // 0 = undecided, 1 = drawer up-drag, 2 = left-edge action (right-drag on page 0)

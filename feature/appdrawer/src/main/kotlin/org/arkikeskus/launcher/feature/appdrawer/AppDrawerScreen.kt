@@ -94,6 +94,7 @@ import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
+import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
@@ -136,8 +137,12 @@ fun AppDrawerScreen(
 
     val badges = if (uiState.showNotificationDots) uiState.badges else emptyMap()
 
-    // All app icons in the drawer (grid, folder sheet, popup) honour the themed-icons setting.
-    CompositionLocalProvider(LocalThemedIcons provides uiState.useThemedIcons) {
+    // All app icons in the drawer (grid, folder sheet, popup) honour the themed-icons setting and the
+    // user's app-label text-size multiplier.
+    CompositionLocalProvider(
+        LocalThemedIcons provides uiState.useThemedIcons,
+        LocalAppLabelScale provides uiState.appLabelTextScale,
+    ) {
     ExpressiveTheme {
     AppDrawerContent(
         apps = uiState.apps,

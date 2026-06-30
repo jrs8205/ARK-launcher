@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 
 /**
@@ -35,6 +36,7 @@ fun FolderIcon(
     badgeCount: Int,
     badgeShowCount: Boolean,
     badgeScale: Float = 1f,
+    labelColor: Color = Color.White,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -54,12 +56,13 @@ fun FolderIcon(
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         if (showLabel) {
+            val scale = LocalAppLabelScale.current
             Spacer(Modifier.height(4.dp))
             Text(
                 text = name,
-                color = Color.White,
-                fontSize = 11.sp,
-                lineHeight = 13.sp,
+                color = labelColor,
+                fontSize = (11f * scale).sp,
+                lineHeight = (13f * scale).sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,

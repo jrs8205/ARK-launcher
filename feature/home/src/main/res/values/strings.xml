@@ -23,5 +23,8 @@
     <string name="widget_unavailable">Widget ei käytettävissä</string>
     <string name="widget_resize">Muuta kokoa</string>
     <string name="widget_reconfigure">Widgetin asetukset</string>
+    <string name="widget_full_width">Koko leveys</string>
     <string name="widget_picker_title">Valitse widget</string>
+    <string name="widget_search">Hae widgettejä</string>
+    <string name="widget_search_none">Ei tuloksia</string>
 </resources>

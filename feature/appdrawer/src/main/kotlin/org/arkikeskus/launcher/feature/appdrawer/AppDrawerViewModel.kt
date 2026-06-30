@@ -50,6 +50,7 @@ data class AppDrawerUiState(
     val desktopLocked: Boolean = false,
     val showFrequentApps: Boolean = false,
     val frequentApps: List<AppItem> = emptyList(),
+    val appLabelTextScale: Float = 1f,
 )
 
 @HiltViewModel
@@ -94,6 +95,7 @@ class AppDrawerViewModel @Inject constructor(
             useThemedIcons = settings.useThemedIcons,
             desktopLocked = settings.desktopLocked,
             showFrequentApps = settings.showFrequentApps,
+            appLabelTextScale = settings.appLabelTextScale,
         )
     }.combine(notificationBadgeRepository.badges) { state, badges ->
         state.copy(badges = badges)

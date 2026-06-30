@@ -29,6 +29,8 @@
     <string name="drawer_folder_default">Folder</string>
     <string name="settings_icons">Icons</string>
     <string name="settings_themed_icons">Themed icons (Material You)</string>
+    <string name="settings_label_size">Label text size</string>
+    <string name="settings_label_color">Label text color</string>
     <string name="settings_search">Search</string>
     <string name="settings_search_contacts">Search contacts</string>
     <string name="settings_left_edge">Left edge</string>

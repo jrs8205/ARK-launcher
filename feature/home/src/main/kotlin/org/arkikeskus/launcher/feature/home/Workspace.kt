@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -97,6 +99,7 @@ fun Workspace(
     badgeShowCount: Boolean,
     badgeScale: Float,
     showLabels: Boolean,
+    labelColor: Color = Color.White,
     showPageIndicator: Boolean,
     locked: Boolean,
     homeSignals: Flow<Unit>,
@@ -117,6 +120,11 @@ fun Workspace(
     onSetWidgetBounds: suspend (rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int) -> Boolean =
         { _, _, _, _, _, _ -> false },
     onReconfigureWidget: (appWidgetId: Int) -> Unit = {},
+    // Persistent, page-independent host views (created once in HomeScreen, kept alive so their
+    // AppWidgetHost listener survives page scrolling — otherwise a collection widget's deferred row
+    // update is dropped). Keyed by appWidgetId. [widgetScrollableById] mirrors per-id scrollability.
+    widgetViews: Map<Int, android.appwidget.AppWidgetHostView> = emptyMap(),
+    widgetScrollableById: Map<Int, Boolean> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -350,9 +358,21 @@ fun Workspace(
     // Snap back off the always-present trailing page if it settles there empty (so the extra page
     // never feels like a real second page until an icon is dropped onto it).
     val settledPage = pagerState.settledPage
-    LaunchedEffect(settledPage, dragging, draggingLocal) {
-        if (dragging == null && draggingLocal == null && settledPage > 0 && effectiveEntries.none { it.page == settledPage }) {
-            val lastContent = effectiveEntries.maxOfOrNull { it.page } ?: 0
+    // A drawer/dock→home drag flips to an empty page ON PURPOSE so the app can be dropped there; the
+    // retreat must yield to it (otherwise the page snaps back to the front under the finger — the
+    // "it won't stay on the other page" bug). The in-home icon/local drags are already covered by
+    // dragging/draggingLocal.
+    val crossSurfaceDrag = dragController.moving &&
+        (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock)
+    LaunchedEffect(settledPage, dragging, draggingLocal, crossSurfaceDrag) {
+        if (dragging != null || draggingLocal != null || crossSurfaceDrag || settledPage <= 0) return@LaunchedEffect
+        // After a cross-surface drag ends, the dropped app reaches this page via the DB flow a beat
+        // later — wait briefly before deciding the page is empty, so a valid drop isn't undone.
+        if (latestEntries.none { it.page == settledPage }) kotlinx.coroutines.delay(180)
+        if (dragging == null && draggingLocal == null && settledPage > 0 &&
+            latestEntries.none { it.page == settledPage }
+        ) {
+            val lastContent = latestEntries.maxOfOrNull { it.page } ?: 0
             if (settledPage > lastContent) pagerState.animateScrollToPage(lastContent)
         }
     }
@@ -363,8 +383,34 @@ fun Workspace(
         dragController.rows = rows
     }
     LaunchedEffect(pagerState, pageCount) {
+        // Allow the always-present trailing page (index == pageCount) so a drawer/dock drop can land on
+        // a BRAND-NEW page. Clamping to pageCount-1 made cellAt() report the last existing page, so an
+        // app dragged from the drawer onto a new page always saved to the front page instead.
         snapshotFlow { pagerState.currentPage }
-            .collect { dragController.currentPage = it.coerceIn(0, (pageCount - 1).coerceAtLeast(0)) }
+            .collect { dragController.currentPage = it.coerceIn(0, pageCount) }
+    }
+    // Cross-page flip for a drawer→home / dock→home drag. The in-home icon and folder/shortcut drags
+    // run their own edge-flip (they own grid-local coords); a drawer/dock drag is owned by another
+    // surface and only feeds the controller a root position, so Workspace watches it here and advances
+    // the pager at the screen edges — letting an app be dropped straight onto any page.
+    LaunchedEffect(pagerState, pageCount) {
+        snapshotFlow {
+            if (dragController.moving &&
+                (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock)
+            ) {
+                dragController.rootPosition
+            } else {
+                null
+            }
+        }.collect { pos ->
+            if (pos == null || pagerState.isScrollInProgress) return@collect
+            val localX = pos.x - dragController.gridBounds.left
+            if (localX > gridSize.width - edgePx && pagerState.currentPage < pageCount) {
+                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+            } else if (localX < edgePx && pagerState.currentPage > 0) {
+                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+            }
+        }
     }
 
     Box(modifier = modifier) {
@@ -373,8 +419,13 @@ fun Workspace(
                 state = pagerState,
                 userScrollEnabled = dragging == null && draggingLocal == null && editingWidget == null,
                 // While dragging, keep every page composed so flipping to another page can't
-                // dispose the dragged item's node (which would cancel the in-progress drag).
-                beyondViewportPageCount = if (dragging != null || draggingLocal != null) pageCount.coerceAtLeast(0) else 0,
+                // dispose the dragged item's node (which would cancel the in-progress drag). Also kept
+                // composed during a drawer/dock→home drag so its target page renders as pages flip.
+                beyondViewportPageCount = if (
+                    dragging != null || draggingLocal != null ||
+                    (dragController.moving &&
+                        (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock))
+                ) pageCount.coerceAtLeast(0) else 0,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -498,6 +549,7 @@ fun Workspace(
                                         badgeCount = folderBadge,
                                         badgeShowCount = badgeShowCount,
                                         badgeScale = badgeScale,
+                                        labelColor = labelColor,
                                     )
                                 }
                             }
@@ -721,7 +773,7 @@ fun Workspace(
                             ) {
                                 AppIcon(
                                     appItem = placed.app,
-                                    labelColor = Color.White,
+                                    labelColor = labelColor,
                                     showLabel = showLabels,
                                     iconSize = 52.dp,
                                     maxLabelLines = 1,
@@ -755,15 +807,31 @@ fun Workspace(
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    ShortcutIconContent(entry, showLabels)
+                                    ShortcutIconContent(entry, showLabels, labelColor)
                                 }
                             }
                             is PlacedWidget -> {
                                 val widget = entry
                                 val ctx = LocalContext.current
-                                val host = LocalAppWidgetHost.current
                                 val info = remember(widget.appWidgetId) {
                                     AppWidgetManager.getInstance(ctx).getAppWidgetInfo(widget.appWidgetId)
+                                }
+                                // The persistent host view (created + kept alive in HomeScreen so its
+                                // AppWidgetHost listener survives page scrolling) and its scrollability —
+                                // the root bounds are published to the controller so the swipe-up detector
+                                // yields to a collection widget's own scroll instead of opening the drawer.
+                                val hostView = widgetViews[widget.appWidgetId]
+                                val widgetScrollable = widgetScrollableById[widget.appWidgetId] ?: false
+                                var widgetRect by remember(widget.rowId) { mutableStateOf(Rect.Zero) }
+                                LaunchedEffect(widget.rowId, widgetScrollable) {
+                                    if (widgetScrollable && !widgetRect.isEmpty) {
+                                        dragController.scrollableWidgetRects[widget.rowId] = widgetRect
+                                    } else {
+                                        dragController.scrollableWidgetRects.remove(widget.rowId)
+                                    }
+                                }
+                                DisposableEffect(widget.rowId) {
+                                    onDispose { dragController.scrollableWidgetRects.remove(widget.rowId) }
                                 }
                                 Box(
                                     modifier = Modifier
@@ -777,6 +845,10 @@ fun Workspace(
                                             with(density) { (widget.spanX * cellW).toDp() },
                                             with(density) { (widget.spanY * cellH).toDp() },
                                         )
+                                        .onGloballyPositioned {
+                                            widgetRect = it.boundsInRoot()
+                                            if (widgetScrollable) dragController.scrollableWidgetRects[widget.rowId] = widgetRect
+                                        }
                                         .pointerInput(widget.rowId, widget.page, widget.cellX, widget.cellY, widget.spanX, widget.spanY, locked, cellW, cellH, columns, rows, pageCount) {
                                             if (locked) return@pointerInput
                                             awaitEachGesture {
@@ -809,17 +881,38 @@ fun Workspace(
                                             }
                                         },
                                 ) {
-                                    if (info != null && host != null) {
+                                    if (hostView != null) {
+                                        // Host the persistent AppWidgetHostView inside a container, re-parenting
+                                        // it into this page's container whenever the page (re)composes. The view
+                                        // object — and its AppWidgetHost listener — is never destroyed by a page
+                                        // scroll, so a collection widget's deferred row updates aren't dropped.
                                         AndroidView(
-                                            factory = { c -> host.createView(c.applicationContext, widget.appWidgetId, info) },
-                                            update = { hostView ->
+                                            factory = { c -> android.widget.FrameLayout(c) },
+                                            update = { container ->
                                                 val wDp = (widget.spanX * cellW / density.density).toInt()
                                                 val hDp = (widget.spanY * cellH / density.density).toInt()
-                                                runCatching { hostView.updateAppWidgetSize(android.os.Bundle.EMPTY, wDp, hDp, wDp, hDp) }
+                                                if (wDp > 0 && hDp > 0) {
+                                                    val opts = widgetSizeOptions(wDp, hDp)
+                                                    runCatching {
+                                                        hostView.updateAppWidgetSize(opts, wDp, hDp, wDp, hDp)
+                                                        hostView.updateAppWidgetOptions(opts)
+                                                    }
+                                                }
+                                                if (hostView.parent !== container) {
+                                                    (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
+                                                    container.removeAllViews()
+                                                    container.addView(
+                                                        hostView,
+                                                        android.widget.FrameLayout.LayoutParams(
+                                                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                                                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                                                        ),
+                                                    )
+                                                }
                                             },
                                             modifier = Modifier.fillMaxSize(),
                                         )
-                                    } else {
+                                    } else if (info == null) {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
@@ -832,6 +925,7 @@ fun Workspace(
                                             )
                                         }
                                     }
+                                    // else: the host view is still being created (brief) — render nothing.
                                 }
                             }
                             }
@@ -842,10 +936,14 @@ fun Workspace(
                         val info = remember(ew.appWidgetId) { AppWidgetManager.getInstance(ctxE).getAppWidgetInfo(ew.appWidgetId) }
                         val range = remember(ew.appWidgetId) { info?.let { widgetResizeRange(it, ctxE, columns) }?.takeIf { it.isResizable } }
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }
+                        val defaultSpanX = remember(ew.appWidgetId, columns) {
+                            (info?.let { defaultWidgetSpans(it, ctxE).first } ?: 2).coerceIn(1, columns)
+                        }
                         WidgetEditOverlay(
                             widget = ew,
                             range = range,
                             reconfigurable = reconfigurable,
+                            defaultSpanX = defaultSpanX,
                             cellW = cellW, cellH = cellH, columns = columns, rows = rows, density = density,
                             rectFree = { x, y, sx, sy -> rectFreeOnGrid(ew.rowId, ew.page, x, y, sx, sy) },
                             onSetBounds = { x, y, sx, sy -> scope.launch { onSetWidgetBounds(ew.rowId, ew.page, x, y, sx, sy) } },
@@ -903,8 +1001,9 @@ fun Workspace(
                         badgeCount = dl.apps.sumOf { badges[it.badgeKey] ?: 0 },
                         badgeShowCount = badgeShowCount,
                         badgeScale = badgeScale,
+                        labelColor = labelColor,
                     )
-                    is PlacedShortcut -> ShortcutIconContent(dl, showLabels)
+                    is PlacedShortcut -> ShortcutIconContent(dl, showLabels, labelColor)
                     else -> Unit
                 }
             }
@@ -922,6 +1021,7 @@ private fun WidgetEditOverlay(
     widget: PlacedWidget,
     range: WidgetResizeRange?,
     reconfigurable: Boolean,
+    defaultSpanX: Int,
     cellW: Float,
     cellH: Float,
     columns: Int,
@@ -1070,6 +1170,41 @@ private fun WidgetEditOverlay(
         }
     }
 
+    // Full-width toggle (top-left), always available in edit mode regardless of the provider's resize
+    // flags: tap to stretch the widget edge-to-edge across the grid (cellX 0, span all columns), tap
+    // again to restore the provider's default width. Commits only into a free row.
+    run {
+        val isFull = cx == 0 && sx >= columns
+        Box(
+            modifier = Modifier
+                .offset {
+                    IntOffset(
+                        (cx * cellW + 8.dp.toPx()).roundToInt(),
+                        (cy * cellH + 8.dp.toPx()).roundToInt(),
+                    )
+                }
+                .size(with(density) { handlePx.toDp() })
+                .background(primary, CircleShape)
+                .clickable {
+                    if (isFull) {
+                        val target = defaultSpanX.coerceIn(1, columns)
+                        if (rectFree(cx, cy, target, sy)) { sx = target; onSetBounds(cx, cy, target, sy) }
+                    } else if (rectFree(0, cy, columns, sy)) {
+                        cx = 0; sx = columns
+                        onSetBounds(0, cy, columns, sy)
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_fit_width),
+                contentDescription = stringResource(R.string.widget_full_width),
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(with(density) { (handlePx * 0.6f).toDp() }),
+            )
+        }
+    }
+
     if (reconfigurable) {
         Box(
             modifier = Modifier
@@ -1096,7 +1231,7 @@ private fun WidgetEditOverlay(
 
 /** The icon + label of a pinned deep shortcut (the gesture, menu and offset live at the call site). */
 @Composable
-private fun ShortcutIconContent(shortcut: PlacedShortcut, showLabel: Boolean) {
+private fun ShortcutIconContent(shortcut: PlacedShortcut, showLabel: Boolean, labelColor: Color = Color.White) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val icon = shortcut.icon
         if (icon != null) {
@@ -1105,18 +1240,61 @@ private fun ShortcutIconContent(shortcut: PlacedShortcut, showLabel: Boolean) {
             Box(Modifier.size(52.dp))
         }
         if (showLabel) {
+            val scale = org.arkikeskus.launcher.ui.component.LocalAppLabelScale.current
             Spacer(Modifier.height(4.dp))
             Text(
                 text = shortcut.label,
-                color = Color.White,
-                fontSize = 11.sp,
-                lineHeight = 13.sp,
+                color = labelColor,
+                fontSize = (11f * scale).sp,
+                lineHeight = (13f * scale).sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
         }
     }
+}
+
+/**
+ * The size-options bundle Launcher3 builds for a hosted widget: min/max width/height in dp plus (on
+ * Android S+) the list of supported sizes. Collection widgets — a RemoteViewsService-backed
+ * ListView/GridView/StackView such as WhatsApp's conversation list — render EMPTY when handed an empty
+ * options bundle (the old `Bundle.EMPTY`), because the RemoteViewsService can't size its list. Adapted
+ * from AOSP Launcher3 `WidgetSizes.getWidgetSizeOptions` (Apache-2.0).
+ */
+internal fun widgetSizeOptions(wDp: Int, hDp: Int): android.os.Bundle =
+    android.os.Bundle().apply {
+        putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, wDp)
+        putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, hDp)
+        putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, wDp)
+        putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, hDp)
+        // Tell the provider this widget is on the HOME screen (not keyguard). Some providers — notably
+        // WhatsApp's chat-list collection — refuse to populate ("pending config activity") until the
+        // host category is known. Launcher3 sets this too.
+        putInt(
+            AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY,
+            android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+        )
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            putParcelableArrayList(
+                AppWidgetManager.OPTION_APPWIDGET_SIZES,
+                arrayListOf(android.util.SizeF(wDp.toFloat(), hDp.toFloat())),
+            )
+        }
+    }
+
+/**
+ * True if this view tree contains an internally scrollable collection view — an `AdapterView`
+ * (ListView / GridView / StackView / AdapterViewFlipper) or a ScrollView. Mirrors AOSP Launcher3
+ * `LauncherAppWidgetHostView.checkScrollableRecursively` (Apache-2.0); used to let a collection widget
+ * keep its own touch-scroll instead of the home swipe-up detector stealing the vertical drag.
+ */
+internal fun android.view.View.containsScrollableCollection(): Boolean = when (this) {
+    is android.widget.AdapterView<*> -> true
+    is android.widget.ScrollView -> true
+    is android.widget.HorizontalScrollView -> true
+    is android.view.ViewGroup -> (0 until childCount).any { getChildAt(it).containsScrollableCollection() }
+    else -> false
 }
 
 @Composable

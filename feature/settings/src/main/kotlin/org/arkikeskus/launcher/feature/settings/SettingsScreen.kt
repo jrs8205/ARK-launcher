@@ -12,14 +12,18 @@ import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -169,9 +173,16 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, viewModel::setShowPageIndicator)
                 SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, viewModel::setDesktopLocked)
 
+                ExpressiveSectionTitle(stringResource(R.string.settings_icons))
+                SliderRow(
+                    label = stringResource(R.string.settings_label_size),
+                    value = s.appLabelTextScale,
+                    onValueChange = viewModel::setAppLabelTextScale,
+                    valueRange = 0.8f..1.6f,
+                )
+                LabelColorRow(selected = s.appLabelColor, onPick = viewModel::setAppLabelColor)
                 // Themed (monochrome) icons need the adaptive-icon monochrome API (Android 13+).
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                    ExpressiveSectionTitle(stringResource(R.string.settings_icons))
                     SwitchRow(
                         stringResource(R.string.settings_themed_icons),
                         s.useThemedIcons,
@@ -213,7 +224,7 @@ fun SettingsScreen(
                     description = "",
                 ) { showBackup = true }
 
-                UpdateSection(modifier = Modifier.padding(top = 8.dp))
+                UpdateSection()
             }
         }
 
@@ -408,6 +419,50 @@ private fun SliderRow(
                     inactiveTrackColor = p.trackOff,
                 ),
             )
+        }
+    }
+}
+
+/** Row of preset label-color swatches for the home-surface app labels (home/dock/folders). The
+ *  selected swatch gets an accent ring; every swatch has a faint outline so white reads on the card. */
+@Composable
+private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
+    val p = LocalExpressivePalette.current
+    val swatches = remember {
+        listOf(
+            0xFFFFFFFF, 0xFF000000, 0xFFBDBDBD, 0xFFEF5350,
+            0xFFFFA726, 0xFFFFEE58, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC,
+        ).map { it.toInt() }
+    }
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_label_color))
+            Spacer(Modifier.height(14.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                swatches.forEach { c ->
+                    val isSel = c == selected
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(c))
+                            .border(
+                                width = if (isSel) 3.dp else 1.dp,
+                                color = if (isSel) Accent else p.faint,
+                                shape = CircleShape,
+                            )
+                            .clickable { onPick(c) },
+                    )
+                }
+            }
         }
     }
 }

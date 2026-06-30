@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,7 +65,21 @@ class HomeDragController {
     var dockItemCount by mutableStateOf(0)
     var dockHasSpace by mutableStateOf(false)
 
+    /**
+     * Root-space bounds of placed widgets whose content is internally scrollable (collection widgets:
+     * a ListView/GridView/StackView fed by a RemoteViewsService, e.g. WhatsApp's conversation list),
+     * keyed by the placed widget's home_items row id. The root home swipe detector
+     * ([isOverScrollableWidget]) skips a touch that starts inside one of these so the widget's own list
+     * scrolls instead of the gesture opening the app drawer — the Compose equivalent of Launcher3's
+     * `LauncherAppWidgetHostView` calling `requestDisallowInterceptTouchEvent(true)` when scrollable.
+     */
+    val scrollableWidgetRects = mutableStateMapOf<Long, Rect>()
+
     val isDragging: Boolean get() = draggedApp != null
+
+    /** True if [p] (root coords) is inside a placed widget that scrolls its own content. */
+    fun isOverScrollableWidget(p: Offset): Boolean =
+        scrollableWidgetRects.values.any { !it.isEmpty && it.contains(p) }
 
     /** Lift [app] (long-press) — menu shows; not yet "moving". */
     fun start(app: AppItem, from: DragSource, root: Offset) {

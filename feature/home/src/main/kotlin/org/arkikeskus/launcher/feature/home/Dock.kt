@@ -54,6 +54,7 @@ fun Dock(
     badgeShowCount: Boolean,
     badgeScale: Float,
     showLabels: Boolean,
+    labelColor: Color = Color.White,
     backgroundAlpha: Float,
     locked: Boolean,
     dragController: HomeDragController,
@@ -192,7 +193,7 @@ fun Dock(
                 ) {
                     AppIcon(
                         appItem = app,
-                        labelColor = Color.White,
+                        labelColor = labelColor,
                         showLabel = showLabels,
                         iconSize = 52.dp,
                         badgeCount = badges[app.badgeKey] ?: 0,

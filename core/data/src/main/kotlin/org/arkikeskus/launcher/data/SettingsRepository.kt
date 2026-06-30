@@ -54,6 +54,8 @@ class SettingsRepository @Inject constructor(
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
             desktopLocked = p[Keys.DESKTOP_LOCKED] ?: false,
             showFrequentApps = p[Keys.SHOW_FREQUENT_APPS] ?: false,
+            appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
+            appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
         )
     }
 
@@ -164,6 +166,13 @@ class SettingsRepository @Inject constructor(
 
     /** Toggles the "most used" row in the app drawer. */
     suspend fun setShowFrequentApps(value: Boolean) = edit { it[Keys.SHOW_FREQUENT_APPS] = value }
+
+    /** Size multiplier for app icon labels (clamped to the slider's range). */
+    suspend fun setAppLabelTextScale(value: Float) =
+        edit { it[Keys.APP_LABEL_SCALE] = value.coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE) }
+
+    /** ARGB color for the home-surface app icon labels. */
+    suspend fun setAppLabelColor(argb: Int) = edit { it[Keys.APP_LABEL_COLOR] = argb }
 
     suspend fun addToDock(key: String) = edit { p ->
         val current = currentFavorites(p).toMutableList()
@@ -338,6 +347,8 @@ class SettingsRepository @Inject constructor(
         val AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
         val UPDATE_LAST_CHECK = longPreferencesKey("update_last_check")
         val UPDATE_LAST_NOTIFIED = stringPreferencesKey("update_last_notified_version")
+        val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
+        val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
     }
 
     companion object {
@@ -349,9 +360,13 @@ class SettingsRepository @Inject constructor(
         const val MIN_DOT_SCALE = 0.6f
         const val MAX_DOT_SCALE = 1.8f
 
+        /** Valid range for the app-label text-size slider. */
+        const val MIN_LABEL_SCALE = 0.8f
+        const val MAX_LABEL_SCALE = 1.6f
+
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
-        val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale")
-        val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns")
+        val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale", "app_label_scale")
+        val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns", "app_label_color")
 
         /** Device-local bookkeeping keys excluded from an exported backup and preserved across a
          *  restore: Drive enable/last-backup/hash + the local file-backup timestamp. */

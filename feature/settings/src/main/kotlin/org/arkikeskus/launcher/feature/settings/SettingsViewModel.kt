@@ -73,6 +73,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setDesktopLocked(value: Boolean) = update { repository.setDesktopLocked(value) }
 
+    fun setAppLabelTextScale(value: Float) = update { repository.setAppLabelTextScale(value) }
+    fun setAppLabelColor(argb: Int) = update { repository.setAppLabelColor(argb) }
+
     private fun update(block: suspend () -> Unit) {
         viewModelScope.launch { block() }
     }

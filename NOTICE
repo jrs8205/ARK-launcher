@@ -21,7 +21,13 @@ the code copied verbatim):
   - the drag layer / drag controller model (cross-surface icon drag between
     the workspace, dock and app drawer);
   - live drop feedback and drop targets;
-  - folders (drop icon-on-icon), notification dots, and pinned deep shortcuts.
+  - folders (drop icon-on-icon), notification dots, and pinned deep shortcuts;
+  - the widget edit frame (resize / move / remove / reconfigure), adapted from
+    AppWidgetResizeFrame, DeleteDropTarget and isReconfigurable;
+  - widget size options for hosted widgets (so collection widgets populate),
+    adapted from WidgetSizes.getWidgetSizeOptions; and the scrollable-content
+    check, adapted from LauncherAppWidgetHostView.checkScrollableRecursively.
 
-This project does not include source code from Lawnchair (GPL-3.0); only
-high-level concepts were studied from it.
+This project does not include source code from Lawnchair; only high-level
+concepts were studied from it (current Lawnchair is Apache-2.0). The
+implementations here are original.
