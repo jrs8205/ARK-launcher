@@ -8,6 +8,7 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import dagger.hilt.android.AndroidEntryPoint
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.StatusNotification
 import javax.inject.Inject
 
 /**
@@ -43,6 +44,7 @@ class NotificationDotListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         badgeRepository.setBadges(emptyMap())
+        badgeRepository.setIcons(emptyList())
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) = refresh()
@@ -54,14 +56,24 @@ class NotificationDotListenerService : NotificationListenerService() {
         val ranking = runCatching { currentRanking }.getOrNull()
         val tmp = Ranking()
         val counts = HashMap<String, Int>()
+        val icons = LinkedHashMap<String, StatusNotification>()
         for (sbn in active) {
             if (sbn == null || !isBadgeWorthy(sbn, ranking, tmp)) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
             counts[key] = (counts[key] ?: 0) + 1
+            // Keep one small icon per app — the most recent — for the status bar's left side.
+            val smallIcon = sbn.notification?.smallIcon
+            if (smallIcon != null) {
+                val existing = icons[key]
+                if (existing == null || sbn.postTime > existing.postTime) {
+                    icons[key] = StatusNotification(sbn.key, sbn.packageName, smallIcon, sbn.postTime)
+                }
+            }
         }
         Log.d(TAG, "badge snapshot: ${counts.size} app(s) badged")
         badgeRepository.setBadges(counts)
+        badgeRepository.setIcons(icons.values.sortedByDescending { it.postTime })
     }
 
     private fun isBadgeWorthy(sbn: StatusBarNotification, ranking: RankingMap?, tmp: Ranking): Boolean {

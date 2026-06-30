@@ -22,13 +22,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,6 +44,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.StatusNotification
 import org.arkikeskus.launcher.designsystem.component.BatteryBar
 import org.arkikeskus.launcher.designsystem.component.SignalBars
 import org.arkikeskus.launcher.designsystem.theme.LocalLauncherColors
@@ -60,6 +67,7 @@ data class StatusBarState(
     val wifi: WifiStatus = WifiStatus(connected = false, level = 0, band = WifiBand.UNKNOWN),
     val mobile: MobileStatus = MobileStatus(active = false, level = 0, generation = null),
     val flags: SystemFlags = SystemFlags(),
+    val notifications: List<StatusNotification> = emptyList(),
 )
 
 @HiltViewModel
@@ -68,15 +76,17 @@ class StatusViewModel @Inject constructor(
     connectivity: ConnectivityMonitor,
     signal: SignalMonitor,
     flags: SystemFlagsMonitor,
+    badges: NotificationBadgeRepository,
 ) : ViewModel() {
     val state: StateFlow<StatusBarState> =
-        combine(battery.status, connectivity.wifi, signal.mobile, flags.flags) { b, w, m, f ->
-            StatusBarState(b, w, m, f)
+        combine(battery.status, connectivity.wifi, signal.mobile, flags.flags, badges.icons) { b, w, m, f, n ->
+            StatusBarState(b, w, m, f, n)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarState())
 }
 
 private val STATUS_EDGE_PAD = 28.dp // clock / battery inset from the screen edges
 private val STATUS_GAP = 8.dp // space between indicators
+private val STATUS_NOTIF_GAP = 5.dp // space between notification icons on the left
 private val STATUS_MAIN_LINE = 20.dp // common centre line for every primary glyph
 
 /**
@@ -109,24 +119,60 @@ fun StatusBar(
     // glyphs sit level with the camera. Null when there is no cutout.
     var cutout by remember { mutableStateOf<android.graphics.Rect?>(null) }
     LaunchedEffect(view) {
-        val r = view.rootWindowInsets?.displayCutout?.boundingRectTop
-        cutout = if (r != null && r.width() > 0) r else null
+        val dc = view.rootWindowInsets?.displayCutout
+        val top = dc?.boundingRectTop?.takeIf { it.width() > 0 }
+        // boundingRectTop can be looser than the visible camera (its centre then sits off the hole), so
+        // refine to the tight cutout PATH bounds when they fall inside the top band — that gives the real
+        // punch-hole centre on any device. API 31+; falls back to the rect otherwise.
+        val pathRect = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            dc?.cutoutPath?.let { p ->
+                val rf = android.graphics.RectF()
+                p.computeBounds(rf, true)
+                if (rf.width() > 0f && rf.height() > 0f) {
+                    android.graphics.Rect(rf.left.toInt(), rf.top.toInt(), rf.right.toInt(), rf.bottom.toInt())
+                } else {
+                    null
+                }
+            }
+        } else {
+            null
+        }
+        cutout = when {
+            pathRect != null && top != null && pathRect.centerY() in top.top..top.bottom -> pathRect
+            else -> top
+        }
     }
+    // The bar's own top in window space, so cutout alignment is exact regardless of where the bar is
+    // placed (the cutout rect is in window coordinates too).
+    var barTopInWindow by remember { mutableStateOf(0) }
 
     val f = s.flags
     val batteryColor = colors.batteryColor(s.battery.percent)
+    val shownNotifs = s.notifications.take(5)
+    val notifCount = shownNotifs.size
 
     Layout(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { barTopInWindow = it.positionInWindow().y.toInt() }
             // No single colour contrasts with every wallpaper, so back the bar with a faint dark scrim
             // that fades downward — guarantees the icons stay readable on bright backgrounds.
-            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.30f), Color.Transparent))),
+            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent))),
         content = {
-            // [0] clock (always, far left)
+            // [0] clock (left edge).
             MainLineBox { Text(time, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
 
-            // [1..] active indicators, declared left → right (battery declared last = placed far right).
+            // [1..notifCount] active notification icons (most-recent first), placed after the clock and
+            // truncated by the layout before they reach the right cluster or cutout — like the system bar.
+            shownNotifs.forEach { n ->
+                MainLineBox {
+                    rememberNotifIcon(n)?.let { bmp ->
+                        Icon(bmp, n.packageName, Modifier.size(14.dp), tint = Color.White)
+                    }
+                }
+            }
+
+            // [notifCount+1..] active indicators, left → right (battery declared last = placed far right).
             if (f.alarm) FlagItem(R.drawable.ic_status_alarm, accent, "Alarm")
             if (f.dnd) FlagItem(R.drawable.ic_status_dnd, accent, "Do not disturb")
             if (f.silent) FlagItem(R.drawable.ic_status_silent, accent, "Silent")
@@ -178,33 +224,57 @@ fun StatusBar(
     ) { measurables, constraints ->
         val edge = STATUS_EDGE_PAD.roundToPx()
         val gap = STATUS_GAP.roundToPx()
+        val notifGap = STATUS_NOTIF_GAP.roundToPx()
         val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
         val width = constraints.maxWidth
         val contentH = placeables.maxOf { it.height }
-        val clock = placeables.first()
-        val icons = placeables.drop(1)
+        val clock = placeables[0]
+        val notifIcons = placeables.subList(1, 1 + notifCount)
+        val indicators = placeables.subList(1 + notifCount, placeables.size)
         val cut = cutout
         val cutLeft = cut?.left ?: -1
         val cutRight = cut?.right ?: -1
         // Drop the primary line so its centre sits level with the camera cutout's vertical centre.
+        // cutout + barTopInWindow are both window-space, so subtracting the bar's own top makes this
+        // exact wherever the bar ends up (different status-bar heights across devices).
         val topY = if (alignToCutout && cut != null) {
-            ((cut.top + cut.bottom) / 2 - STATUS_MAIN_LINE.roundToPx() / 2).coerceAtLeast(0)
+            ((cut.top + cut.bottom) / 2 - barTopInWindow - STATUS_MAIN_LINE.roundToPx() / 2).coerceAtLeast(0)
         } else {
             0
         }
 
         layout(width, topY + contentH) {
-            clock.placeRelative(edge, topY)
-            // Fill from the right edge inward; jump over the cutout when a glyph would land under it.
+            // Clock at the left edge, but pushed to the right of the cutout if it would land under one
+            // (e.g. a top-LEFT corner camera) — so the clock is never hidden behind the hole.
+            var clockX = edge
+            if (cut != null && clockX < cutRight && clockX + clock.width > cutLeft) {
+                clockX = cutRight + gap // small breathing gap past the cutout
+            }
+            clock.placeRelative(clockX, topY)
+
+            // Indicators fill from the right edge inward; jump over the cutout when a glyph would land
+            // under it (e.g. a top-RIGHT or centre camera) and continue on the cutout's left side.
             var x = width - edge
-            for (p in icons.asReversed()) {
+            for (p in indicators.asReversed()) {
                 var left = x - p.width
                 if (cut != null && left < cutRight && x > cutLeft) {
-                    x = cutLeft
+                    x = cutLeft - gap
                     left = x - p.width
                 }
                 p.placeRelative(left, topY)
                 x = left - gap
+            }
+            val rightClusterLeft = x // leftmost edge the right cluster reached
+
+            // Notification icons grow right from the clock, but STOP before they'd collide with the right
+            // cluster or the cutout — so a flood of notifications truncates cleanly instead of overlapping.
+            var nx = clockX + clock.width + notifGap
+            for (p in notifIcons) {
+                if (p.width == 0) continue // icon failed to load — skip its empty slot
+                if (cut != null && nx < cutRight && nx + p.width > cutLeft) nx = cutRight + gap
+                if (nx + p.width > rightClusterLeft) break // out of room — drop the rest
+                p.placeRelative(nx, topY)
+                nx += p.width + notifGap
             }
         }
     }
@@ -232,6 +302,18 @@ private fun StatusItem(sub: String?, subColor: Color, primary: @Composable () ->
 private fun FlagItem(@DrawableRes res: Int, tint: Color, desc: String) {
     MainLineBox {
         Icon(painterResource(res), desc, Modifier.size(15.dp), tint = tint)
+    }
+}
+
+/** Rasterises a notification's small icon (an [android.graphics.drawable.Icon]) into a tintable bitmap;
+ *  null on any failure so it is simply skipped. */
+@Composable
+private fun rememberNotifIcon(n: StatusNotification): ImageBitmap? {
+    val context = LocalContext.current
+    return remember(n.key, n.postTime) {
+        runCatching {
+            n.icon.loadDrawable(context)?.toBitmap(width = 42, height = 42)?.asImageBitmap()
+        }.getOrNull()
     }
 }
 

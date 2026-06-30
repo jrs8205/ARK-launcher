@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
@@ -68,6 +69,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -95,6 +97,7 @@ import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
+import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconMenuItem
@@ -155,6 +158,22 @@ fun HomeScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    // First-run onboarding: when we are NOT the default home, surface the system "set default launcher"
+    // dialog (RoleManager) so a fresh install — e.g. downloaded from GitHub — can become the launcher like
+    // Lawnchair/Launcher3, without adb or hunting through settings. Re-checked on resume.
+    var isDefaultLauncher by remember { mutableStateOf(DefaultLauncher.isDefault(context)) }
+    val setDefaultLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { isDefaultLauncher = DefaultLauncher.isDefault(context) }
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) isDefaultLauncher = DefaultLauncher.isDefault(context)
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
     // The single Pixel-style long-press menu, anchored to the long-pressed icon.
     var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
@@ -452,6 +471,44 @@ fun HomeScreen(
                 }
             }
         }
+        // First-run onboarding card: shown until Arkikeskus is the default home. One button opens the
+        // system role dialog to set it as the default launcher (works for any fresh GitHub install).
+        if (!isDefaultLauncher) {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(28.dp),
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .statusBarsPadding()
+                    .padding(horizontal = 28.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = stringResource(R.string.onboarding_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = stringResource(R.string.onboarding_text),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Button(onClick = {
+                        runCatching { setDefaultLauncher.launch(DefaultLauncher.requestIntent(context)) }
+                    }) {
+                        Text(stringResource(R.string.onboarding_set_default))
+                    }
+                }
+            }
+        }
+
         // The floating dragged icon is drawn by LauncherShell (above the workspace, dock and the app
         // drawer), so it can travel across all three surfaces.
     }

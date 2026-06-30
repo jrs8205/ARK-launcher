@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import org.arkikeskus.launcher.model.MobileStatus
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,8 +59,13 @@ class SignalMonitor @Inject constructor(
                     trySend(inactive)
                 }
                 awaitClose { telephonyManager.unregisterTelephonyCallback(callback) }
-            }.distinctUntilChanged()
+            }
         }
+            // Emit an immediate snapshot so combine() never stalls waiting for the first async signal
+            // callback (it may be slow, or never arrive when READ_PHONE_STATE is denied). Without this a
+            // single non-emitting flow would freeze the whole status bar on its default values.
+            .onStart { emit(inactive) }
+            .distinctUntilChanged()
 
     private fun hasTelephony(): Boolean =
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
