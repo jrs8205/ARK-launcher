@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -340,17 +341,27 @@ fun HomeScreen(
                 val statusZone = with(density) {
                     WindowInsets.displayCutout.getTop(this).toDp()
                 }.coerceAtLeast(24.dp)
+                // Height of the still-visible system status bar; reserved as internal top padding so the
+                // themed bar's scrim can extend up behind it to the top edge (no gap on tall-status-bar
+                // phones like the Pixel 10 Pro) while the glyphs sit below the system bar.
+                val systemBarInset = with(density) {
+                    WindowInsets.statusBars.getTop(this).toDp()
+                }
                 StatusBar(
                     // Only align to the camera cutout when we own the top zone (system bar hidden).
                     alignToCutout = settings.hideSystemStatusBar,
+                    scrimAlpha = settings.statusBarScrimOpacity,
+                    // When hidden we own the whole top zone (no inset, self-aligns to the cutout);
+                    // otherwise reserve the system bar's height so the scrim fills it and glyphs clear it.
+                    topInset = if (settings.hideSystemStatusBar) 0.dp else systemBarInset,
                     modifier = Modifier
                         .fillMaxWidth()
-                        // When the system bar is hidden, occupy its zone at the very top (replacing it);
-                        // otherwise sit just below the still-visible system bar. Horizontal insets and
-                        // cutout handling live inside StatusBar.
+                        // When the system bar is hidden, occupy its zone at the very top (replacing it).
+                        // Otherwise the scrim + topInset (inside StatusBar) handle the system-bar band, so
+                        // no external statusBarsPadding here — that padding is what left the scrim gap.
                         .then(
                             if (settings.hideSystemStatusBar) Modifier.heightIn(min = statusZone)
-                            else Modifier.statusBarsPadding(),
+                            else Modifier,
                         ),
                 )
             }
@@ -720,6 +731,12 @@ private fun Modifier.pixelHomeSwipe(
             // belongs to that widget's own list — bail without consuming so the scroll falls through to
             // the embedded AppWidgetHostView instead of the swipe-up stealing the vertical drag.
             if (dragController.isOverScrollableWidget(down.position)) return@awaitEachGesture
+            // A touch that starts on the dock belongs to the dock's own gestures (tap / long-press for
+            // the shortcut popup / drag to reorder or onto home). Bail so the dock owns it end-to-end —
+            // otherwise this Initial-pass detector steals a small upward drift during a dock long-press,
+            // cancelling the popup and half-opening the drawer (the "2/10 on Samsung" flakiness). Swipe
+            // up to open the drawer still works from anywhere above the dock.
+            if (dragController.isOverDock(down.position)) return@awaitEachGesture
             val velocityTracker = VelocityTracker()
             velocityTracker.addPosition(down.uptimeMillis, down.position)
             // 0 = undecided, 1 = drawer up-drag, 2 = left-edge action (right-drag on page 0),

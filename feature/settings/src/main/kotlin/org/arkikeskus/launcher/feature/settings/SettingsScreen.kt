@@ -193,6 +193,13 @@ fun SettingsScreen(
                     viewModel::setHideSystemStatusBar,
                 )
                 StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
+                if (s.showStatusBar) {
+                    SliderRow(
+                        label = stringResource(R.string.settings_status_bar_scrim),
+                        value = s.statusBarScrimOpacity,
+                        onValueChange = viewModel::setStatusBarScrimOpacity,
+                    )
+                }
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_icons))
                 SliderRow(

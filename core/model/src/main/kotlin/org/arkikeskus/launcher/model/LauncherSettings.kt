@@ -40,4 +40,7 @@ data class LauncherSettings(
     /** Hide the system status bar while the launcher is in the foreground (immersive/fullscreen home).
      *  Independent of [showStatusBar]; combine the two to replace the system bar with the themed one. */
     val hideSystemStatusBar: Boolean = false,
+    /** Darkness of the scrim drawn behind the themed status bar (0 = none, 1 = solid black); keeps the
+     *  clock/indicators legible over bright wallpapers. Own setting, like [dockBackgroundOpacity]. */
+    val statusBarScrimOpacity: Float = 0.6f,
 )

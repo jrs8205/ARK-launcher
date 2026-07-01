@@ -115,6 +115,12 @@ fun Dock(
                         .pointerInput(app.key, apps.size, rowWidthPx, locked) {
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false)
+                                // Claim the gesture immediately (same as Workspace icons): a dock touch
+                                // belongs to the icon, so nothing else can steal it — not the pager, not
+                                // finger jitter during the long-press hold. Without this the long-press
+                                // was flaky ("had to try several times to get the popup"): the tiniest
+                                // drift leaked out and cancelled the hold before it could open the menu.
+                                down.consume()
                                 val slop = viewConfiguration.touchSlop
                                 var tapped = false
                                 var abandoned = false
@@ -126,6 +132,7 @@ fun Dock(
                                             abandoned = true
                                             return@withTimeoutOrNull
                                         }
+                                        c.consume()
                                         if (!c.pressed) {
                                             tapped = true
                                             return@withTimeoutOrNull
@@ -146,6 +153,8 @@ fun Dock(
                                 // LONG PRESS → lift
                                 draggingIndex = index
                                 dragOffsetX = 0f
+                                var dragDistance = 0f
+                                val moveThreshold = viewConfiguration.touchSlop
                                 val itemRoot = itemRoots[index] ?: Offset.Zero
                                 dragController.start(app, DragSource.Dock, itemRoot + down.position)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -155,9 +164,18 @@ fun Dock(
                                     // dragOffsetX and broke in-dock reordering (the drag-out path still
                                     // worked because it uses the absolute change.position below).
                                     dragOffsetX += change.positionChange().x
+                                    dragDistance += change.positionChange().getDistance()
                                     change.consume()
-                                    if (!dragController.moving) dragController.beginMove()
-                                    dragController.update((itemRoots[index] ?: itemRoot) + change.position)
+                                    // Only promote to a real move once the finger travels past the slop.
+                                    // A tiny drift during a static long-press must stay a long-press so the
+                                    // popup (app shortcuts) opens instead of a no-op reorder + 2nd haptic —
+                                    // this was the "vibrates twice, no menu" flakiness.
+                                    if (dragDistance > moveThreshold && !dragController.moving) {
+                                        dragController.beginMove()
+                                    }
+                                    if (dragController.moving) {
+                                        dragController.update((itemRoots[index] ?: itemRoot) + change.position)
+                                    }
                                 }
                                 if (completed && dragController.moving) {
                                     val rootPos = dragController.rootPosition

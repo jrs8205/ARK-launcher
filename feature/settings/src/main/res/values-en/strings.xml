@@ -43,6 +43,7 @@
     <string name="settings_lock_desktop">Lock desktop</string>
     <string name="settings_hide_status_bar">Hide system status bar (fullscreen)</string>
     <string name="settings_status_bar">Status bar (clock, battery, signal)</string>
+    <string name="settings_status_bar_scrim">Status bar background darkness</string>
     <string name="settings_frequent_apps">Most used at the top</string>
     <string name="settings_backup">Backup</string>
 </resources>

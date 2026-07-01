@@ -58,6 +58,7 @@ class SettingsRepository @Inject constructor(
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
+            statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: 0.6f).coerceIn(0f, 1f),
         )
     }
 
@@ -181,6 +182,10 @@ class SettingsRepository @Inject constructor(
 
     /** Hides/shows the system status bar while the launcher is foreground (immersive home). */
     suspend fun setHideSystemStatusBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = value }
+
+    /** Darkness of the themed status bar's scrim (0..1). */
+    suspend fun setStatusBarScrimOpacity(value: Float) =
+        edit { it[Keys.STATUS_BAR_SCRIM] = value.coerceIn(0f, 1f) }
 
     suspend fun addToDock(key: String) = edit { p ->
         val current = currentFavorites(p).toMutableList()
@@ -359,6 +364,7 @@ class SettingsRepository @Inject constructor(
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
+        val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
     }
 
     companion object {
@@ -375,7 +381,7 @@ class SettingsRepository @Inject constructor(
         const val MAX_LABEL_SCALE = 1.6f
 
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
-        val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale", "app_label_scale")
+        val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale", "app_label_scale", "status_bar_scrim")
         val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns", "app_label_color")
 
         /** Device-local bookkeeping keys excluded from an exported backup and preserved across a

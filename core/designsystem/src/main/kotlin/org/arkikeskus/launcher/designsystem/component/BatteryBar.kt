@@ -18,7 +18,7 @@ fun BatteryBar(
     color: Color,
     modifier: Modifier = Modifier,
 ) {
-    Canvas(modifier = modifier.size(width = 26.dp, height = 13.dp)) {
+    Canvas(modifier = modifier.size(width = 23.dp, height = 12.dp)) {
         val nubWidth = size.width * 0.06f
         val bodyWidth = size.width - nubWidth - 1f
         val stroke = (size.height * 0.11f).coerceAtLeast(1.5f)

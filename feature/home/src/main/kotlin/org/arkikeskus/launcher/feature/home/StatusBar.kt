@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,9 +30,14 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -87,7 +94,12 @@ class StatusViewModel @Inject constructor(
 private val STATUS_EDGE_PAD = 28.dp // clock / battery inset from the screen edges
 private val STATUS_GAP = 8.dp // space between indicators
 private val STATUS_NOTIF_GAP = 5.dp // space between notification icons on the left
-private val STATUS_MAIN_LINE = 20.dp // common centre line for every primary glyph
+private val STATUS_MAIN_LINE = 18.dp // common centre line for every primary glyph (matches the stock bar)
+private val STATUS_FADE = 8.dp // soft bottom edge below the glyphs where the scrim fades into the wallpaper
+
+// Tight text: drop the default font padding so the glyphs centre on their true visual bounds, level
+// with the geometrically-centred icons on the shared main line (otherwise the clock digits sit low).
+private val StatusTextStyle = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
 
 /**
  * A slim home status bar. Clock on the left; on the right, every currently-active phone indicator —
@@ -101,12 +113,20 @@ private val STATUS_MAIN_LINE = 20.dp // common centre line for every primary gly
  *
  * Colours are dynamic: battery + signal/Wi-Fi use the vivid quality ramp from [LocalLauncherColors]
  * (≤20% red / ≤45% yellow / >45% green; signal 0–4 red→green); binary flags follow the Material You
- * accent. A subtle top scrim keeps every glyph legible on bright wallpapers.
+ * accent. A dark top scrim ([scrimAlpha], user-configurable) keeps every glyph legible on bright
+ * wallpapers.
+ *
+ * [topInset] reserves space at the top for a still-visible system status bar: the scrim is drawn on the
+ * outer box so it fills that inset too and reaches the very top edge (no gap behind the system bar),
+ * while the glyphs are pushed below it. When we own the whole top zone (system bar hidden) [topInset]
+ * is 0 and [alignToCutout] instead drops the glyph line to the camera's vertical centre.
  */
 @Composable
 fun StatusBar(
     modifier: Modifier = Modifier,
     alignToCutout: Boolean = false,
+    topInset: Dp = 0.dp,
+    scrimAlpha: Float = 0.6f,
     viewModel: StatusViewModel = hiltViewModel(),
 ) {
     val s by viewModel.state.collectAsStateWithLifecycle()
@@ -114,6 +134,7 @@ fun StatusBar(
     val accent = MaterialTheme.colorScheme.primary
     val time = rememberClock()
     val view = LocalView.current
+    val density = LocalDensity.current
 
     // The top punch-hole rect (px): left/right let the row flow around it; the vertical centre lets the
     // glyphs sit level with the camera. Null when there is no cutout.
@@ -151,23 +172,43 @@ fun StatusBar(
     val shownNotifs = s.notifications.take(5)
     val notifCount = shownNotifs.size
 
-    Layout(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { barTopInWindow = it.positionInWindow().y.toInt() }
-            // No single colour contrasts with every wallpaper, so back the bar with a faint dark scrim
-            // that fades downward — guarantees the icons stay readable on bright backgrounds.
-            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent))),
+            // No single colour contrasts with every wallpaper, so back the bar with a dark scrim.
+            // It stays fully [scrimAlpha]-dark from the top edge (behind a still-visible system status
+            // bar — no gap) down THROUGH the glyphs, then fades to transparent only in the bottom
+            // [STATUS_FADE] strip so it blends into the wallpaper. The dark therefore sits under our bar's
+            // clock/icons, not stranded up at the very top edge (the earlier bug).
+            .background(
+                Brush.verticalGradient(
+                    0f to Color.Black.copy(alpha = scrimAlpha),
+                    0.82f to Color.Black.copy(alpha = scrimAlpha),
+                    1f to Color.Transparent,
+                ),
+            ),
+    ) {
+    // Pin the glyph text to a fixed size: the status bar must NOT grow with the system font-size
+    // (accessibility) setting — a larger font would overflow the compact custom layout and break it.
+    // fontScale = 1 makes every sp inside render at its dp-equivalent, like the stock status bar.
+    CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1f)) {
+    Layout(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topInset, bottom = STATUS_FADE)
+            .onGloballyPositioned { barTopInWindow = it.positionInWindow().y.toInt() },
         content = {
             // [0] clock (left edge).
-            MainLineBox { Text(time, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium) }
+            MainLineBox {
+                Text(time, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, style = StatusTextStyle)
+            }
 
             // [1..notifCount] active notification icons (most-recent first), placed after the clock and
             // truncated by the layout before they reach the right cluster or cutout — like the system bar.
             shownNotifs.forEach { n ->
                 MainLineBox {
                     rememberNotifIcon(n)?.let { bmp ->
-                        Icon(bmp, n.packageName, Modifier.size(14.dp), tint = Color.White)
+                        Icon(bmp, n.packageName, Modifier.size(12.dp), tint = Color.White)
                     }
                 }
             }
@@ -197,7 +238,7 @@ fun StatusBar(
                     Icon(
                         painterResource(R.drawable.ic_status_wifi),
                         "Wi-Fi",
-                        Modifier.size(16.dp),
+                        Modifier.size(14.dp),
                         tint = colors.signalColor(s.wifi.level),
                     )
                 }
@@ -213,7 +254,7 @@ fun StatusBar(
                         Icon(
                             painterResource(R.drawable.ic_status_charging),
                             "Charging",
-                            Modifier.size(11.dp),
+                            Modifier.size(10.dp),
                             tint = batteryColor,
                         )
                     }
@@ -278,6 +319,8 @@ fun StatusBar(
             }
         }
     }
+    }
+    }
 }
 
 /** A primary glyph centred on the shared main line (so battery bar, Wi-Fi, signal and flags align). */
@@ -292,7 +335,14 @@ private fun StatusItem(sub: String?, subColor: Color, primary: @Composable () ->
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         MainLineBox(primary)
         if (sub != null) {
-            Text(sub, color = subColor, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, lineHeight = 10.sp)
+            Text(
+                sub,
+                color = subColor,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 9.sp,
+                style = StatusTextStyle,
+            )
         }
     }
 }
@@ -301,7 +351,7 @@ private fun StatusItem(sub: String?, subColor: Color, primary: @Composable () ->
 @Composable
 private fun FlagItem(@DrawableRes res: Int, tint: Color, desc: String) {
     MainLineBox {
-        Icon(painterResource(res), desc, Modifier.size(15.dp), tint = tint)
+        Icon(painterResource(res), desc, Modifier.size(13.dp), tint = tint)
     }
 }
 

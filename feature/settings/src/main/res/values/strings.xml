@@ -43,6 +43,7 @@
     <string name="settings_lock_desktop">Lukitse työpöytä</string>
     <string name="settings_hide_status_bar">Piilota järjestelmän tilapalkki (koko näyttö)</string>
     <string name="settings_status_bar">Tilapalkki (kello, akku, signaali)</string>
+    <string name="settings_status_bar_scrim">Tilapalkin taustan tummuus</string>
     <string name="settings_frequent_apps">Eniten käytetyt ylimmäisinä</string>
     <string name="settings_backup">Varmuuskopiointi</string>
 </resources>

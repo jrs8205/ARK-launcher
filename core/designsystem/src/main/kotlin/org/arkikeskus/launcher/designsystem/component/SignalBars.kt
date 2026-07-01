@@ -19,7 +19,7 @@ fun SignalBars(
     modifier: Modifier = Modifier,
 ) {
     val faint = LocalLauncherColors.current.signalFaint
-    Canvas(modifier = modifier.size(width = 16.dp, height = 12.dp)) {
+    Canvas(modifier = modifier.size(width = 14.dp, height = 11.dp)) {
         val bars = 4
         val gap = size.width * 0.12f
         val barWidth = (size.width - gap * (bars - 1)) / bars

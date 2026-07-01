@@ -14,11 +14,16 @@ import javax.inject.Inject
 /**
  * Streams notification-dot counts into [NotificationBadgeRepository]. On every connect/post/remove we
  * recompute the full snapshot from [getActiveNotifications] (simple and always consistent) and group
- * the badge-worthy ones by package + profile.
+ * the notifications by package + profile.
  *
- * The "badge-worthy" filter mirrors AOSP Launcher3's `NotificationListener.notificationIsValidForUI`:
- * the channel must allow badges, group summaries and content-less notifications are skipped, and
- * ongoing notifications on the legacy default channel don't count.
+ * Two filters, deliberately different (this is why the status-bar icons show more than the dots):
+ * - **Dots** use the strict "badge-worthy" filter, mirroring AOSP Launcher3's
+ *   `NotificationListener.notificationIsValidForUI`: the channel must allow badges, group summaries and
+ *   content-less notifications are skipped, and ongoing notifications on the legacy default channel
+ *   don't count. This keeps the home-icon dots meaningful.
+ * - **Status-bar icons** use a looser "icon-worthy" filter (not a group summary + has a title or text),
+ *   like the real system status bar — so low-priority/silent notifications whose channel sets
+ *   `canShowBadge = false` (e.g. Google News) still show their glyph in the bar.
  *
  * Requires the user to grant notification access (Settings → Notifications → Device & app
  * notifications); until then the system never binds this service.
@@ -58,16 +63,22 @@ class NotificationDotListenerService : NotificationListenerService() {
         val counts = HashMap<String, Int>()
         val icons = LinkedHashMap<String, StatusNotification>()
         for (sbn in active) {
-            if (sbn == null || !isBadgeWorthy(sbn, ranking, tmp)) continue
+            if (sbn == null) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
-            counts[key] = (counts[key] ?: 0) + 1
-            // Keep one small icon per app — the most recent — for the status bar's left side.
-            val smallIcon = sbn.notification?.smallIcon
-            if (smallIcon != null) {
-                val existing = icons[key]
-                if (existing == null || sbn.postTime > existing.postTime) {
-                    icons[key] = StatusNotification(sbn.key, sbn.packageName, smallIcon, sbn.postTime)
+            // Dots: strict badge-worthy filter (meaningful home-icon badges).
+            if (isBadgeWorthy(sbn, ranking, tmp)) {
+                counts[key] = (counts[key] ?: 0) + 1
+            }
+            // Status-bar icons: looser filter so silent/low-priority notifs (Google News etc.) show too.
+            // Keep one small icon per app — the most recent.
+            if (isIconWorthy(sbn)) {
+                val smallIcon = sbn.notification?.smallIcon
+                if (smallIcon != null) {
+                    val existing = icons[key]
+                    if (existing == null || sbn.postTime > existing.postTime) {
+                        icons[key] = StatusNotification(sbn.key, sbn.packageName, smallIcon, sbn.postTime)
+                    }
                 }
             }
         }
@@ -87,6 +98,21 @@ class NotificationDotListenerService : NotificationListenerService() {
                 return false
             }
         }
+        val title = n.extras?.getCharSequence(Notification.EXTRA_TITLE)
+        val text = n.extras?.getCharSequence(Notification.EXTRA_TEXT)
+        return !title.isNullOrEmpty() || !text.isNullOrEmpty()
+    }
+
+    /**
+     * Looser filter for the status-bar icons: like the system status bar, it shows a glyph for any real
+     * notification — including silent / low-importance ones whose channel disables badges (Google News,
+     * "now playing", etc.). We only drop group summaries (they duplicate their children's icons) and
+     * content-less placeholders. Notably it does NOT consult `canShowBadge()`, which is what the strict
+     * [isBadgeWorthy] dot filter uses.
+     */
+    private fun isIconWorthy(sbn: StatusBarNotification): Boolean {
+        val n = sbn.notification ?: return false
+        if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return false
         val title = n.extras?.getCharSequence(Notification.EXTRA_TITLE)
         val text = n.extras?.getCharSequence(Notification.EXTRA_TEXT)
         return !title.isNullOrEmpty() || !text.isNullOrEmpty()
