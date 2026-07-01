@@ -25,7 +25,7 @@ class AppIconFetcher(
     private val source: LauncherAppsSource,
 ) : Fetcher {
     override suspend fun fetch(): FetchResult? = withContext(Dispatchers.IO) {
-        val drawable = source.loadIcon(data.app, data.themed, data.dark) ?: return@withContext null
+        val drawable = source.loadIcon(data.app, data.themed, data.dark, data.iconPack) ?: return@withContext null
         val size = ICON_PX
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)

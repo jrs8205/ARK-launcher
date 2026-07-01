@@ -3,14 +3,19 @@ package org.arkikeskus.launcher.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.HomeLayoutRepository
+import org.arkikeskus.launcher.data.IconPackInfo
+import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
@@ -20,6 +25,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
+    private val iconPackRepository: IconPackRepository,
     appRepository: AppRepository,
 ) : ViewModel() {
 
@@ -28,6 +34,12 @@ class SettingsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = LauncherSettings(),
     )
+
+    /** Installed icon packs (queried off-main once), for the picker. */
+    val iconPacks: StateFlow<List<IconPackInfo>> =
+        flow { emit(iconPackRepository.installedPacks()) }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** All launchable apps (sorted), for the hidden-apps manager list. */
     val apps: StateFlow<List<AppItem>> = appRepository.apps
@@ -66,6 +78,7 @@ class SettingsViewModel @Inject constructor(
     fun setNotificationDotCount(value: Boolean) = update { repository.setNotificationDotCount(value) }
     fun setNotificationDotScale(value: Float) = update { repository.setNotificationDotScale(value) }
     fun setUseThemedIcons(value: Boolean) = update { repository.setUseThemedIcons(value) }
+    fun setIconPack(pkg: String) = update { repository.setIconPackPackage(pkg) }
     fun setSearchContacts(value: Boolean) = update { repository.setSearchContacts(value) }
 
     /** Sets (or clears, for null) the app launched by the left-edge home swipe. */

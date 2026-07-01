@@ -109,6 +109,7 @@ import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
+import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -343,6 +344,7 @@ fun HomeScreen(
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
         LocalThemedIcons provides settings.useThemedIcons,
+        LocalIconPack provides settings.iconPackPackage,
         LocalAppLabelScale provides settings.appLabelTextScale,
     ) {
     Box(

@@ -32,6 +32,8 @@
     <string name="drawer_folder_default">Folder</string>
     <string name="settings_icons">Icons</string>
     <string name="settings_themed_icons">Themed icons (Material You)</string>
+    <string name="settings_icon_pack">Icon pack</string>
+    <string name="settings_icon_pack_system">System default</string>
     <string name="settings_label_size">Label text size</string>
     <string name="settings_label_color">Label text color</string>
     <string name="settings_search">Search</string>

@@ -89,10 +89,12 @@ fun SettingsScreen(
     val s by viewModel.settings.collectAsStateWithLifecycle()
     val allApps by viewModel.apps.collectAsStateWithLifecycle()
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
+    val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val previewIcon = rememberLauncherIconBitmap()
     var showHiddenManager by remember { mutableStateOf(false) }
     var showLeftSwipePicker by remember { mutableStateOf(false) }
+    var showIconPackPicker by remember { mutableStateOf(false) }
     var showBackup by remember { mutableStateOf(false) }
     var isDefaultLauncher by remember { mutableStateOf(DefaultLauncher.isDefault(context)) }
     // Re-check after the user returns from the system "default home app" / role chooser.
@@ -217,6 +219,12 @@ fun SettingsScreen(
                         viewModel::setUseThemedIcons,
                     )
                 }
+                val iconPackName = iconPacks.firstOrNull { it.packageName == s.iconPackPackage }?.label
+                    ?: stringResource(R.string.settings_icon_pack_system)
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_icon_pack),
+                    description = iconPackName,
+                ) { showIconPackPicker = true }
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_notifications))
                 SwitchRow(stringResource(R.string.settings_notif_dots), s.showNotificationDots, viewModel::setShowNotificationDots)
@@ -266,7 +274,73 @@ fun SettingsScreen(
                 onDismiss = { showLeftSwipePicker = false },
             )
         }
+        if (showIconPackPicker) {
+            IconPackPicker(
+                packs = iconPacks,
+                selected = s.iconPackPackage,
+                onPick = { pkg ->
+                    viewModel.setIconPack(pkg)
+                    showIconPackPicker = false
+                },
+                onDismiss = { showIconPackPicker = false },
+            )
+        }
     }
+}
+
+/** Single-select icon-pack picker: a "System default" entry on top, then every installed pack. */
+@Composable
+private fun IconPackPicker(
+    packs: List<org.arkikeskus.launcher.data.IconPackInfo>,
+    selected: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val p = LocalExpressivePalette.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = p.surfaceHi,
+        title = { Text(stringResource(R.string.settings_icon_pack), color = p.text) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick("") }
+                        .padding(vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.settings_icon_pack_system),
+                        color = if (selected.isBlank()) Accent else p.text,
+                        fontSize = 16.sp,
+                    )
+                }
+                packs.forEach { pack ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(pack.packageName) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            pack.label,
+                            color = if (selected == pack.packageName) Accent else p.text,
+                            fontSize = 16.sp,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+        },
+    )
 }
 
 /** Single-select picker for the left-edge swipe app: a "None" entry on top, then every app. */

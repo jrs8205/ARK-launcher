@@ -32,6 +32,8 @@
     <string name="drawer_folder_default">Kansio</string>
     <string name="settings_icons">Kuvakkeet</string>
     <string name="settings_themed_icons">Teemakuvakkeet (Material You)</string>
+    <string name="settings_icon_pack">Ikonipaketti</string>
+    <string name="settings_icon_pack_system">Järjestelmän oletus</string>
     <string name="settings_label_size">Tekstin koko</string>
     <string name="settings_label_color">Tekstin väri</string>
     <string name="settings_search">Haku</string>

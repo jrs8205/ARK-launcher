@@ -30,6 +30,13 @@ import org.arkikeskus.launcher.model.IconRequest
 val LocalThemedIcons = compositionLocalOf { false }
 
 /**
+ * Package name of the selected third-party icon pack under this subtree ("" = none). Provided per
+ * surface from the user's setting and fed into the Coil request (part of the cache key), so mapped apps
+ * use the pack's icon and unmapped ones are masked to its style; overrides [LocalThemedIcons].
+ */
+val LocalIconPack = compositionLocalOf { "" }
+
+/**
  * Size multiplier for [AppIcon] labels under this subtree (1.0 = the default 11sp). Provided per
  * surface (home, dock, drawer) from the user's setting so the label-size slider scales every app
  * label at once without threading the value through each composable's parameters. Default 1.0 keeps
@@ -61,7 +68,12 @@ fun AppIcon(
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
             AsyncImage(
-                model = IconRequest(appItem, themed = LocalThemedIcons.current, dark = isSystemInDarkTheme()),
+                model = IconRequest(
+                    appItem,
+                    themed = LocalThemedIcons.current,
+                    dark = isSystemInDarkTheme(),
+                    iconPack = LocalIconPack.current,
+                ),
                 contentDescription = appItem.label,
                 modifier = Modifier.size(iconSize),
             )

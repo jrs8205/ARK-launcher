@@ -21,6 +21,9 @@ data class LauncherSettings(
     val notificationDotScale: Float = 1.0f,
     /** Render app icons as Material You themed (monochrome) icons where the app provides one. */
     val useThemedIcons: Boolean = false,
+    /** Package name of the selected third-party icon pack (empty = system default). Overrides
+     *  [useThemedIcons] when set: mapped apps use the pack's icon, unmapped apps are masked to its style. */
+    val iconPackPackage: String = "",
     /** Include contacts in app-drawer search (gated by READ_CONTACTS; requested when enabled). */
     val searchContacts: Boolean = false,
     /** App key launched by the left-edge home swipe (Settings ▸ Eleet); blank = gesture disabled. */

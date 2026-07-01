@@ -50,6 +50,7 @@ class SettingsRepository @Inject constructor(
             notificationDotCount = p[Keys.NOTIF_DOT_COUNT] ?: true,
             notificationDotScale = (p[Keys.NOTIF_DOT_SCALE] ?: 1.0f).coerceIn(MIN_DOT_SCALE, MAX_DOT_SCALE),
             useThemedIcons = p[Keys.USE_THEMED_ICONS] ?: false,
+            iconPackPackage = p[Keys.ICON_PACK] ?: "",
             searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
             desktopLocked = p[Keys.DESKTOP_LOCKED] ?: false,
@@ -159,6 +160,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setNotificationDotScale(value: Float) =
         edit { it[Keys.NOTIF_DOT_SCALE] = value.coerceIn(MIN_DOT_SCALE, MAX_DOT_SCALE) }
     suspend fun setUseThemedIcons(value: Boolean) = edit { it[Keys.USE_THEMED_ICONS] = value }
+
+    /** Sets (or clears, for blank) the selected third-party icon pack package. */
+    suspend fun setIconPackPackage(pkg: String) = edit { it[Keys.ICON_PACK] = pkg.trim() }
     suspend fun setSearchContacts(value: Boolean) = edit { it[Keys.SEARCH_CONTACTS] = value }
 
     /** Sets (or, for a blank/null [key], clears) the app launched by the left-edge home swipe. */
@@ -346,6 +350,7 @@ class SettingsRepository @Inject constructor(
         val NOTIF_DOT_COUNT = booleanPreferencesKey("notif_dot_count")
         val NOTIF_DOT_SCALE = floatPreferencesKey("notif_dot_scale")
         val USE_THEMED_ICONS = booleanPreferencesKey("use_themed_icons")
+        val ICON_PACK = stringPreferencesKey("icon_pack_package")
         val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")

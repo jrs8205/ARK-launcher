@@ -95,6 +95,7 @@ import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
+import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
@@ -141,6 +142,7 @@ fun AppDrawerScreen(
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
         LocalThemedIcons provides uiState.useThemedIcons,
+        LocalIconPack provides uiState.iconPackPackage,
         LocalAppLabelScale provides uiState.appLabelTextScale,
     ) {
     ExpressiveTheme {
