@@ -69,6 +69,10 @@ interface HomeItemDao {
     @Query("UPDATE home_items SET spanX = :spanX, spanY = :spanY WHERE id = :id")
     suspend fun updateSpans(id: Long, spanX: Int, spanY: Int)
 
+    /** Binds a restored (placeholder) widget row to its freshly allocated device-local [appWidgetId]. */
+    @Query("UPDATE home_items SET appWidgetId = :appWidgetId WHERE id = :id")
+    suspend fun updateWidgetId(id: Long, appWidgetId: Int)
+
     @Query("SELECT * FROM home_items")
     suspend fun getAllOnce(): List<HomeItemEntity>
 

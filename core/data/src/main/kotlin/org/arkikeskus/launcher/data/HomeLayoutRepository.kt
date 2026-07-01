@@ -274,6 +274,12 @@ class HomeLayoutRepository @Inject constructor(
         dao.deleteById(rowId)
     }
 
+    /** Binds a restored widget placeholder row to a freshly allocated [appWidgetId] on this device,
+     *  turning it back into a live widget (its spanX/spanY were preserved from the backup). */
+    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int) {
+        dao.updateWidgetId(rowId, appWidgetId)
+    }
+
     /** Atomically sets a widget row's full grid bounds (used by both move and resize). If the target
      *  rect is occupied, the overlapping items are pushed aside to free cells on the same page
      *  ([ReorderPlanner]); returns false (no change) if the row is gone, isn't a widget, or no

@@ -7,14 +7,42 @@ import org.junit.Test
 class BackupMapperTest {
 
     @Test
-    fun toBackupItems_excludes_widgets() {
+    fun toBackupItems_includes_widgets_with_span_and_provider() {
         val entities = listOf(
             HomeItemEntity(id = 1, packageName = "com.a", className = "A", page = 0, cellX = 0, cellY = 0),
-            HomeItemEntity(id = 2, page = 0, cellX = 1, cellY = 0, appWidgetId = 7, widgetProvider = "p/c"),
+            HomeItemEntity(
+                id = 2, page = 0, cellX = 1, cellY = 0, spanX = 3, spanY = 2,
+                appWidgetId = 7, widgetProvider = "com.w/com.w.Prov",
+            ),
         )
         val items = BackupMapper.toBackupItems(entities)
-        assertThat(items.map { it.id }).containsExactly(1L)
-        assertThat(items.first().mainProfile).isTrue()
+        assertThat(items.map { it.id }).containsExactly(1L, 2L)
+        val widget = items.first { it.id == 2L }
+        assertThat(widget.widgetProvider).isEqualTo("com.w/com.w.Prov")
+        assertThat(widget.spanX).isEqualTo(3)
+        assertThat(widget.spanY).isEqualTo(2)
+        // The device-local appWidgetId is never carried into the backup.
+    }
+
+    @Test
+    fun toEntities_keeps_widget_when_provider_installed_unbound() {
+        val items = listOf(
+            BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 2, spanY = 2, widgetProvider = "com.w/com.w.Prov"),
+            BackupItem(2, -1, null, "", "", true, null, 0, 2, 0, spanX = 1, spanY = 1, widgetProvider = "com.gone/com.gone.Prov"),
+        )
+        val mapping = BackupMapper.toEntities(
+            items = items,
+            mainUserSerial = 42L,
+            installedAppKeys = emptySet(),
+            installedPackages = setOf("com.w"),
+        )
+        assertThat(mapping.skipped).isEqualTo(1) // com.gone provider not installed
+        val widget = mapping.entities.single()
+        assertThat(widget.id).isEqualTo(1L)
+        assertThat(widget.widgetProvider).isEqualTo("com.w/com.w.Prov")
+        assertThat(widget.spanX).isEqualTo(2)
+        assertThat(widget.spanY).isEqualTo(2)
+        assertThat(widget.appWidgetId).isNull() // unbound until re-bound on this device
     }
 
     @Test

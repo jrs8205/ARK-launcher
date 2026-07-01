@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -58,6 +59,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -119,6 +121,9 @@ fun Workspace(
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
     onRemoveWidget: (PlacedWidget) -> Unit = {},
+    // Tap a restored-widget placeholder to re-bind it; long-press to discard the placeholder row.
+    onRestorePendingWidget: (PendingWidget) -> Unit = {},
+    onRemovePendingWidget: (rowId: Long) -> Unit = {},
     onSetWidgetBounds: suspend (rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int) -> Boolean =
         { _, _, _, _, _, _ -> false },
     onReconfigureWidget: (appWidgetId: Int) -> Unit = {},
@@ -166,6 +171,9 @@ fun Workspace(
     val folders = remember(entries) { entries.filterIsInstance<PlacedFolder>() }
     val placedShortcuts = remember(entries) { entries.filterIsInstance<PlacedShortcut>() }
     val placedWidgets = remember(entries) { entries.filterIsInstance<PlacedWidget>() }
+    // Restored-but-unbound widget placeholders (tap to set up). No optimistic/drag handling — they are
+    // transient until the user binds (→ PlacedWidget) or removes them.
+    val pendingWidgets = remember(entries) { entries.filterIsInstance<PendingWidget>() }
     val effectiveWidgets = remember(placedWidgets, widgetOptimistic) {
         val opt = widgetOptimistic
         if (opt == null) placedWidgets else placedWidgets.map { w ->
@@ -228,8 +236,8 @@ fun Workspace(
         }
     }
     // Apps + folders + pinned shortcuts together — what's actually on the grid (rendering + occupants).
-    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets) {
-        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets
+    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets, pendingWidgets) {
+        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets + pendingWidgets
     }
     // The drag gesture's pointerInput block outlives recomposition (its keys don't include the entry
     // list), so it must read the *latest* placements through this state, not a stale closure capture.
@@ -246,8 +254,16 @@ fun Workspace(
         if (x < 0 || y < 0 || x + spanX > columns || y + spanY > rows) return false
         val occupied = HashSet<Triple<Int, Int, Int>>()
         for (e in effectiveEntries) {
-            val (ex, ey) = when (e) { is PlacedWidget -> e.spanX to e.spanY; else -> 1 to 1 }
-            val erow = when (e) { is PlacedWidget -> e.rowId; else -> -2L }
+            val (ex, ey) = when (e) {
+                is PlacedWidget -> e.spanX to e.spanY
+                is PendingWidget -> e.spanX to e.spanY
+                else -> 1 to 1
+            }
+            val erow = when (e) {
+                is PlacedWidget -> e.rowId
+                is PendingWidget -> e.rowId
+                else -> -2L
+            }
             if (erow == excludeRowId) continue
             for (dx in 0 until ex) for (dy in 0 until ey) occupied += Triple(e.page, e.cellX + dx, e.cellY + dy)
         }
@@ -930,6 +946,72 @@ fun Workspace(
                                     // else: the host view is still being created (brief) — render nothing.
                                 }
                             }
+                            is PendingWidget -> {
+                                val pending = entry
+                                val ctxP = LocalContext.current
+                                // Resolve the provider's label + icon (falls back to the app icon). The
+                                // system caches these, so a plain remember keyed on the provider is fine.
+                                val visual = remember(pending.provider) {
+                                    val info = AppWidgetManager.getInstance(ctxP).installedProviders
+                                        .firstOrNull { it.provider == pending.provider }
+                                    val label = info?.loadLabel(ctxP.packageManager)
+                                        ?: pending.provider.packageName
+                                    val icon = runCatching {
+                                        (info?.loadIcon(ctxP, ctxP.resources.displayMetrics.densityDpi)
+                                            ?: ctxP.packageManager.getApplicationIcon(pending.provider.packageName))
+                                            .toBitmap().asImageBitmap()
+                                    }.getOrNull()
+                                    label to icon
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .offset {
+                                            IntOffset(
+                                                (pending.cellX.coerceIn(0, columns - 1) * cellW).roundToInt(),
+                                                (pending.cellY.coerceIn(0, rows - 1) * cellH).roundToInt(),
+                                            )
+                                        }
+                                        .size(
+                                            with(density) { (pending.spanX * cellW).toDp() },
+                                            with(density) { (pending.spanY * cellH).toDp() },
+                                        )
+                                        .padding(6.dp)
+                                        .background(Color.Black.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
+                                        .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                        .pointerInput(pending.rowId, locked) {
+                                            if (locked) return@pointerInput
+                                            detectTapGestures(
+                                                onTap = { onRestorePendingWidget(pending) },
+                                                onLongPress = { onRemovePendingWidget(pending.rowId) },
+                                            )
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.padding(8.dp),
+                                    ) {
+                                        visual.second?.let { bmp ->
+                                            Image(bmp, contentDescription = null, modifier = Modifier.size(36.dp))
+                                            Spacer(Modifier.height(6.dp))
+                                        }
+                                        Text(
+                                            visual.first.toString(),
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        Text(
+                                            stringResource(R.string.widget_restore_tap),
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            textAlign = TextAlign.Center,
+                                        )
+                                    }
+                                }
+                            }
                             }
                         }
                     val ew = editingWidget
@@ -955,7 +1037,11 @@ fun Workspace(
                                 rectFreeOnGrid(ew.rowId, ew.page, x, y, sx, sy) ||
                                     ReorderPlanner.planFit(
                                         effectiveEntries.mapIndexed { i, e ->
-                                            val (esx, esy) = when (e) { is PlacedWidget -> e.spanX to e.spanY; else -> 1 to 1 }
+                                            val (esx, esy) = when (e) {
+                                                is PlacedWidget -> e.spanX to e.spanY
+                                                is PendingWidget -> e.spanX to e.spanY
+                                                else -> 1 to 1
+                                            }
                                             val erow = if (e is PlacedWidget) e.rowId else -(i.toLong() + 1)
                                             ReorderPlanner.Rect(erow, e.page, e.cellX, e.cellY, esx, esy)
                                         },

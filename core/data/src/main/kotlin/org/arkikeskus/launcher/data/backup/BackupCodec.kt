@@ -9,7 +9,8 @@ import org.json.JSONObject
  * SettingsRepository's key registry, so the codec stays schema-agnostic.
  */
 object BackupCodec {
-    const val FORMAT = 1
+    /** Format 2 adds widget rows (spanX/spanY/widgetProvider). Decode still accepts format 1 (no widgets). */
+    const val FORMAT = 2
 
     fun encode(doc: BackupDocument): String {
         val settings = JSONObject()
@@ -28,7 +29,10 @@ object BackupCodec {
                     .put("shortcutId", it.shortcutId ?: JSONObject.NULL)
                     .put("page", it.page)
                     .put("cellX", it.cellX)
-                    .put("cellY", it.cellY),
+                    .put("cellY", it.cellY)
+                    .put("spanX", it.spanX)
+                    .put("spanY", it.spanY)
+                    .put("widgetProvider", it.widgetProvider ?: JSONObject.NULL),
             )
         }
 
@@ -45,7 +49,9 @@ object BackupCodec {
         val root = JSONObject(json)
         if (!root.has("format")) throw BackupFormatException("Missing 'format'")
         val format = root.getInt("format")
-        if (format != FORMAT) throw BackupFormatException("Unsupported backup format: $format")
+        // Accept any known format up to the current one: format 1 (no widget fields) still restores,
+        // its widget columns defaulting below. A newer-than-known format is rejected.
+        if (format < 1 || format > FORMAT) throw BackupFormatException("Unsupported backup format: $format")
 
         val settingsObj = root.getJSONObject("settings")
         val settings = LinkedHashMap<String, Any>()
@@ -67,6 +73,10 @@ object BackupCodec {
                     page = o.getInt("page"),
                     cellX = o.getInt("cellX"),
                     cellY = o.getInt("cellY"),
+                    // Widget columns are absent in format 1 → default to a 1×1 non-widget row.
+                    spanX = o.optInt("spanX", 1),
+                    spanY = o.optInt("spanY", 1),
+                    widgetProvider = o.optStringOrNull("widgetProvider"),
                 ),
             )
         }

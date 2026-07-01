@@ -187,8 +187,9 @@ fun HomeScreen(
     val widgetConfigLauncher = LocalWidgetConfigLauncher.current
     val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
     var showWidgetPicker by remember { mutableStateOf(false) }
-    // Pending widget across the bind/configure result steps: appWidgetId + provider.
-    var pendingWidget by remember { mutableStateOf<Pair<Int, AppWidgetProviderInfo>?>(null) }
+    // Pending widget across the bind/configure result steps. [restoreRowId] non-null → this is a
+    // RESTORE (re-bind an existing placeholder row) rather than adding a brand-new widget.
+    var pendingWidget by remember { mutableStateOf<PendingWidgetBind?>(null) }
 
     // Persistent, page-independent host views: created once per placed widget id and kept alive so the
     // AppWidgetHost listener is never lost when a pager page scrolls off-screen. A lost listener drops a
@@ -234,9 +235,14 @@ fun HomeScreen(
         }
     }
 
-    fun finishWidget(id: Int, provider: AppWidgetProviderInfo) {
-        val (sx, sy) = defaultWidgetSpans(provider, context)
-        viewModel.addWidget(id, provider.provider.flattenToString(), sx, sy)
+    fun finishWidget(bind: PendingWidgetBind) {
+        if (bind.restoreRowId != null) {
+            // Restore: the placeholder row already has the provider + spans from the backup; just bind it.
+            viewModel.bindRestoredWidget(bind.restoreRowId, bind.appWidgetId)
+        } else {
+            val (sx, sy) = defaultWidgetSpans(bind.provider, context)
+            viewModel.addWidget(bind.appWidgetId, bind.provider.provider.flattenToString(), sx, sy)
+        }
         pendingWidget = null
     }
 
@@ -244,23 +250,23 @@ fun HomeScreen(
         ActivityResultContracts.StartActivityForResult(),
     ) { /* the widget reconfigures itself via RemoteViews; no DB change needed */ }
 
-    fun configureOrFinish(id: Int, provider: AppWidgetProviderInfo) {
+    fun configureOrFinish(bind: PendingWidgetBind) {
         // Launch the configuration activity through the SYSTEM (Activity-routed), not a raw
         // ACTION_APPWIDGET_CONFIGURE Intent, so the framework records the widget as configured.
         // Otherwise some providers (WhatsApp's auth-gated chat widget) stay "configuration pending" and
         // never populate. If there's no config activity, finish immediately.
         val launcher = widgetConfigLauncher
-        if (provider.configure != null && launcher != null) {
-            pendingWidget = id to provider
-            launcher(id) { ok ->
+        if (bind.provider.configure != null && launcher != null) {
+            pendingWidget = bind
+            launcher(bind.appWidgetId) { ok ->
                 val p = pendingWidget
                 if (p != null) {
-                    if (ok) finishWidget(p.first, p.second)
-                    else { widgetHost?.deleteAppWidgetId(p.first); pendingWidget = null }
+                    if (ok) finishWidget(p)
+                    else { widgetHost?.deleteAppWidgetId(p.appWidgetId); pendingWidget = null }
                 }
             }
         } else {
-            finishWidget(id, provider)
+            finishWidget(bind)
         }
     }
 
@@ -269,19 +275,22 @@ fun HomeScreen(
     ) { result ->
         val p = pendingWidget
         if (p != null) {
-            if (result.resultCode == android.app.Activity.RESULT_OK) configureOrFinish(p.first, p.second)
-            else { widgetHost?.deleteAppWidgetId(p.first); pendingWidget = null }
+            if (result.resultCode == android.app.Activity.RESULT_OK) configureOrFinish(p)
+            else { widgetHost?.deleteAppWidgetId(p.appWidgetId); pendingWidget = null }
         }
     }
 
-    fun startAddWidget(provider: AppWidgetProviderInfo) {
+    // Allocate an id and bind [provider] (silently if allowed, else via the system bind dialog), then
+    // configure. [restoreRowId] != null re-binds an existing placeholder row instead of adding a new one.
+    fun startBind(provider: AppWidgetProviderInfo, restoreRowId: Long?) {
         val host = widgetHost ?: return
         val id = host.allocateAppWidgetId()
+        val bind = PendingWidgetBind(id, provider, restoreRowId)
         val bound = runCatching { appWidgetManager.bindAppWidgetIdIfAllowed(id, provider.provider) }.getOrDefault(false)
         if (bound) {
-            configureOrFinish(id, provider)
+            configureOrFinish(bind)
         } else {
-            pendingWidget = id to provider
+            pendingWidget = bind
             val intent = android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
@@ -289,6 +298,15 @@ fun HomeScreen(
             runCatching { bindLauncher.launch(intent) }
                 .onFailure { host.deleteAppWidgetId(id); pendingWidget = null }
         }
+    }
+
+    fun startAddWidget(provider: AppWidgetProviderInfo) = startBind(provider, restoreRowId = null)
+
+    // Re-bind a restored placeholder: resolve its provider info, then run the same bind/configure flow
+    // targeting its existing row. If the provider's app is gone (uninstalled after restore), no-op.
+    fun startRestoreWidget(pending: PendingWidget) {
+        val provider = appWidgetManager.installedProviders.firstOrNull { it.provider == pending.provider } ?: return
+        startBind(provider, restoreRowId = pending.rowId)
     }
 
     // Shared drag state spanning the workspace, dock and drawer (Launcher3-style drag layer/controller).
@@ -408,6 +426,9 @@ fun HomeScreen(
                     widgetHost?.deleteAppWidgetId(w.appWidgetId)
                     viewModel.removeWidget(w.rowId)
                 },
+                onRestorePendingWidget = { startRestoreWidget(it) },
+                // A pending placeholder has no allocated host id yet, so just drop its row.
+                onRemovePendingWidget = { viewModel.removeWidget(it) },
                 onSetWidgetBounds = viewModel::setWidgetBounds,
                 onReconfigureWidget = { id ->
                     val info = appWidgetManager.getAppWidgetInfo(id)
@@ -834,6 +855,14 @@ private fun Modifier.pixelHomeSwipe(
         }
     }
 }
+
+/** In-flight widget bind/configure state. [restoreRowId] non-null = re-binding a restored placeholder
+ *  row (from a backup) rather than adding a new widget. */
+private data class PendingWidgetBind(
+    val appWidgetId: Int,
+    val provider: AppWidgetProviderInfo,
+    val restoreRowId: Long?,
+)
 
 /** The long-pressed app and where its menu should anchor (which surface it came from). */
 private data class AppMenuTarget(

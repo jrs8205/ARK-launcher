@@ -24,6 +24,7 @@
     <string name="home_options_wallpaper">Wallpaper</string>
     <string name="widget_remove">Remove widget</string>
     <string name="widget_unavailable">Widget unavailable</string>
+    <string name="widget_restore_tap">Tap to set up</string>
     <string name="widget_resize">Resize</string>
     <string name="widget_reconfigure">Widget settings</string>
     <string name="widget_full_width">Full width</string>

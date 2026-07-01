@@ -76,6 +76,21 @@ data class PlacedWidget(
     val spanY: Int,
 ) : HomeEntry
 
+/**
+ * A restored widget whose device-local `appWidgetId` isn't bound on this device yet. Rendered as a
+ * tap-to-set-up placeholder occupying [spanX]×[spanY] cells until the user re-binds it (see the restore
+ * flow in HomeScreen). Its row already carries the [provider] and spans from the backup.
+ */
+data class PendingWidget(
+    val rowId: Long,
+    val provider: ComponentName,
+    override val page: Int,
+    override val cellX: Int,
+    override val cellY: Int,
+    val spanX: Int,
+    val spanY: Int,
+) : HomeEntry
+
 data class HomeUiState(
     val settings: LauncherSettings = LauncherSettings(),
     val dockApps: List<AppItem> = emptyList(),
@@ -157,7 +172,24 @@ class HomeViewModel @Inject constructor(
                             )
                         }
                     }
-                    else -> byKey[row.key]?.let { PlacedApp(it, row.page, row.cellX, row.cellY) }
+                    else -> {
+                        // A restored widget row carries a provider but no bound id → placeholder until
+                        // re-bound; anything else is a plain app. (Local val so the null-check smart-casts
+                        // — widgetProvider is a cross-module property that can't be smart-cast directly.)
+                        val wp = row.widgetProvider
+                        if (wp != null) {
+                            ComponentName.unflattenFromString(wp)?.let { provider ->
+                                PendingWidget(
+                                    rowId = row.id,
+                                    provider = provider,
+                                    page = row.page, cellX = row.cellX, cellY = row.cellY,
+                                    spanX = row.spanX, spanY = row.spanY,
+                                )
+                            }
+                        } else {
+                            byKey[row.key]?.let { PlacedApp(it, row.page, row.cellX, row.cellY) }
+                        }
+                    }
                 }
             }
         val maxPage = entries.maxOfOrNull { it.page } ?: 0
@@ -219,6 +251,11 @@ class HomeViewModel @Inject constructor(
 
     /** Removes a placed widget row (caller frees the host id). */
     fun removeWidget(rowId: Long) = viewModelScope.launch { homeLayoutRepository.removeWidget(rowId) }
+
+    /** Binds a restored placeholder widget to its freshly allocated [appWidgetId] (the caller did the
+     *  allocate + system bind/configure); the row turns back into a live widget. */
+    fun bindRestoredWidget(rowId: Long, appWidgetId: Int) =
+        viewModelScope.launch { homeLayoutRepository.bindRestoredWidget(rowId, appWidgetId) }
 
     fun reorderDock(newOrder: List<AppItem>) =
         viewModelScope.launch { settingsRepository.reorderVisibleDock(newOrder.map { it.key }) }

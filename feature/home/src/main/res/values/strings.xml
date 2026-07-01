@@ -24,6 +24,7 @@
     <string name="home_options_wallpaper">Taustakuva</string>
     <string name="widget_remove">Poista widget</string>
     <string name="widget_unavailable">Widget ei käytettävissä</string>
+    <string name="widget_restore_tap">Napauta ottaaksesi käyttöön</string>
     <string name="widget_resize">Muuta kokoa</string>
     <string name="widget_reconfigure">Widgetin asetukset</string>
     <string name="widget_full_width">Koko leveys</string>

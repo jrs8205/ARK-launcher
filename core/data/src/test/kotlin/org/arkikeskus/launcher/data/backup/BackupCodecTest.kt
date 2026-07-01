@@ -21,6 +21,8 @@ class BackupCodecTest {
             BackupItem(1, -1, null, "com.x", "com.x.Main", true, null, 0, 0, 1),
             BackupItem(2, -1, "Tools", "", "", false, null, 0, 1, 0),
             BackupItem(3, 2, null, "com.y", "com.y.Main", true, null, 0, 0, 0),
+            // A widget row: 2×2, provider set, no appWidgetId (device-local, never stored).
+            BackupItem(4, -1, null, "", "", true, null, 1, 2, 3, spanX = 2, spanY = 2, widgetProvider = "com.w/com.w.Prov"),
         ),
     )
 
@@ -28,6 +30,22 @@ class BackupCodecTest {
     fun round_trips_document() {
         val decoded = BackupCodec.decode(BackupCodec.encode(sampleDoc()))
         assertThat(decoded).isEqualTo(sampleDoc())
+    }
+
+    @Test
+    fun decode_accepts_format_1_defaulting_widget_fields() {
+        // An old (format 1) backup has no spanX/spanY/widgetProvider — they must default to a 1×1
+        // non-widget row rather than being rejected.
+        val json = """
+            {"format":1,"appVersion":"0.1.0","createdAt":0,"settings":{},
+             "homeItems":[{"id":1,"containerId":-1,"folderName":null,"packageName":"com.x",
+             "className":"com.x.Main","mainProfile":true,"shortcutId":null,"page":0,"cellX":0,"cellY":0}]}
+        """.trimIndent()
+        val doc = BackupCodec.decode(json)
+        val item = doc.homeItems.single()
+        assertThat(item.spanX).isEqualTo(1)
+        assertThat(item.spanY).isEqualTo(1)
+        assertThat(item.widgetProvider).isNull()
     }
 
     @Test

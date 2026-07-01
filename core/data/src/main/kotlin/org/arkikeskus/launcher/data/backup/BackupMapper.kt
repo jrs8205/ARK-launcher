@@ -7,7 +7,7 @@ data class RestoreMapping(val entities: List<HomeItemEntity>, val skipped: Int)
 object BackupMapper {
 
     fun toBackupItems(entities: List<HomeItemEntity>): List<BackupItem> =
-        entities.filterNot { it.isWidget }.map { e ->
+        entities.map { e ->
             BackupItem(
                 id = e.id,
                 containerId = e.containerId,
@@ -19,6 +19,10 @@ object BackupMapper {
                 page = e.page,
                 cellX = e.cellX,
                 cellY = e.cellY,
+                // Widgets record their size + provider; the device-local appWidgetId is NOT backed up.
+                spanX = e.spanX,
+                spanY = e.spanY,
+                widgetProvider = e.widgetProvider,
             )
         }
 
@@ -32,6 +36,10 @@ object BackupMapper {
         var skipped = 0
         for (it in items) {
             val keep = when {
+                // Widget: keep only if the provider's app is installed; it is re-bound on this device
+                // (appWidgetId stays null until then). The package is the part before '/' in the
+                // flattened provider ComponentName — parsed by hand to keep this pure-JVM testable.
+                it.widgetProvider != null -> it.widgetProvider.substringBefore('/') in installedPackages
                 it.folderName != null -> true                                  // folder row
                 !it.mainProfile -> false                                       // v1: main profile only
                 it.shortcutId != null -> it.packageName in installedPackages   // pinned shortcut
@@ -50,10 +58,12 @@ object BackupMapper {
                     page = it.page,
                     cellX = it.cellX,
                     cellY = it.cellY,
-                    spanX = 1,
-                    spanY = 1,
+                    spanX = it.spanX,
+                    spanY = it.spanY,
+                    // Restored widgets come back unbound (no device-local id yet); the home screen
+                    // re-binds each via a tap-to-set-up placeholder. Non-widget rows keep provider null.
                     appWidgetId = null,
-                    widgetProvider = null,
+                    widgetProvider = it.widgetProvider,
                 ),
             )
         }
