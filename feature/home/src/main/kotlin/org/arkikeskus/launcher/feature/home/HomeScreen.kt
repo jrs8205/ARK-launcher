@@ -236,6 +236,18 @@ fun HomeScreen(
         }
     }
 
+    // One-shot at startup: free any AppWidgetHost ids with no home_items row — e.g. the old bound ids
+    // left over after a full backup restore replaced the layout — so the host doesn't leak widget ids.
+    // Runs once (the host is stable) and no add/rebind is in flight at startup, so it can't race an
+    // allocated-but-not-yet-saved id.
+    LaunchedEffect(widgetHost) {
+        val host = widgetHost ?: return@LaunchedEffect
+        val dbIds = viewModel.boundWidgetIds()
+        runCatching { host.appWidgetIds }.getOrNull()?.forEach { id ->
+            if (id !in dbIds) runCatching { host.deleteAppWidgetId(id) }
+        }
+    }
+
     fun finishWidget(bind: PendingWidgetBind) {
         if (bind.restoreRowId != null) {
             // Restore: the placeholder row already has the provider + spans from the backup; just bind it.

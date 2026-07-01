@@ -280,6 +280,9 @@ class HomeLayoutRepository @Inject constructor(
         dao.updateWidgetId(rowId, appWidgetId)
     }
 
+    /** Device-local ids of all bound widgets, for reconciling leftover ids in the AppWidgetHost. */
+    suspend fun boundWidgetIds(): Set<Int> = dao.boundWidgetIds().toSet()
+
     /** Atomically sets a widget row's full grid bounds (used by both move and resize). If the target
      *  rect is occupied, the overlapping items are pushed aside to free cells on the same page
      *  ([ReorderPlanner]); returns false (no change) if the row is gone, isn't a widget, or no

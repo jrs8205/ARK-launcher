@@ -257,6 +257,9 @@ class HomeViewModel @Inject constructor(
     fun bindRestoredWidget(rowId: Long, appWidgetId: Int) =
         viewModelScope.launch { homeLayoutRepository.bindRestoredWidget(rowId, appWidgetId) }
 
+    /** Device-local ids of all bound widgets (for the startup AppWidgetHost id reconcile). */
+    suspend fun boundWidgetIds(): Set<Int> = homeLayoutRepository.boundWidgetIds()
+
     fun reorderDock(newOrder: List<AppItem>) =
         viewModelScope.launch { settingsRepository.reorderVisibleDock(newOrder.map { it.key }) }
 

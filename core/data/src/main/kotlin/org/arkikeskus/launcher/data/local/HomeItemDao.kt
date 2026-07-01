@@ -73,6 +73,10 @@ interface HomeItemDao {
     @Query("UPDATE home_items SET appWidgetId = :appWidgetId WHERE id = :id")
     suspend fun updateWidgetId(id: Long, appWidgetId: Int)
 
+    /** The device-local ids of every currently-bound widget, to reconcile against the AppWidgetHost. */
+    @Query("SELECT appWidgetId FROM home_items WHERE appWidgetId IS NOT NULL")
+    suspend fun boundWidgetIds(): List<Int>
+
     @Query("SELECT * FROM home_items")
     suspend fun getAllOnce(): List<HomeItemEntity>
 
