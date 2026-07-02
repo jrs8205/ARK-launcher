@@ -24,7 +24,10 @@
     <string name="settings_notif_size">Ilmoituspisteen koko</string>
     <string name="settings_drawer_search">Näytä haku</string>
     <string name="settings_hidden_apps">Piilota sovelluksia</string>
-    <string name="settings_hidden_apps_desc">%d piilotettu</string>
+    <plurals name="settings_hidden_apps_desc">
+        <item quantity="one">%d piilotettu</item>
+        <item quantity="other">%d piilotettua</item>
+    </plurals>
     <string name="settings_unhide">Näytä</string>
     <string name="settings_new_drawer_folder">Luo kansio sovellusvalikkoon</string>
     <string name="settings_new_drawer_folder_desc">Luo tyhjä kansio, johon voit siirtää sovelluksia</string>

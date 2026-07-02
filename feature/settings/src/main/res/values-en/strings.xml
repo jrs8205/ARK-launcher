@@ -24,7 +24,10 @@
     <string name="settings_notif_size">Notification dot size</string>
     <string name="settings_drawer_search">Show search</string>
     <string name="settings_hidden_apps">Hide apps</string>
-    <string name="settings_hidden_apps_desc">%d hidden</string>
+    <plurals name="settings_hidden_apps_desc">
+        <item quantity="one">%d hidden</item>
+        <item quantity="other">%d hidden</item>
+    </plurals>
     <string name="settings_unhide">Show</string>
     <string name="settings_new_drawer_folder">Create folder in app drawer</string>
     <string name="settings_new_drawer_folder_desc">Creates an empty folder you can move apps into</string>

@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.notifications
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.content.ComponentName
 import android.os.UserManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -50,6 +51,10 @@ class NotificationDotListenerService : NotificationListenerService() {
         super.onListenerDisconnected()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
+        // Aggressive OEM battery managers (Samsung, Xiaomi, …) can unbind the listener; ask the system
+        // to rebind so dots + status-bar icons come back on their own instead of the user having to
+        // re-toggle notification access. No-op if the system declines.
+        runCatching { requestRebind(ComponentName(this, NotificationDotListenerService::class.java)) }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) = refresh()

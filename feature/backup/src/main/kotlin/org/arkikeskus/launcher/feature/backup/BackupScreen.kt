@@ -173,7 +173,6 @@ fun BackupScreen(
 
     // --- Event handler ---
     val restoredMsg = stringResource(R.string.backup_restored)
-    val restoredSkippedMsg = stringResource(R.string.backup_restored_skipped)
     val invalidMsg = stringResource(R.string.backup_import_invalid)
     val failedMsg = stringResource(R.string.backup_failed)
     val exportedMsg = stringResource(R.string.backup_exported)
@@ -188,7 +187,13 @@ fun BackupScreen(
                 when (e) {
                     is BackupEvent.Exported -> exportedMsg
                     is BackupEvent.Restored ->
-                        if (e.skipped > 0) String.format(restoredSkippedMsg, e.skipped) else restoredMsg
+                        if (e.skipped > 0) {
+                            context.resources.getQuantityString(
+                                R.plurals.backup_restored_skipped, e.skipped, e.skipped,
+                            )
+                        } else {
+                            restoredMsg
+                        }
                     BackupEvent.InvalidFile -> invalidMsg
                     is BackupEvent.Failed -> if (e.message.isBlank()) failedMsg else "$failedMsg: ${e.message}"
                     BackupEvent.DriveUploaded -> exportedMsg

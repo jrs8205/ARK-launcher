@@ -8,13 +8,15 @@ import android.provider.Settings
 
 /**
  * Helpers for checking and requesting the HOME role (being the default launcher).
- * Uses [RoleManager.ROLE_HOME] on Android 12+, falling back to the system "Default home app"
- * settings screen on older versions.
+ * Uses [RoleManager.ROLE_HOME] (available since API 29) whenever the role is available, falling back
+ * to the system "Default home app" settings screen otherwise. The gate is Q, not S, so Android 11
+ * (API 30, our minSdk) gets the proper role dialog instead of the settings screen — some OEM builds
+ * don't resolve ACTION_HOME_SETTINGS, which left the onboarding button doing nothing there.
  */
 object DefaultLauncher {
 
     fun isDefault(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = context.getSystemService(RoleManager::class.java)
             if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
                 return roleManager.isRoleHeld(RoleManager.ROLE_HOME)
@@ -28,7 +30,7 @@ object DefaultLauncher {
     }
 
     fun requestIntent(context: Context): Intent {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val roleManager = context.getSystemService(RoleManager::class.java)
             if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
                 return roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME)

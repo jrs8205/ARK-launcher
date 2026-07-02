@@ -316,6 +316,11 @@ fun StatusBar(
 
             // Indicators fill from the right edge inward; jump over the cutout when a glyph would land
             // under it (e.g. a top-RIGHT or centre camera) and continue on the cutout's left side.
+            // Battery is rightmost (declared last), the least-important flags leftmost, so if a narrow
+            // screen runs out of room the loop drops the leftmost flags rather than overlapping the
+            // clock. The floor never triggers on normal-width screens (indicators don't reach that far
+            // left), so wide layouts are unchanged — this only degrades gracefully when truly cramped.
+            val clockRight = clockX + clock.width + gap
             var x = width - edge
             for (p in indicators.asReversed()) {
                 var left = x - p.width
@@ -323,6 +328,7 @@ fun StatusBar(
                     x = cutLeft - gap
                     left = x - p.width
                 }
+                if (left < clockRight) break // would collide with the clock — drop the rest (leftmost flags)
                 p.placeRelative(left, topY)
                 x = left - gap
             }

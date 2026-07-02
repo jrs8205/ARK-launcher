@@ -64,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.feature.backup.BackupScreen
 import org.arkikeskus.launcher.feature.updater.UpdateSection
@@ -179,7 +180,7 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_hidden_apps),
-                    description = stringResource(R.string.settings_hidden_apps_desc, hiddenKeys.size),
+                    description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
                 ) { showHiddenManager = true }
                 val newFolderName = stringResource(R.string.drawer_folder_default)
                 val folderCreatedMsg = stringResource(R.string.settings_drawer_folder_created)
