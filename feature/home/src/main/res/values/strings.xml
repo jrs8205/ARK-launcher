@@ -47,4 +47,7 @@
     <string name="status_desc_wifi">Wi-Fi</string>
     <string name="status_desc_charging">Latautuu</string>
     <string name="status_battery_percent">%1$d %%</string>
+    <string name="status_wifi_band_24">2,4</string>
+    <string name="status_wifi_band_5">5</string>
+    <string name="status_wifi_band_6">6</string>
 </resources>

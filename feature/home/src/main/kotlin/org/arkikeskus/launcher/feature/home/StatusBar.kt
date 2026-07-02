@@ -246,9 +246,16 @@ fun StatusBar(
                 }
             }
 
-            // Wi-Fi: a single glyph tinted by signal strength.
+            // Wi-Fi: a glyph tinted by signal strength, with the band (2.4 / 5 / 6 GHz) stacked under it —
+            // same two-part layout as the mobile signal's generation. No sub-label when the band is unknown.
             if (s.wifi.connected) {
-                MainLineBox {
+                val band = when (s.wifi.band) {
+                    WifiBand.GHZ_2_4 -> stringResource(R.string.status_wifi_band_24)
+                    WifiBand.GHZ_5 -> stringResource(R.string.status_wifi_band_5)
+                    WifiBand.GHZ_6 -> stringResource(R.string.status_wifi_band_6)
+                    WifiBand.UNKNOWN -> null
+                }
+                StatusItem(sub = band, subColor = colors.signalColor(s.wifi.level)) {
                     Icon(
                         painterResource(R.drawable.ic_status_wifi),
                         stringResource(R.string.status_desc_wifi),
