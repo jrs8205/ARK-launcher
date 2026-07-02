@@ -94,3 +94,12 @@ fun AppIcon(
         }
     }
 }
+
+/**
+ * Icon size that fits one grid cell: the surface's [preferred] size when the cell is roomy, shrunk
+ * (an 8dp margin keeps the badge overhang and neighbours clear) when the user picks 6–7 columns on
+ * a narrow screen — a fixed size bled into the neighbouring cells there. The floor keeps icons
+ * recognisable and tappable on the most extreme combinations.
+ */
+fun iconSizeForCell(cellWidth: Dp, preferred: Dp): Dp =
+    (cellWidth - 8.dp).coerceIn(32.dp, preferred)

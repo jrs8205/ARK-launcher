@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.launcher.system
 
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -39,26 +40,46 @@ class SignalMonitor @Inject constructor(
                 val executor = ContextCompat.getMainExecutor(context)
                 var level = 0
                 var display: TelephonyDisplayInfo? = null
-                val callback = object :
-                    TelephonyCallback(),
-                    TelephonyCallback.SignalStrengthsListener,
-                    TelephonyCallback.DisplayInfoListener {
+                fun send() {
+                    trySend(MobileStatus(active = true, level = level, generation = generationOf(display)))
+                }
+
+                // Two SEPARATE callbacks: registerTelephonyCallback permission-checks the whole
+                // callback object at registration, so bundling DisplayInfoListener (READ_PHONE_STATE
+                // on API 31/32) with SignalStrengthsListener (no permission) made a denial throw and
+                // kill the level too — no bars at all. Split, the bars always work and only the
+                // generation label is permission-gated.
+                val signalCallback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
                     override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                         level = signalStrength.level.coerceIn(0, 4)
-                        trySend(MobileStatus(active = true, level = level, generation = generationOf(display)))
+                        send()
                     }
-
+                }
+                val displayCallback = object : TelephonyCallback(), TelephonyCallback.DisplayInfoListener {
                     override fun onDisplayInfoChanged(telephonyDisplayInfo: TelephonyDisplayInfo) {
                         display = telephonyDisplayInfo
-                        trySend(MobileStatus(active = true, level = level, generation = generationOf(display)))
+                        send()
                     }
                 }
                 try {
-                    telephonyManager.registerTelephonyCallback(executor, callback)
+                    telephonyManager.registerTelephonyCallback(executor, signalCallback)
                 } catch (e: SecurityException) {
                     trySend(inactive)
                 }
-                awaitClose { telephonyManager.unregisterTelephonyCallback(callback) }
+                val hasPhoneState = ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.READ_PHONE_STATE,
+                ) == PackageManager.PERMISSION_GRANTED
+                if (hasPhoneState) {
+                    try {
+                        telephonyManager.registerTelephonyCallback(executor, displayCallback)
+                    } catch (e: SecurityException) {
+                        // Generation label stays null; the signal level still works.
+                    }
+                }
+                awaitClose {
+                    telephonyManager.unregisterTelephonyCallback(signalCallback)
+                    if (hasPhoneState) telephonyManager.unregisterTelephonyCallback(displayCallback)
+                }
             }
         }
             // Emit an immediate snapshot so combine() never stalls waiting for the first async signal

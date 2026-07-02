@@ -63,7 +63,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -72,6 +74,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -94,6 +97,7 @@ import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
+import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
@@ -380,12 +384,22 @@ private fun AppDrawerContent(
             }
             val context = LocalContext.current
             val searching = query.isNotBlank()
+            var gridWidthPx by remember { mutableStateOf(0) }
+            val density = LocalDensity.current
+            // Icon size derived from the column width so 6–7 columns fit a narrow screen (the fixed
+            // 56dp default bled into neighbouring cells there). 56dp until the grid is measured.
+            val drawerIconSize = if (gridWidthPx > 0 && columns > 0) {
+                iconSizeForCell(with(density) { (gridWidthPx.toFloat() / columns).toDp() }, 56.dp)
+            } else {
+                56.dp
+            }
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 contentPadding = PaddingValues(vertical = 8.dp),
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 12.dp)
+                    .onSizeChanged { gridWidthPx = it.width },
             ) {
                 if (!searching) {
                     if (frequentApps.isNotEmpty()) {
@@ -397,16 +411,22 @@ private fun AppDrawerContent(
                                 badgeShowCount = badgeShowCount,
                                 badgeScale = badgeScale,
                                 showLabels = showLabels,
+                                iconSize = drawerIconSize,
                                 onAppClick = onAppClick,
                                 onAppLongClick = onAppLongClick,
                             )
                         }
                     }
                     items(items = folders, key = { "folder-${it.id}" }, contentType = { "folder" }) { folder ->
-                        DrawerFolderTile(folder = folder, showLabel = showLabels, onClick = { onFolderClick(folder) })
+                        DrawerFolderTile(
+                            folder = folder,
+                            showLabel = showLabels,
+                            tileSize = drawerIconSize,
+                            onClick = { onFolderClick(folder) },
+                        )
                     }
-                    appCells(apps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
-                        dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
+                    appCells(apps, badges, badgeShowCount, badgeScale, showLabels, drawerIconSize, onAppClick,
+                        onAppLongClick, dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
                 } else {
                     calc?.let { c ->
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "calc" }) {
@@ -424,8 +444,8 @@ private fun AppDrawerContent(
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
                             ExpressiveSectionTitle(stringResource(R.string.search_section_apps))
                         }
-                        appCells(apps, badges, badgeShowCount, badgeScale, showLabels, onAppClick, onAppLongClick,
-                            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
+                        appCells(apps, badges, badgeShowCount, badgeScale, showLabels, drawerIconSize, onAppClick,
+                            onAppLongClick, dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
                     }
                     if (settingResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
@@ -482,7 +502,12 @@ private fun DragHandle() {
  *  also ticks the haptic like an app long-press) opens the folder. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DrawerFolderTile(folder: DrawerFolderUi, showLabel: Boolean, onClick: () -> Unit) {
+private fun DrawerFolderTile(
+    folder: DrawerFolderUi,
+    showLabel: Boolean,
+    onClick: () -> Unit,
+    tileSize: Dp = 56.dp,
+) {
     val haptics = LocalHapticFeedback.current
     Column(
         modifier = Modifier
@@ -499,17 +524,19 @@ private fun DrawerFolderTile(folder: DrawerFolderUi, showLabel: Boolean, onClick
     ) {
         Box(
             modifier = Modifier
-                .size(56.dp)
+                .size(tileSize)
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
                 .padding(7.dp),
             contentAlignment = Alignment.Center,
         ) {
+            // Preview icons scale with the tile so a shrunken folder still fits its 2×2 grid.
+            val mini = tileSize * (18f / 56f)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FolderSlot(folder.apps.getOrNull(0)); FolderSlot(folder.apps.getOrNull(1))
+                    FolderSlot(folder.apps.getOrNull(0), mini); FolderSlot(folder.apps.getOrNull(1), mini)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FolderSlot(folder.apps.getOrNull(2)); FolderSlot(folder.apps.getOrNull(3))
+                    FolderSlot(folder.apps.getOrNull(2), mini); FolderSlot(folder.apps.getOrNull(3), mini)
                 }
             }
         }
@@ -529,11 +556,11 @@ private fun DrawerFolderTile(folder: DrawerFolderUi, showLabel: Boolean, onClick
 }
 
 @Composable
-private fun FolderSlot(app: AppItem?) {
+private fun FolderSlot(app: AppItem?, size: Dp) {
     if (app == null) {
-        Spacer(Modifier.size(18.dp))
+        Spacer(Modifier.size(size))
     } else {
-        AppIcon(appItem = app, labelColor = Color.Transparent, showLabel = false, iconSize = 18.dp)
+        AppIcon(appItem = app, labelColor = Color.Transparent, showLabel = false, iconSize = size)
     }
 }
 
@@ -679,6 +706,7 @@ private fun FrequentAppsCard(
     badgeShowCount: Boolean,
     badgeScale: Float,
     showLabels: Boolean,
+    iconSize: Dp,
     onAppClick: (AppItem) -> Unit,
     onAppLongClick: (AppItem, Rect) -> Unit,
 ) {
@@ -706,6 +734,7 @@ private fun FrequentAppsCard(
                         appItem = app,
                         labelColor = MaterialTheme.colorScheme.onSurface,
                         showLabel = showLabels,
+                        iconSize = iconSize,
                         maxLabelLines = 2,
                         badgeCount = badges[app.badgeKey] ?: 0,
                         badgeShowCount = badgeShowCount,
@@ -736,6 +765,7 @@ private fun LazyGridScope.appCells(
     badgeShowCount: Boolean,
     badgeScale: Float,
     showLabels: Boolean,
+    iconSize: Dp,
     onAppClick: (AppItem) -> Unit,
     onAppLongClick: (AppItem, Rect) -> Unit,
     dragController: HomeDragController,
@@ -751,6 +781,7 @@ private fun LazyGridScope.appCells(
             appItem = app,
             labelColor = MaterialTheme.colorScheme.onSurface,
             showLabel = showLabels,
+            iconSize = iconSize,
             maxLabelLines = 2,
             badgeCount = badges[app.badgeKey] ?: 0,
             badgeShowCount = badgeShowCount,

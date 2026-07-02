@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
@@ -71,6 +73,13 @@ fun Dock(
     // Each item's top-left in root coords, so a drag can be reported to the controller in root space.
     val itemRoots = remember { mutableStateMapOf<Int, Offset>() }
     val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    // Icon size derived from the slot so 6–7 dock icons fit a narrow screen (fixed 52dp overlapped).
+    val dockIconSize = if (rowWidthPx > 0 && apps.isNotEmpty()) {
+        iconSizeForCell(with(density) { (rowWidthPx.toFloat() / apps.size).toDp() }, 52.dp)
+    } else {
+        52.dp
+    }
 
     val shape = RoundedCornerShape(30.dp)
     // Live drop feedback: highlight when a home icon hovers the dock and there's room (Launcher3's
@@ -213,7 +222,7 @@ fun Dock(
                         appItem = app,
                         labelColor = labelColor,
                         showLabel = showLabels,
-                        iconSize = 52.dp,
+                        iconSize = dockIconSize,
                         badgeCount = badges[app.badgeKey] ?: 0,
                         badgeShowCount = badgeShowCount,
                         badgeScale = badgeScale,

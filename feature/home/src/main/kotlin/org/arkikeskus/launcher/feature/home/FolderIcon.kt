@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.model.AppItem
@@ -37,20 +38,23 @@ fun FolderIcon(
     badgeShowCount: Boolean,
     badgeScale: Float = 1f,
     labelColor: Color = Color.White,
+    size: Dp = 52.dp,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.TopEnd) {
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(size)
                     .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(15.dp))
                     .padding(6.dp),
                 contentAlignment = Alignment.Center,
             ) {
+                // Preview icons scale with the tile so a shrunken folder still fits its 2×2 grid.
+                val mini = size * (17f / 52f)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    PreviewRow(apps.getOrNull(0), apps.getOrNull(1))
-                    PreviewRow(apps.getOrNull(2), apps.getOrNull(3))
+                    PreviewRow(apps.getOrNull(0), apps.getOrNull(1), mini)
+                    PreviewRow(apps.getOrNull(2), apps.getOrNull(3), mini)
                 }
             }
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
@@ -72,18 +76,18 @@ fun FolderIcon(
 }
 
 @Composable
-private fun PreviewRow(left: AppItem?, right: AppItem?) {
+private fun PreviewRow(left: AppItem?, right: AppItem?, size: Dp) {
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        PreviewSlot(left)
-        PreviewSlot(right)
+        PreviewSlot(left, size)
+        PreviewSlot(right, size)
     }
 }
 
 @Composable
-private fun PreviewSlot(app: AppItem?) {
+private fun PreviewSlot(app: AppItem?, size: Dp) {
     if (app == null) {
-        Spacer(Modifier.size(17.dp))
+        Spacer(Modifier.size(size))
     } else {
-        AppIcon(appItem = app, labelColor = Color.Transparent, showLabel = false, iconSize = 17.dp)
+        AppIcon(appItem = app, labelColor = Color.Transparent, showLabel = false, iconSize = size)
     }
 }

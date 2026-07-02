@@ -62,6 +62,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -75,6 +76,7 @@ import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlin.math.roundToInt
 
@@ -245,6 +247,13 @@ fun Workspace(
 
     val cellW = if (columns > 0 && gridSize.width > 0) gridSize.width.toFloat() / columns else 1f
     val cellH = if (rows > 0 && gridSize.height > 0) gridSize.height.toFloat() / rows else 1f
+    // Icon/folder/shortcut size derived from the cell so 6–7 columns fit a narrow screen (a fixed
+    // 52dp icon bled into neighbouring cells there). 52dp until the grid reports its real size.
+    val cellIconSize = if (gridSize.width > 0) {
+        iconSizeForCell(with(density) { cellW.toDp() }, 52.dp)
+    } else {
+        52.dp
+    }
     val moveThresholdPx = with(density) { 16.dp.toPx() }
     // Page flips only when the dragged icon is pushed right against the screen edge.
     val edgePx = with(density) { 20.dp.toPx() }
@@ -568,6 +577,7 @@ fun Workspace(
                                         badgeShowCount = badgeShowCount,
                                         badgeScale = badgeScale,
                                         labelColor = labelColor,
+                                        size = cellIconSize,
                                     )
                                 }
                             }
@@ -793,7 +803,7 @@ fun Workspace(
                                     appItem = placed.app,
                                     labelColor = labelColor,
                                     showLabel = showLabels,
-                                    iconSize = 52.dp,
+                                    iconSize = cellIconSize,
                                     maxLabelLines = 1,
                                     badgeCount = badges[placed.app.badgeKey] ?: 0,
                                     badgeShowCount = badgeShowCount,
@@ -825,7 +835,7 @@ fun Workspace(
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    ShortcutIconContent(entry, showLabels, labelColor)
+                                    ShortcutIconContent(entry, showLabels, labelColor, cellIconSize)
                                 }
                             }
                             is PlacedWidget -> {
@@ -1125,8 +1135,9 @@ fun Workspace(
                         badgeShowCount = badgeShowCount,
                         badgeScale = badgeScale,
                         labelColor = labelColor,
+                        size = cellIconSize,
                     )
-                    is PlacedShortcut -> ShortcutIconContent(dl, showLabels, labelColor)
+                    is PlacedShortcut -> ShortcutIconContent(dl, showLabels, labelColor, cellIconSize)
                     else -> Unit
                 }
             }
@@ -1399,13 +1410,18 @@ private fun WidgetEditOverlay(
 
 /** The icon + label of a pinned deep shortcut (the gesture, menu and offset live at the call site). */
 @Composable
-private fun ShortcutIconContent(shortcut: PlacedShortcut, showLabel: Boolean, labelColor: Color = Color.White) {
+private fun ShortcutIconContent(
+    shortcut: PlacedShortcut,
+    showLabel: Boolean,
+    labelColor: Color = Color.White,
+    iconSize: Dp = 52.dp,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val icon = shortcut.icon
         if (icon != null) {
-            Image(bitmap = icon, contentDescription = shortcut.label, modifier = Modifier.size(52.dp))
+            Image(bitmap = icon, contentDescription = shortcut.label, modifier = Modifier.size(iconSize))
         } else {
-            Box(Modifier.size(52.dp))
+            Box(Modifier.size(iconSize))
         }
         if (showLabel) {
             val scale = org.arkikeskus.launcher.ui.component.LocalAppLabelScale.current

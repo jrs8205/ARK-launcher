@@ -66,7 +66,12 @@ class SystemFlagsMonitor @Inject constructor(
             addAction(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
         }
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        // EXPORTED on purpose: all five actions are protected system broadcasts (only the platform
+        // can send them, so spoofing is impossible and onReceive only re-reads live state anyway).
+        // The NOT_EXPORTED backport guards pre-T (API 30–32) receivers with a per-app signature
+        // permission that only system-uid senders bypass — NFC state changes come from the separate
+        // com.android.nfc process, so they were silently dropped and the NFC flag froze there.
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
 
         emit()
         awaitClose {

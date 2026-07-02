@@ -17,6 +17,15 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
+    <!-- Android 11 only: BluetoothAdapter.ACTION_STATE_CHANGED is delivered with the legacy
+         BLUETOOTH receiver-permission pre-S, so without this the status-bar Bluetooth flag never
+         refreshes there. Android 12+ needs no permission for adapter state. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+
+    <!-- ACCESS_WIFI_STATE would otherwise IMPLY a required android.hardware.wifi feature and let
+         stores filter out Wi-Fi-less devices; every Wi-Fi indicator degrades gracefully without it. -->
+    <uses-feature android:name="android.hardware.wifi" android:required="false" />
+
     <!-- A home launcher legitimately interacts with every installed app (open, uninstall, app info,
          notification badges). Without this, package-visibility filtering in a non-debuggable build
          silently blocks those cross-app intents (e.g. uninstall opens nothing). -->
@@ -43,6 +52,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ArkikeskusLauncher.Starting">
 
+        <!-- Portrait-locked like most launchers: the home grid's fixed 6 rows don't fit a phone in
+             landscape (rows/widgets would overlap). Android 12L+ ignores the lock on large screens
+             (tablets, unfolded foldables), which is the desired behavior there. -->
         <activity
             android:name=".LauncherActivity"
             android:exported="true"
@@ -50,6 +62,7 @@
             android:stateNotNeeded="true"
             android:excludeFromRecents="true"
             android:taskAffinity=""
+            android:screenOrientation="portrait"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode"
             android:theme="@style/Theme.ArkikeskusLauncher.Starting">
             <intent-filter>
