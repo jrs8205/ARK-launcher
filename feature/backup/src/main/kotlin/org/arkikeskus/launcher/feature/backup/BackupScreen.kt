@@ -254,6 +254,13 @@ fun BackupScreen(
                 )
             }
             if (driveState.enabled) {
+                if (driveState.failing) {
+                    Text(
+                        stringResource(R.string.backup_drive_failing_banner),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Button(
                     onClick = { launchDriveOp(DriveAction.Backup) },
                     modifier = Modifier.fillMaxWidth(),

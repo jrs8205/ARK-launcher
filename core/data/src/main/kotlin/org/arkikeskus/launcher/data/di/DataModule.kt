@@ -2,7 +2,9 @@ package org.arkikeskus.launcher.data.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import androidx.room.migration.Migration
@@ -23,7 +25,13 @@ import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import javax.inject.Singleton
 
-private val Context.settingsDataStore by preferencesDataStore(name = "launcher_settings")
+private val Context.settingsDataStore by preferencesDataStore(
+    name = "launcher_settings",
+    // A corrupted preferences file (interrupted write, power loss) otherwise throws
+    // CorruptionException on every read — for the HOME app that's an unrecoverable crash loop.
+    // Resetting to defaults loses only settings; the Room-backed home layout is untouched.
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+)
 
 private val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {

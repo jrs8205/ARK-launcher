@@ -48,6 +48,8 @@ data class DriveState(
     val intervalDays: Int = 1,
     val wifiOnly: Boolean = false,
     val chargingOnly: Boolean = false,
+    /** True when the periodic Drive backup has failed repeatedly (shown as a warning banner). */
+    val failing: Boolean = false,
 )
 
 @HiltViewModel
@@ -98,6 +100,9 @@ class BackupViewModel @Inject constructor(
         }
         viewModelScope.launch {
             settings.driveChargingOnly.collect { c -> _driveState.update { it.copy(chargingOnly = c) } }
+        }
+        viewModelScope.launch {
+            settings.driveBackupFailing.collect { f -> _driveState.update { it.copy(failing = f) } }
         }
     }
 
@@ -203,9 +208,11 @@ class BackupViewModel @Inject constructor(
             if (hash != settings.driveLastHash()) {
                 val nowMs = System.currentTimeMillis()
                 withContext(Dispatchers.IO) {
-                    DriveRestClient(token, driveHttp).upload(
-                        "arkikeskus-launcher-backup-$nowMs.json", json,
-                    )
+                    val client = DriveRestClient(token, driveHttp)
+                    client.upload("arkikeskus-launcher-backup-$nowMs.json", json)
+                    // Keep Drive storage bounded from the manual path too (the periodic worker
+                    // prunes as well, but it may be stuck failing — see driveBackupFailing).
+                    client.pruneToNewest(5)
                 }
                 settings.setDriveLastBackup(nowMs, hash)
                 nowMs
@@ -213,6 +220,9 @@ class BackupViewModel @Inject constructor(
                 null // already up-to-date; skip upload
             }
         }.onSuccess { uploadedAt ->
+            // A manual backup succeeded (or auth worked for the dedup check) → the failing
+            // episode is over; the banner clears and the worker may notify again if it recurs.
+            settings.clearDriveFailures()
             _driveState.update { s ->
                 s.copy(isLoading = false, lastBackupMs = uploadedAt ?: s.lastBackupMs)
             }

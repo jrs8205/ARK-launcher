@@ -195,7 +195,8 @@ class HomeViewModel @Inject constructor(
         val maxPage = entries.maxOfOrNull { it.page } ?: 0
         // Only as many pages as actually have icons (min 1). A new trailing page is offered
         // transiently by the workspace while dragging, and becomes permanent once an icon lands.
-        val pageCount = (maxPage + 1).coerceAtLeast(1)
+        // Capped: a corrupt page value in the DB must never reach PageDots' non-lazy repeat().
+        val pageCount = (maxPage + 1).coerceIn(1, HomeLayoutRepository.MAX_PAGES)
         HomeUiState(
             settings = settings,
             dockApps = dockApps,

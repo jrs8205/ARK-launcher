@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.data.backup
 
+import org.arkikeskus.launcher.data.HomeLayoutRepository
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 
 data class RestoreMapping(val entities: List<HomeItemEntity>, val skipped: Int)
@@ -34,6 +36,8 @@ object BackupMapper {
     ): RestoreMapping {
         val kept = ArrayList<HomeItemEntity>()
         var skipped = 0
+        val seenIds = HashSet<Long>()
+        val seenCells = HashSet<List<Long>>()
         for (it in items) {
             val keep = when {
                 // Widget: keep only if the provider's app is installed; it is re-bound on this device
@@ -46,6 +50,19 @@ object BackupMapper {
                 else -> "${it.packageName}/${it.className}" in installedAppKeys // app
             }
             if (!keep) { skipped++; continue }
+            // The backup file is plaintext JSON the user can edit (and Drive/storage can corrupt), so
+            // grid values must be sanitized before they reach the DB: an insane page would hang the
+            // pager/page-dots UI, and a negative span crashes Compose layout the moment it renders.
+            val sane = it.page in 0 until HomeLayoutRepository.MAX_PAGES &&
+                it.cellX in 0..MAX_CELL && it.cellY in 0..MAX_CELL
+            if (!sane) { skipped++; continue }
+            // Duplicate ids/cells would violate the DB's primary key / unique cell index and roll
+            // back the whole restore — drop the later duplicates instead, keeping the first.
+            if (!seenIds.add(it.id)) { skipped++; continue }
+            if (!seenCells.add(listOf(it.containerId, it.page.toLong(), it.cellX.toLong(), it.cellY.toLong()))) {
+                skipped++; continue
+            }
+            val isWidget = it.widgetProvider != null
             kept.add(
                 HomeItemEntity(
                     id = it.id,
@@ -58,8 +75,10 @@ object BackupMapper {
                     page = it.page,
                     cellX = it.cellX,
                     cellY = it.cellY,
-                    spanX = it.spanX,
-                    spanY = it.spanY,
+                    // Only widgets have a real footprint; clamp it to the grid (the normal add-widget
+                    // path does the same). Everything else is 1×1 regardless of what the file says.
+                    spanX = if (isWidget) it.spanX.coerceIn(1, SettingsRepository.MAX_COLUMNS) else 1,
+                    spanY = if (isWidget) it.spanY.coerceIn(1, HomeLayoutRepository.ROWS) else 1,
                     // Restored widgets come back unbound (no device-local id yet); the home screen
                     // re-binds each via a tap-to-set-up placeholder. Non-widget rows keep provider null.
                     appWidgetId = null,
@@ -72,4 +91,7 @@ object BackupMapper {
 
     /** Backups only record main-profile membership; the original serial is device-local. */
     private const val MAIN_SERIAL = 0L
+
+    /** Upper bound for restored cell coordinates (folder children index by cellX, so it's roomy). */
+    private const val MAX_CELL = 999
 }

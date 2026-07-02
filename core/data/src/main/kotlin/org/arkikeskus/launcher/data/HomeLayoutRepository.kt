@@ -13,6 +13,11 @@ import javax.inject.Singleton
 /** The shortcut ids still pinned for a (package, user) after a removal — used to re-pin the set. */
 data class RemainingPins(val packageName: String, val userSerial: Long, val shortcutIds: List<String>)
 
+/** One row's target grid position (and sanitized span) in a [HomeLayoutRepository.reflowPlan]. */
+data class ReflowPlacement(
+    val id: Long, val page: Int, val cellX: Int, val cellY: Int, val spanX: Int, val spanY: Int,
+)
+
 /**
  * Persists the home layout (Room): app shortcuts and folders placed at free cells, and the apps
  * inside each folder. Top-level items live in the [HOME] container; a folder's children live in the
@@ -113,20 +118,22 @@ class HomeLayoutRepository @Inject constructor(
     }
 
     /**
-     * Repacks the top-level home items (apps and folders) into a [columns]-wide grid, preserving
-     * reading order and spilling overflow onto later pages. Folder *contents* are left untouched.
+     * Repacks the top-level home items (apps, folders, widgets) into a [columns]-wide grid via
+     * [reflowPlan]: reading order is preserved, widgets keep (or shrink to fit) their footprint and
+     * the packing reserves it, overflow spills onto later pages. Folder *contents* are untouched.
      */
     suspend fun reflow(columns: Int) {
         if (columns <= 0) return
         db.withTransaction {
             val rows = dao.getContainerOrdered(HOME)
             if (rows.isEmpty()) return@withTransaction
+            val plan = reflowPlan(rows, columns)
             // Park everything off-grid first (unique temp cells) so the repack can't collide.
             rows.forEachIndexed { i, row -> dao.moveById(row.id, HOME, -1, -(i + 1), -1) }
-            val slotsPerPage = columns * ROWS
-            rows.forEachIndexed { i, row ->
-                val slot = i % slotsPerPage
-                dao.moveById(row.id, HOME, i / slotsPerPage, slot % columns, slot / columns)
+            rows.zip(plan).forEach { (row, p) ->
+                dao.moveById(p.id, HOME, p.page, p.cellX, p.cellY)
+                // Persist a span shrink (widget wider/taller than the new grid, or a corrupt span).
+                if (p.spanX != row.spanX || p.spanY != row.spanY) dao.updateSpans(p.id, p.spanX, p.spanY)
             }
         }
     }
@@ -327,6 +334,31 @@ class HomeLayoutRepository @Inject constructor(
     companion object {
         /** Rows per home page (fixed for now). */
         const val ROWS = 6
+
+        /** Hard cap on home pages: restore sanitization and the pager both refuse anything past it. */
+        const val MAX_PAGES = 50
+
+        /**
+         * Plans a repack of the given HOME rows into a [columns]-wide grid, in reading order.
+         * Widgets keep their spanX×spanY footprint (shrunk to fit the new grid if needed) and the
+         * cells they cover are reserved, so no later item can be packed inside a widget's rectangle
+         * (the old 1×1-slot packing buried icons under widgets). Non-widget rows are always 1×1.
+         */
+        fun reflowPlan(rows: List<HomeItemEntity>, columns: Int): List<ReflowPlacement> {
+            val cols = columns.coerceAtLeast(1)
+            val placed = ArrayList<HomeItemEntity>(rows.size)
+            val plan = ArrayList<ReflowPlacement>(rows.size)
+            for (row in rows) {
+                val widget = row.widgetProvider != null
+                val sx = if (widget) row.spanX.coerceIn(1, cols) else 1
+                val sy = if (widget) row.spanY.coerceIn(1, ROWS) else 1
+                val (page, x, y) = firstFreeRect(placed, cols, sx, sy)
+                plan += ReflowPlacement(row.id, page, x, y, sx, sy)
+                // Occupancy carrier for the next iteration's firstFreeRect scan.
+                placed += HomeItemEntity(page = page, cellX = x, cellY = y, spanX = sx, spanY = sy)
+            }
+            return plan
+        }
 
         /** Off-grid parking slot used while swapping two cells inside a transaction. */
         private const val TEMP_SLOT = -1

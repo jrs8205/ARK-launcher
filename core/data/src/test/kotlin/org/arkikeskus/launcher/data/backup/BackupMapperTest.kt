@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data.backup
 
 import com.google.common.truth.Truth.assertThat
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.junit.Test
 
@@ -63,5 +64,71 @@ class BackupMapperTest {
         assertThat(mapping.entities.first { it.id == 1L }.userSerial).isEqualTo(42L)
         assertThat(mapping.entities.first { it.id == 3L }.userSerial).isEqualTo(0L) // folder
         assertThat(mapping.entities.all { it.appWidgetId == null }).isTrue()
+    }
+
+    // --- Corrupt/hand-edited backup sanitization ---------------------------------------------
+
+    @Test
+    fun toEntities_skips_rows_with_invalid_page_or_cells() {
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, 999_999_999, 0, 0), // insane page
+            BackupItem(2, -1, null, "com.a", "A", true, null, -1, 0, 0),          // negative page
+            BackupItem(3, -1, null, "com.a", "A", true, null, 0, -2, 0),          // negative cellX
+            BackupItem(4, -1, null, "com.a", "A", true, null, 0, 0, -7),          // negative cellY
+            BackupItem(5, -1, null, "com.a", "A", true, null, 0, 1, 1),           // valid
+        )
+        val mapping = BackupMapper.toEntities(items, 0L, setOf("com.a/A"), setOf("com.a"))
+        assertThat(mapping.entities.map { it.id }).containsExactly(5L)
+        assertThat(mapping.skipped).isEqualTo(4)
+    }
+
+    @Test
+    fun toEntities_clamps_widget_spans_to_the_grid() {
+        val items = listOf(
+            BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 30, spanY = -2, widgetProvider = "com.w/P"),
+        )
+        val mapping = BackupMapper.toEntities(items, 0L, emptySet(), setOf("com.w"))
+        val w = mapping.entities.single()
+        assertThat(w.spanX).isEqualTo(SettingsRepository.MAX_COLUMNS)
+        assertThat(w.spanY).isEqualTo(1) // negative -> 1
+    }
+
+    @Test
+    fun toEntities_forces_non_widget_spans_to_1x1() {
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 0, spanX = 5, spanY = 3),
+        )
+        val mapping = BackupMapper.toEntities(items, 0L, setOf("com.a/A"), setOf("com.a"))
+        val e = mapping.entities.single()
+        assertThat(e.spanX).isEqualTo(1)
+        assertThat(e.spanY).isEqualTo(1)
+    }
+
+    @Test
+    fun toEntities_drops_duplicate_cells_keeping_the_first() {
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(2, -1, null, "com.b", "B", true, null, 0, 0, 0), // same cell -> dropped
+            BackupItem(3, -1, null, "com.b", "B", true, null, 0, 1, 0),
+        )
+        val mapping = BackupMapper.toEntities(
+            items, 0L, setOf("com.a/A", "com.b/B"), setOf("com.a", "com.b"),
+        )
+        assertThat(mapping.entities.map { it.id }).containsExactly(1L, 3L)
+        assertThat(mapping.skipped).isEqualTo(1)
+    }
+
+    @Test
+    fun toEntities_drops_duplicate_ids_keeping_the_first() {
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(1, -1, null, "com.b", "B", true, null, 0, 1, 0), // same id -> dropped
+        )
+        val mapping = BackupMapper.toEntities(
+            items, 0L, setOf("com.a/A", "com.b/B"), setOf("com.a", "com.b"),
+        )
+        assertThat(mapping.entities).hasSize(1)
+        assertThat(mapping.entities.single().packageName).isEqualTo("com.a")
+        assertThat(mapping.skipped).isEqualTo(1)
     }
 }

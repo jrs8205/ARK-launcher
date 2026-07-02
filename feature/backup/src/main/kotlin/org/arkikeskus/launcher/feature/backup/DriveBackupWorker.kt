@@ -34,6 +34,11 @@ internal fun appVersion(context: Context): String =
  * Retry conditions:
  *   - Silent token unavailable (consent UI required → no token).
  *   - Any network or serialisation error during upload.
+ *
+ * Failure surfacing: each failed backup PERIOD (not each retry) bumps a consecutive-failure
+ * counter; at the threshold a one-shot notification + a backup-screen banner tell the user to
+ * re-authorize (e.g. revoked Google consent otherwise fails silently forever). Any success —
+ * including the nothing-changed dedup skip — resets the counter.
  */
 @HiltWorker
 class DriveBackupWorker @AssistedInject constructor(
@@ -49,7 +54,10 @@ class DriveBackupWorker @AssistedInject constructor(
 
         // Obtain a silent token — if consent UI is required we cannot proceed from a worker.
         val token = TokenProvider.silentToken(applicationContext)
-            ?: return@withContext Result.retry()
+        if (token == null) {
+            registerFailure()
+            return@withContext Result.retry()
+        }
 
         val http = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -79,11 +87,25 @@ class DriveBackupWorker @AssistedInject constructor(
             client.pruneToNewest(5)
             settings.setDriveLastBackup(System.currentTimeMillis(), hash)
         }.fold(
-            onSuccess = { Result.success() },
+            onSuccess = {
+                settings.clearDriveFailures()
+                Result.success()
+            },
             onFailure = { t ->
                 if (t is CancellationException) throw t
+                registerFailure()
                 Result.retry()
             },
         )
+    }
+
+    /** Counts one failure per backup period (retries of the same period are not re-counted) and
+     *  posts the failing notification exactly when the threshold is crossed. */
+    private suspend fun registerFailure() {
+        if (runAttemptCount > 0) return
+        val count = settings.registerDriveFailure()
+        if (count == SettingsRepository.DRIVE_FAILING_THRESHOLD) {
+            DriveBackupNotifier.notifyFailing(applicationContext)
+        }
     }
 }

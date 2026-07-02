@@ -11,7 +11,7 @@
     <string name="backup_import_invalid">Invalid or incompatible backup file</string>
     <string name="backup_failed">Operation failed</string>
     <string name="backup_restore_confirm_title">Restore backup?</string>
-    <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets must be re-added manually.</string>
+    <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets are restored as tap-to-set-up placeholders.</string>
     <string name="backup_restore_confirm_ok">Restore</string>
     <string name="backup_cancel">Cancel</string>
     <string name="backup_drive_section">Google Drive</string>
@@ -27,4 +27,8 @@
     <string name="backup_freq_weekly">Weekly</string>
     <string name="backup_wifi_only">Wi-Fi only</string>
     <string name="backup_charging_only">While charging only</string>
+    <string name="backup_notification_channel_name">Backups</string>
+    <string name="backup_drive_failing_title">Drive backup is failing</string>
+    <string name="backup_drive_failing_text">Automatic backup hasn\'t succeeded. Open settings and back up again.</string>
+    <string name="backup_drive_failing_banner">Drive backup has failed repeatedly. Back up now to re-authorize.</string>
 </resources>

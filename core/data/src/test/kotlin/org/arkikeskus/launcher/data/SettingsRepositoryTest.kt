@@ -126,6 +126,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `drive failure counter flips failing at the threshold and clears`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.driveBackupFailing.first()).isFalse()
+
+        repeat(SettingsRepository.DRIVE_FAILING_THRESHOLD - 1) { repo.registerDriveFailure() }
+        assertThat(repo.driveBackupFailing.first()).isFalse()
+
+        val count = repo.registerDriveFailure()
+        assertThat(count).isEqualTo(SettingsRepository.DRIVE_FAILING_THRESHOLD)
+        assertThat(repo.driveBackupFailing.first()).isTrue()
+
+        repo.clearDriveFailures()
+        assertThat(repo.driveBackupFailing.first()).isFalse()
+    }
+
+    @Test
+    fun `drive failure counter is excluded from export and preserved across restore`() = runTest {
+        val repo = newRepository()
+        repeat(SettingsRepository.DRIVE_FAILING_THRESHOLD) { repo.registerDriveFailure() }
+
+        assertThat(repo.exportRaw().keys).doesNotContain("drive_failure_count")
+
+        repo.importRaw(mapOf("home_columns" to 5))
+        assertThat(repo.driveBackupFailing.first()).isTrue()
+    }
+
+    @Test
     fun `importRaw preserves Drive state and applies restored values`() = runTest {
         val repo = newRepository()
         // Arrange: enable Drive with known last-backup metadata.

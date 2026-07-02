@@ -245,6 +245,25 @@ class SettingsRepository @Inject constructor(
     /** One-shot read for use in background workers (Task 7). */
     suspend fun driveEnabledOnce(): Boolean = dataStore.data.first()[Keys.DRIVE_ENABLED] ?: false
 
+    // --- Drive failure tracking (device-local) ---
+
+    /** True once Drive auto-backup has failed [DRIVE_FAILING_THRESHOLD]+ consecutive periods. */
+    val driveBackupFailing: Flow<Boolean> =
+        dataStore.data.map { (it[Keys.DRIVE_FAILURE_COUNT] ?: 0) >= DRIVE_FAILING_THRESHOLD }
+
+    /** Records one failed Drive backup period; returns the new consecutive-failure count. */
+    suspend fun registerDriveFailure(): Int {
+        var count = 0
+        dataStore.edit { p ->
+            count = (p[Keys.DRIVE_FAILURE_COUNT] ?: 0) + 1
+            p[Keys.DRIVE_FAILURE_COUNT] = count
+        }
+        return count
+    }
+
+    /** Resets the consecutive Drive-failure counter after a successful backup. */
+    suspend fun clearDriveFailures() = edit { it.remove(Keys.DRIVE_FAILURE_COUNT) }
+
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */
     val localLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.LOCAL_LAST_BACKUP] ?: 0L }
 
@@ -294,6 +313,7 @@ class SettingsRepository @Inject constructor(
             val driveEnabled = prefs[Keys.DRIVE_ENABLED]
             val driveLastTime = prefs[Keys.DRIVE_LAST_TIME]
             val driveLastHash = prefs[Keys.DRIVE_LAST_HASH]
+            val driveFailures = prefs[Keys.DRIVE_FAILURE_COUNT]
             val localLastBackup = prefs[Keys.LOCAL_LAST_BACKUP]
             val driveInterval = prefs[Keys.DRIVE_INTERVAL_DAYS]
             val driveWifiOnly = prefs[Keys.DRIVE_WIFI_ONLY]
@@ -315,6 +335,7 @@ class SettingsRepository @Inject constructor(
             if (driveEnabled != null) prefs[Keys.DRIVE_ENABLED] = driveEnabled
             if (driveLastTime != null) prefs[Keys.DRIVE_LAST_TIME] = driveLastTime
             if (driveLastHash != null) prefs[Keys.DRIVE_LAST_HASH] = driveLastHash
+            if (driveFailures != null) prefs[Keys.DRIVE_FAILURE_COUNT] = driveFailures
             if (localLastBackup != null) prefs[Keys.LOCAL_LAST_BACKUP] = localLastBackup
             if (driveInterval != null) prefs[Keys.DRIVE_INTERVAL_DAYS] = driveInterval
             if (driveWifiOnly != null) prefs[Keys.DRIVE_WIFI_ONLY] = driveWifiOnly
@@ -358,6 +379,7 @@ class SettingsRepository @Inject constructor(
         val DRIVE_ENABLED = booleanPreferencesKey("drive_backup_enabled")
         val DRIVE_LAST_TIME = longPreferencesKey("drive_last_backup_time")
         val DRIVE_LAST_HASH = stringPreferencesKey("drive_last_backup_hash")
+        val DRIVE_FAILURE_COUNT = intPreferencesKey("drive_failure_count")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val DRIVE_INTERVAL_DAYS = intPreferencesKey("drive_interval_days")
         val DRIVE_WIFI_ONLY = booleanPreferencesKey("drive_wifi_only")
@@ -377,6 +399,9 @@ class SettingsRepository @Inject constructor(
         const val MIN_COLUMNS = 3
         const val MAX_COLUMNS = 7
 
+        /** Consecutive failed Drive-backup periods before the failure is surfaced to the user. */
+        const val DRIVE_FAILING_THRESHOLD = 3
+
         /** Valid range for the notification-dot scale slider. */
         const val MIN_DOT_SCALE = 0.6f
         const val MAX_DOT_SCALE = 1.8f
@@ -393,7 +418,7 @@ class SettingsRepository @Inject constructor(
          *  restore: Drive enable/last-backup/hash + the local file-backup timestamp. */
         val DRIVE_INTERNAL_KEYS = setOf(
             "drive_backup_enabled", "drive_last_backup_time", "drive_last_backup_hash",
-            "local_last_backup_time",
+            "drive_failure_count", "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
         )
