@@ -7,7 +7,6 @@
     <string name="update_auto_toggle">Check for updates automatically</string>
     <string name="update_last_check">Last checked: %1$s</string>
     <string name="update_up_to_date">You\'re on the latest version</string>
-    <string name="update_error">Update check failed</string>
     <string name="update_available_title">New version %1$s available</string>
     <string name="update_whats_new">What\'s new</string>
     <string name="update_install">Update</string>

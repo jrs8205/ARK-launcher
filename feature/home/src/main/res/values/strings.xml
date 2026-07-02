@@ -33,4 +33,18 @@
     <string name="widget_picker_title">Valitse widget</string>
     <string name="widget_search">Hae widgettejä</string>
     <string name="widget_search_none">Ei tuloksia</string>
+    <string name="widget_search_clear">Tyhjennä haku</string>
+    <string name="status_desc_alarm">Herätys</string>
+    <string name="status_desc_dnd">Älä häiritse</string>
+    <string name="status_desc_silent">Äänetön</string>
+    <string name="status_desc_vibrate">Värinä</string>
+    <string name="status_desc_location">Sijainti</string>
+    <string name="status_desc_nfc">NFC</string>
+    <string name="status_desc_datasaver">Datansäästäjä</string>
+    <string name="status_desc_bluetooth">Bluetooth</string>
+    <string name="status_desc_vpn">VPN</string>
+    <string name="status_desc_airplane">Lentokonetila</string>
+    <string name="status_desc_wifi">Wi-Fi</string>
+    <string name="status_desc_charging">Latautuu</string>
+    <string name="status_battery_percent">%1$d %%</string>
 </resources>

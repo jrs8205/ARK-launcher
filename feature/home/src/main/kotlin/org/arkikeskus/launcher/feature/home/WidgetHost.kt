@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.staticCompositionLocalOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 
 /** App-unique id for our single AppWidgetHost ("ARK1"). */
@@ -24,6 +25,13 @@ val LocalAppWidgetHost = staticCompositionLocalOf<AppWidgetHost?> { null }
  */
 val LocalWidgetConfigLauncher =
     staticCompositionLocalOf<((appWidgetId: Int, onResult: (Boolean) -> Unit) -> Unit)?> { null }
+
+/**
+ * A widget-config activity result that returned AFTER the launcher process was recreated (the
+ * in-memory [LocalWidgetConfigLauncher] callback died with the old process). The home screen
+ * consumes it against its saveable pending-bind state and clears the value. Null outside the launcher.
+ */
+val LocalOrphanWidgetConfigResult = staticCompositionLocalOf<MutableStateFlow<Boolean?>?> { null }
 
 /**
  * Default home-grid span for [provider]. Prefers the API 31+ cell hints; otherwise converts the

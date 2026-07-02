@@ -5,4 +5,5 @@
     <string name="rename_save">Save</string>
     <string name="rename_cancel">Cancel</string>
     <string name="rename_reset">Reset to default</string>
+    <string name="shortcut_pin">Pin to home screen</string>
 </resources>

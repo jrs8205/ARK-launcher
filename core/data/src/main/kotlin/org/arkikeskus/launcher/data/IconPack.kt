@@ -64,6 +64,16 @@ class IconPackRepository @Inject constructor(
         }.sortedBy { it.label.lowercase() }
     }
 
+    /** Drops [pkg]'s cached parse (the pack was updated/uninstalled) so the next [get] re-reads it.
+     *  Returns true if [pkg] was cached — incl. a cached negative — so the caller knows any already
+     *  rasterized icons may be stale. */
+    @Synchronized
+    fun invalidate(pkg: String): Boolean {
+        if (!cache.containsKey(pkg)) return false
+        cache.remove(pkg)
+        return true
+    }
+
     /** Loads + parses [pkg] (cached, including a cached "no pack" result). */
     @Synchronized
     fun get(pkg: String): IconPack? {

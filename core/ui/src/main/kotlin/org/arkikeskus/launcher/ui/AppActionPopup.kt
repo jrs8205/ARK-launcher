@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -243,7 +244,7 @@ private fun ShortcutPopupRow(text: String, onClick: () -> Unit, onPin: (() -> Un
             ) {
                 Icon(
                     painter = painterResource(LauncherIcons.Add),
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.shortcut_pin),
                     tint = Accent,
                     modifier = Modifier.size(22.dp),
                 )

@@ -22,4 +22,5 @@
     <string name="search_contact_call">Soita</string>
     <string name="search_contact_message">Viesti</string>
     <string name="drawer_frequent_apps">Eniten käytetyt</string>
+    <string name="search_clear">Tyhjennä haku</string>
 </resources>

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -33,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -139,7 +142,17 @@ fun StatusBar(
     // The top punch-hole rect (px): left/right let the row flow around it; the vertical centre lets the
     // glyphs sit level with the camera. Null when there is no cutout.
     var cutout by remember { mutableStateOf<android.graphics.Rect?>(null) }
-    LaunchedEffect(view) {
+    // Re-read when the cutout insets change: a foldable's fold/unfold swaps displays WITHOUT
+    // recreating the activity (configChanges), so a once-per-view read went stale and the glyphs
+    // could sit under the other display's camera. Reading the reactive Compose insets here makes
+    // recomposition re-key the effect whenever the cutout actually moves.
+    val cutoutInsets = WindowInsets.displayCutout
+    val cutoutKey = with(density) {
+        cutoutInsets.getTop(this) +
+            cutoutInsets.getLeft(this, androidx.compose.ui.unit.LayoutDirection.Ltr) +
+            cutoutInsets.getRight(this, androidx.compose.ui.unit.LayoutDirection.Ltr)
+    }
+    LaunchedEffect(view, cutoutKey) {
         val dc = view.rootWindowInsets?.displayCutout
         val top = dc?.boundingRectTop?.takeIf { it.width() > 0 }
         // boundingRectTop can be looser than the visible camera (its centre then sits off the hole), so
@@ -208,22 +221,23 @@ fun StatusBar(
             shownNotifs.forEach { n ->
                 MainLineBox {
                     rememberNotifIcon(n)?.let { bmp ->
-                        Icon(bmp, n.packageName, Modifier.size(12.dp), tint = Color.White)
+                        // Decorative for accessibility: a raw package name read aloud is noise.
+                        Icon(bmp, contentDescription = null, Modifier.size(12.dp), tint = Color.White)
                     }
                 }
             }
 
             // [notifCount+1..] active indicators, left → right (battery declared last = placed far right).
-            if (f.alarm) FlagItem(R.drawable.ic_status_alarm, accent, "Alarm")
-            if (f.dnd) FlagItem(R.drawable.ic_status_dnd, accent, "Do not disturb")
-            if (f.silent) FlagItem(R.drawable.ic_status_silent, accent, "Silent")
-            if (f.vibrate) FlagItem(R.drawable.ic_status_vibrate, accent, "Vibrate")
-            if (f.location) FlagItem(R.drawable.ic_status_location, accent, "Location")
-            if (f.nfc) FlagItem(R.drawable.ic_status_nfc, accent, "NFC")
-            if (f.dataSaver) FlagItem(R.drawable.ic_status_datasaver, accent, "Data saver")
-            if (f.bluetooth) FlagItem(R.drawable.ic_status_bluetooth, accent, "Bluetooth")
-            if (f.vpn) FlagItem(R.drawable.ic_status_vpn, accent, "VPN")
-            if (f.airplane) FlagItem(R.drawable.ic_status_airplane, accent, "Airplane mode")
+            if (f.alarm) FlagItem(R.drawable.ic_status_alarm, accent, stringResource(R.string.status_desc_alarm))
+            if (f.dnd) FlagItem(R.drawable.ic_status_dnd, accent, stringResource(R.string.status_desc_dnd))
+            if (f.silent) FlagItem(R.drawable.ic_status_silent, accent, stringResource(R.string.status_desc_silent))
+            if (f.vibrate) FlagItem(R.drawable.ic_status_vibrate, accent, stringResource(R.string.status_desc_vibrate))
+            if (f.location) FlagItem(R.drawable.ic_status_location, accent, stringResource(R.string.status_desc_location))
+            if (f.nfc) FlagItem(R.drawable.ic_status_nfc, accent, stringResource(R.string.status_desc_nfc))
+            if (f.dataSaver) FlagItem(R.drawable.ic_status_datasaver, accent, stringResource(R.string.status_desc_datasaver))
+            if (f.bluetooth) FlagItem(R.drawable.ic_status_bluetooth, accent, stringResource(R.string.status_desc_bluetooth))
+            if (f.vpn) FlagItem(R.drawable.ic_status_vpn, accent, stringResource(R.string.status_desc_vpn))
+            if (f.airplane) FlagItem(R.drawable.ic_status_airplane, accent, stringResource(R.string.status_desc_airplane))
 
             // Mobile signal (hidden in airplane mode): bars with the generation (5G/4G/LTE) stacked under.
             if (s.mobile.active && !f.airplane) {
@@ -237,7 +251,7 @@ fun StatusBar(
                 MainLineBox {
                     Icon(
                         painterResource(R.drawable.ic_status_wifi),
-                        "Wi-Fi",
+                        stringResource(R.string.status_desc_wifi),
                         Modifier.size(14.dp),
                         tint = colors.signalColor(s.wifi.level),
                     )
@@ -245,7 +259,7 @@ fun StatusBar(
             }
 
             // Battery (always, far right): bar + charging bolt, with the percentage stacked underneath.
-            StatusItem(sub = "${s.battery.percent}%", subColor = batteryColor) {
+            StatusItem(sub = stringResource(R.string.status_battery_percent, s.battery.percent), subColor = batteryColor) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(1.dp),
@@ -253,7 +267,7 @@ fun StatusBar(
                     if (s.battery.charging) {
                         Icon(
                             painterResource(R.drawable.ic_status_charging),
-                            "Charging",
+                            stringResource(R.string.status_desc_charging),
                             Modifier.size(10.dp),
                             tint = batteryColor,
                         )

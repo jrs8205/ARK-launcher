@@ -56,6 +56,8 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -190,7 +192,12 @@ fun HomeScreen(
     var showWidgetPicker by remember { mutableStateOf(false) }
     // Pending widget across the bind/configure result steps. [restoreRowId] non-null → this is a
     // RESTORE (re-bind an existing placeholder row) rather than adding a brand-new widget.
-    var pendingWidget by remember { mutableStateOf<PendingWidgetBind?>(null) }
+    // Saveable: while the system bind dialog or the widget's own config activity is in front, the
+    // launcher is a killable background process — a plain remember lost the bind on process death
+    // and the user's widget silently never appeared.
+    var pendingWidget by rememberSaveable(stateSaver = PendingWidgetBindSaver) {
+        mutableStateOf<PendingWidgetBind?>(null)
+    }
 
     // Persistent, page-independent host views: created once per placed widget id and kept alive so the
     // AppWidgetHost listener is never lost when a pager page scrolls off-screen. A lost listener drops a
@@ -238,13 +245,14 @@ fun HomeScreen(
 
     // One-shot at startup: free any AppWidgetHost ids with no home_items row — e.g. the old bound ids
     // left over after a full backup restore replaced the layout — so the host doesn't leak widget ids.
-    // Runs once (the host is stable) and no add/rebind is in flight at startup, so it can't race an
-    // allocated-but-not-yet-saved id.
+    // The host ids are snapshotted BEFORE the (suspending) DB query: an id allocated while the query
+    // runs is absent from the snapshot and can never be swept; an in-flight bind's id is excluded too.
     LaunchedEffect(widgetHost) {
         val host = widgetHost ?: return@LaunchedEffect
+        val hostIds = runCatching { host.appWidgetIds }.getOrNull() ?: return@LaunchedEffect
         val dbIds = viewModel.boundWidgetIds()
-        runCatching { host.appWidgetIds }.getOrNull()?.forEach { id ->
-            if (id !in dbIds) runCatching { host.deleteAppWidgetId(id) }
+        hostIds.forEach { id ->
+            if (id !in dbIds && id != pendingWidget?.appWidgetId) runCatching { host.deleteAppWidgetId(id) }
         }
     }
 
@@ -320,6 +328,25 @@ fun HomeScreen(
     fun startRestoreWidget(pending: PendingWidget) {
         val provider = appWidgetManager.installedProviders.firstOrNull { it.provider == pending.provider } ?: return
         startBind(provider, restoreRowId = pending.rowId)
+    }
+
+    // A config result that arrived after process death: [pendingWidget] survived (saveable) but the
+    // result callback died with the old process — LauncherActivity parks the outcome here instead.
+    val orphanConfigResult = LocalOrphanWidgetConfigResult.current
+    LaunchedEffect(orphanConfigResult) {
+        orphanConfigResult?.collect { ok ->
+            if (ok == null) return@collect
+            orphanConfigResult.value = null
+            val p = pendingWidget
+            if (p != null) {
+                if (ok) {
+                    finishWidget(p)
+                } else {
+                    widgetHost?.deleteAppWidgetId(p.appWidgetId)
+                    pendingWidget = null
+                }
+            }
+        }
     }
 
     // Shared drag state spanning the workspace, dock and drawer (Launcher3-style drag layer/controller).
@@ -594,10 +621,7 @@ fun HomeScreen(
                 PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete) { AppActions.uninstall(context, menu.app) },
             ),
             onDismiss = { menuTarget = null },
-            onPinShortcut = { item ->
-                AppShortcuts.pin(context, item)
-                viewModel.addPinnedShortcut(item.packageName, item.id, item.userSerial)
-            },
+            onPinShortcut = { item -> viewModel.pinShortcut(item) },
         )
     }
 
@@ -877,6 +901,27 @@ private data class PendingWidgetBind(
     val appWidgetId: Int,
     val provider: AppWidgetProviderInfo,
     val restoreRowId: Long?,
+)
+
+/** Bundles [PendingWidgetBind] into saved instance state so an in-flight bind survives process death
+ *  while the system bind dialog or the widget's configuration activity is in the foreground. */
+private val PendingWidgetBindSaver = Saver<PendingWidgetBind?, android.os.Bundle>(
+    save = { p ->
+        p?.let {
+            android.os.Bundle().apply {
+                putInt("id", it.appWidgetId)
+                putParcelable("provider", it.provider)
+                putLong("row", it.restoreRowId ?: -1L)
+            }
+        }
+    },
+    restore = { b ->
+        @Suppress("DEPRECATION")
+        val provider = b.getParcelable<AppWidgetProviderInfo>("provider")
+        provider?.let {
+            PendingWidgetBind(b.getInt("id"), it, b.getLong("row").takeIf { row -> row >= 0 })
+        }
+    },
 )
 
 /** The long-pressed app and where its menu should anchor (which surface it came from). */

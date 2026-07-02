@@ -5,4 +5,5 @@
     <string name="rename_save">Tallenna</string>
     <string name="rename_cancel">Peruuta</string>
     <string name="rename_reset">Palauta oletus</string>
+    <string name="shortcut_pin">Kiinnitä aloitusnäyttöön</string>
 </resources>

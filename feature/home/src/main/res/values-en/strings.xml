@@ -33,4 +33,18 @@
     <string name="widget_picker_title">Choose a widget</string>
     <string name="widget_search">Search widgets</string>
     <string name="widget_search_none">No results</string>
+    <string name="widget_search_clear">Clear search</string>
+    <string name="status_desc_alarm">Alarm</string>
+    <string name="status_desc_dnd">Do not disturb</string>
+    <string name="status_desc_silent">Silent</string>
+    <string name="status_desc_vibrate">Vibrate</string>
+    <string name="status_desc_location">Location</string>
+    <string name="status_desc_nfc">NFC</string>
+    <string name="status_desc_datasaver">Data Saver</string>
+    <string name="status_desc_bluetooth">Bluetooth</string>
+    <string name="status_desc_vpn">VPN</string>
+    <string name="status_desc_airplane">Airplane mode</string>
+    <string name="status_desc_wifi">Wi-Fi</string>
+    <string name="status_desc_charging">Charging</string>
+    <string name="status_battery_percent">%1$d%%</string>
 </resources>

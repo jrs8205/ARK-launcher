@@ -13,14 +13,17 @@ import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
 import androidx.annotation.RequiresApi
+import coil3.ImageLoader
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
@@ -31,6 +34,8 @@ import javax.inject.Singleton
 class LauncherAppsSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val iconPacks: IconPackRepository,
+    // Provider breaks the instantiation cycle: the ImageLoader itself is built with this source.
+    private val imageLoader: Provider<ImageLoader>,
 ) {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
@@ -38,16 +43,34 @@ class LauncherAppsSource @Inject constructor(
     fun appsFlow(): Flow<List<AppItem>> = callbackFlow {
         val handler = Handler(Looper.getMainLooper())
 
-        fun reload() {
-            launch(Dispatchers.IO) { trySend(queryApps()) }
+        // One serial worker fed by a conflated trigger, NOT a coroutine per event: overlapping
+        // queryApps() calls could complete out of order, leaving the flow's latest value a stale
+        // snapshot after a burst of package events (install storms, batch updates). Serializing
+        // guarantees the newest scan is emitted last; conflation coalesces the burst into one rescan.
+        val reloads = Channel<Unit>(Channel.CONFLATED)
+        fun reload() { reloads.trySend(Unit) }
+        launch(Dispatchers.IO) {
+            for (unused in reloads) trySend(queryApps())
+        }
+
+        fun packageEvent(vararg packageNames: String) {
+            // The changed package may be the active icon pack: drop its parsed appfilter and the
+            // rasterized icon cache so upcoming requests re-read the pack — otherwise an updated or
+            // uninstalled pack kept serving its stale icons until the launcher process died.
+            if (packageNames.any { iconPacks.invalidate(it) }) {
+                runCatching { imageLoader.get().memoryCache?.clear() }
+            }
+            reload()
         }
 
         val callback = object : LauncherApps.Callback() {
-            override fun onPackageAdded(packageName: String, user: UserHandle) = reload()
-            override fun onPackageRemoved(packageName: String, user: UserHandle) = reload()
-            override fun onPackageChanged(packageName: String, user: UserHandle) = reload()
-            override fun onPackagesAvailable(names: Array<out String>, user: UserHandle, replacing: Boolean) = reload()
-            override fun onPackagesUnavailable(names: Array<out String>, user: UserHandle, replacing: Boolean) = reload()
+            override fun onPackageAdded(packageName: String, user: UserHandle) = packageEvent(packageName)
+            override fun onPackageRemoved(packageName: String, user: UserHandle) = packageEvent(packageName)
+            override fun onPackageChanged(packageName: String, user: UserHandle) = packageEvent(packageName)
+            override fun onPackagesAvailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
+                packageEvent(*names)
+            override fun onPackagesUnavailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
+                packageEvent(*names)
         }
 
         launcherApps.registerCallback(callback, handler)

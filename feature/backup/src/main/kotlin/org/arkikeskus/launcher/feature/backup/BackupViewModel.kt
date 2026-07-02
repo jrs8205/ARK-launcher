@@ -123,7 +123,8 @@ class BackupViewModel @Inject constructor(
             .onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 Log.w(TAG, "File export failed", it)
-                _events.emit(BackupEvent.Failed(it.message ?: "export failed"))
+                // Blank message → the screen shows its localized generic failure text.
+                _events.emit(BackupEvent.Failed(it.message.orEmpty()))
             }
     }
 
@@ -144,7 +145,7 @@ class BackupViewModel @Inject constructor(
             .onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 if (it is BackupFormatException || it is JSONException) _events.emit(BackupEvent.InvalidFile)
-                else _events.emit(BackupEvent.Failed(it.message ?: "restore failed"))
+                else _events.emit(BackupEvent.Failed(it.message.orEmpty()))
             }
     }
 
@@ -231,7 +232,7 @@ class BackupViewModel @Inject constructor(
             if (it is kotlinx.coroutines.CancellationException) throw it
             Log.w(TAG, "Drive backup failed", it)
             _driveState.update { it.copy(isLoading = false) }
-            _events.emit(BackupEvent.Failed(it.message ?: "Drive upload failed"))
+            _events.emit(BackupEvent.Failed(it.message.orEmpty()))
         }
     }
 
@@ -249,7 +250,7 @@ class BackupViewModel @Inject constructor(
             if (it is kotlinx.coroutines.CancellationException) throw it
             Log.w(TAG, "Drive list failed", it)
             _driveState.update { it.copy(isLoading = false) }
-            _events.emit(BackupEvent.Failed(it.message ?: "Drive list failed"))
+            _events.emit(BackupEvent.Failed(it.message.orEmpty()))
         }
     }
 
@@ -278,7 +279,7 @@ class BackupViewModel @Inject constructor(
             Log.w(TAG, "Drive restore failed", it)
             _driveState.update { it.copy(isLoading = false) }
             if (it is BackupFormatException || it is JSONException) _events.emit(BackupEvent.InvalidFile)
-            else _events.emit(BackupEvent.Failed(it.message ?: "Drive restore failed"))
+            else _events.emit(BackupEvent.Failed(it.message.orEmpty()))
         }
     }
 

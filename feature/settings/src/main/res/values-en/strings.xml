@@ -48,4 +48,6 @@
     <string name="settings_status_bar_scrim">Status bar background darkness</string>
     <string name="settings_frequent_apps">Most used at the top</string>
     <string name="settings_backup">Backup</string>
+    <string name="settings_step_decrease">Decrease</string>
+    <string name="settings_step_increase">Increase</string>
 </resources>

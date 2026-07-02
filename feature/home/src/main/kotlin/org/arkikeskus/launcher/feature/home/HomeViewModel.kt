@@ -244,6 +244,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
+     *  places it on the home grid. */
+    fun pinShortcut(item: AppShortcuts.Item) = viewModelScope.launch {
+        AppShortcuts.pin(context, item)
+        addPinnedShortcut(item.packageName, item.id, item.userSerial)
+    }
+
     /** Places a freshly-bound widget on the home grid (spans are the picker's default). */
     fun addWidget(appWidgetId: Int, provider: String, spanX: Int, spanY: Int) = viewModelScope.launch {
         val columns = settingsRepository.settings.first().homeColumns

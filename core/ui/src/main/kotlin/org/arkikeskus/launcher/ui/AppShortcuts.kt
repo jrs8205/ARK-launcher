@@ -8,6 +8,8 @@ import android.os.UserHandle
 import android.os.UserManager
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
 
 /**
@@ -76,9 +78,10 @@ object AppShortcuts {
         }
     }
 
-    /** Pins [item] to the system (union of the already-pinned set for its package + the new id). */
-    fun pin(context: Context, item: Item) {
-        val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return
+    /** Pins [item] to the system (union of the already-pinned set for its package + the new id).
+     *  Suspends on IO: the query + pinShortcuts round-trips block, and the callers are UI paths. */
+    suspend fun pin(context: Context, item: Item): Unit = withContext(Dispatchers.IO) {
+        val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return@withContext
         runCatching {
             val pinned = launcherApps.getShortcuts(
                 LauncherApps.ShortcutQuery()
@@ -91,11 +94,18 @@ object AppShortcuts {
         }
     }
 
-    /** Re-pins exactly [shortcutIds] for (package, user) — used after removing one from home. */
-    fun setPinned(context: Context, packageName: String, userSerial: Long, shortcutIds: List<String>) {
-        val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return
-        val user = userForSerial(context, userSerial) ?: return
+    /** Re-pins exactly [shortcutIds] for (package, user) — used after removing one from home.
+     *  Suspends on IO like [pin]. */
+    suspend fun setPinned(
+        context: Context,
+        packageName: String,
+        userSerial: Long,
+        shortcutIds: List<String>,
+    ): Unit = withContext(Dispatchers.IO) {
+        val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return@withContext
+        val user = userForSerial(context, userSerial) ?: return@withContext
         runCatching { launcherApps.pinShortcuts(packageName, shortcutIds, user) }
+        Unit
     }
 
     /** Resolves a pinned shortcut's current label + icon (rasterized). Null if it no longer exists. */

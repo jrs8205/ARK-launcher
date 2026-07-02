@@ -22,8 +22,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -54,18 +57,23 @@ fun WidgetPickerScreen(
     BackHandler(onBack = onDismiss)
     val context = LocalContext.current
     val pm = context.packageManager
-    val groups = remember {
-        AppWidgetManager.getInstance(context).installedProviders
-            .groupBy { it.provider.packageName }
-            .map { (_, providers) ->
-                val sorted = providers.sortedBy { it.loadLabel(pm) }
-                WidgetGroup(
-                    appLabel = sorted.first().loadLabel(pm),
-                    providers = sorted,
-                    widgetLabels = sorted.map { it.loadLabel(pm) },
-                )
-            }
-            .sortedBy { it.appLabel.lowercase() }
+    // Enumerating every widget provider + loading each label is Binder/PackageManager work — done
+    // off the main thread so opening the picker doesn't stall composition on widget-heavy devices
+    // (it ran synchronously inside remember{} before). The grid fills in when the scan lands.
+    val groups by produceState(initialValue = emptyList<WidgetGroup>(), context) {
+        value = withContext(Dispatchers.IO) {
+            AppWidgetManager.getInstance(context).installedProviders
+                .groupBy { it.provider.packageName }
+                .map { (_, providers) ->
+                    val sorted = providers.sortedBy { it.loadLabel(pm) }
+                    WidgetGroup(
+                        appLabel = sorted.first().loadLabel(pm),
+                        providers = sorted,
+                        widgetLabels = sorted.map { it.loadLabel(pm) },
+                    )
+                }
+                .sortedBy { it.appLabel.lowercase() }
+        }
     }
     var query by remember { mutableStateOf("") }
     // Filter by app label OR widget label (case-insensitive). A whole-app match keeps all its widgets;
@@ -107,7 +115,7 @@ fun WidgetPickerScreen(
                     {
                         Icon(
                             painter = painterResource(LauncherIcons.Close),
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.widget_search_clear),
                             modifier = Modifier.clickable { query = "" },
                         )
                     }

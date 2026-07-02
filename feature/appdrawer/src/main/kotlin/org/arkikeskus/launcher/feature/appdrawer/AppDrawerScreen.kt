@@ -219,10 +219,7 @@ fun AppDrawerScreen(
                 PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete) { AppActions.uninstall(context, app) },
             ),
             onDismiss = { menuTarget = null },
-            onPinShortcut = { item ->
-                AppShortcuts.pin(context, item)
-                viewModel.addPinnedShortcut(item.packageName, item.id, item.userSerial)
-            },
+            onPinShortcut = { item -> viewModel.pinShortcut(item) },
         )
     }
 
@@ -363,7 +360,11 @@ private fun AppDrawerContent(
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { onQueryChange("") }) {
-                                Icon(painter = painterResource(LauncherIcons.Close), contentDescription = null, tint = Accent)
+                                Icon(
+                                    painter = painterResource(LauncherIcons.Close),
+                                    contentDescription = stringResource(R.string.search_clear),
+                                    tint = Accent,
+                                )
                             }
                         }
                     },

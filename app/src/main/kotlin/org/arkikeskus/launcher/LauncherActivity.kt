@@ -10,9 +10,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
 import org.arkikeskus.launcher.feature.home.APPWIDGET_HOST_ID
 import org.arkikeskus.launcher.feature.home.LocalAppWidgetHost
+import org.arkikeskus.launcher.feature.home.LocalOrphanWidgetConfigResult
 import org.arkikeskus.launcher.feature.home.LocalWidgetConfigLauncher
 import org.arkikeskus.launcher.ui.LauncherShell
 
@@ -35,6 +37,7 @@ class LauncherActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalAppWidgetHost provides appWidgetHost,
                     LocalWidgetConfigLauncher provides ::startWidgetConfig,
+                    LocalOrphanWidgetConfigResult provides orphanConfigResult,
                 ) {
                     LauncherShell(
                         homeSignals = homeSignals,
@@ -47,6 +50,11 @@ class LauncherActivity : ComponentActivity() {
 
     /** Pending callback for the in-flight widget configuration activity (see [startWidgetConfig]). */
     private var pendingConfigCallback: ((Boolean) -> Unit)? = null
+
+    /** A config result that arrived with NO live callback: the process was killed while the widget's
+     *  configuration activity was in front and the system redelivered the result to a fresh instance.
+     *  The home screen consumes it against its process-death-surviving pending-bind state. */
+    private val orphanConfigResult = MutableStateFlow<Boolean?>(null)
 
     /**
      * Launches [appWidgetId]'s configuration activity through the system so the framework marks the
@@ -68,9 +76,10 @@ class LauncherActivity : ComponentActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == WIDGET_CONFIG_REQUEST) {
+            val ok = resultCode == android.app.Activity.RESULT_OK
             val cb = pendingConfigCallback
             pendingConfigCallback = null
-            cb?.invoke(resultCode == android.app.Activity.RESULT_OK)
+            if (cb != null) cb(ok) else orphanConfigResult.value = ok
         }
     }
 

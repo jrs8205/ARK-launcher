@@ -486,7 +486,9 @@ private fun StepperRow(label: String, value: Int, min: Int, max: Int, onValueCha
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            StepButton(LauncherIcons.Remove) { if (value > min) onValueChange(value - 1) }
+            StepButton(LauncherIcons.Remove, stringResource(R.string.settings_step_decrease)) {
+                if (value > min) onValueChange(value - 1)
+            }
             Text(
                 text = "$value",
                 modifier = Modifier.widthIn(min = 26.dp),
@@ -495,13 +497,15 @@ private fun StepperRow(label: String, value: Int, min: Int, max: Int, onValueCha
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
             )
-            StepButton(LauncherIcons.Add) { if (value < max) onValueChange(value + 1) }
+            StepButton(LauncherIcons.Add, stringResource(R.string.settings_step_increase)) {
+                if (value < max) onValueChange(value + 1)
+            }
         }
     }
 }
 
 @Composable
-private fun StepButton(@DrawableRes icon: Int, onClick: () -> Unit) {
+private fun StepButton(@DrawableRes icon: Int, contentDescription: String, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
     Box(
         modifier = Modifier
@@ -513,7 +517,7 @@ private fun StepButton(@DrawableRes icon: Int, onClick: () -> Unit) {
     ) {
         Icon(
             painter = painterResource(icon),
-            contentDescription = null,
+            contentDescription = contentDescription,
             tint = Accent,
             modifier = Modifier.size(20.dp),
         )

@@ -1,9 +1,11 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +58,7 @@ data class AppDrawerUiState(
 
 @HiltViewModel
 class AppDrawerViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val appRepository: AppRepository,
     private val settingsRepository: SettingsRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
@@ -184,6 +187,13 @@ class AppDrawerViewModel @Inject constructor(
     fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
         val columns = settingsRepository.settings.first().homeColumns
         homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, columns)
+    }
+
+    /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
+     *  places it on the home grid. */
+    fun pinShortcut(item: org.arkikeskus.launcher.ui.AppShortcuts.Item) = viewModelScope.launch {
+        org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)
+        addPinnedShortcut(item.packageName, item.id, item.userSerial)
     }
 
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */
