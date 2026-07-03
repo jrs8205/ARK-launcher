@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data
 
 import android.graphics.drawable.Icon
+import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,20 @@ class NotificationBadgeRepository @Inject constructor() {
     /** Active notifications' small icons (most-recent first), for the home status bar's left side. */
     private val _icons = MutableStateFlow<List<StatusNotification>>(emptyList())
     val icons: StateFlow<List<StatusNotification>> = _icons.asStateFlow()
+
+    /** [SystemClock.elapsedRealtime] of the last heads-up-worthy notification post (0 = none yet). The
+     *  home status bar blanks the themed bar for a window after this while the system TRANSIENTLY reveals
+     *  its own bar over the content — a reveal WindowManager deliberately does NOT surface as an inset, so
+     *  it can't be seen via WindowInsets and this app-side signal is the only option (see StatusBar).
+     *  A TIMESTAMP (not a counter) is deliberate: when the flow is re-subscribed (e.g. returning home) the
+     *  replayed latest value is simply already-expired, so an old heads-up never re-blanks the bar. */
+    private val _headsUp = MutableStateFlow(0L)
+    val headsUp: StateFlow<Long> = _headsUp.asStateFlow()
+
+    /** Called by the listener when a heads-up-worthy notification is posted. */
+    fun notifyHeadsUp() {
+        _headsUp.value = SystemClock.elapsedRealtime()
+    }
 
     /** Replaces the full set of badge counts with a fresh snapshot from the listener. */
     fun setBadges(counts: Map<String, Int>) {

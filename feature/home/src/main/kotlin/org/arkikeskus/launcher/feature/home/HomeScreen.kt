@@ -135,6 +135,9 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val settings = uiState.settings
+    // True briefly after a heads-up notification, while the system transiently shows its own status bar
+    // over ours; used to blank the themed bar so they don't overlap.
+    val headsUpActive by viewModel.headsUpActive.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
 
@@ -425,23 +428,35 @@ fun HomeScreen(
                 val systemBarInset = with(density) {
                     WindowInsets.statusBars.getTop(this).toDp()
                 }
-                StatusBar(
-                    // Only align to the camera cutout when we own the top zone (system bar hidden).
-                    alignToCutout = settings.hideSystemStatusBar,
-                    scrimAlpha = settings.statusBarScrimOpacity,
-                    // When hidden we own the whole top zone (no inset, self-aligns to the cutout);
-                    // otherwise reserve the system bar's height so the scrim fills it and glyphs clear it.
-                    topInset = if (settings.hideSystemStatusBar) 0.dp else systemBarInset,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // When the system bar is hidden, occupy its zone at the very top (replacing it).
-                        // Otherwise the scrim + topInset (inside StatusBar) handle the system-bar band, so
-                        // no external statusBarsPadding here — that padding is what left the scrim gap.
-                        .then(
-                            if (settings.hideSystemStatusBar) Modifier.heightIn(min = statusZone)
-                            else Modifier,
-                        ),
-                )
+                // Blank the themed bar whenever the system status bar sits (or is about to sit) on top of
+                // it, so the two never overlap:
+                //  - systemBarInset > 0: the system bar takes real layout space — a permanent show
+                //    (freeform/desktop windowing, lock-task) or a frame of our own hide/show animation.
+                //  - headsUpActive: a heads-up notification TRANSIENTLY reveals the system bar OVER our
+                //    content; WindowManager deliberately withholds that reveal from WindowInsets to keep the
+                //    layout stable (verified against AOSP), so it can't be seen via insets — we detect it
+                //    from our own NotificationListener instead and blank the bar for the heads-up window.
+                val suppressThemedBar =
+                    settings.hideSystemStatusBar && (systemBarInset > 0.dp || headsUpActive)
+                if (!suppressThemedBar) {
+                    StatusBar(
+                        // Only align to the camera cutout when we own the top zone (system bar hidden).
+                        alignToCutout = settings.hideSystemStatusBar,
+                        scrimAlpha = settings.statusBarScrimOpacity,
+                        // When hidden we own the whole top zone (no inset, self-aligns to the cutout);
+                        // otherwise reserve the system bar's height so the scrim fills it and glyphs clear it.
+                        topInset = if (settings.hideSystemStatusBar) 0.dp else systemBarInset,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // When the system bar is hidden, occupy its zone at the very top (replacing it).
+                            // Otherwise the scrim + topInset (inside StatusBar) handle the system-bar band, so
+                            // no external statusBarsPadding here — that padding is what left the scrim gap.
+                            .then(
+                                if (settings.hideSystemStatusBar) Modifier.heightIn(min = statusZone)
+                                else Modifier,
+                            ),
+                    )
+                }
             }
             Workspace(
                 pageCount = uiState.pageCount,

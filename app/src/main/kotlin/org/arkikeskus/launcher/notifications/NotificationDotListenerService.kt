@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.notifications
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.os.UserManager
 import android.service.notification.NotificationListenerService
@@ -37,6 +38,10 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     private val userManager by lazy { getSystemService(UserManager::class.java) }
 
+    /** Keys that have already fired a heads-up, so a FLAG_ONLY_ALERT_ONCE re-post doesn't re-trigger.
+     *  Touched only from NLS callbacks (main thread), so it needs no synchronisation. */
+    private val alertedKeys = HashSet<String>()
+
     private companion object {
         const val TAG = "NotifDots"
     }
@@ -51,15 +56,34 @@ class NotificationDotListenerService : NotificationListenerService() {
         super.onListenerDisconnected()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
+        alertedKeys.clear()
         // Aggressive OEM battery managers (Samsung, Xiaomi, …) can unbind the listener; ask the system
         // to rebind so dots + status-bar icons come back on their own instead of the user having to
         // re-toggle notification access. No-op if the system declines.
         runCatching { requestRebind(ComponentName(this, NotificationDotListenerService::class.java)) }
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification?) = refresh()
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        // A heads-up post makes the system transiently show ITS status bar over our content; tell the
+        // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
+        // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).
+        if (sbn != null && isHeadsUpWorthy(sbn) && shouldAlert(sbn)) badgeRepository.notifyHeadsUp()
+        refresh()
+    }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) = refresh()
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        if (sbn != null) alertedKeys.remove(sbn.key)
+        refresh()
+    }
+
+    /** A FLAG_ONLY_ALERT_ONCE notification heads-ups only on its FIRST post; a re-post (same key) must
+     *  not re-trigger (mirrors SystemUI's alertAgain / shouldHunAgain) — otherwise a frequently-updating
+     *  ongoing HIGH-importance notification would keep the themed bar blanked forever. */
+    private fun shouldAlert(sbn: StatusBarNotification): Boolean {
+        val firstTime = alertedKeys.add(sbn.key)
+        val onlyOnce = ((sbn.notification?.flags ?: 0) and Notification.FLAG_ONLY_ALERT_ONCE) != 0
+        return firstTime || !onlyOnce
+    }
 
     private fun refresh() {
         val active = runCatching { activeNotifications }.getOrNull() ?: return
@@ -90,6 +114,23 @@ class NotificationDotListenerService : NotificationListenerService() {
         Log.d(TAG, "badge snapshot: ${counts.size} app(s) badged")
         badgeRepository.setBadges(counts)
         badgeRepository.setIcons(icons.values.sortedByDescending { it.postTime })
+    }
+
+    /**
+     * Approximates SystemUI's heads-up decision (NotificationInterruptStateProvider.shouldHeadsUp): a
+     * high-importance (or full-screen-intent) notification that isn't peek-suppressed. On a match the
+     * system transiently reveals its own status bar over our content. A false positive only briefly
+     * blanks the themed bar, so the check is deliberately lenient.
+     */
+    private fun isHeadsUpWorthy(sbn: StatusBarNotification): Boolean {
+        val n = sbn.notification ?: return false
+        val r = Ranking()
+        val ranked = runCatching { currentRanking?.getRanking(sbn.key, r) == true }.getOrDefault(false)
+        val importance = if (ranked) r.importance else NotificationManager.IMPORTANCE_DEFAULT
+        val peekSuppressed = ranked &&
+            (r.suppressedVisualEffects and NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK) != 0
+        return !peekSuppressed &&
+            (importance >= NotificationManager.IMPORTANCE_HIGH || n.fullScreenIntent != null)
     }
 
     private fun isBadgeWorthy(sbn: StatusBarNotification, ranking: RankingMap?, tmp: Ranking): Boolean {

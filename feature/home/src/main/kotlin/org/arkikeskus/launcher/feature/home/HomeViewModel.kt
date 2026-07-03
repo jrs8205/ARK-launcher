@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.home
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
@@ -9,10 +10,15 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,6 +31,11 @@ import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.AppShortcuts
 import javax.inject.Inject
+
+/** How long the themed status bar stays blanked after a heads-up post; SystemUI auto-dismisses a
+ *  heads-up notification after ~5 s (its default decay) plus a ~300 ms hide animation, and we have no
+ *  un-pin signal, so we time it out a little past that. */
+private const val HEADS_UP_SUPPRESS_MS = 6_000L
 
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
@@ -112,6 +123,23 @@ class HomeViewModel @Inject constructor(
 
     /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial. */
     private val shortcutCache = mutableMapOf<String, AppShortcuts.Resolved>()
+
+    /**
+     * True for a short window after a heads-up-worthy notification is posted, while the system
+     * transiently reveals its own status bar over the launcher. HomeScreen blanks the themed status bar
+     * during it so the two don't overlap (the reveal is not dispatched as a WindowInsets change, so this
+     * NotificationListener-fed signal is the only way to detect it — see the Fable-5 audit note).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val headsUpActive: StateFlow<Boolean> = notificationBadgeRepository.headsUp
+        .flatMapLatest { postedAt ->
+            // Compute the window from the timestamp so a value replayed on re-subscription (returning
+            // home) is already expired and never re-blanks the bar; only a still-fresh post keeps it on.
+            val remaining = postedAt + HEADS_UP_SUPPRESS_MS - SystemClock.elapsedRealtime()
+            if (postedAt == 0L || remaining <= 0L) flowOf(false)
+            else flow { emit(true); delay(remaining); emit(false) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), false)
 
     val uiState: StateFlow<HomeUiState> = combine(
         settingsRepository.settings,
