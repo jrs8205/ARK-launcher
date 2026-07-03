@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.telephony.CellInfo
 import android.telephony.SignalStrength
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyDisplayInfo
@@ -40,18 +41,32 @@ class SignalMonitor @Inject constructor(
                 val executor = ContextCompat.getMainExecutor(context)
                 var level = 0
                 var display: TelephonyDisplayInfo? = null
+                // Whether the cellular radio currently measures a real cell. Unlike data registration,
+                // this does NOT drop when data hands over to Wi-Fi calling, so the indicator stays put
+                // instead of flickering on/off as the phone moves data between cellular and Wi-Fi.
+                var hasSignal = false
                 fun send() {
+                    // Hide the mobile indicator when there is no cellular service at all — no SIM,
+                    // airplane mode, a SIM with no plan, or one fully parked on Wi-Fi with the radio
+                    // powered down: every CellSignalStrength then reports UNAVAILABLE. Empty bars with
+                    // no generation there look broken, so hide it like the no-SIM case.
+                    if (!hasSignal) {
+                        trySend(inactive)
+                        return
+                    }
                     trySend(MobileStatus(active = true, level = level, generation = generationOf(display)))
                 }
 
-                // Two SEPARATE callbacks: registerTelephonyCallback permission-checks the whole
-                // callback object at registration, so bundling DisplayInfoListener (READ_PHONE_STATE
-                // on API 31/32) with SignalStrengthsListener (no permission) made a denial throw and
-                // kill the level too — no bars at all. Split, the bars always work and only the
-                // generation label is permission-gated.
+                // Two SEPARATE callbacks: registerTelephonyCallback permission-checks the whole callback
+                // object at registration, so bundling DisplayInfoListener (READ_PHONE_STATE on API 31/32)
+                // with SignalStrengthsListener (no permission) made a denial throw and kill the level too
+                // — no bars at all. Split, the bars always work and only the generation is permission-gated.
                 val signalCallback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
                     override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
                         level = signalStrength.level.coerceIn(0, 4)
+                        // A real measurement on any cell type (dbm is a real negative value) means the
+                        // radio is in cellular service; all-UNAVAILABLE means no service → hide.
+                        hasSignal = signalStrength.cellSignalStrengths.any { it.dbm != CellInfo.UNAVAILABLE }
                         send()
                     }
                 }
@@ -93,8 +108,16 @@ class SignalMonitor @Inject constructor(
 
     /**
      * The label the system status bar would show: the carrier-override type takes priority (so NR-NSA
-     * reads "5G" and aggregated LTE reads "4G"), falling back to the base data network type ("LTE",
-     * "3G", "2G"). Requires READ_PHONE_STATE; without it the label is null and only the level shows.
+     * reads "5G" and aggregated LTE reads "4G"), falling back to the cellular network type the display
+     * info reports ("LTE", "3G", "2G"). Requires READ_PHONE_STATE; without it the label is null and
+     * only the level shows.
+     *
+     * The base type comes from [TelephonyDisplayInfo.getNetworkType] — the CELLULAR attachment — rather
+     * than [TelephonyManager.getDataNetworkType]: when the phone routes data over Wi-Fi calling the data
+     * type is IWLAN even though the SIM is camped on LTE/5G, which would drop the label. NOTE: this only
+     * recovers the label on API 33+, where the platform derives getNetworkType() from the cellular
+     * (WWAN PS) registration; on API 31/32 getNetworkType() is itself IWLAN in this state, so the label
+     * stays absent there — no worse than before.
      */
     private fun generationOf(display: TelephonyDisplayInfo?): String? = try {
         when (display?.overrideNetworkType) {
@@ -105,7 +128,7 @@ class SignalMonitor @Inject constructor(
             TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_CA,
             TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_LTE_ADVANCED_PRO,
             -> "4G"
-            else -> when (telephonyManager?.dataNetworkType) {
+            else -> when (display?.networkType ?: telephonyManager?.dataNetworkType) {
                 TelephonyManager.NETWORK_TYPE_NR -> "5G"
                 TelephonyManager.NETWORK_TYPE_LTE -> "LTE"
                 TelephonyManager.NETWORK_TYPE_UMTS,
