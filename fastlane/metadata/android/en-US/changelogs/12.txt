@@ -1,0 +1,5 @@
+- Mobile signal shows the network type (5G / 4G / LTE) correctly even while on Wi-Fi calling, and hides cleanly when there is no cellular service.
+- App drawer: new "Always open at top" option; fixed the drawer sometimes closing when you fling the list to the top, and a slight delay when pulling it down to close.
+- App labels no longer overlap neighbours at very large system font sizes.
+- Google Drive auto-backup no longer uploads redundant copies of an unchanged layout (keeps a few dated restore points).
+- The status bar no longer briefly overlaps the system's own bar when a notification arrives.
