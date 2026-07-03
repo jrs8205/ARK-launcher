@@ -153,6 +153,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `app usage is excluded from export`() = runTest {
+        val store = InMemoryDataStore()
+        val settings = SettingsRepository(store)
+        val usage = AppUsageRepository(store)
+        // Volatile per-launch frecency data must not enter a backup (it changed the dedup hash on
+        // every app launch, so the Drive worker uploaded a fresh copy even when the layout was
+        // unchanged).
+        usage.recordLaunch("com.example/Main/0")
+
+        assertThat(settings.exportRaw().keys).doesNotContain(AppUsageRepository.USAGE_KEY)
+    }
+
+    @Test
+    fun `app usage survives a restore that omits it`() = runTest {
+        val store = InMemoryDataStore()
+        val settings = SettingsRepository(store)
+        val usage = AppUsageRepository(store)
+        usage.recordLaunch("com.example/Main/0")
+
+        // Restoring a backup that no longer carries app_usage must not wipe this device's stats.
+        settings.importRaw(mapOf("home_columns" to 5))
+
+        assertThat(usage.usage.first()).containsKey("com.example/Main/0")
+        assertThat(settings.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test
     fun `importRaw preserves Drive state and applies restored values`() = runTest {
         val repo = newRepository()
         // Arrange: enable Drive with known last-backup metadata.

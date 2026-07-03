@@ -213,7 +213,7 @@ class BackupViewModel @Inject constructor(
                     client.upload("arkikeskus-launcher-backup-$nowMs.json", json)
                     // Keep Drive storage bounded from the manual path too (the periodic worker
                     // prunes as well, but it may be stuck failing — see driveBackupFailing).
-                    client.pruneToNewest(5)
+                    client.pruneToNewest(BackupScheduler.KEEP_BACKUPS)
                 }
                 settings.setDriveLastBackup(nowMs, hash)
                 nowMs

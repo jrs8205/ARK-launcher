@@ -47,10 +47,15 @@ class AppUsageRepository @Inject constructor(
         stats.entries.joinToString("\n") { (k, s) -> "$k\t${s.score}\t${s.lastUsed}" }
 
     private object Keys {
-        val APP_USAGE = stringPreferencesKey("app_usage")
+        val APP_USAGE = stringPreferencesKey(USAGE_KEY)
     }
 
     companion object {
+        /** DataStore key name for the serialized usage map. Exposed so [SettingsRepository] can
+         *  exclude this volatile, device-local data from a backup (it otherwise changed the Drive
+         *  dedup hash on every launch → a redundant upload each run). */
+        const val USAGE_KEY = "app_usage"
+
         /** Half-life of the launch score; recent launches dominate within ~1–2 weeks. */
         const val HALF_LIFE_MS = 7L * 24 * 60 * 60 * 1000
 

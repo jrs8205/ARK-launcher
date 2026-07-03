@@ -18,6 +18,10 @@ import java.util.concurrent.TimeUnit
 object BackupScheduler {
     private const val WORK = "drive-backup-daily"
 
+    /** How many dated backup files to keep in Drive's appDataFolder (newest-first). A few restore
+     *  points, not a growing pile — the dedup means a new file appears only on a real layout change. */
+    const val KEEP_BACKUPS = 3
+
     /**
      * (Re)schedules the periodic backup. [intervalDays] is the repeat interval (1 = daily, 7 = weekly),
      * [wifiOnly] requires an unmetered network, [chargingOnly] requires the device be charging.

@@ -84,7 +84,7 @@ class DriveBackupWorker @AssistedInject constructor(
                 "arkikeskus-launcher-backup-${System.currentTimeMillis()}.json",
                 BackupCodec.encode(doc),
             )
-            client.pruneToNewest(5)
+            client.pruneToNewest(BackupScheduler.KEEP_BACKUPS)
             settings.setDriveLastBackup(System.currentTimeMillis(), hash)
         }.fold(
             onSuccess = {

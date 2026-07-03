@@ -55,6 +55,7 @@ class SettingsRepository @Inject constructor(
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
             desktopLocked = p[Keys.DESKTOP_LOCKED] ?: false,
             showFrequentApps = p[Keys.SHOW_FREQUENT_APPS] ?: false,
+            drawerOpensAtTop = p[Keys.DRAWER_OPENS_AT_TOP] ?: true,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
@@ -174,6 +175,9 @@ class SettingsRepository @Inject constructor(
     /** Toggles the "most used" row in the app drawer. */
     suspend fun setShowFrequentApps(value: Boolean) = edit { it[Keys.SHOW_FREQUENT_APPS] = value }
 
+    /** Whether the app drawer reopens at the top vs. remembers its last scroll position. */
+    suspend fun setDrawerOpensAtTop(value: Boolean) = edit { it[Keys.DRAWER_OPENS_AT_TOP] = value }
+
     /** Size multiplier for app icon labels (clamped to the slider's range). */
     suspend fun setAppLabelTextScale(value: Float) =
         edit { it[Keys.APP_LABEL_SCALE] = value.coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE) }
@@ -291,11 +295,14 @@ class SettingsRepository @Inject constructor(
 
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
-     * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state.
+     * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state;
+     * the volatile per-launch [AppUsageRepository.USAGE_KEY] is excluded because it changed on every
+     * app launch and so made the Drive dedup hash differ each run → a redundant upload even when the
+     * layout was unchanged (and it is device-local behavioural data, not worth carrying to a new phone).
      */
     suspend fun exportRaw(): Map<String, Any> =
         dataStore.data.first().asMap().entries
-            .filterNot { it.key.name in DRIVE_INTERNAL_KEYS }
+            .filterNot { it.key.name in DRIVE_INTERNAL_KEYS || it.key.name == AppUsageRepository.USAGE_KEY }
             .associate { (k, v) -> k.name to v }
 
     /**
@@ -321,6 +328,8 @@ class SettingsRepository @Inject constructor(
             val autoUpdate = prefs[Keys.AUTO_UPDATE_ENABLED]
             val updateLastCheck = prefs[Keys.UPDATE_LAST_CHECK]
             val updateLastNotified = prefs[Keys.UPDATE_LAST_NOTIFIED]
+            // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
+            val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             prefs.clear()
             for ((name, value) in values) {
                 when {
@@ -343,6 +352,7 @@ class SettingsRepository @Inject constructor(
             if (autoUpdate != null) prefs[Keys.AUTO_UPDATE_ENABLED] = autoUpdate
             if (updateLastCheck != null) prefs[Keys.UPDATE_LAST_CHECK] = updateLastCheck
             if (updateLastNotified != null) prefs[Keys.UPDATE_LAST_NOTIFIED] = updateLastNotified
+            if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
         }
     }
 
@@ -376,6 +386,7 @@ class SettingsRepository @Inject constructor(
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
+        val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val DRIVE_ENABLED = booleanPreferencesKey("drive_backup_enabled")
         val DRIVE_LAST_TIME = longPreferencesKey("drive_last_backup_time")
         val DRIVE_LAST_HASH = stringPreferencesKey("drive_last_backup_hash")

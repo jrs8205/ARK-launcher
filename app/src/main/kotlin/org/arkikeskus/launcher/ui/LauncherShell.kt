@@ -62,7 +62,9 @@ fun LauncherShell(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val iconStyle by hiltViewModel<LauncherShellViewModel>().iconStyle.collectAsStateWithLifecycle()
-    val progress = remember { Animatable(0f) }
+    // Bounds keep a high-initial-velocity settle (the fling-carried spring below) from overshooting
+    // past the ends — an overshoot past 1 would briefly translate the drawer above the screen top.
+    val progress = remember { Animatable(0f).apply { updateBounds(0f, 1f) } }
     var shellHeightPx by remember { mutableFloatStateOf(1f) }
     var shellOrigin by remember { mutableStateOf(Offset.Zero) }
     val settleSpring = spring<Float>(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)
@@ -129,7 +131,10 @@ fun LauncherShell(
         dragJob?.cancel()
         dragJob = scope.launch {
             progress.snapTo(currentVal)
-            progress.animateTo(target, settleSpring)
+            // Carry the finger's release velocity into the spring (converted to progress units/s;
+            // downward px velocity = negative progress velocity). Starting the spring from rest made a
+            // fling-to-close visibly hesitate before accelerating — the "drawer lags coming down" feel.
+            progress.animateTo(target, settleSpring, initialVelocity = -velocityPxPerSec / shellHeightPx)
         }
     }
 
@@ -166,6 +171,10 @@ fun LauncherShell(
             },
             dragController = dragController,
             homeSignals = homeSignals,
+            // "In use" rather than raw openness: a drag-out snaps progress to 0 mid-gesture, and the
+            // scroll-to-top reset must NOT fire then — it could dispose the dragged item's node and kill
+            // the in-flight gesture. It runs when the drag completes (this flips false), drawer hidden.
+            drawerOpen = drawerOpen || draggingFromDrawer,
             // First movement of a drag-out reveals home/dock to drop onto. The drawer is hidden
             // with alpha rather than translated, so its (still-mounted) gesture keeps reporting
             // accurate local coordinates; progress is snapped shut so it's closed after the drop.

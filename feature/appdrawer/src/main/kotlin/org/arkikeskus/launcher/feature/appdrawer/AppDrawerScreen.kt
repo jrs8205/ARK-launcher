@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -120,6 +122,7 @@ fun AppDrawerScreen(
     dragController: HomeDragController = rememberHomeDragController(),
     onDragOutStart: () -> Unit = {},
     homeSignals: Flow<Unit> = emptyFlow(),
+    drawerOpen: Boolean = true,
     viewModel: AppDrawerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -129,6 +132,15 @@ fun AppDrawerScreen(
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
     val focusManager = LocalFocusManager.current
+    // The drawer stays composed while closed (translated off-screen), so its grid scroll persists
+    // across opens. When "open at top" is on, reset it to the top as the drawer closes (invisible),
+    // so the next open shows the "most used" row / A–Z start instead of the last scroll position.
+    val gridState = rememberLazyGridState()
+    LaunchedEffect(drawerOpen, uiState.drawerOpensAtTop) {
+        if (!drawerOpen && uiState.drawerOpensAtTop && gridState.firstVisibleItemIndex > 0) {
+            gridState.scrollToItem(0)
+        }
+    }
 
     // HOME pressed → dismiss the popup, drop search focus (which hides the soft keyboard) and reset the
     // query, so the keyboard never lingers after the drawer slides away and the drawer reopens fresh.
@@ -183,6 +195,7 @@ fun AppDrawerScreen(
         settingResults = uiState.settingResults,
         contactResults = uiState.contactResults,
         locked = uiState.desktopLocked,
+        gridState = gridState,
         modifier = modifier,
     )
 
@@ -291,6 +304,7 @@ private fun AppDrawerContent(
     settingResults: List<SearchResult.Setting>,
     contactResults: List<SearchResult.Contact>,
     locked: Boolean,
+    gridState: LazyGridState,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -310,7 +324,11 @@ private fun AppDrawerContent(
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (available.y > 0f) {
+                // Only the FINGER may start a pull-to-close. A fast downward fling that lands the grid
+                // at its top delivers its leftover as Fling-source deltas here — feeding those in set
+                // `pulling` and let onPreFling slam the drawer shut when the user only meant to scroll
+                // to the top. Fling leftovers now go to the grid's stretch overscroll instead.
+                if (available.y > 0f && source == NestedScrollSource.UserInput) {
                     pulling = true
                     onDrawerDrag(available.y)
                     return available
@@ -396,6 +414,7 @@ private fun AppDrawerContent(
             }
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
+                state = gridState,
                 contentPadding = PaddingValues(vertical = 8.dp),
                 modifier = Modifier
                     .fillMaxSize()

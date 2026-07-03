@@ -50,6 +50,7 @@
     <string name="settings_status_bar">Tilapalkki (kello, akku, signaali)</string>
     <string name="settings_status_bar_scrim">Tilapalkin taustan tummuus</string>
     <string name="settings_frequent_apps">Eniten käytetyt ylimmäisinä</string>
+    <string name="settings_drawer_open_top">Avaa aina ylhäältä</string>
     <string name="settings_backup">Varmuuskopiointi</string>
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
