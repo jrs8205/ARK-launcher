@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,6 +92,13 @@ fun AppIcon(
                 maxLines = maxLabelLines,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
+                // #19b: cap the label to its line-height × maxLines in dp (fontScale-independent) so a
+                // large system font size clips the text within the cell instead of growing the row and
+                // overlapping neighbours on the fixed-cell home/dock surfaces. The user's own label
+                // slider ([scale]) still applies; only the accessibility font-scale is bounded.
+                modifier = Modifier
+                    .heightIn(max = (13f * scale * maxLabelLines).dp)
+                    .clipToBounds(),
             )
         }
     }
