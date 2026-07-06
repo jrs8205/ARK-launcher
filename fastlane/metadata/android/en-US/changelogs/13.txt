@@ -1,0 +1,3 @@
+- The launcher now remembers your home-screen page: coming back from an app returns you to the page you launched it from. Pressing home while already on the home screen still jumps to the first page.
+- Settings keep their scroll position when you return from the Hide apps or Backup screens.
+- The "Grant notification access" setting now shows whether access is granted, updating as soon as you return from the system screen.
