@@ -9,6 +9,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +51,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -99,11 +103,23 @@ fun SettingsScreen(
     var showLeftSwipePicker by remember { mutableStateOf(false) }
     var showIconPackPicker by remember { mutableStateOf(false) }
     var showBackup by remember { mutableStateOf(false) }
+    // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
+    // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
+    // list and forget the position — the "settings always restart at the top" complaint). Saveable so
+    // it also survives activity recreation; a fresh Settings open still starts at the top.
+    val mainScrollState = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
     var isDefaultLauncher by remember { mutableStateOf(DefaultLauncher.isDefault(context)) }
     // Re-check after the user returns from the system "default home app" / role chooser.
     val setDefaultLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { isDefaultLauncher = DefaultLauncher.isDefault(context) }
+    // Notification access is granted/revoked in the SYSTEM settings (plain startActivity, no result
+    // contract) — re-check on every resume so the row shows the fresh state when the user comes back.
+    var notifAccessGranted by remember { mutableStateOf(isNotificationAccessGranted(context)) }
+    LifecycleResumeEffect(Unit) {
+        notifAccessGranted = isNotificationAccessGranted(context)
+        onPauseOrDispose { }
+    }
     val palette = if (isSystemInDarkTheme()) DarkExpressivePalette else LightExpressivePalette
 
     CompositionLocalProvider(
@@ -134,7 +150,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .safeDrawingPadding()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(mainScrollState)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
             ) {
@@ -253,7 +269,13 @@ fun SettingsScreen(
                 )
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_notif_access),
-                    description = stringResource(R.string.settings_notif_access_desc),
+                    description = stringResource(
+                        if (notifAccessGranted) {
+                            R.string.settings_notif_access_granted
+                        } else {
+                            R.string.settings_notif_access_not_granted
+                        },
+                    ),
                 ) {
                     openNotificationAccess(context)
                 }
@@ -399,6 +421,12 @@ private fun LeftSwipeAppPicker(
         },
     )
 }
+
+/** True when our notification listener has been granted notification access in the system settings. */
+private fun isNotificationAccessGranted(context: android.content.Context): Boolean =
+    runCatching {
+        NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }.getOrDefault(false)
 
 /** Opens the system notification-access screen (deep-linked to this app when supported). */
 private fun openNotificationAccess(context: android.content.Context) {
