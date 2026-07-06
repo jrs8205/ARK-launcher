@@ -93,7 +93,8 @@ import kotlin.math.roundToInt
  *   see Modifier.pixelHomeSwipe — so it wins over icons and the dock too.)
  * - **Pager**: horizontal swipes change pages (disabled while an icon is being dragged).
  *
- * [homeSignals] (HOME pressed / home gesture) always scrolls back to the first page.
+ * [homeSignals] (HOME pressed / home gesture) exits widget edit mode; when the press happened while
+ * the launcher was already foreground (the Boolean payload) it also scrolls back to the first page.
  */
 @Composable
 fun Workspace(
@@ -108,7 +109,7 @@ fun Workspace(
     labelColor: Color = Color.White,
     showPageIndicator: Boolean,
     locked: Boolean,
-    homeSignals: Flow<Unit>,
+    homeSignals: Flow<Boolean>,
     dragController: HomeDragController,
     onAppClick: (AppItem) -> Unit,
     onAppMenu: (AppItem, IntOffset, Boolean) -> Unit,
@@ -374,11 +375,13 @@ fun Workspace(
 
     androidx.activity.compose.BackHandler(enabled = editingWidget != null) { editingWidget = null }
 
-    // HOME button / home gesture: always return to the first page.
+    // HOME button / home gesture: always leave widget edit mode, but snap to the first page only
+    // when HOME was pressed while the launcher was already foreground (alreadyOnHome). Coming home
+    // from an app keeps the page the app was launched from — the Pixel Launcher convention.
     LaunchedEffect(homeSignals, pageCount) {
-        homeSignals.collect {
+        homeSignals.collect { alreadyOnHome ->
             editingWidget = null
-            if (pagerState.currentPage != 0) pagerState.animateScrollToPage(0)
+            if (alreadyOnHome && pagerState.currentPage != 0) pagerState.animateScrollToPage(0)
         }
     }
 

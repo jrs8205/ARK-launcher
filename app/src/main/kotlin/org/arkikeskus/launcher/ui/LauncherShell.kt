@@ -55,7 +55,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun LauncherShell(
-    homeSignals: Flow<Unit>,
+    homeSignals: Flow<Boolean>,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

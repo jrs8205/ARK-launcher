@@ -127,7 +127,7 @@ fun HomeScreen(
     onOpenDrawer: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    homeSignals: Flow<Unit> = emptyFlow(),
+    homeSignals: Flow<Boolean> = emptyFlow(),
     onDrawerDrag: (Float) -> Unit = {},
     onDrawerSettle: (Float) -> Unit = {},
     dragController: HomeDragController = rememberHomeDragController(),
@@ -365,9 +365,10 @@ fun HomeScreen(
         if (dragController.moving) menuTarget = null
     }
     // Pressing HOME (onNewIntent → homeSignals) returns to a clean home: dismiss every open popup /
-    // overlay. Without this the long-press app menu and the empty-area options popup lingered until the
-    // user pressed Back — a Compose Popup doesn't react to HOME on its own. (Workspace separately uses
-    // homeSignals to scroll back to page 0; a SharedFlow feeds both collectors.)
+    // overlay — on every signal, also when coming home from an app. Without this the long-press app
+    // menu and the empty-area options popup lingered until the user pressed Back — a Compose Popup
+    // doesn't react to HOME on its own. (Workspace separately uses homeSignals to scroll back to
+    // page 0, but only on an alreadyOnHome press; a SharedFlow feeds both collectors.)
     LaunchedEffect(homeSignals) {
         homeSignals.collect {
             menuTarget = null

@@ -21,8 +21,18 @@ import org.arkikeskus.launcher.ui.LauncherShell
 @AndroidEntryPoint
 class LauncherActivity : ComponentActivity() {
 
-    /** Emits when HOME is pressed while we are already the foreground home app (onNewIntent). */
-    private val homeSignals = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    /** Emits on every HOME intent (onNewIntent). The payload is Launcher3's "alreadyOnHome": true
+     *  when HOME was pressed while the launcher was already the foreground app (→ snap the workspace
+     *  back to the first page), false when the user is coming home from another app (→ keep the page
+     *  they launched from; popups/drawer still get dismissed by the collectors). */
+    private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+
+    /** True between onResume and onStop. Device-verified (Pixel 8a, Android 17): the lifecycle STATE
+     *  cannot tell the two HOME cases apart — the system STARTs the launcher during the app-close
+     *  transition before delivering the intent, so it reads STARTED both ways. This flag can, because
+     *  onResume is guaranteed to run only after onNewIntent, while a foreground HOME press only runs
+     *  onPause (the flag stays true until onStop). */
+    private var wasForeground = false
 
     // Use the Activity context (not applicationContext) for the host — Launcher3 does the same; a
     // collection widget's RemoteViewsAdapter and the host's listener callbacks register against this.
@@ -89,14 +99,22 @@ class LauncherActivity : ComponentActivity() {
         runCatching { appWidgetHost.startListening() }
     }
 
+    override fun onResume() {
+        super.onResume()
+        wasForeground = true
+    }
+
     override fun onStop() {
         super.onStop()
         runCatching { appWidgetHost.stopListening() }
+        wasForeground = false
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        homeSignals.tryEmit(Unit)
+        // Not hasWindowFocus() like Launcher3 — our Compose popups are separate windows and would
+        // steal focus from the activity. See [wasForeground] for why not lifecycle.currentState.
+        homeSignals.tryEmit(wasForeground)
     }
 
     private companion object {

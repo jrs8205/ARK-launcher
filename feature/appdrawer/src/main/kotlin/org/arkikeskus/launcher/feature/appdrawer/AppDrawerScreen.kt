@@ -121,7 +121,7 @@ fun AppDrawerScreen(
     onDrawerSettle: (Float) -> Unit = {},
     dragController: HomeDragController = rememberHomeDragController(),
     onDragOutStart: () -> Unit = {},
-    homeSignals: Flow<Unit> = emptyFlow(),
+    homeSignals: Flow<Boolean> = emptyFlow(),
     drawerOpen: Boolean = true,
     viewModel: AppDrawerViewModel = hiltViewModel(),
 ) {
