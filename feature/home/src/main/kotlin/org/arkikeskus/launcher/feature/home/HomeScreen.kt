@@ -439,25 +439,28 @@ fun HomeScreen(
                 //    from our own NotificationListener instead and blank the bar for the heads-up window.
                 val suppressThemedBar =
                     settings.hideSystemStatusBar && (systemBarInset > 0.dp || headsUpActive)
-                if (!suppressThemedBar) {
-                    StatusBar(
-                        // Only align to the camera cutout when we own the top zone (system bar hidden).
-                        alignToCutout = settings.hideSystemStatusBar,
-                        scrimAlpha = settings.statusBarScrimOpacity,
-                        // When hidden we own the whole top zone (no inset, self-aligns to the cutout);
-                        // otherwise reserve the system bar's height so the scrim fills it and glyphs clear it.
-                        topInset = if (settings.hideSystemStatusBar) 0.dp else systemBarInset,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            // When the system bar is hidden, occupy its zone at the very top (replacing it).
-                            // Otherwise the scrim + topInset (inside StatusBar) handle the system-bar band, so
-                            // no external statusBarsPadding here — that padding is what left the scrim gap.
-                            .then(
-                                if (settings.hideSystemStatusBar) Modifier.heightIn(min = statusZone)
-                                else Modifier,
-                            ),
-                    )
-                }
+                StatusBar(
+                    // Only align to the camera cutout when we own the top zone (system bar hidden).
+                    alignToCutout = settings.hideSystemStatusBar,
+                    scrimAlpha = settings.statusBarScrimOpacity,
+                    // When hidden we own the whole top zone (no inset, self-aligns to the cutout);
+                    // otherwise reserve the system bar's height so the scrim fills it and glyphs clear it.
+                    topInset = if (settings.hideSystemStatusBar) 0.dp else systemBarInset,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // Blank with alpha, NOT by leaving composition: the bar is the Column sibling
+                        // that pushes the workspace down, so removing it would jump the whole grid up
+                        // for the heads-up window and back — and let the top row sit under a
+                        // force-shown system bar. Only the pixels must vanish; the slot stays.
+                        .graphicsLayer { alpha = if (suppressThemedBar) 0f else 1f }
+                        // When the system bar is hidden, occupy its zone at the very top (replacing it).
+                        // Otherwise the scrim + topInset (inside StatusBar) handle the system-bar band, so
+                        // no external statusBarsPadding here — that padding is what left the scrim gap.
+                        .then(
+                            if (settings.hideSystemStatusBar) Modifier.heightIn(min = statusZone)
+                            else Modifier,
+                        ),
+                )
             }
             Workspace(
                 pageCount = uiState.pageCount,
