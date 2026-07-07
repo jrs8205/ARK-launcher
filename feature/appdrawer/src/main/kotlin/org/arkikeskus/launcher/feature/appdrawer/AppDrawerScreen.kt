@@ -137,7 +137,10 @@ fun AppDrawerScreen(
     // so the next open shows the "most used" row / A–Z start instead of the last scroll position.
     val gridState = rememberLazyGridState()
     LaunchedEffect(drawerOpen, uiState.drawerOpensAtTop) {
-        if (!drawerOpen && uiState.drawerOpensAtTop && gridState.firstVisibleItemIndex > 0) {
+        // Check the offset too: a short scroll leaves the first row visible (index still 0) but
+        // offset > 0, and skipping the reset then would reopen the drawer slightly scrolled.
+        val scrolled = gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0
+        if (!drawerOpen && uiState.drawerOpensAtTop && scrolled) {
             gridState.scrollToItem(0)
         }
     }
