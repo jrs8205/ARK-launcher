@@ -1,0 +1,2 @@
+- Fixed: with the system status bar hidden, the home screen no longer jumps up and back down when a heads-up notification appears.
+- Fixed: "Always open at top" now also resets a small scroll in the app drawer.
