@@ -318,11 +318,28 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
         refresh()
         onPauseOrDispose { }
     }
+    fun openNotificationAccessSettings() {
+        // Deep-link to OUR listener's toggle; fall back to the generic list.
+        val cn = ComponentName(context.packageName, NOTIFICATION_LISTENER_CLASS)
+        val detail = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+            .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, cn.flattenToString())
+        runCatching { context.startActivity(detail) }.onFailure {
+            runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        }
+    }
+
+    // "Grant all" must really mean ALL: notification access is a Settings screen, not a runtime
+    // dialog, so it can't join the dialog chain — it opens right after the chain finishes instead.
+    var openNotifAfterChain by remember { mutableStateOf(false) }
     val permissionsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         if (result[Manifest.permission.READ_CONTACTS] == true) onContactsGranted()
         refresh()
+        if (openNotifAfterChain) {
+            openNotifAfterChain = false
+            if (!hasNotificationAccess(context)) openNotificationAccessSettings()
+        }
     }
 
     Column(
@@ -345,15 +362,7 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
             title = stringResource(R.string.onboarding_perm_notif),
             description = stringResource(R.string.onboarding_perm_notif_desc),
             granted = notifAccess,
-            onClick = {
-                // Deep-link to OUR listener's toggle; fall back to the generic list.
-                val cn = ComponentName(context.packageName, NOTIFICATION_LISTENER_CLASS)
-                val detail = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
-                    .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, cn.flattenToString())
-                runCatching { context.startActivity(detail) }.onFailure {
-                    runCatching { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-                }
-            },
+            onClick = { openNotificationAccessSettings() },
         )
         PermissionRow(
             title = stringResource(R.string.onboarding_perm_calendar),
@@ -374,9 +383,10 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
             onClick = { permissionsLauncher.launch(arrayOf(Manifest.permission.READ_PHONE_STATE)) },
         )
         Spacer(Modifier.height(20.dp))
-        if (!(calendar && contacts && phone)) {
+        if (!(calendar && contacts && phone && notifAccess)) {
             Button(
                 onClick = {
+                    openNotifAfterChain = true
                     permissionsLauncher.launch(
                         arrayOf(
                             Manifest.permission.READ_CALENDAR,
