@@ -293,9 +293,14 @@ class SettingsRepository @Inject constructor(
     suspend fun updateLastNotifiedVersion(): String? = dataStore.data.first()[Keys.UPDATE_LAST_NOTIFIED]
     suspend fun autoUpdateEnabledOnce(): Boolean = dataStore.data.first()[Keys.AUTO_UPDATE_ENABLED] ?: true
 
-    // --- First-run default layout (device-local) ---
+    // --- First-run default layout + onboarding (device-local) ---
     suspend fun defaultLayoutSeededOnce(): Boolean = dataStore.data.first()[Keys.DEFAULT_LAYOUT_SEEDED] ?: false
     suspend fun setDefaultLayoutSeeded() = edit { it[Keys.DEFAULT_LAYOUT_SEEDED] = true }
+    suspend fun onboardingDoneOnce(): Boolean = dataStore.data.first()[Keys.ONBOARDING_DONE] ?: false
+    suspend fun setOnboardingDone() = edit { it[Keys.ONBOARDING_DONE] = true }
+
+    /** Replaces the (empty) dock with the first-run default apps — seeding only, not a user API. */
+    suspend fun seedDock(keys: List<String>) = edit { it[Keys.DOCK_FAVORITES] = keys.joinToString("\n") }
 
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
@@ -333,6 +338,7 @@ class SettingsRepository @Inject constructor(
             val updateLastCheck = prefs[Keys.UPDATE_LAST_CHECK]
             val updateLastNotified = prefs[Keys.UPDATE_LAST_NOTIFIED]
             val layoutSeeded = prefs[Keys.DEFAULT_LAYOUT_SEEDED]
+            val onboardingDone = prefs[Keys.ONBOARDING_DONE]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             prefs.clear()
@@ -358,6 +364,7 @@ class SettingsRepository @Inject constructor(
             if (updateLastCheck != null) prefs[Keys.UPDATE_LAST_CHECK] = updateLastCheck
             if (updateLastNotified != null) prefs[Keys.UPDATE_LAST_NOTIFIED] = updateLastNotified
             if (layoutSeeded != null) prefs[Keys.DEFAULT_LAYOUT_SEEDED] = layoutSeeded
+            if (onboardingDone != null) prefs[Keys.ONBOARDING_DONE] = onboardingDone
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
         }
     }
@@ -410,6 +417,7 @@ class SettingsRepository @Inject constructor(
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
     }
 
     companion object {
@@ -439,7 +447,7 @@ class SettingsRepository @Inject constructor(
             "drive_failure_count", "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
-            "default_layout_seeded",
+            "default_layout_seeded", "onboarding_done",
         )
     }
 }

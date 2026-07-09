@@ -138,6 +138,8 @@ fun HomeScreen(
     // True briefly after a heads-up notification, while the system transiently shows its own status bar
     // over ours; used to blank the themed bar so they don't overlap.
     val headsUpActive by viewModel.headsUpActive.collectAsStateWithLifecycle()
+    // First-run intro (fresh installs only) — covers the whole home surface until finished/skipped.
+    val showOnboarding by viewModel.showOnboarding.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
 
@@ -408,14 +410,17 @@ fun HomeScreen(
             // Root-level, Initial-pass swipe detector: a flick up/down anywhere on home (over icons,
             // folders, shortcuts or the dock — not just empty space) drives the drawer/notifications.
             .pixelHomeSwipe(
-                swipeUpForDrawer = settings.swipeUpForDrawer,
-                swipeDownForNotifications = settings.swipeDownForNotifications,
+                // All home gestures pause while the first-run intro covers the screen — this
+                // detector runs in the Initial pass on the ROOT, so it would otherwise catch a
+                // vertical swipe before the intro overlay could swallow it.
+                swipeUpForDrawer = settings.swipeUpForDrawer && !showOnboarding,
+                swipeDownForNotifications = settings.swipeDownForNotifications && !showOnboarding,
                 dragController = dragController,
                 onDrawerDrag = onDrawerDrag,
                 onDrawerSettle = onDrawerSettle,
                 onOpenNotifications = { NotificationShade.expand(context) },
                 // Left-edge action: a right-drag on the leftmost page launches the configured app.
-                leftEdgeEnabled = settings.leftSwipeAppKey.isNotBlank(),
+                leftEdgeEnabled = settings.leftSwipeAppKey.isNotBlank() && !showOnboarding,
                 atLeftEdge = { dragController.currentPage == 0 },
                 onLeftEdgeAction = viewModel::onLeftSwipe,
             ),
@@ -590,9 +595,9 @@ fun HomeScreen(
                 }
             }
         }
-        // First-run onboarding card: shown until Arkikeskus is the default home. One button opens the
-        // system role dialog to set it as the default launcher (works for any fresh GitHub install).
-        if (!isDefaultLauncher) {
+        // Not-default reminder card: shown until ARK-launcher is the default home — but never under
+        // the full first-run intro, which has its own set-as-default step.
+        if (!isDefaultLauncher && !showOnboarding) {
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(28.dp),
@@ -630,6 +635,15 @@ fun HomeScreen(
 
         // The floating dragged icon is drawn by LauncherShell (above the workspace, dock and the app
         // drawer), so it can travel across all three surfaces.
+
+        // First-run intro on top of everything (fresh installs only, once).
+        if (showOnboarding) {
+            OnboardingFlow(
+                onFinish = { viewModel.finishOnboarding() },
+                onContactsGranted = { viewModel.onContactsPermissionGranted() },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 
     val menu = menuTarget

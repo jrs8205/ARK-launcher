@@ -139,24 +139,56 @@ class HomeViewModel @Inject constructor(
 
     val rows: Int = HomeLayoutRepository.ROWS
 
+    /** True while the first-run intro should cover the home screen (fresh installs only). */
+    private val _showOnboarding = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val showOnboarding: StateFlow<Boolean> = _showOnboarding
+
     init {
-        // First-run default layout: seed the smartspace widget onto an empty home surface once.
-        // Guarded by a device-local flag so removing it later never re-seeds, and by the emptiness
-        // check so updating users and restores are untouched.
+        // First-run experience, decided ONCE per install: on an empty home surface, seed the
+        // smartspace widget + the default dock (phone/messages/Settings/browser/camera) and show
+        // the intro. Device-local flags so removing items never re-seeds, and updating users
+        // (non-empty home) get the flags silently without any of it.
         viewModelScope.launch {
-            if (!settingsRepository.defaultLayoutSeededOnce()) {
-                if (homeLayoutRepository.isHomeEmpty()) {
-                    val columns = settingsRepository.settings.first().homeColumns
+            val seeded = settingsRepository.defaultLayoutSeededOnce()
+            val onboarded = settingsRepository.onboardingDoneOnce()
+            if (seeded && onboarded) return@launch
+            val fresh = homeLayoutRepository.isHomeEmpty()
+            if (!seeded) {
+                if (fresh) {
+                    val settings = settingsRepository.settings.first()
                     // Full width so the centered clock sits in the middle of the screen.
                     homeLayoutRepository.addBuiltin(
                         HomeItemEntity.BUILTIN_SMARTSPACE,
-                        columns, SMARTSPACE_DEFAULT_SPAN_Y, columns,
+                        settings.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, settings.homeColumns,
                     )
+                    // The app list needs a beat on a cold start; a fresh device always has apps.
+                    val apps = appRepository.apps.first { it.isNotEmpty() }
+                    val dockKeys = resolveDefaultDockKeys(context, apps)
+                    if (dockKeys.isNotEmpty() && settingsRepository.dockFavorites.first().isEmpty()) {
+                        settingsRepository.seedDock(dockKeys)
+                        // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
+                        if (dockKeys.size > settings.dockColumns) {
+                            settingsRepository.setDockColumns(dockKeys.size)
+                        }
+                    }
                 }
                 settingsRepository.setDefaultLayoutSeeded()
             }
+            if (!onboarded) {
+                if (fresh) _showOnboarding.value = true else settingsRepository.setOnboardingDone()
+            }
         }
     }
+
+    /** Closes the first-run intro (finished or skipped) and never shows it again. */
+    fun finishOnboarding() {
+        _showOnboarding.value = false
+        viewModelScope.launch { settingsRepository.setOnboardingDone() }
+    }
+
+    /** Contacts granted in the intro → also enable the drawer's contact search (its whole point). */
+    fun onContactsPermissionGranted() =
+        viewModelScope.launch { settingsRepository.setSearchContacts(true) }
 
     /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial. */
     private val shortcutCache = mutableMapOf<String, AppShortcuts.Resolved>()
