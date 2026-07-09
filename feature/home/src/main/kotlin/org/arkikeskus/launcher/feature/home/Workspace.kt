@@ -123,7 +123,8 @@ fun Workspace(
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
-    onRemoveWidget: (PlacedWidget) -> Unit = {},
+    // Removes a widget-like row from the grid; [appWidgetId] is null for a built-in widget (no host id).
+    onRemoveWidget: (rowId: Long, appWidgetId: Int?) -> Unit = { _, _ -> },
     // Tap a restored-widget placeholder to re-bind it; long-press to discard the placeholder row.
     onRestorePendingWidget: (PendingWidget) -> Unit = {},
     onRemovePendingWidget: (rowId: Long) -> Unit = {},
@@ -146,7 +147,7 @@ fun Workspace(
     var dragging by remember { mutableStateOf<PlacedApp?>(null) }
     var dragPos by remember { mutableStateOf(Offset.Zero) }
     var dragDistance by remember { mutableStateOf(0f) }
-    var editingWidget by remember { mutableStateOf<PlacedWidget?>(null) }
+    var editingWidget by remember { mutableStateOf<EditingItem?>(null) }
     // While the edit frame is open, the root swipe-up detector must yield (it bails on localGestureActive),
     // so a handle/scrim drag can never open the drawer. Reset when the frame closes.
     LaunchedEffect(editingWidget) { dragController.localGestureActive = editingWidget != null }
@@ -177,18 +178,26 @@ fun Workspace(
     // Restored-but-unbound widget placeholders (tap to set up). No optimistic/drag handling — they are
     // transient until the user binds (→ PlacedWidget) or removes them.
     val pendingWidgets = remember(entries) { entries.filterIsInstance<PendingWidget>() }
+    val smartspaces = remember(entries) { entries.filterIsInstance<PlacedSmartspace>() }
     val effectiveWidgets = remember(placedWidgets, widgetOptimistic) {
         val opt = widgetOptimistic
         if (opt == null) placedWidgets else placedWidgets.map { w ->
             if (w.rowId == opt.first) w.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else w
         }
     }
-    // clear the optimistic override once the DB flow reports the widget at its new cell
-    LaunchedEffect(placedWidgets) {
-        val opt = widgetOptimistic ?: return@LaunchedEffect
-        if (placedWidgets.any { it.rowId == opt.first && it.page == opt.second.first && it.cellX == opt.second.second && it.cellY == opt.second.third }) {
-            widgetOptimistic = null
+    val effectiveSmartspaces = remember(smartspaces, widgetOptimistic) {
+        val opt = widgetOptimistic
+        if (opt == null) smartspaces else smartspaces.map { s ->
+            if (s.rowId == opt.first) s.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else s
         }
+    }
+    // clear the optimistic override once the DB flow reports the widget at its new cell
+    LaunchedEffect(placedWidgets, smartspaces) {
+        val opt = widgetOptimistic ?: return@LaunchedEffect
+        val landed = (placedWidgets.map { Triple(it.rowId, it.page, it.cellX to it.cellY) } +
+            smartspaces.map { Triple(it.rowId, it.page, it.cellX to it.cellY) })
+            .any { it.first == opt.first && it.second == opt.second.first && it.third == opt.second.second to opt.second.third }
+        if (landed) widgetOptimistic = null
     }
 
     // Optimistic placements (key -> page/cellX/cellY) applied on top of [placedApps] until the
@@ -239,8 +248,8 @@ fun Workspace(
         }
     }
     // Apps + folders + pinned shortcuts together — what's actually on the grid (rendering + occupants).
-    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets, pendingWidgets) {
-        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets + pendingWidgets
+    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets, pendingWidgets, effectiveSmartspaces) {
+        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets + pendingWidgets + effectiveSmartspaces
     }
     // The drag gesture's pointerInput block outlives recomposition (its keys don't include the entry
     // list), so it must read the *latest* placements through this state, not a stale closure capture.
@@ -267,11 +276,13 @@ fun Workspace(
             val (ex, ey) = when (e) {
                 is PlacedWidget -> e.spanX to e.spanY
                 is PendingWidget -> e.spanX to e.spanY
+                is PlacedSmartspace -> e.spanX to e.spanY
                 else -> 1 to 1
             }
             val erow = when (e) {
                 is PlacedWidget -> e.rowId
                 is PendingWidget -> e.rowId
+                is PlacedSmartspace -> e.rowId
                 else -> -2L
             }
             if (erow == excludeRowId) continue
@@ -901,7 +912,10 @@ fun Workspace(
                                                 // gesture (until the finger lifts) so the embedded
                                                 // AppWidgetHostView receives a CANCEL instead of an UP and does
                                                 // not also launch the widget's own click action.
-                                                editingWidget = widget
+                                                editingWidget = EditingItem(
+                                                    widget.rowId, widget.appWidgetId, widget.page,
+                                                    widget.cellX, widget.cellY, widget.spanX, widget.spanY,
+                                                )
                                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 while (true) {
                                                     val ev = awaitPointerEvent(PointerEventPass.Initial)
@@ -1025,16 +1039,82 @@ fun Workspace(
                                     }
                                 }
                             }
+                            is PlacedSmartspace -> {
+                                val space = entry
+                                Box(
+                                    modifier = Modifier
+                                        .offset {
+                                            IntOffset(
+                                                (space.cellX.coerceIn(0, columns - 1) * cellW).roundToInt(),
+                                                (space.cellY.coerceIn(0, rows - 1) * cellH).roundToInt(),
+                                            )
+                                        }
+                                        .size(
+                                            with(density) { (space.spanX * cellW).toDp() },
+                                            with(density) { (space.spanY * cellH).toDp() },
+                                        )
+                                        // Same still-long-press → edit-frame gesture as an app widget:
+                                        // watched in the Initial pass without consuming, so the widget's own
+                                        // tap targets (clock / date / event) keep working; once edit mode
+                                        // opens, the rest of the gesture is consumed so the release can't
+                                        // also fire a child tap.
+                                        .pointerInput(space.rowId, space.page, space.cellX, space.cellY, space.spanX, space.spanY, locked, cellW, cellH) {
+                                            if (locked) return@pointerInput
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                                val slop = viewConfiguration.touchSlop
+                                                var movedEarly = false
+                                                val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                                    while (true) {
+                                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
+                                                        if (!c.pressed) return@withTimeoutOrNull false
+                                                        if ((c.position - down.position).getDistance() > slop) { movedEarly = true; return@withTimeoutOrNull false }
+                                                    }
+                                                    @Suppress("UNREACHABLE_CODE") false
+                                                }
+                                                if (held != null || movedEarly) return@awaitEachGesture
+                                                editingWidget = EditingItem(
+                                                    space.rowId, null, space.page,
+                                                    space.cellX, space.cellY, space.spanX, space.spanY,
+                                                )
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                while (true) {
+                                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                                                    ev.changes.forEach { it.consume() }
+                                                    if (ev.changes.none { it.id == down.id && it.pressed }) break
+                                                }
+                                            }
+                                        },
+                                ) {
+                                    SmartspaceWidget(modifier = Modifier.fillMaxSize())
+                                }
+                            }
                             }
                         }
                     val ew = editingWidget
                     if (ew != null && ew.page == page) {
                         val ctxE = LocalContext.current
-                        val info = remember(ew.appWidgetId) { AppWidgetManager.getInstance(ctxE).getAppWidgetInfo(ew.appWidgetId) }
-                        val range = remember(ew.appWidgetId) { info?.let { widgetResizeRange(it, ctxE, columns) }?.takeIf { it.isResizable } }
+                        // A built-in widget (appWidgetId == null) has no provider info: it resizes freely
+                        // within the grid (with a sane minimum width) and has nothing to reconfigure.
+                        val info = remember(ew.appWidgetId) {
+                            ew.appWidgetId?.let { AppWidgetManager.getInstance(ctxE).getAppWidgetInfo(it) }
+                        }
+                        val range = remember(ew.rowId, columns) {
+                            if (ew.appWidgetId == null) {
+                                WidgetResizeRange(
+                                    minX = SMARTSPACE_MIN_SPAN_X.coerceAtMost(columns), minY = 1,
+                                    maxX = columns, maxY = rows,
+                                    horizontal = true, vertical = true,
+                                )
+                            } else {
+                                info?.let { widgetResizeRange(it, ctxE, columns) }?.takeIf { it.isResizable }
+                            }
+                        }
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }
                         val defaultSpanX = remember(ew.appWidgetId, columns) {
-                            (info?.let { defaultWidgetSpans(it, ctxE).first } ?: 2).coerceIn(1, columns)
+                            if (ew.appWidgetId == null) SMARTSPACE_DEFAULT_SPAN_X.coerceIn(1, columns)
+                            else (info?.let { defaultWidgetSpans(it, ctxE).first } ?: 2).coerceIn(1, columns)
                         }
                         WidgetEditOverlay(
                             widget = ew,
@@ -1053,18 +1133,25 @@ fun Workspace(
                                             val (esx, esy) = when (e) {
                                                 is PlacedWidget -> e.spanX to e.spanY
                                                 is PendingWidget -> e.spanX to e.spanY
+                                                is PlacedSmartspace -> e.spanX to e.spanY
                                                 else -> 1 to 1
                                             }
-                                            val erow = if (e is PlacedWidget) e.rowId else -(i.toLong() + 1)
+                                            // The edited row must carry its REAL id so planFit can exclude
+                                            // it from its own collision set (widget or built-in alike).
+                                            val erow = when (e) {
+                                                is PlacedWidget -> e.rowId
+                                                is PlacedSmartspace -> e.rowId
+                                                else -> -(i.toLong() + 1)
+                                            }
                                             ReorderPlanner.Rect(erow, e.page, e.cellX, e.cellY, esx, esy)
                                         },
                                         ew.rowId, ew.page, x, y, sx, sy, columns, rows,
                                     ) != null
                             },
                             onSetBounds = { x, y, sx, sy -> scope.launch { onSetWidgetBounds(ew.rowId, ew.page, x, y, sx, sy) } },
-                            onReconfigure = { onReconfigureWidget(ew.appWidgetId); editingWidget = null },
+                            onReconfigure = { ew.appWidgetId?.let(onReconfigureWidget); editingWidget = null },
                             onExit = { editingWidget = null },
-                            onRemove = { onRemoveWidget(ew); editingWidget = null },
+                            onRemove = { onRemoveWidget(ew.rowId, ew.appWidgetId); editingWidget = null },
                             onMove = { x, y, spanX, spanY ->
                                         widgetOptimistic = ew.rowId to Triple(ew.page, x, y)
                                         scope.launch {
@@ -1148,6 +1235,18 @@ fun Workspace(
     }
 }
 
+/** The grid item inside the widget edit frame: a bound app widget, or a built-in widget when
+ *  [appWidgetId] is null (no provider info, no host id — resize limits come from the grid). */
+data class EditingItem(
+    val rowId: Long,
+    val appWidgetId: Int?,
+    val page: Int,
+    val cellX: Int,
+    val cellY: Int,
+    val spanX: Int,
+    val spanY: Int,
+)
+
 /** Launcher3-style widget edit frame: a touch-consuming scrim (so the resize gesture can't leak into
  *  the drawer swipe-up or page scroll), a body-drag layer (move within the page, or drop on the top
  *  Remove pill to delete), a border, edge handles on the resizable axes (each edge moves, opposite edge
@@ -1155,7 +1254,7 @@ fun Workspace(
  *  on release), and a gear (reconfigure) button. */
 @Composable
 private fun WidgetEditOverlay(
-    widget: PlacedWidget,
+    widget: EditingItem,
     range: WidgetResizeRange?,
     reconfigurable: Boolean,
     defaultSpanX: Int,

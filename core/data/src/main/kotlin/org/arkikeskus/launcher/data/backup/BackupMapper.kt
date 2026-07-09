@@ -25,6 +25,7 @@ object BackupMapper {
                 spanX = e.spanX,
                 spanY = e.spanY,
                 widgetProvider = e.widgetProvider,
+                builtinType = e.builtinType,
             )
         }
 
@@ -40,6 +41,8 @@ object BackupMapper {
         val seenCells = HashSet<List<Long>>()
         for (it in items) {
             val keep = when {
+                // Built-in widget: nothing to install or bind — always restorable.
+                it.builtinType != null -> true
                 // Widget: keep only if the provider's app is installed; it is re-bound on this device
                 // (appWidgetId stays null until then). The package is the part before '/' in the
                 // flattened provider ComponentName — parsed by hand to keep this pure-JVM testable.
@@ -62,7 +65,7 @@ object BackupMapper {
             if (!seenCells.add(listOf(it.containerId, it.page.toLong(), it.cellX.toLong(), it.cellY.toLong()))) {
                 skipped++; continue
             }
-            val isWidget = it.widgetProvider != null
+            val footprint = it.widgetProvider != null || it.builtinType != null
             kept.add(
                 HomeItemEntity(
                     id = it.id,
@@ -70,19 +73,20 @@ object BackupMapper {
                     folderName = it.folderName,
                     packageName = it.packageName,
                     className = it.className,
-                    userSerial = if (it.folderName != null) 0L else mainUserSerial,
+                    userSerial = if (it.folderName != null || it.builtinType != null) 0L else mainUserSerial,
                     shortcutId = it.shortcutId,
                     page = it.page,
                     cellX = it.cellX,
                     cellY = it.cellY,
-                    // Only widgets have a real footprint; clamp it to the grid (the normal add-widget
-                    // path does the same). Everything else is 1×1 regardless of what the file says.
-                    spanX = if (isWidget) it.spanX.coerceIn(1, SettingsRepository.MAX_COLUMNS) else 1,
-                    spanY = if (isWidget) it.spanY.coerceIn(1, HomeLayoutRepository.ROWS) else 1,
+                    // Only widgets (app or built-in) have a real footprint; clamp it to the grid (the
+                    // normal add path does the same). Everything else is 1×1 whatever the file says.
+                    spanX = if (footprint) it.spanX.coerceIn(1, SettingsRepository.MAX_COLUMNS) else 1,
+                    spanY = if (footprint) it.spanY.coerceIn(1, HomeLayoutRepository.ROWS) else 1,
                     // Restored widgets come back unbound (no device-local id yet); the home screen
                     // re-binds each via a tap-to-set-up placeholder. Non-widget rows keep provider null.
                     appWidgetId = null,
                     widgetProvider = it.widgetProvider,
+                    builtinType = it.builtinType,
                 ),
             )
         }

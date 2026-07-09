@@ -293,6 +293,10 @@ class SettingsRepository @Inject constructor(
     suspend fun updateLastNotifiedVersion(): String? = dataStore.data.first()[Keys.UPDATE_LAST_NOTIFIED]
     suspend fun autoUpdateEnabledOnce(): Boolean = dataStore.data.first()[Keys.AUTO_UPDATE_ENABLED] ?: true
 
+    // --- First-run default layout (device-local) ---
+    suspend fun defaultLayoutSeededOnce(): Boolean = dataStore.data.first()[Keys.DEFAULT_LAYOUT_SEEDED] ?: false
+    suspend fun setDefaultLayoutSeeded() = edit { it[Keys.DEFAULT_LAYOUT_SEEDED] = true }
+
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
      * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state;
@@ -328,6 +332,7 @@ class SettingsRepository @Inject constructor(
             val autoUpdate = prefs[Keys.AUTO_UPDATE_ENABLED]
             val updateLastCheck = prefs[Keys.UPDATE_LAST_CHECK]
             val updateLastNotified = prefs[Keys.UPDATE_LAST_NOTIFIED]
+            val layoutSeeded = prefs[Keys.DEFAULT_LAYOUT_SEEDED]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             prefs.clear()
@@ -352,6 +357,7 @@ class SettingsRepository @Inject constructor(
             if (autoUpdate != null) prefs[Keys.AUTO_UPDATE_ENABLED] = autoUpdate
             if (updateLastCheck != null) prefs[Keys.UPDATE_LAST_CHECK] = updateLastCheck
             if (updateLastNotified != null) prefs[Keys.UPDATE_LAST_NOTIFIED] = updateLastNotified
+            if (layoutSeeded != null) prefs[Keys.DEFAULT_LAYOUT_SEEDED] = layoutSeeded
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
         }
     }
@@ -403,6 +409,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
+        val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
     }
 
     companion object {
@@ -432,6 +439,7 @@ class SettingsRepository @Inject constructor(
             "drive_failure_count", "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
+            "default_layout_seeded",
         )
     }
 }

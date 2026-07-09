@@ -4,6 +4,12 @@
     <string name="onboarding_title">Welcome to ARK-launcher</string>
     <string name="onboarding_text">Set ARK-launcher as your default launcher to get started. Then swipe up to open your apps, and long-press an empty spot to reach settings.</string>
     <string name="onboarding_set_default">Set as default launcher</string>
+    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="smartspace_widget_name">Clock &amp; calendar</string>
+    <string name="smartspace_allow_calendar">Tap to allow calendar access</string>
+    <string name="smartspace_no_title">(No title)</string>
+    <string name="smartspace_size_full">Full width</string>
+    <string name="smartspace_next_alarm">Next alarm</string>
     <string name="home_remove">Remove from home</string>
     <string name="drag_remove">Remove</string>
     <string name="home_add">Add to home</string>

@@ -9,8 +9,9 @@ import org.json.JSONObject
  * SettingsRepository's key registry, so the codec stays schema-agnostic.
  */
 object BackupCodec {
-    /** Format 2 adds widget rows (spanX/spanY/widgetProvider). Decode still accepts format 1 (no widgets). */
-    const val FORMAT = 2
+    /** Format 2 added widget rows (spanX/spanY/widgetProvider); format 3 adds built-in widgets
+     *  (builtinType). Decode still accepts every older format, absent fields defaulting. */
+    const val FORMAT = 3
 
     fun encode(doc: BackupDocument): String {
         val settings = JSONObject()
@@ -32,7 +33,8 @@ object BackupCodec {
                     .put("cellY", it.cellY)
                     .put("spanX", it.spanX)
                     .put("spanY", it.spanY)
-                    .put("widgetProvider", it.widgetProvider ?: JSONObject.NULL),
+                    .put("widgetProvider", it.widgetProvider ?: JSONObject.NULL)
+                    .put("builtinType", it.builtinType ?: JSONObject.NULL),
             )
         }
 
@@ -73,10 +75,12 @@ object BackupCodec {
                     page = o.getInt("page"),
                     cellX = o.getInt("cellX"),
                     cellY = o.getInt("cellY"),
-                    // Widget columns are absent in format 1 → default to a 1×1 non-widget row.
+                    // Widget columns are absent in format 1 → default to a 1×1 non-widget row;
+                    // builtinType is absent before format 3 → a plain row.
                     spanX = o.optInt("spanX", 1),
                     spanY = o.optInt("spanY", 1),
                     widgetProvider = o.optStringOrNull("widgetProvider"),
+                    builtinType = o.optStringOrNull("builtinType"),
                 ),
             )
         }

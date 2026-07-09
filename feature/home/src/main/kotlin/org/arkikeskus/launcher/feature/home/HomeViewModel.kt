@@ -38,6 +38,13 @@ import javax.inject.Inject
  *  overlapping our re-shown bar for ~1 s on a real WhatsApp heads-up (Pixel 8a, Android 17). */
 private const val HEADS_UP_SUPPRESS_MS = 8_000L
 
+/** Default grid footprint of the built-in smartspace widget (clamped to the column count). */
+const val SMARTSPACE_DEFAULT_SPAN_X = 4
+const val SMARTSPACE_DEFAULT_SPAN_Y = 2
+
+/** Smallest allowed smartspace size — below 3 columns the clock + event row no longer fit. */
+const val SMARTSPACE_MIN_SPAN_X = 3
+
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
     val page: Int
@@ -103,6 +110,16 @@ data class PendingWidget(
     val spanY: Int,
 ) : HomeEntry
 
+/** The built-in smartspace widget (clock + date + next calendar event), occupying [spanX]×[spanY]. */
+data class PlacedSmartspace(
+    val rowId: Long,
+    override val page: Int,
+    override val cellX: Int,
+    override val cellY: Int,
+    val spanX: Int,
+    val spanY: Int,
+) : HomeEntry
+
 data class HomeUiState(
     val settings: LauncherSettings = LauncherSettings(),
     val dockApps: List<AppItem> = emptyList(),
@@ -121,6 +138,25 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     val rows: Int = HomeLayoutRepository.ROWS
+
+    init {
+        // First-run default layout: seed the smartspace widget onto an empty home surface once.
+        // Guarded by a device-local flag so removing it later never re-seeds, and by the emptiness
+        // check so updating users and restores are untouched.
+        viewModelScope.launch {
+            if (!settingsRepository.defaultLayoutSeededOnce()) {
+                if (homeLayoutRepository.isHomeEmpty()) {
+                    val columns = settingsRepository.settings.first().homeColumns
+                    // Full width so the centered clock sits in the middle of the screen.
+                    homeLayoutRepository.addBuiltin(
+                        HomeItemEntity.BUILTIN_SMARTSPACE,
+                        columns, SMARTSPACE_DEFAULT_SPAN_Y, columns,
+                    )
+                }
+                settingsRepository.setDefaultLayoutSeeded()
+            }
+        }
+    }
 
     /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial. */
     private val shortcutCache = mutableMapOf<String, AppShortcuts.Resolved>()
@@ -170,6 +206,11 @@ class HomeViewModel @Inject constructor(
             .filter { it.containerId == HomeItemEntity.HOME }
             .mapNotNull { row ->
                 when {
+                    row.isBuiltin -> PlacedSmartspace(
+                        rowId = row.id,
+                        page = row.page, cellX = row.cellX, cellY = row.cellY,
+                        spanX = row.spanX, spanY = row.spanY,
+                    )
                     row.isFolder -> {
                         val folderApps = childrenByFolder[row.id].orEmpty().mapNotNull { byKey[it.key] }
                         PlacedFolder(row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY)
@@ -288,6 +329,19 @@ class HomeViewModel @Inject constructor(
 
     /** Removes a placed widget row (caller frees the host id). */
     fun removeWidget(rowId: Long) = viewModelScope.launch { homeLayoutRepository.removeWidget(rowId) }
+
+    /** Adds the built-in smartspace widget at the first free full-width rectangle (widget picker). */
+    fun addSmartspace() = viewModelScope.launch {
+        val columns = settingsRepository.settings.first().homeColumns
+        homeLayoutRepository.addBuiltin(
+            HomeItemEntity.BUILTIN_SMARTSPACE,
+            columns, SMARTSPACE_DEFAULT_SPAN_Y, columns,
+        )
+    }
+
+    /** Turns bound widget rows whose id this device's host never allocated back into placeholders
+     *  (the Google Auto Backup / device-transfer restore path — see HomeScreen's startup sweep). */
+    suspend fun unbindStaleWidgets(validIds: Set<Int>) = homeLayoutRepository.unbindStaleWidgets(validIds)
 
     /** Binds a restored placeholder widget to its freshly allocated [appWidgetId] (the caller did the
      *  allocate + system bind/configure); the row turns back into a live widget. */

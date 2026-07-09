@@ -20,6 +20,8 @@ data class BackupItem(
     val spanX: Int = 1,
     val spanY: Int = 1,
     val widgetProvider: String? = null,
+    /** Non-null → a built-in launcher widget (e.g. "smartspace") occupying spanX×spanY (format 3+). */
+    val builtinType: String? = null,
 )
 
 /** The full backup payload — identical for file export and Drive. */

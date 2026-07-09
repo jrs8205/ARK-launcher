@@ -23,8 +23,15 @@ class BackupCodecTest {
             BackupItem(3, 2, null, "com.y", "com.y.Main", true, null, 0, 0, 0),
             // A widget row: 2×2, provider set, no appWidgetId (device-local, never stored).
             BackupItem(4, -1, null, "", "", true, null, 1, 2, 3, spanX = 2, spanY = 2, widgetProvider = "com.w/com.w.Prov"),
+            // A built-in launcher widget (format 3): type set, no provider.
+            BackupItem(5, -1, null, "", "", true, null, 0, 0, 4, spanX = 4, spanY = 2, builtinType = "smartspace"),
         ),
     )
+
+    @Test
+    fun format_is_3() {
+        assertThat(BackupCodec.FORMAT).isEqualTo(3)
+    }
 
     @Test
     fun round_trips_document() {
@@ -46,6 +53,20 @@ class BackupCodecTest {
         assertThat(item.spanX).isEqualTo(1)
         assertThat(item.spanY).isEqualTo(1)
         assertThat(item.widgetProvider).isNull()
+    }
+
+    @Test
+    fun decode_accepts_format_2_defaulting_builtin_type() {
+        // A format-2 backup has no builtinType — it must default to null (a plain row).
+        val json = """
+            {"format":2,"appVersion":"0.6.0","createdAt":0,"settings":{},
+             "homeItems":[{"id":1,"containerId":-1,"folderName":null,"packageName":"","className":"",
+             "mainProfile":true,"shortcutId":null,"page":0,"cellX":0,"cellY":0,
+             "spanX":2,"spanY":2,"widgetProvider":"com.w/P"}]}
+        """.trimIndent()
+        val item = BackupCodec.decode(json).homeItems.single()
+        assertThat(item.builtinType).isNull()
+        assertThat(item.widgetProvider).isEqualTo("com.w/P")
     }
 
     @Test

@@ -40,6 +40,8 @@ data class HomeItemEntity(
     val appWidgetId: Int? = null,
     /** The widget provider's ComponentName.flattenToString() (set when [appWidgetId] is). */
     val widgetProvider: String? = null,
+    /** Non-null → a built-in launcher widget (see [BUILTIN_SMARTSPACE]) occupying spanX×spanY cells. */
+    val builtinType: String? = null,
 ) {
     /** Matches AppItem.key so app entities can be resolved against the live app list. */
     val key: String get() = "$packageName/$className/$userSerial"
@@ -50,8 +52,17 @@ data class HomeItemEntity(
 
     val isWidget: Boolean get() = appWidgetId != null
 
+    val isBuiltin: Boolean get() = builtinType != null
+
+    /** True for any row that occupies a spanX×spanY footprint (an app widget — bound or a restored
+     *  placeholder — or a built-in widget); everything else is 1×1. */
+    val hasFootprint: Boolean get() = widgetProvider != null || builtinType != null
+
     companion object {
         /** [containerId] sentinel meaning "placed directly on the home screen". */
         const val HOME = -1L
+
+        /** [builtinType] of the clock + date + next-calendar-event widget. */
+        const val BUILTIN_SMARTSPACE = "smartspace"
     }
 }

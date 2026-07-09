@@ -42,6 +42,12 @@ private val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+private val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE home_items ADD COLUMN builtinType TEXT")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
@@ -78,7 +84,7 @@ object DataModule {
             // pre-v5 dev versions (1–4, which never shipped a migration) so an old test install resets
             // instead of crashing; v5 onward is migrated, so the user's home layout survives upgrades.
             .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2, 3, 4)
-            .addMigrations(MIGRATION_5_6)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
             .build()
 
     @Provides

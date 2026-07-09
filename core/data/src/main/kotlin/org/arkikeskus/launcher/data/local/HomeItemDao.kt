@@ -73,6 +73,10 @@ interface HomeItemDao {
     @Query("UPDATE home_items SET appWidgetId = :appWidgetId WHERE id = :id")
     suspend fun updateWidgetId(id: Long, appWidgetId: Int)
 
+    /** Unbinds a widget row (stale id from another device's restore) back into a placeholder. */
+    @Query("UPDATE home_items SET appWidgetId = NULL WHERE id = :id")
+    suspend fun clearWidgetId(id: Long)
+
     /** The device-local ids of every currently-bound widget, to reconcile against the AppWidgetHost. */
     @Query("SELECT appWidgetId FROM home_items WHERE appWidgetId IS NOT NULL")
     suspend fun boundWidgetIds(): List<Int>

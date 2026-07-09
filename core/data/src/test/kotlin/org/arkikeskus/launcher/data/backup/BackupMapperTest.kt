@@ -66,6 +66,44 @@ class BackupMapperTest {
         assertThat(mapping.entities.all { it.appWidgetId == null }).isTrue()
     }
 
+    @Test
+    fun toBackupItems_includes_builtin_type() {
+        val entities = listOf(
+            HomeItemEntity(id = 1, page = 0, cellX = 0, cellY = 0, spanX = 4, spanY = 2, builtinType = "smartspace"),
+        )
+        val item = BackupMapper.toBackupItems(entities).single()
+        assertThat(item.builtinType).isEqualTo("smartspace")
+        assertThat(item.spanX).isEqualTo(4)
+        assertThat(item.spanY).isEqualTo(2)
+        assertThat(item.widgetProvider).isNull()
+    }
+
+    @Test
+    fun toEntities_keeps_builtin_rows_without_any_install_check() {
+        val items = listOf(
+            BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 4, spanY = 2, builtinType = "smartspace"),
+        )
+        val mapping = BackupMapper.toEntities(items, 42L, emptySet(), emptySet())
+        assertThat(mapping.skipped).isEqualTo(0)
+        val e = mapping.entities.single()
+        assertThat(e.builtinType).isEqualTo("smartspace")
+        assertThat(e.spanX).isEqualTo(4)
+        assertThat(e.spanY).isEqualTo(2)
+        assertThat(e.appWidgetId).isNull()
+        assertThat(e.widgetProvider).isNull()
+        assertThat(e.userSerial).isEqualTo(0L) // built-ins have no profile
+    }
+
+    @Test
+    fun toEntities_clamps_builtin_spans_like_a_widget_footprint() {
+        val items = listOf(
+            BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 30, spanY = -2, builtinType = "smartspace"),
+        )
+        val e = BackupMapper.toEntities(items, 0L, emptySet(), emptySet()).entities.single()
+        assertThat(e.spanX).isEqualTo(SettingsRepository.MAX_COLUMNS)
+        assertThat(e.spanY).isEqualTo(1)
+    }
+
     // --- Corrupt/hand-edited backup sanitization ---------------------------------------------
 
     @Test

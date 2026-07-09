@@ -252,13 +252,13 @@ class HomeLayoutRepository @Inject constructor(
 
     /**
      * True if (page,cellX,cellY) lies within any widget's rectangle in [items] (excluding [excludeId]).
-     * Covers BOTH bound widgets and restored-but-unbound placeholders (`widgetProvider != null`) — a
-     * placeholder still occupies its spanX×spanY footprint, so a drop must not land inside it (else the
+     * Covers bound widgets, restored-but-unbound placeholders AND built-in widgets ([HomeItemEntity.hasFootprint])
+     * — each still occupies its spanX×spanY footprint, so a drop must not land inside it (else the
      * app hides under it / a swap corrupts the multi-cell row). `isWidget` alone missed placeholders.
      */
     private fun cellInWidget(items: List<HomeItemEntity>, excludeId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
         items.any {
-            it.id != excludeId && it.widgetProvider != null && it.page == page &&
+            it.id != excludeId && it.hasFootprint && it.page == page &&
                 cellX in it.cellX until (it.cellX + it.spanX) &&
                 cellY in it.cellY until (it.cellY + it.spanY)
         }
@@ -288,6 +288,40 @@ class HomeLayoutRepository @Inject constructor(
         dao.deleteById(rowId)
     }
 
+    /** Places a built-in widget (e.g. [HomeItemEntity.BUILTIN_SMARTSPACE]) at the first free rectangle. */
+    suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int) {
+        db.withTransaction {
+            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY)
+            dao.insert(
+                HomeItemEntity(
+                    containerId = HOME,
+                    page = page, cellX = x, cellY = y,
+                    spanX = spanX.coerceIn(1, columns.coerceAtLeast(1)),
+                    spanY = spanY.coerceIn(1, ROWS),
+                    builtinType = type,
+                ),
+            )
+        }
+    }
+
+    /** True when nothing has ever been placed on the home surface (fresh install). */
+    suspend fun isHomeEmpty(): Boolean = dao.getContainer(HOME).isEmpty()
+
+    /**
+     * Turns bound widget rows whose device-local id is NOT in [validIds] back into unbound
+     * tap-to-set-up placeholders. After a Google Auto Backup / device-to-device restore the Room DB
+     * comes back with the OLD device's appWidgetIds — ids this host never allocated — which would
+     * otherwise render as invisible dead zones on the grid.
+     */
+    suspend fun unbindStaleWidgets(validIds: Set<Int>) {
+        db.withTransaction {
+            dao.getContainer(HOME).forEach { row ->
+                val id = row.appWidgetId
+                if (id != null && id !in validIds) dao.clearWidgetId(row.id)
+            }
+        }
+    }
+
     /** Binds a restored widget placeholder row to a freshly allocated [appWidgetId] on this device,
      *  turning it back into a live widget (its spanX/spanY were preserved from the backup). */
     suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int) {
@@ -305,7 +339,7 @@ class HomeLayoutRepository @Inject constructor(
         rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int,
     ): Boolean = db.withTransaction {
         val row = dao.getById(rowId) ?: return@withTransaction false
-        if (!row.isWidget) return@withTransaction false
+        if (!row.isWidget && !row.isBuiltin) return@withTransaction false
         val sx = spanX.coerceAtLeast(1)
         val sy = spanY.coerceAtLeast(1)
         val items = dao.getContainer(HOME)
@@ -349,7 +383,7 @@ class HomeLayoutRepository @Inject constructor(
             val placed = ArrayList<HomeItemEntity>(rows.size)
             val plan = ArrayList<ReflowPlacement>(rows.size)
             for (row in rows) {
-                val widget = row.widgetProvider != null
+                val widget = row.hasFootprint
                 val sx = if (widget) row.spanX.coerceIn(1, cols) else 1
                 val sy = if (widget) row.spanY.coerceIn(1, ROWS) else 1
                 val (page, x, y) = firstFreeRect(placed, cols, sx, sy)

@@ -258,6 +258,12 @@ fun HomeScreen(
         hostIds.forEach { id ->
             if (id !in dbIds && id != pendingWidget?.appWidgetId) runCatching { host.deleteAppWidgetId(id) }
         }
+        // The reverse direction: DB rows bound to ids this host never allocated — what a Google Auto
+        // Backup / device-transfer restore leaves behind (the Room DB carries the OLD device's ids).
+        // Unbind them into tap-to-set-up placeholders instead of invisible dead zones on the grid.
+        val validIds = hostIds.toMutableSet()
+        pendingWidget?.appWidgetId?.let { validIds.add(it) }
+        viewModel.unbindStaleWidgets(validIds)
     }
 
     fun finishWidget(bind: PendingWidgetBind) {
@@ -488,9 +494,10 @@ fun HomeScreen(
                 onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
                 onEmptyAreaMenu = { anchor, above -> homeOptions = anchor to above },
-                onRemoveWidget = { w ->
-                    widgetHost?.deleteAppWidgetId(w.appWidgetId)
-                    viewModel.removeWidget(w.rowId)
+                onRemoveWidget = { rowId, appWidgetId ->
+                    // A built-in widget has no host id to free (appWidgetId == null).
+                    appWidgetId?.let { widgetHost?.deleteAppWidgetId(it) }
+                    viewModel.removeWidget(rowId)
                 },
                 onRestorePendingWidget = { startRestoreWidget(it) },
                 // A pending placeholder has no allocated host id yet, so just drop its row.
@@ -681,6 +688,10 @@ fun HomeScreen(
             onPick = { provider ->
                 showWidgetPicker = false
                 startAddWidget(provider)
+            },
+            onPickBuiltin = {
+                showWidgetPicker = false
+                viewModel.addSmartspace()
             },
             onDismiss = { showWidgetPicker = false },
             modifier = Modifier.fillMaxSize(),

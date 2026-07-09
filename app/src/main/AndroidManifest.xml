@@ -8,6 +8,10 @@
     <!-- Optional: contacts in app-drawer search; requested at runtime, gated by a setting. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- Optional: the smartspace widget's next-calendar-event row; requested at runtime from the
+         widget itself. Clock + date work without it. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
     <!-- Optional: mobile-signal level for the home status bar; requested at runtime when the status
          bar is enabled. Battery + Wi-Fi need no permission and work without it. -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
