@@ -1,0 +1,4 @@
+New clock & calendar widget: time, date, next alarm, next calendar event and current weather — resizable, added automatically on new installs.
+New first-run intro: set as default, learn the gestures and grant permissions in one place; new installs start with a ready-made dock.
+The app is now called ARK-launcher.
+Fixes: heads-up notifications no longer overlap the themed status bar; widgets restored by Google's device backup appear as tap-to-set-up placeholders.
