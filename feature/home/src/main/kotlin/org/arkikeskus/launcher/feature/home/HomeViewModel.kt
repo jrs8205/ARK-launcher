@@ -33,9 +33,10 @@ import org.arkikeskus.launcher.ui.AppShortcuts
 import javax.inject.Inject
 
 /** How long the themed status bar stays blanked after a heads-up post; SystemUI auto-dismisses a
- *  heads-up notification after ~5 s (its default decay) plus a ~300 ms hide animation, and we have no
- *  un-pin signal, so we time it out a little past that. */
-private const val HEADS_UP_SUPPRESS_MS = 6_000L
+ *  heads-up notification after ~5 s (its default decay) plus a hide animation, and we have no
+ *  un-pin signal, so we time it out past that. 6 s left the system bar's dismissal animation
+ *  overlapping our re-shown bar for ~1 s on a real WhatsApp heads-up (Pixel 8a, Android 17). */
+private const val HEADS_UP_SUPPRESS_MS = 8_000L
 
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
