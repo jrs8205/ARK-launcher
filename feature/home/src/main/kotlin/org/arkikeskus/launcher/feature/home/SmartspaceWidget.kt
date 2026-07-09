@@ -162,54 +162,57 @@ fun SmartspaceWidget(
                 runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
             },
         )
-        // The next alarm (AlarmManager, no permission) rides on the date row, Pixel-style.
+        Text(
+            text = dateText,
+            color = Color.White,
+            style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable(interactionSource = noIndication, indication = null) {
+                val uri = CalendarContract.CONTENT_URI.buildUpon()
+                    .appendPath("time").appendPath(now.toString()).build()
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+            },
+        )
+        // The next alarm (AlarmManager, no permission) gets its OWN row under the date (user choice).
         val nextAlarm = remember(now) {
             context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock?.triggerTime
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = dateText,
-                color = Color.White,
-                style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clickable(interactionSource = noIndication, indication = null) {
-                    val uri = CalendarContract.CONTENT_URI.buildUpon()
-                        .appendPath("time").appendPath(now.toString()).build()
-                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-                },
-            )
-            if (nextAlarm != null) {
-                val alarmText = remember(nextAlarm) {
-                    buildString {
-                        if (!DateUtils.isToday(nextAlarm)) {
-                            append(
-                                DateUtils.formatDateTime(
-                                    context, nextAlarm,
-                                    DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY,
-                                ),
-                            )
-                            append(' ')
-                        }
-                        append(timeFormat.format(Date(nextAlarm)))
+        if (nextAlarm != null) {
+            val alarmText = remember(nextAlarm) {
+                buildString {
+                    if (!DateUtils.isToday(nextAlarm)) {
+                        append(
+                            DateUtils.formatDateTime(
+                                context, nextAlarm,
+                                DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY,
+                            ),
+                        )
+                        append(' ')
                     }
+                    append(timeFormat.format(Date(nextAlarm)))
                 }
-                Spacer(Modifier.width((10 * scale).dp))
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .clickable(interactionSource = noIndication, indication = null) {
+                        runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+                    },
+            ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_status_alarm),
                     contentDescription = stringResource(R.string.smartspace_next_alarm),
                     tint = Color.White.copy(alpha = 0.9f),
                     modifier = Modifier.size((15 * scale).dp),
                 )
-                Spacer(Modifier.width((3 * scale).dp))
+                Spacer(Modifier.width((4 * scale).dp))
                 Text(
                     text = alarmText,
                     color = Color.White.copy(alpha = 0.9f),
                     style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
                     maxLines = 1,
-                    modifier = Modifier.clickable(interactionSource = noIndication, indication = null) {
-                        runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
-                    },
                 )
             }
         }
