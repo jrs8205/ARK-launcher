@@ -59,6 +59,7 @@ class SettingsRepository @Inject constructor(
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
+            showWeather = p[Keys.SHOW_WEATHER] ?: true,
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: 0.6f).coerceIn(0f, 1f),
         )
@@ -187,6 +188,8 @@ class SettingsRepository @Inject constructor(
 
     /** Shows/hides the home status bar (clock + battery + signal). */
     suspend fun setShowStatusBar(value: Boolean) = edit { it[Keys.SHOW_STATUS_BAR] = value }
+
+    suspend fun setShowWeather(value: Boolean) = edit { it[Keys.SHOW_WEATHER] = value }
 
     /** Hides/shows the system status bar while the launcher is foreground (immersive home). */
     suspend fun setHideSystemStatusBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = value }
@@ -414,6 +417,7 @@ class SettingsRepository @Inject constructor(
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
+        val SHOW_WEATHER = booleanPreferencesKey("show_weather")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")

@@ -220,6 +220,7 @@ fun SettingsScreen(
                     s.hideSystemStatusBar,
                     viewModel::setHideSystemStatusBar,
                 )
+                WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
                 StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
                 if (s.showStatusBar) {
                     SliderRow(
@@ -444,6 +445,23 @@ private fun openNotificationAccess(context: android.content.Context) {
                 Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
+        }
+    }
+}
+
+/** Smartspace-weather toggle. Turns on regardless; when enabled it also asks for the coarse location
+ *  the Open-Meteo query needs (the widget hides the weather until the permission is granted). */
+@Composable
+private fun WeatherToggle(enabled: Boolean, onSetEnabled: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { /* shows once granted */ }
+    SwitchRow(stringResource(R.string.settings_show_weather), enabled) { wantOn ->
+        onSetEnabled(wantOn)
+        if (wantOn &&
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            launcher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
         }
     }
 }

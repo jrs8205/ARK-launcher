@@ -31,3 +31,6 @@ the code copied verbatim):
 This project does not include source code from Lawnchair; only high-level
 concepts were studied from it (current Lawnchair is Apache-2.0). The
 implementations here are original.
+
+Weather data in the clock widget is provided by Open-Meteo
+(https://open-meteo.com/), licensed under CC BY 4.0.

@@ -90,6 +90,7 @@ class SettingsViewModel @Inject constructor(
     fun setAppLabelTextScale(value: Float) = update { repository.setAppLabelTextScale(value) }
     fun setAppLabelColor(argb: Int) = update { repository.setAppLabelColor(argb) }
     fun setShowStatusBar(value: Boolean) = update { repository.setShowStatusBar(value) }
+    fun setShowWeather(value: Boolean) = update { repository.setShowWeather(value) }
     fun setHideSystemStatusBar(value: Boolean) = update { repository.setHideSystemStatusBar(value) }
     fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }
 

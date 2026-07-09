@@ -308,11 +308,13 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
     var calendar by remember { mutableStateOf(granted(context, Manifest.permission.READ_CALENDAR)) }
     var contacts by remember { mutableStateOf(granted(context, Manifest.permission.READ_CONTACTS)) }
     var phone by remember { mutableStateOf(granted(context, Manifest.permission.READ_PHONE_STATE)) }
+    var location by remember { mutableStateOf(granted(context, Manifest.permission.ACCESS_COARSE_LOCATION)) }
     fun refresh() {
         notifAccess = hasNotificationAccess(context)
         calendar = granted(context, Manifest.permission.READ_CALENDAR)
         contacts = granted(context, Manifest.permission.READ_CONTACTS)
         phone = granted(context, Manifest.permission.READ_PHONE_STATE)
+        location = granted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
     }
     LifecycleResumeEffect(Unit) {
         refresh()
@@ -382,8 +384,14 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
             granted = phone,
             onClick = { permissionsLauncher.launch(arrayOf(Manifest.permission.READ_PHONE_STATE)) },
         )
+        PermissionRow(
+            title = stringResource(R.string.onboarding_perm_location),
+            description = stringResource(R.string.onboarding_perm_location_desc),
+            granted = location,
+            onClick = { permissionsLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)) },
+        )
         Spacer(Modifier.height(20.dp))
-        if (!(calendar && contacts && phone && notifAccess)) {
+        if (!(calendar && contacts && phone && location && notifAccess)) {
             Button(
                 onClick = {
                     openNotifAfterChain = true
@@ -392,6 +400,7 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
                             Manifest.permission.READ_CALENDAR,
                             Manifest.permission.READ_CONTACTS,
                             Manifest.permission.READ_PHONE_STATE,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
                         ),
                     )
                 },

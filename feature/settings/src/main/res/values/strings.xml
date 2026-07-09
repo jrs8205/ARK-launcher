@@ -5,6 +5,7 @@
     <string name="settings_default_current">ARK-launcher on oletuslauncherisi</string>
     <string name="settings_default_tap">Napauta asettaaksesi ARK-launcherin oletukseksi</string>
     <string name="settings_gestures">Eleet</string>
+    <string name="settings_show_weather">Sää widgetissä</string>
     <string name="settings_swipe_up_drawer">Pyyhkäise ylös → sovellukset</string>
     <string name="settings_swipe_down_notif">Pyyhkäise alas → ilmoitukset</string>
     <string name="settings_dock">Dockki</string>

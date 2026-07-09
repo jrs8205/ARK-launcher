@@ -12,6 +12,10 @@
          widget itself. Clock + date work without it. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!-- Optional: the smartspace widget's weather (Open-Meteo needs rough coordinates); requested at
+         runtime from the widget/intro. A cached coarse fix is read — no active location requests. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <!-- Optional: mobile-signal level for the home status bar; requested at runtime when the status
          bar is enabled. Battery + Wi-Fi need no permission and work without it. -->
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />

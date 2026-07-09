@@ -10,6 +10,7 @@
     <string name="smartspace_no_title">(No title)</string>
     <string name="smartspace_size_full">Full width</string>
     <string name="smartspace_next_alarm">Next alarm</string>
+    <string name="smartspace_allow_location">Tap to allow location – weather</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_back">Back</string>
     <string name="onboarding_next">Next</string>
@@ -30,6 +31,8 @@
     <string name="onboarding_perm_contacts_desc">Contacts in app search</string>
     <string name="onboarding_perm_phone">Phone state</string>
     <string name="onboarding_perm_phone_desc">Signal strength in the status bar</string>
+    <string name="onboarding_perm_location">Location</string>
+    <string name="onboarding_perm_location_desc">Weather in the clock widget</string>
     <string name="onboarding_grant_all">Grant all</string>
     <string name="onboarding_grant">Grant</string>
     <string name="onboarding_granted">Granted</string>

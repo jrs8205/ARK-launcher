@@ -53,24 +53,44 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.smartspace.CalendarEvent
 import org.arkikeskus.launcher.data.smartspace.CalendarRepository
+import org.arkikeskus.launcher.data.smartspace.CurrentWeather
 import org.arkikeskus.launcher.data.smartspace.NextEventPicker
+import org.arkikeskus.launcher.data.smartspace.WeatherCodes
+import org.arkikeskus.launcher.data.smartspace.WeatherRepository
+import kotlin.math.roundToInt
 import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
 class SmartspaceViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
+    private val weatherRepository: WeatherRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     val hasCalendarPermission = MutableStateFlow(calendarRepository.hasPermission())
+    val hasLocationPermission = MutableStateFlow(weatherRepository.hasPermission())
 
-    /** Re-checks the permission (resume / after the runtime grant) and re-queries the provider. */
+    /** Weather slot enabled in Settings ▸ Home (the permission gate is separate). */
+    val showWeather: StateFlow<Boolean> = settingsRepository.settings
+        .map { it.showWeather }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    val weather: StateFlow<CurrentWeather?> =
+        combine(weatherRepository.weather, showWeather) { w, on -> if (on) w else null }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Re-checks the permissions (resume / after a runtime grant) and re-queries the sources. */
     fun refresh() {
         hasCalendarPermission.value = calendarRepository.hasPermission()
+        hasLocationPermission.value = weatherRepository.hasPermission()
         calendarRepository.refresh()
+        if (showWeather.value) weatherRepository.refresh()
     }
 
     /** Re-picked every minute so an ended event flips to the next one without a provider change. */
@@ -104,6 +124,9 @@ fun SmartspaceWidget(
     val context = LocalContext.current
     val hasPermission by viewModel.hasCalendarPermission.collectAsStateWithLifecycle()
     val nextEvent by viewModel.nextEvent.collectAsStateWithLifecycle()
+    val hasLocationPermission by viewModel.hasLocationPermission.collectAsStateWithLifecycle()
+    val showWeather by viewModel.showWeather.collectAsStateWithLifecycle()
+    val weather by viewModel.weather.collectAsStateWithLifecycle()
 
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -162,6 +185,19 @@ fun SmartspaceWidget(
                 runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
             },
         )
+        // Weather right under the clock on its own row (user choice — more prominent than
+        // riding on the date line).
+        val w = weather
+        if (w != null) {
+            val city = w.city?.let { " $it" }.orEmpty()
+            Text(
+                text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
+                color = Color.White,
+                style = TextStyle(fontSize = (16 * scale).sp, shadow = shadow),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Text(
             text = dateText,
             color = Color.White,
@@ -270,6 +306,26 @@ fun SmartspaceWidget(
                 )
             }
             // No permission prompt needed and no event → clock + date only.
+        }
+        // Weather is on but can't run without a location — a tap-to-grant line (shown after the
+        // calendar prompt resolves, so the widget never stacks two prompts). Turning the weather
+        // setting off removes it.
+        if (showWeather && !hasLocationPermission && hasPermission) {
+            val locationLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { viewModel.refresh() }
+            Text(
+                text = stringResource(R.string.smartspace_allow_location),
+                color = Color.White.copy(alpha = 0.85f),
+                style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .clickable(interactionSource = noIndication, indication = null) {
+                        locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    },
+            )
         }
     }
     }

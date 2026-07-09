@@ -10,6 +10,7 @@
     <string name="smartspace_no_title">(Ei otsikkoa)</string>
     <string name="smartspace_size_full">Koko leveys</string>
     <string name="smartspace_next_alarm">Seuraava herätys</string>
+    <string name="smartspace_allow_location">Salli sijainti napauttamalla – sää</string>
     <string name="onboarding_skip">Ohita</string>
     <string name="onboarding_back">Takaisin</string>
     <string name="onboarding_next">Seuraava</string>
@@ -30,6 +31,8 @@
     <string name="onboarding_perm_contacts_desc">Yhteystiedot sovellushaussa</string>
     <string name="onboarding_perm_phone">Puhelimen tila</string>
     <string name="onboarding_perm_phone_desc">Tilapalkin signaalinäyttö</string>
+    <string name="onboarding_perm_location">Sijainti</string>
+    <string name="onboarding_perm_location_desc">Sää kello-widgetissä</string>
     <string name="onboarding_grant_all">Myönnä kaikki</string>
     <string name="onboarding_grant">Myönnä</string>
     <string name="onboarding_granted">Myönnetty</string>
