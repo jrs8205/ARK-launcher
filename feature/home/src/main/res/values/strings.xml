@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Pyyhkäise ylös avataksesi sovellukset</string>
-    <string name="onboarding_title">Tervetuloa Arkikeskukseen</string>
-    <string name="onboarding_text">Aseta Arkikeskus oletuslauncheriksi aloittaaksesi. Sen jälkeen pyyhkäise ylös avataksesi sovellukset ja paina tyhjää kohtaa pitkään päästäksesi asetuksiin.</string>
+    <string name="onboarding_title">Tervetuloa ARK-launcheriin</string>
+    <string name="onboarding_text">Aseta ARK-launcher oletuslauncheriksi aloittaaksesi. Sen jälkeen pyyhkäise ylös avataksesi sovellukset ja paina tyhjää kohtaa pitkään päästäksesi asetuksiin.</string>
     <string name="onboarding_set_default">Aseta oletuslauncheriksi</string>
     <string name="home_remove">Poista kotinäytöltä</string>
     <string name="drag_remove">Poista</string>

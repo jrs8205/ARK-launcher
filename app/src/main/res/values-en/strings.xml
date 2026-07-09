@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ARK launcher</string>
+    <string name="app_name">ARK-launcher</string>
     <string name="set_default_launcher">Set as default launcher</string>
     <string name="default_launcher_active">Default launcher active</string>
-    <string name="settings_label">ARK launcher settings</string>
+    <string name="settings_label">ARK-launcher settings</string>
 </resources>

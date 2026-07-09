@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">ARK launcher</string>
+    <string name="app_name">ARK-launcher</string>
     <string name="set_default_launcher">Aseta oletuskäynnistimeksi</string>
     <string name="default_launcher_active">Oletuskäynnistin käytössä</string>
-    <string name="settings_label">ARK launcher -asetukset</string>
+    <string name="settings_label">ARK-launcherin asetukset</string>
 </resources>

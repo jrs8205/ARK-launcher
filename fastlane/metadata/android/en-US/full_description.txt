@@ -1,4 +1,4 @@
-Arkikeskus Launcher is a modern, lightweight Android home-screen launcher built entirely with Jetpack Compose and Material 3. It is bilingual (Finnish and English) and works as a standalone launcher for anyone.
+ARK-launcher is a modern, lightweight Android home-screen launcher built entirely with Jetpack Compose and Material 3. It is bilingual (Finnish and English) and works as a standalone launcher for anyone.
 
 Features:
 

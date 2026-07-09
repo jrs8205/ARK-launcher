@@ -1,8 +1,8 @@
-# Arkikeskus Launcher
+# ARK-launcher
 
-[![Latest release](https://img.shields.io/github/v/release/jrs8205/arkikeskus-launcher?sort=semver)](https://github.com/jrs8205/arkikeskus-launcher/releases/latest)
-[![License: Apache-2.0](https://img.shields.io/github/license/jrs8205/arkikeskus-launcher)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/jrs8205/arkikeskus-launcher/total)](https://github.com/jrs8205/arkikeskus-launcher/releases)
+[![Latest release](https://img.shields.io/github/v/release/jrs8205/ARK-launcher?sort=semver)](https://github.com/jrs8205/ARK-launcher/releases/latest)
+[![License: Apache-2.0](https://img.shields.io/github/license/jrs8205/ARK-launcher)](LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/jrs8205/ARK-launcher/total)](https://github.com/jrs8205/ARK-launcher/releases)
 [![Built with Jetpack Compose](https://img.shields.io/badge/Built%20with-Jetpack%20Compose-4285F4)](https://developer.android.com/jetpack/compose)
 
 A modern, lightweight Android home-screen launcher built entirely with **Jetpack Compose**.
@@ -11,12 +11,12 @@ It is **bilingual** — Finnish (default) and English — and shares the visual 
 
 > Status: early but daily-driven. Built from scratch on a current Kotlin/Compose stack.
 
-📖 **New here?** The **[Wiki](https://github.com/jrs8205/arkikeskus-launcher/wiki)** has the full user guide —
-[setup](https://github.com/jrs8205/arkikeskus-launcher/wiki/Getting-Started),
-[features](https://github.com/jrs8205/arkikeskus-launcher/wiki/Features),
-[icon packs](https://github.com/jrs8205/arkikeskus-launcher/wiki/Icon-Packs),
-[backup](https://github.com/jrs8205/arkikeskus-launcher/wiki/Backup-and-Restore) and a
-[FAQ](https://github.com/jrs8205/arkikeskus-launcher/wiki/FAQ).
+📖 **New here?** The **[Wiki](https://github.com/jrs8205/ARK-launcher/wiki)** has the full user guide —
+[setup](https://github.com/jrs8205/ARK-launcher/wiki/Getting-Started),
+[features](https://github.com/jrs8205/ARK-launcher/wiki/Features),
+[icon packs](https://github.com/jrs8205/ARK-launcher/wiki/Icon-Packs),
+[backup](https://github.com/jrs8205/ARK-launcher/wiki/Backup-and-Restore) and a
+[FAQ](https://github.com/jrs8205/ARK-launcher/wiki/FAQ).
 
 ## Screenshots
 
@@ -30,7 +30,7 @@ It is **bilingual** — Finnish (default) and English — and shares the visual 
 ## Download
 
 Download the latest signed APK from the
-[**Releases**](https://github.com/jrs8205/arkikeskus-launcher/releases/latest) page and open it on
+[**Releases**](https://github.com/jrs8205/ARK-launcher/releases/latest) page and open it on
 your device to install. After the first install the app keeps itself up to date from new GitHub
 releases (it notifies you and installs with one tap).
 
@@ -42,7 +42,7 @@ Prefer an app-store-style experience with automatic updates? Install
 [**Obtainium**](https://github.com/ImranR98/Obtainium) and add this repository as an app source:
 
 ```
-https://github.com/jrs8205/arkikeskus-launcher
+https://github.com/jrs8205/ARK-launcher
 ```
 
 Obtainium watches the Releases page and updates the launcher for you.

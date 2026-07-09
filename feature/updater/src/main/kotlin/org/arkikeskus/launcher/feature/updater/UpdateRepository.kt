@@ -8,7 +8,7 @@ import java.io.IOException
 import javax.inject.Inject
 
 private const val LATEST_URL =
-    "https://api.github.com/repos/jrs8205/arkikeskus-launcher/releases/latest"
+    "https://api.github.com/repos/jrs8205/ARK-launcher/releases/latest"
 
 class UpdateRepository @Inject constructor(private val http: OkHttpClient) {
 
