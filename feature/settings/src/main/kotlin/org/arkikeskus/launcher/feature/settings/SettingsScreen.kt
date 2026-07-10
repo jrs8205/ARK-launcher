@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.feature.settings
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.graphics.Bitmap
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -10,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -280,6 +282,16 @@ fun SettingsScreen(
                     showCount = s.notificationDotCount,
                     scale = s.notificationDotScale,
                 )
+
+                ExpressiveSectionTitle(stringResource(R.string.settings_search))
+                ContactsSearchToggle(
+                    enabled = s.searchContacts,
+                    onSetEnabled = viewModel::setSearchContacts,
+                )
+
+                // Every permission the launcher uses, with a live granted/not-granted status
+                // (the notif-access row moved here from the Notifications section).
+                ExpressiveSectionTitle(stringResource(R.string.settings_permissions))
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_notif_access),
                     description = stringResource(
@@ -292,11 +304,21 @@ fun SettingsScreen(
                 ) {
                     openNotificationAccess(context)
                 }
-
-                ExpressiveSectionTitle(stringResource(R.string.settings_search))
-                ContactsSearchToggle(
-                    enabled = s.searchContacts,
-                    onSetEnabled = viewModel::setSearchContacts,
+                PermissionRow(
+                    label = stringResource(R.string.settings_permission_calendar),
+                    permission = android.Manifest.permission.READ_CALENDAR,
+                )
+                PermissionRow(
+                    label = stringResource(R.string.settings_permission_contacts),
+                    permission = android.Manifest.permission.READ_CONTACTS,
+                )
+                PermissionRow(
+                    label = stringResource(R.string.settings_permission_phone),
+                    permission = android.Manifest.permission.READ_PHONE_STATE,
+                )
+                PermissionRow(
+                    label = stringResource(R.string.settings_permission_location),
+                    permission = android.Manifest.permission.ACCESS_COARSE_LOCATION,
                 )
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_backup))
@@ -481,6 +503,58 @@ private fun LeftSwipeAppPicker(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
         },
     )
+}
+
+/** One runtime permission's live status; tap requests it. When Android suppresses the dialog
+ *  (permanently denied), the only remaining path is the app's system settings page — opened
+ *  automatically on a dialog-less denial. Re-checked on resume so a grant/revoke made in the
+ *  system settings shows the moment the user comes back (the v0.6.7 notif-access pattern). */
+@Composable
+private fun PermissionRow(label: String, permission: String) {
+    val context = LocalContext.current
+    var granted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    LifecycleResumeEffect(permission) {
+        granted = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        onPauseOrDispose { }
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
+        granted = result
+        val activity = context.findActivity()
+        if (!result && activity != null &&
+            !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+        ) {
+            openAppDetailsSettings(context)
+        }
+    }
+    ExpressiveActionRow(
+        label = label,
+        description = stringResource(
+            if (granted) R.string.settings_permission_granted else R.string.settings_permission_not_granted,
+        ),
+    ) {
+        if (!granted) launcher.launch(permission)
+    }
+}
+
+/** Unwraps the Activity behind a Compose LocalContext (a ContextWrapper chain). */
+private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
+    is android.app.Activity -> this
+    is android.content.ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+/** The app's system details page — where a permanently denied permission can still be granted. */
+private fun openAppDetailsSettings(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
 }
 
 /** True when our notification listener has been granted notification access in the system settings. */
