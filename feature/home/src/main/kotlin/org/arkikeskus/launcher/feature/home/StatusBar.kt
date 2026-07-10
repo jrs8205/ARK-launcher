@@ -1,5 +1,13 @@
 package org.arkikeskus.launcher.feature.home
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +52,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -394,13 +404,38 @@ private fun rememberNotifIcon(n: StatusNotification): ImageBitmap? {
     }
 }
 
-/** Current time, formatted per the device's 12/24h setting, refreshed periodically. */
+/** Current time, formatted per the device's 12/24h setting, refreshed periodically AND re-formatted
+ *  live when the user flips the system 12/24-hour, time-zone or locale setting (the formatter was
+ *  previously captured once, so the change didn't show until the process/view was recreated). */
 @Composable
 private fun rememberClock(): String {
     val context = LocalContext.current
-    val fmt = remember { android.text.format.DateFormat.getTimeFormat(context) }
-    var time by remember { mutableStateOf(fmt.format(Date())) }
-    LaunchedEffect(Unit) {
+    // Bumped by a receiver + observer below; re-fetches the formatter when the format could change.
+    var formatEpoch by remember { mutableStateOf(0) }
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, i: Intent?) { formatEpoch++ }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_LOCALE_CHANGED)
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { formatEpoch++ }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.System.getUriFor(Settings.System.TIME_12_24), false, observer,
+        )
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+            context.contentResolver.unregisterContentObserver(observer)
+        }
+    }
+    val fmt = remember(formatEpoch) { android.text.format.DateFormat.getTimeFormat(context) }
+    var time by remember(fmt) { mutableStateOf(fmt.format(Date())) }
+    LaunchedEffect(fmt) {
         while (true) {
             time = fmt.format(Date())
             delay(15_000)
