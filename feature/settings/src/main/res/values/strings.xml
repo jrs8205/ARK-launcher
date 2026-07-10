@@ -24,6 +24,17 @@
     <string name="settings_notif_access_granted">Myönnetty</string>
     <string name="settings_notif_access_not_granted">Ei myönnetty – tarvitaan ilmoituspisteiden näyttämiseen</string>
     <string name="settings_notif_size">Ilmoituspisteen koko</string>
+    <string name="settings_notif_widget_count">Ilmoitusten määrä widgetissä</string>
+    <string name="settings_notif_widget_count_number">Numerona</string>
+    <string name="settings_notif_widget_count_dot">Pisteenä</string>
+    <string name="settings_notif_widget_count_none">Ei ilmaisinta</string>
+    <string name="settings_permissions">Luvat</string>
+    <string name="settings_permission_granted">Myönnetty</string>
+    <string name="settings_permission_not_granted">Ei myönnetty – myönnä napauttamalla</string>
+    <string name="settings_permission_calendar">Kalenteri</string>
+    <string name="settings_permission_contacts">Yhteystiedot</string>
+    <string name="settings_permission_phone">Puhelimen tila</string>
+    <string name="settings_permission_location">Sijainti</string>
     <string name="settings_drawer_search">Näytä haku</string>
     <string name="settings_hidden_apps">Piilota sovelluksia</string>
     <plurals name="settings_hidden_apps_desc">

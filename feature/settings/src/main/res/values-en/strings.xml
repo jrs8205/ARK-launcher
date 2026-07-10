@@ -24,6 +24,17 @@
     <string name="settings_notif_access_granted">Granted</string>
     <string name="settings_notif_access_not_granted">Not granted – required to show notification dots</string>
     <string name="settings_notif_size">Notification dot size</string>
+    <string name="settings_notif_widget_count">Notification count in the widget</string>
+    <string name="settings_notif_widget_count_number">As a number</string>
+    <string name="settings_notif_widget_count_dot">As a dot</string>
+    <string name="settings_notif_widget_count_none">No indicator</string>
+    <string name="settings_permissions">Permissions</string>
+    <string name="settings_permission_granted">Granted</string>
+    <string name="settings_permission_not_granted">Not granted – tap to grant</string>
+    <string name="settings_permission_calendar">Calendar</string>
+    <string name="settings_permission_contacts">Contacts</string>
+    <string name="settings_permission_phone">Phone state</string>
+    <string name="settings_permission_location">Location</string>
     <string name="settings_drawer_search">Show search</string>
     <string name="settings_hidden_apps">Hide apps</string>
     <plurals name="settings_hidden_apps_desc">

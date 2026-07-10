@@ -73,6 +73,7 @@ import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.feature.backup.BackupScreen
 import org.arkikeskus.launcher.feature.updater.UpdateSection
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
@@ -102,6 +103,7 @@ fun SettingsScreen(
     var showHiddenManager by remember { mutableStateOf(false) }
     var showLeftSwipePicker by remember { mutableStateOf(false) }
     var showIconPackPicker by remember { mutableStateOf(false) }
+    var showCountStylePicker by remember { mutableStateOf(false) }
     var showBackup by remember { mutableStateOf(false) }
     // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
     // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
@@ -221,6 +223,16 @@ fun SettingsScreen(
                     viewModel::setHideSystemStatusBar,
                 )
                 WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_notif_widget_count),
+                    description = stringResource(
+                        when (s.notificationWidgetCountStyle) {
+                            LauncherSettings.COUNT_DOT -> R.string.settings_notif_widget_count_dot
+                            LauncherSettings.COUNT_NONE -> R.string.settings_notif_widget_count_none
+                            else -> R.string.settings_notif_widget_count_number
+                        },
+                    ),
+                ) { showCountStylePicker = true }
                 StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
                 if (s.showStatusBar) {
                     SliderRow(
@@ -318,7 +330,55 @@ fun SettingsScreen(
                 onDismiss = { showIconPackPicker = false },
             )
         }
+        if (showCountStylePicker) {
+            CountStylePicker(
+                selected = s.notificationWidgetCountStyle,
+                onPick = {
+                    viewModel.setNotificationWidgetCountStyle(it)
+                    showCountStylePicker = false
+                },
+                onDismiss = { showCountStylePicker = false },
+            )
+        }
     }
+}
+
+/** Single-select picker for the notifications widget's count indicator. */
+@Composable
+private fun CountStylePicker(selected: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val p = LocalExpressivePalette.current
+    val options = listOf(
+        LauncherSettings.COUNT_NUMBER to R.string.settings_notif_widget_count_number,
+        LauncherSettings.COUNT_DOT to R.string.settings_notif_widget_count_dot,
+        LauncherSettings.COUNT_NONE to R.string.settings_notif_widget_count_none,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = p.surfaceHi,
+        title = { Text(stringResource(R.string.settings_notif_widget_count), color = p.text) },
+        text = {
+            Column {
+                options.forEach { (value, labelRes) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(value) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(labelRes),
+                            color = if (selected == value) Accent else p.text,
+                            fontSize = 16.sp,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+        },
+    )
 }
 
 /** Single-select icon-pack picker: a "System default" entry on top, then every installed pack. */
