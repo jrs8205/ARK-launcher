@@ -8,6 +8,7 @@ import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,12 +64,15 @@ class WeatherRepository @Inject constructor(
         scope.launch(Dispatchers.IO) {
             try {
                 val location = lastKnownLocation() ?: return@launch
-                // Rounded once for BOTH the query and the geocoder — ~1 km is all weather needs,
-                // and the exact fix never leaves the device.
-                val lat = Math.round(location.latitude * 100) / 100.0
-                val lon = Math.round(location.longitude * 100) / 100.0
+                // Rounded for the network query — ~1 km is all weather needs, and the exact fix
+                // never leaves the device. The LOCAL geocoder gets the exact fix (rounding cost
+                // real municipalities near borders); see cityName().
+                val exactLat = location.latitude
+                val exactLon = location.longitude
+                val lat = Math.round(exactLat * 100) / 100.0
+                val lon = Math.round(exactLon * 100) / 100.0
                 runCatching { fetch(lat, lon) }.getOrNull()?.let {
-                    _weather.value = it.copy(city = cityName(lat, lon))
+                    _weather.value = it.copy(city = resolveCity(exactLat, exactLon, lat, lon))
                 }
             } finally {
                 fetching.set(false)
@@ -111,17 +115,52 @@ class WeatherRepository @Inject constructor(
         }
     }
 
+    /** Last successfully geocoded name + the rounded area it belongs to: a transient geocoder
+     *  failure must not blank a name the user was already seeing, but a clearly different area
+     *  must not keep showing the previous town. Guarded by the [fetching] gate (single writer). */
+    private var lastCity: String? = null
+    private var lastCityAreaKey: String? = null
+
+    private fun resolveCity(exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double): String? {
+        val areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon)
+        val fresh = cityName(exactLat, exactLon)
+        if (fresh != null) {
+            lastCity = fresh
+            lastCityAreaKey = areaKey
+            return fresh
+        }
+        return if (areaKey == lastCityAreaKey) lastCity else null
+    }
+
     /** Locality via the platform Geocoder — works worldwide on devices with a geocoder backend
-     *  (localized names); quietly null elsewhere. The sync call is fine on this IO thread. */
-    private fun cityName(lat: Double, lon: Double): String? = runCatching {
-        if (!Geocoder.isPresent()) return null
-        @Suppress("DEPRECATION")
-        Geocoder(context).getFromLocation(lat, lon, 1)
-            ?.firstOrNull()
-            ?.let { it.locality ?: it.subAdminArea ?: it.adminArea }
-    }.getOrNull()
+     *  (localized names); null elsewhere. Checks several results and fields: older OEM backends
+     *  (e.g. Samsung A40) may leave locality empty and put the usable name in another field.
+     *  The sync call is fine on this IO thread. Logs never include coordinates. */
+    private fun cityName(lat: Double, lon: Double): String? {
+        if (!Geocoder.isPresent()) {
+            Log.d(TAG, "Reverse geocoding skipped: no geocoder backend")
+            return null
+        }
+        return try {
+            @Suppress("DEPRECATION")
+            val addresses = Geocoder(context, Locale.getDefault()).getFromLocation(lat, lon, 3).orEmpty()
+            if (addresses.isEmpty()) {
+                Log.d(TAG, "Reverse geocoding returned no addresses")
+                return null
+            }
+            val name = addresses.firstNotNullOfOrNull { a ->
+                PlaceNames.preferred(listOf(a.locality, a.subLocality, a.subAdminArea, a.adminArea, a.featureName))
+            }
+            if (name == null) Log.d(TAG, "Reverse geocoding found no usable name field")
+            name
+        } catch (e: Exception) {
+            Log.w(TAG, "Reverse geocoding failed: ${e.javaClass.simpleName}")
+            null
+        }
+    }
 
     companion object {
         private const val REFRESH_INTERVAL_MS = 30L * 60 * 1000
+        private const val TAG = "WeatherRepo"
     }
 }
