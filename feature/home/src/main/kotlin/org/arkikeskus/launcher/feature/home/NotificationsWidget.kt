@@ -4,6 +4,7 @@ import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.Image
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +32,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -96,8 +99,9 @@ class NotificationsWidgetViewModel @Inject constructor(
         notifs.map { Slot(it, byBadgeKey["${it.packageName}/${it.userSerial}"]) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Tap = the notification's own action (shade parity: auto-cancel dismisses it), falling back
-     *  to a plain app launch when the notification has no action or sending it fails. */
+    /** Tap = the notification's own action (shade parity: auto-cancel dismisses it). Falls back
+     *  through app launch → app notification settings → app details so a visible icon always does
+     *  something predictable, even for a system notification with no action and no launcher activity. */
     fun open(slot: Slot) {
         val pi = slot.notification.contentIntent
         val sent = pi != null && runCatching {
@@ -113,9 +117,22 @@ class NotificationsWidgetViewModel @Inject constructor(
         }.isSuccess
         if (sent) {
             if (slot.notification.autoCancel) badgeRepository.cancelNotification(slot.notification.key)
-        } else {
-            slot.app?.let { appRepository.launch(it) }
+            return
         }
+        if (slot.app != null && runCatching { appRepository.launch(slot.app); true }.getOrDefault(false)) return
+        openAppNotificationSettings(slot.notification.packageName)
+    }
+
+    /** Last-resort open: the app's own notification settings, then its app-details page — so a
+     *  system/service notification with no action and no launcher activity is never a dead tap. */
+    private fun openAppNotificationSettings(pkg: String) {
+        val channelSettings = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, pkg)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(channelSettings); true }.getOrDefault(false)) return
+        val details = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(details) }
     }
 }
 
@@ -233,16 +250,25 @@ private fun NotificationSlot(
             // The package has no launcher activity — fall back to the notification's own small
             // icon, tinted white like the status bar renders it.
             val bitmap = rememberNotifSmallIcon(slot.notification, iconSize)
-            if (bitmap != null) {
-                Box(contentAlignment = Alignment.TopEnd) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                if (bitmap != null) {
                     Image(
                         bitmap = bitmap,
                         contentDescription = slot.notification.packageName,
                         colorFilter = ColorFilter.tint(Color.White),
                         modifier = Modifier.size(iconSize),
                     )
-                    NotificationBadge(count = badgeCount, showCount = showCount, scale = scale)
+                } else {
+                    // Rasterization failed — a generic bell keeps the slot tappable instead of an
+                    // invisible dead zone that still consumes a slot.
+                    Icon(
+                        painter = painterResource(R.drawable.ic_notification_generic),
+                        contentDescription = slot.notification.packageName,
+                        tint = Color.White,
+                        modifier = Modifier.size(iconSize),
+                    )
                 }
+                NotificationBadge(count = badgeCount, showCount = showCount, scale = scale)
             }
         }
     }
