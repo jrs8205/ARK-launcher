@@ -2,7 +2,6 @@ package org.arkikeskus.launcher.data.search
 
 import org.arkikeskus.launcher.model.SearchResult
 import javax.inject.Inject
-import kotlin.math.roundToLong
 
 /**
  * Local calculator + simple unit conversion. Pure (no Android deps). Returns at most one
@@ -13,13 +12,16 @@ class CalculatorSearchProvider @Inject constructor() : SearchProvider {
     override suspend fun isEnabled(): Boolean = true
 
     override suspend fun query(query: String): List<SearchResult> {
-        val q = query.trim()
+        // Accept the Finnish decimal comma — the expression is a single value, so a plain
+        // comma→dot swap is safe (there are no argument lists to confuse).
+        val q = query.trim().replace(',', '.')
         // A lone number like "5" or "3.14" is not a useful calculation — skip it to avoid
         // showing redundant "5 = 5" results.  Unit conversions contain letters, so they pass.
         if (Regex("^-?\\d*\\.?\\d+$").matches(q)) return emptyList()
         val result = evalUnit(q) ?: evalArithmetic(q) ?: return emptyList()
         if (!result.isFinite()) return emptyList()
-        return listOf(SearchResult.Calculation(q, format(result)))
+        // Show the ORIGINAL query (with its comma) as the label so the user sees what they typed.
+        return listOf(SearchResult.Calculation(query.trim(), format(result)))
     }
 
     // --- unit conversion: "<number> <unit> to <unit>" -------------------------------------------
@@ -51,8 +53,13 @@ class CalculatorSearchProvider @Inject constructor() : SearchProvider {
     }
 
     private fun format(value: Double): String {
-        val rounded = (value * 100).roundToLong() / 100.0
-        return if (rounded % 1.0 == 0.0) rounded.toLong().toString() else rounded.toString()
+        // BigDecimal, not roundToLong: a large finite product (e.g. ~1e24) saturates Long and would
+        // print a completely wrong integer. Round to 2 decimals and drop trailing zeros.
+        if (value % 1.0 == 0.0 && kotlin.math.abs(value) < 1e15) return value.toLong().toString()
+        return java.math.BigDecimal(value)
+            .setScale(2, java.math.RoundingMode.HALF_UP)
+            .stripTrailingZeros()
+            .toPlainString()
     }
 
     /** Minimal recursive-descent parser; throws on malformed input (caught by the caller). */
@@ -95,7 +102,7 @@ class CalculatorSearchProvider @Inject constructor() : SearchProvider {
     }
 
     private companion object {
-        val UNIT_PATTERN = Regex("""([\d.]+)\s*([a-z]+)\s+to\s+([a-z]+)""")
+        val UNIT_PATTERN = Regex("""(-?[\d.]+)\s*([a-z]+)\s+to\s+([a-z]+)""")
         val LENGTH = mapOf("mm" to 0.001, "cm" to 0.01, "m" to 1.0, "km" to 1000.0,
             "in" to 0.0254, "ft" to 0.3048, "mi" to 1609.344)
         val MASS = mapOf("g" to 0.001, "kg" to 1.0, "lb" to 0.45359237, "oz" to 0.0283495231)

@@ -56,4 +56,20 @@ class CalculatorSearchProviderTest {
         // Regression: ensure the guard does not suppress real expressions.
         assertThat(provider.query("5+0").filterIsInstance<SearchResult.Calculation>()).isNotEmpty()
     }
+
+    @Test fun `converts a negative temperature`() = runTest {
+        assertThat(provider.query("-40 c to f").filterIsInstance<SearchResult.Calculation>().single().result)
+            .isEqualTo("-40")
+    }
+
+    @Test fun `accepts a Finnish decimal comma`() = runTest {
+        assertThat(provider.query("3,5+1").filterIsInstance<SearchResult.Calculation>().single().result)
+            .isEqualTo("4.5")
+    }
+
+    @Test fun `large finite products do not saturate to a wrong integer`() = runTest {
+        val r = provider.query("999999999999*999999999999").filterIsInstance<SearchResult.Calculation>().single()
+        // A Long.MAX_VALUE saturation artefact would contain 922337 (9.22e18); the true value ~1e24 must not.
+        assertThat(r.result).doesNotContain("922337")
+    }
 }
