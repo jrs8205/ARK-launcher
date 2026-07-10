@@ -51,4 +51,12 @@ data class LauncherSettings(
     /** Darkness of the scrim drawn behind the themed status bar (0 = none, 1 = solid black); keeps the
      *  clock/indicators legible over bright wallpapers. Own setting, like [dockBackgroundOpacity]. */
     val statusBarScrimOpacity: Float = 0.6f,
-)
+    /** Count indicator of the built-in notifications widget: [COUNT_NUMBER], [COUNT_DOT] or [COUNT_NONE]. */
+    val notificationWidgetCountStyle: String = COUNT_NUMBER,
+) {
+    companion object {
+        const val COUNT_NUMBER = "number"
+        const val COUNT_DOT = "dot"
+        const val COUNT_NONE = "none"
+    }
+}

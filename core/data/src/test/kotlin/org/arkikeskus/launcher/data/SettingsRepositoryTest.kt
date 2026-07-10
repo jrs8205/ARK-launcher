@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Test
 
 /**
@@ -194,5 +195,24 @@ class SettingsRepositoryTest {
         assertThat(repo.driveLastBackupTime.first()).isEqualTo(123L)
         // Assert: the restored setting was actually applied.
         assertThat(repo.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test
+    fun `notificationWidgetCountStyle defaults to number and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().notificationWidgetCountStyle)
+            .isEqualTo(LauncherSettings.COUNT_NUMBER)
+
+        repo.setNotificationWidgetCountStyle(LauncherSettings.COUNT_DOT)
+        assertThat(repo.settings.first().notificationWidgetCountStyle)
+            .isEqualTo(LauncherSettings.COUNT_DOT)
+    }
+
+    @Test
+    fun `notificationWidgetCountStyle falls back to number on an unknown stored value`() = runTest {
+        val repo = newRepository()
+        repo.setNotificationWidgetCountStyle("garbage")
+        assertThat(repo.settings.first().notificationWidgetCountStyle)
+            .isEqualTo(LauncherSettings.COUNT_NUMBER)
     }
 }
