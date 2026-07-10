@@ -90,7 +90,11 @@ class WeatherRepository @Inject constructor(
             add(LocationManager.PASSIVE_PROVIDER)
             add(LocationManager.GPS_PROVIDER)
         }
-        return providers.firstNotNullOfOrNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+        // Newest fix wins regardless of provider — provider order alone let a stale network fix
+        // beat a fresh GPS one and pin the weather to a previous town.
+        return providers
+            .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+            .maxByOrNull { it.time }
     }
 
     private fun fetch(lat: Double, lon: Double): CurrentWeather? {

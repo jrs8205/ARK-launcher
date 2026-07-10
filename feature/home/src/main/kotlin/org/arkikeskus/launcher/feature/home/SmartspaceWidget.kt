@@ -52,9 +52,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.smartspace.CalendarEvent
 import org.arkikeskus.launcher.data.smartspace.CalendarRepository
@@ -70,7 +72,7 @@ import javax.inject.Inject
 class SmartspaceViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val weatherRepository: WeatherRepository,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     val hasCalendarPermission = MutableStateFlow(calendarRepository.hasPermission())
@@ -90,7 +92,11 @@ class SmartspaceViewModel @Inject constructor(
         hasCalendarPermission.value = calendarRepository.hasPermission()
         hasLocationPermission.value = weatherRepository.hasPermission()
         calendarRepository.refresh()
-        if (showWeather.value) weatherRepository.refresh()
+        // Gate on the PERSISTED setting, not the StateFlow: at process start the stateIn initial
+        // value (true) would fire one location read + network query even with weather turned off.
+        viewModelScope.launch {
+            if (settingsRepository.settings.first().showWeather) weatherRepository.refresh()
+        }
     }
 
     /** Re-picked every minute so an ended event flips to the next one without a provider change. */
@@ -307,10 +313,10 @@ fun SmartspaceWidget(
             }
             // No permission prompt needed and no event → clock + date only.
         }
-        // Weather is on but can't run without a location — a tap-to-grant line (shown after the
-        // calendar prompt resolves, so the widget never stacks two prompts). Turning the weather
-        // setting off removes it.
-        if (showWeather && !hasLocationPermission && hasPermission) {
+        // Weather is on but can't run without a location — a tap-to-grant line. Independent of the
+        // calendar line: each launches its own dialog on tap, so nothing ever stacks two system
+        // prompts; a user who declines calendar must still be able to enable weather from here.
+        if (showWeather && !hasLocationPermission) {
             val locationLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { viewModel.refresh() }
