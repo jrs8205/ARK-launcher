@@ -26,8 +26,11 @@ class UpdateWorker @AssistedInject constructor(
             val info = repository.checkLatest(current)
             settings.setUpdateLastCheck(System.currentTimeMillis())
             if (info != null && info.versionName != settings.updateLastNotifiedVersion()) {
-                UpdateNotifier.notifyAvailable(applicationContext, info)
-                settings.setUpdateLastNotifiedVersion(info.versionName)
+                // Only remember the version as notified if the notification actually posted — a
+                // POST_NOTIFICATIONS-less run must not permanently suppress this version.
+                if (UpdateNotifier.notifyAvailable(applicationContext, info)) {
+                    settings.setUpdateLastNotifiedVersion(info.versionName)
+                }
             }
         }.fold(
             onSuccess = { Result.success() },

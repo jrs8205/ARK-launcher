@@ -78,9 +78,13 @@ class ApkInstaller @Inject constructor(
     private fun openReleasePage() {
         runCatching {
             context.startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/jrs8205/arkikeskus-launcher/releases/latest"))
+                Intent(Intent.ACTION_VIEW, Uri.parse(RELEASE_PAGE_URL))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         }
+    }
+
+    private companion object {
+        const val RELEASE_PAGE_URL = "https://github.com/jrs8205/ARK-launcher/releases/latest"
     }
 }
