@@ -1,0 +1,6 @@
+Reliability and compatibility fixes across the launcher.
+Backup & restore: restored widgets no longer overlap other items, off-grid and corrupt entries are rejected, imports are size-limited and run off the main thread, and a wrong-typed setting can no longer break the home screen.
+Notifications widget: a narrow widget always keeps a tappable notification, every icon does something predictable on tap, and custom-style notifications now show.
+Weather: the city name resolves on more devices, uses the freshest location, and keeps the last known name through a temporary lookup failure.
+Updater: picks the correct release file, only marks a version notified once the notification is actually shown, and verifies the download before installing.
+Also: calculator handles negative conversions and the decimal comma, the status-bar clock follows the system 12/24-hour setting, and Wi-Fi state is more accurate.
