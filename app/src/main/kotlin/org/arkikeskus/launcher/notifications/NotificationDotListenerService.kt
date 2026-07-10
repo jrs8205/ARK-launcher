@@ -49,11 +49,13 @@ class NotificationDotListenerService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "listener connected")
+        badgeRepository.registerCanceller { key -> runCatching { cancelNotification(key) } }
         refresh()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
         alertedKeys.clear()
@@ -90,6 +92,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         val ranking = runCatching { currentRanking }.getOrNull()
         val tmp = Ranking()
         val counts = HashMap<String, Int>()
+        val iconCounts = HashMap<String, Int>()
         val icons = LinkedHashMap<String, StatusNotification>()
         for (sbn in active) {
             if (sbn == null) continue
@@ -99,21 +102,33 @@ class NotificationDotListenerService : NotificationListenerService() {
             if (isBadgeWorthy(sbn, ranking, tmp)) {
                 counts[key] = (counts[key] ?: 0) + 1
             }
-            // Status-bar icons: looser filter so silent/low-priority notifs (Google News etc.) show too.
-            // Keep one small icon per app — the most recent.
+            // Status-bar icons + the notifications widget: looser filter so silent/low-priority
+            // notifs (Google News etc.) show too. One entry per app — the most recent — carrying
+            // the app's icon-worthy total so the widget's count always matches what it lists.
             if (isIconWorthy(sbn)) {
                 val smallIcon = sbn.notification?.smallIcon
                 if (smallIcon != null) {
+                    iconCounts[key] = (iconCounts[key] ?: 0) + 1
                     val existing = icons[key]
                     if (existing == null || sbn.postTime > existing.postTime) {
-                        icons[key] = StatusNotification(sbn.key, sbn.packageName, smallIcon, sbn.postTime)
+                        icons[key] = StatusNotification(
+                            key = sbn.key,
+                            packageName = sbn.packageName,
+                            icon = smallIcon,
+                            postTime = sbn.postTime,
+                            userSerial = serial,
+                            contentIntent = sbn.notification?.contentIntent,
+                            autoCancel = ((sbn.notification?.flags ?: 0) and Notification.FLAG_AUTO_CANCEL) != 0,
+                        )
                     }
                 }
             }
         }
         Log.d(TAG, "badge snapshot: ${counts.size} app(s) badged")
         badgeRepository.setBadges(counts)
-        badgeRepository.setIcons(icons.values.sortedByDescending { it.postTime })
+        badgeRepository.setIcons(
+            icons.map { (k, n) -> n.copy(count = iconCounts[k] ?: 1) }.sortedByDescending { it.postTime },
+        )
     }
 
     /**

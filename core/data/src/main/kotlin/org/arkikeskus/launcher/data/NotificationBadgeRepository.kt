@@ -1,10 +1,12 @@
 package org.arkikeskus.launcher.data
 
+import android.app.PendingIntent
 import android.graphics.drawable.Icon
 import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -14,6 +16,14 @@ data class StatusNotification(
     val packageName: String,
     val icon: Icon,
     val postTime: Long,
+    /** Profile serial the notification came from (pairs with packageName like AppItem.badgeKey). */
+    val userSerial: Long = 0,
+    /** Icon-worthy notifications this app currently has (this entry is the newest of them). */
+    val count: Int = 1,
+    /** The newest notification's own tap action; null when the app didn't set one. */
+    val contentIntent: PendingIntent? = null,
+    /** True when the newest notification auto-cancels on open (FLAG_AUTO_CANCEL). */
+    val autoCancel: Boolean = false,
 )
 
 /**
@@ -55,5 +65,18 @@ class NotificationBadgeRepository @Inject constructor() {
     /** Replaces the active-notification icon list with a fresh snapshot from the listener. */
     fun setIcons(icons: List<StatusNotification>) {
         _icons.value = icons
+    }
+
+    /** Set by the notification listener while connected; cancels an active notification by key. */
+    private val canceller = AtomicReference<((String) -> Unit)?>(null)
+
+    fun registerCanceller(cancel: (String) -> Unit) = canceller.set(cancel)
+
+    fun clearCanceller() = canceller.set(null)
+
+    /** Dismisses an active notification like a tap in the system shade would; no-op when the
+     *  listener isn't connected. */
+    fun cancelNotification(key: String) {
+        canceller.get()?.invoke(key)
     }
 }
