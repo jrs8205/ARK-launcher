@@ -45,6 +45,13 @@ const val SMARTSPACE_DEFAULT_SPAN_Y = 2
 /** Smallest allowed smartspace size — below 3 columns the clock + event row no longer fit. */
 const val SMARTSPACE_MIN_SPAN_X = 3
 
+/** Default grid footprint of the built-in notifications widget (clamped to the column count). */
+const val NOTIFICATIONS_DEFAULT_SPAN_X = 4
+const val NOTIFICATIONS_DEFAULT_SPAN_Y = 1
+
+/** Smallest allowed notifications-widget width — one icon + the overflow chip still fit. */
+const val NOTIFICATIONS_MIN_SPAN_X = 2
+
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
     val page: Int
@@ -110,9 +117,10 @@ data class PendingWidget(
     val spanY: Int,
 ) : HomeEntry
 
-/** The built-in smartspace widget (clock + date + next calendar event), occupying [spanX]×[spanY]. */
-data class PlacedSmartspace(
+/** A built-in launcher widget ([type] — smartspace or notifications), occupying [spanX]×[spanY]. */
+data class PlacedBuiltin(
     val rowId: Long,
+    val type: String,
     override val page: Int,
     override val cellX: Int,
     override val cellY: Int,
@@ -238,8 +246,9 @@ class HomeViewModel @Inject constructor(
             .filter { it.containerId == HomeItemEntity.HOME }
             .mapNotNull { row ->
                 when {
-                    row.isBuiltin -> PlacedSmartspace(
+                    row.isBuiltin -> PlacedBuiltin(
                         rowId = row.id,
+                        type = row.builtinType!!,
                         page = row.page, cellX = row.cellX, cellY = row.cellY,
                         spanX = row.spanX, spanY = row.spanY,
                     )
@@ -368,6 +377,15 @@ class HomeViewModel @Inject constructor(
         homeLayoutRepository.addBuiltin(
             HomeItemEntity.BUILTIN_SMARTSPACE,
             columns, SMARTSPACE_DEFAULT_SPAN_Y, columns,
+        )
+    }
+
+    /** Adds the built-in notifications widget at the first free rectangle (widget picker). */
+    fun addNotificationsWidget() = viewModelScope.launch {
+        val columns = settingsRepository.settings.first().homeColumns
+        homeLayoutRepository.addBuiltin(
+            HomeItemEntity.BUILTIN_NOTIFICATIONS,
+            NOTIFICATIONS_DEFAULT_SPAN_X.coerceAtMost(columns), NOTIFICATIONS_DEFAULT_SPAN_Y, columns,
         )
     }
 

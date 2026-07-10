@@ -64,5 +64,8 @@ data class HomeItemEntity(
 
         /** [builtinType] of the clock + date + next-calendar-event widget. */
         const val BUILTIN_SMARTSPACE = "smartspace"
+
+        /** [builtinType] of the notifications widget (active notifications as app icons). */
+        const val BUILTIN_NOTIFICATIONS = "notifications"
     }
 }

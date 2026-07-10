@@ -95,6 +95,20 @@ class BackupMapperTest {
     }
 
     @Test
+    fun toEntities_keeps_a_notifications_builtin_row() {
+        val items = listOf(
+            BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 4, spanY = 1, builtinType = "notifications"),
+        )
+        val mapping = BackupMapper.toEntities(items, 42L, emptySet(), emptySet())
+        assertThat(mapping.skipped).isEqualTo(0)
+        val e = mapping.entities.single()
+        assertThat(e.builtinType).isEqualTo("notifications")
+        assertThat(e.spanX).isEqualTo(4)
+        assertThat(e.spanY).isEqualTo(1)
+        assertThat(e.appWidgetId).isNull()
+    }
+
+    @Test
     fun toEntities_clamps_builtin_spans_like_a_widget_footprint() {
         val items = listOf(
             BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 30, spanY = -2, builtinType = "smartspace"),

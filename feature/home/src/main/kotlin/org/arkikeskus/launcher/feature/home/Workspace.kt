@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.data.ReorderPlanner
+import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -178,24 +179,24 @@ fun Workspace(
     // Restored-but-unbound widget placeholders (tap to set up). No optimistic/drag handling — they are
     // transient until the user binds (→ PlacedWidget) or removes them.
     val pendingWidgets = remember(entries) { entries.filterIsInstance<PendingWidget>() }
-    val smartspaces = remember(entries) { entries.filterIsInstance<PlacedSmartspace>() }
+    val builtins = remember(entries) { entries.filterIsInstance<PlacedBuiltin>() }
     val effectiveWidgets = remember(placedWidgets, widgetOptimistic) {
         val opt = widgetOptimistic
         if (opt == null) placedWidgets else placedWidgets.map { w ->
             if (w.rowId == opt.first) w.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else w
         }
     }
-    val effectiveSmartspaces = remember(smartspaces, widgetOptimistic) {
+    val effectiveBuiltins = remember(builtins, widgetOptimistic) {
         val opt = widgetOptimistic
-        if (opt == null) smartspaces else smartspaces.map { s ->
+        if (opt == null) builtins else builtins.map { s ->
             if (s.rowId == opt.first) s.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else s
         }
     }
     // clear the optimistic override once the DB flow reports the widget at its new cell
-    LaunchedEffect(placedWidgets, smartspaces) {
+    LaunchedEffect(placedWidgets, builtins) {
         val opt = widgetOptimistic ?: return@LaunchedEffect
         val landed = (placedWidgets.map { Triple(it.rowId, it.page, it.cellX to it.cellY) } +
-            smartspaces.map { Triple(it.rowId, it.page, it.cellX to it.cellY) })
+            builtins.map { Triple(it.rowId, it.page, it.cellX to it.cellY) })
             .any { it.first == opt.first && it.second == opt.second.first && it.third == opt.second.second to opt.second.third }
         if (landed) widgetOptimistic = null
     }
@@ -248,8 +249,8 @@ fun Workspace(
         }
     }
     // Apps + folders + pinned shortcuts together — what's actually on the grid (rendering + occupants).
-    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets, pendingWidgets, effectiveSmartspaces) {
-        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets + pendingWidgets + effectiveSmartspaces
+    val effectiveEntries: List<HomeEntry> = remember(effectiveApps, effectiveFolders, effectiveShortcuts, effectiveWidgets, pendingWidgets, effectiveBuiltins) {
+        effectiveApps + effectiveFolders + effectiveShortcuts + effectiveWidgets + pendingWidgets + effectiveBuiltins
     }
     // The drag gesture's pointerInput block outlives recomposition (its keys don't include the entry
     // list), so it must read the *latest* placements through this state, not a stale closure capture.
@@ -276,13 +277,13 @@ fun Workspace(
             val (ex, ey) = when (e) {
                 is PlacedWidget -> e.spanX to e.spanY
                 is PendingWidget -> e.spanX to e.spanY
-                is PlacedSmartspace -> e.spanX to e.spanY
+                is PlacedBuiltin -> e.spanX to e.spanY
                 else -> 1 to 1
             }
             val erow = when (e) {
                 is PlacedWidget -> e.rowId
                 is PendingWidget -> e.rowId
-                is PlacedSmartspace -> e.rowId
+                is PlacedBuiltin -> e.rowId
                 else -> -2L
             }
             if (erow == excludeRowId) continue
@@ -1039,7 +1040,7 @@ fun Workspace(
                                     }
                                 }
                             }
-                            is PlacedSmartspace -> {
+                            is PlacedBuiltin -> {
                                 val space = entry
                                 Box(
                                     modifier = Modifier
@@ -1100,10 +1101,20 @@ fun Workspace(
                         val info = remember(ew.appWidgetId) {
                             ew.appWidgetId?.let { AppWidgetManager.getInstance(ctxE).getAppWidgetInfo(it) }
                         }
+                        // A built-in's min/default spans depend on its type (the notifications row is
+                        // usable narrower than the smartspace clock).
+                        val builtinType = remember(ew.rowId) {
+                            if (ew.appWidgetId == null) builtins.firstOrNull { it.rowId == ew.rowId }?.type else null
+                        }
                         val range = remember(ew.rowId, columns) {
                             if (ew.appWidgetId == null) {
+                                val minSpanX = if (builtinType == HomeItemEntity.BUILTIN_NOTIFICATIONS) {
+                                    NOTIFICATIONS_MIN_SPAN_X
+                                } else {
+                                    SMARTSPACE_MIN_SPAN_X
+                                }
                                 WidgetResizeRange(
-                                    minX = SMARTSPACE_MIN_SPAN_X.coerceAtMost(columns), minY = 1,
+                                    minX = minSpanX.coerceAtMost(columns), minY = 1,
                                     maxX = columns, maxY = rows,
                                     horizontal = true, vertical = true,
                                 )
@@ -1113,8 +1124,16 @@ fun Workspace(
                         }
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }
                         val defaultSpanX = remember(ew.appWidgetId, columns) {
-                            if (ew.appWidgetId == null) SMARTSPACE_DEFAULT_SPAN_X.coerceIn(1, columns)
-                            else (info?.let { defaultWidgetSpans(it, ctxE).first } ?: 2).coerceIn(1, columns)
+                            if (ew.appWidgetId == null) {
+                                val d = if (builtinType == HomeItemEntity.BUILTIN_NOTIFICATIONS) {
+                                    NOTIFICATIONS_DEFAULT_SPAN_X
+                                } else {
+                                    SMARTSPACE_DEFAULT_SPAN_X
+                                }
+                                d.coerceIn(1, columns)
+                            } else {
+                                (info?.let { defaultWidgetSpans(it, ctxE).first } ?: 2).coerceIn(1, columns)
+                            }
                         }
                         WidgetEditOverlay(
                             widget = ew,
@@ -1133,14 +1152,14 @@ fun Workspace(
                                             val (esx, esy) = when (e) {
                                                 is PlacedWidget -> e.spanX to e.spanY
                                                 is PendingWidget -> e.spanX to e.spanY
-                                                is PlacedSmartspace -> e.spanX to e.spanY
+                                                is PlacedBuiltin -> e.spanX to e.spanY
                                                 else -> 1 to 1
                                             }
                                             // The edited row must carry its REAL id so planFit can exclude
                                             // it from its own collision set (widget or built-in alike).
                                             val erow = when (e) {
                                                 is PlacedWidget -> e.rowId
-                                                is PlacedSmartspace -> e.rowId
+                                                is PlacedBuiltin -> e.rowId
                                                 else -> -(i.toLong() + 1)
                                             }
                                             ReorderPlanner.Rect(erow, e.page, e.cellX, e.cellY, esx, esy)
