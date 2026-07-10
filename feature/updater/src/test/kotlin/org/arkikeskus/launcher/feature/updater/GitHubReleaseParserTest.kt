@@ -24,4 +24,23 @@ class GitHubReleaseParserTest {
         val noApk = """{"tag_name":"v0.3.0","body":"x","assets":[{"name":"notes.txt","browser_download_url":"u","size":1}]}"""
         assertThat(GitHubReleaseParser.parse(noApk)).isNull()
     }
+
+    @Test fun prefers_the_named_launcher_apk_over_other_apks() {
+        val json = """
+          {"tag_name":"v0.8.0","body":"x","assets":[
+            {"name":"app-debug.apk","browser_download_url":"https://x/debug.apk","size":1},
+            {"name":"ARK-launcher-0.8.0.apk","browser_download_url":"https://x/rel.apk","size":2}
+          ]}
+        """.trimIndent()
+        assertThat(GitHubReleaseParser.parse(json)!!.apkUrl).isEqualTo("https://x/rel.apk")
+    }
+
+    @Test fun ignores_a_debug_apk_when_no_named_apk_present() {
+        val json = """
+          {"tag_name":"v0.8.0","body":"x","assets":[
+            {"name":"app-debug.apk","browser_download_url":"https://x/debug.apk","size":1}
+          ]}
+        """.trimIndent()
+        assertThat(GitHubReleaseParser.parse(json)).isNull()
+    }
 }
