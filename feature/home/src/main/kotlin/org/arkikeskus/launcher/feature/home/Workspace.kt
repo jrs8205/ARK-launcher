@@ -1088,7 +1088,11 @@ fun Workspace(
                                             }
                                         },
                                 ) {
-                                    SmartspaceWidget(modifier = Modifier.fillMaxSize())
+                                    when (space.type) {
+                                        HomeItemEntity.BUILTIN_NOTIFICATIONS ->
+                                            NotificationsWidget(modifier = Modifier.fillMaxSize())
+                                        else -> SmartspaceWidget(modifier = Modifier.fillMaxSize())
+                                    }
                                 }
                             }
                             }

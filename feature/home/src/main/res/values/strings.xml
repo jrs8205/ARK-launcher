@@ -11,6 +11,9 @@
     <string name="smartspace_size_full">Koko leveys</string>
     <string name="smartspace_next_alarm">Seuraava herätys</string>
     <string name="smartspace_allow_location">Salli sijainti napauttamalla – sää</string>
+    <string name="notifications_widget_name">Ilmoitukset</string>
+    <string name="notifications_widget_desc">Ilmoitukset sovelluskuvakkeina</string>
+    <string name="notifications_widget_allow_access">Myönnä ilmoitusten käyttöoikeus napauttamalla</string>
     <string name="onboarding_skip">Ohita</string>
     <string name="onboarding_back">Takaisin</string>
     <string name="onboarding_next">Seuraava</string>

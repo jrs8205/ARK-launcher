@@ -11,6 +11,9 @@
     <string name="smartspace_size_full">Full width</string>
     <string name="smartspace_next_alarm">Next alarm</string>
     <string name="smartspace_allow_location">Tap to allow location – weather</string>
+    <string name="notifications_widget_name">Notifications</string>
+    <string name="notifications_widget_desc">Notifications as app icons</string>
+    <string name="notifications_widget_allow_access">Tap to grant notification access</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_back">Back</string>
     <string name="onboarding_next">Next</string>
