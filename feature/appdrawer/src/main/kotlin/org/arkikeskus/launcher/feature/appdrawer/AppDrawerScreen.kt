@@ -155,6 +155,12 @@ fun AppDrawerScreen(
         }
     }
 
+    // Turning the drawer search OFF must clear any active query — the search field (and its clear
+    // button) disappear, so an old filter would otherwise strand the grid with no way to reset it.
+    LaunchedEffect(uiState.showSearch) {
+        if (!uiState.showSearch && uiState.query.isNotBlank()) viewModel.onQueryChange("")
+    }
+
     val badges = if (uiState.showNotificationDots) uiState.badges else emptyMap()
 
     // All app icons in the drawer (grid, folder sheet, popup) honour the themed-icons setting and the
@@ -207,6 +213,9 @@ fun AppDrawerScreen(
         val (app, bounds) = menu
         val inHome = app.key in uiState.homeKeys
         val inDock = app.key in uiState.dockKeys
+        // A full visible dock can't show another favorite — offering "Add to dock" would appear to
+        // do nothing (the new favorite lands in the invisible hidden tail). Hide the add action then.
+        val dockFull = uiState.dockKeys.size >= uiState.dockColumns
         // Anchor to the icon's edge (not its centre) so the popup clears it with a small gap: below
         // the cell for top-half icons, above it for bottom-half ones.
         val preferAbove = bounds.center.y > windowHeightPx / 2
@@ -216,7 +225,7 @@ fun AppDrawerScreen(
             app = app,
             anchor = anchor,
             preferAbove = preferAbove,
-            actions = listOf(
+            actions = listOfNotNull(
                 PopupAction(stringResource(R.string.app_info), LauncherIcons.Info) { AppActions.openAppInfo(context, app) },
                 PopupAction(stringResource(R.string.rename), LauncherIcons.Edit) { renameTarget = app },
                 PopupAction(
@@ -225,11 +234,18 @@ fun AppDrawerScreen(
                 ) {
                     if (inHome) viewModel.removeFromHome(app) else viewModel.addToHome(app)
                 },
-                PopupAction(
-                    stringResource(if (inDock) R.string.remove_from_dock else R.string.add_to_dock),
-                    if (inDock) LauncherIcons.Close else LauncherIcons.Add,
-                ) {
-                    if (inDock) viewModel.removeFromDock(app) else viewModel.addToDock(app)
+                // Offer "Remove from dock" for a member, "Add to dock" only when a visible slot is
+                // free; a full dock hides the add action instead of appearing to do nothing.
+                if (inDock) {
+                    PopupAction(stringResource(R.string.remove_from_dock), LauncherIcons.Close) {
+                        viewModel.removeFromDock(app)
+                    }
+                } else if (!dockFull) {
+                    PopupAction(stringResource(R.string.add_to_dock), LauncherIcons.Add) {
+                        viewModel.addToDock(app)
+                    }
+                } else {
+                    null
                 },
                 PopupAction(stringResource(R.string.hide_app), LauncherIcons.VisibilityOff) { viewModel.hideApp(app) },
                 PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete) { AppActions.uninstall(context, app) },

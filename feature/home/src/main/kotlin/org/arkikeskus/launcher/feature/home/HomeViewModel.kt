@@ -360,10 +360,11 @@ class HomeViewModel @Inject constructor(
     }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
-     *  places it on the home grid. */
+     *  places it on the home grid only if the system pin succeeded (else it would be a dead cell). */
     fun pinShortcut(item: AppShortcuts.Item) = viewModelScope.launch {
-        AppShortcuts.pin(context, item)
-        addPinnedShortcut(item.packageName, item.id, item.userSerial)
+        if (AppShortcuts.pin(context, item)) {
+            addPinnedShortcut(item.packageName, item.id, item.userSerial)
+        }
     }
 
     /** Places a freshly-bound widget on the home grid (spans are the picker's default). */

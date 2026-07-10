@@ -38,6 +38,8 @@ data class AppDrawerUiState(
     val query: String = "",
     val columns: Int = 4,
     val dockKeys: Set<String> = emptySet(),
+    /** Visible dock capacity — the drawer hides "Add to dock" once this many favorites exist. */
+    val dockColumns: Int = 4,
     val homeKeys: Set<String> = emptySet(),
     val showLabels: Boolean = true,
     val showSearch: Boolean = true,
@@ -87,6 +89,7 @@ class AppDrawerViewModel @Inject constructor(
             query = q,
             columns = settings.drawerColumns,
             dockKeys = favorites.toSet(),
+            dockColumns = settings.dockColumns,
             // Only apps placed directly on home (not folder rows or apps inside folders).
             homeKeys = homeItems
                 .filter { it.containerId == HomeItemEntity.HOME && !it.isFolder }
@@ -192,10 +195,11 @@ class AppDrawerViewModel @Inject constructor(
     }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
-     *  places it on the home grid. */
+     *  places it on the home grid only if the system pin succeeded (else it would be a dead cell). */
     fun pinShortcut(item: org.arkikeskus.launcher.ui.AppShortcuts.Item) = viewModelScope.launch {
-        org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)
-        addPinnedShortcut(item.packageName, item.id, item.userSerial)
+        if (org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)) {
+            addPinnedShortcut(item.packageName, item.id, item.userSerial)
+        }
     }
 
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */

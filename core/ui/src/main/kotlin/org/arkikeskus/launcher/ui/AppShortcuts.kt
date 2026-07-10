@@ -79,9 +79,11 @@ object AppShortcuts {
     }
 
     /** Pins [item] to the system (union of the already-pinned set for its package + the new id).
-     *  Suspends on IO: the query + pinShortcuts round-trips block, and the callers are UI paths. */
-    suspend fun pin(context: Context, item: Item): Unit = withContext(Dispatchers.IO) {
-        val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return@withContext
+     *  Suspends on IO: the query + pinShortcuts round-trips block, and the callers are UI paths.
+     *  Returns whether the system pin succeeded, so the caller only stores a home row for a
+     *  shortcut the system actually pinned (a failed pin would otherwise leave a dead home cell). */
+    suspend fun pin(context: Context, item: Item): Boolean = withContext(Dispatchers.IO) {
+        val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return@withContext false
         runCatching {
             val pinned = launcherApps.getShortcuts(
                 LauncherApps.ShortcutQuery()
@@ -91,7 +93,8 @@ object AppShortcuts {
             ).orEmpty().map { it.id }
             val union = (pinned + item.id).distinct()
             launcherApps.pinShortcuts(item.packageName, union, item.user)
-        }
+            true
+        }.getOrDefault(false)
     }
 
     /** Re-pins exactly [shortcutIds] for (package, user) — used after removing one from home.
