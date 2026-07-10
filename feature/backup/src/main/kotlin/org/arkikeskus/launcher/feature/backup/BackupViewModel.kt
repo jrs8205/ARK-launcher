@@ -191,7 +191,9 @@ class BackupViewModel @Inject constructor(
     private suspend fun currentJsonAndHash(): Pair<String, String> = withContext(Dispatchers.Default) {
         val doc = backupRepository.exportDocument(System.currentTimeMillis(), appVersion)
         val json = BackupCodec.encode(doc)
-        val hashable = BackupCodec.encode(doc.copy(createdAt = 0L))
+        // Hash over content with createdAt AND appVersion zeroed, so a pure launcher-version bump
+        // (identical layout + settings) doesn't look like new content and rotate a Drive restore point.
+        val hashable = BackupCodec.encode(doc.copy(createdAt = 0L, appVersion = ""))
         val hash = java.security.MessageDigest.getInstance("SHA-256")
             .digest(hashable.toByteArray()).joinToString("") { "%02x".format(it) }
         json to hash

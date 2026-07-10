@@ -53,11 +53,12 @@ class LauncherAppsSource @Inject constructor(
             for (unused in reloads) trySend(queryApps())
         }
 
-        fun packageEvent(vararg packageNames: String) {
-            // The changed package may be the active icon pack: drop its parsed appfilter and the
-            // rasterized icon cache so upcoming requests re-read the pack — otherwise an updated or
-            // uninstalled pack kept serving its stale icons until the launcher process died.
-            if (packageNames.any { iconPacks.invalidate(it) }) {
+        fun packageEvent(vararg packageNames: String, iconsMayHaveChanged: Boolean = false) {
+            // Drop the rasterized icon cache when either the active icon pack changed OR a package was
+            // updated/replaced: the AppIcon cache key is version-agnostic, so a normal app update would
+            // otherwise keep serving the OLD launcher icon until the launcher process died.
+            val packInvalidated = packageNames.any { iconPacks.invalidate(it) }
+            if (packInvalidated || iconsMayHaveChanged) {
                 runCatching { imageLoader.get().memoryCache?.clear() }
             }
             reload()
@@ -66,9 +67,10 @@ class LauncherAppsSource @Inject constructor(
         val callback = object : LauncherApps.Callback() {
             override fun onPackageAdded(packageName: String, user: UserHandle) = packageEvent(packageName)
             override fun onPackageRemoved(packageName: String, user: UserHandle) = packageEvent(packageName)
-            override fun onPackageChanged(packageName: String, user: UserHandle) = packageEvent(packageName)
+            override fun onPackageChanged(packageName: String, user: UserHandle) =
+                packageEvent(packageName, iconsMayHaveChanged = true)
             override fun onPackagesAvailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
-                packageEvent(*names)
+                packageEvent(*names, iconsMayHaveChanged = replacing)
             override fun onPackagesUnavailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
                 packageEvent(*names)
         }

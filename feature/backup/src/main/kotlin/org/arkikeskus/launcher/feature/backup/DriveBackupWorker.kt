@@ -70,9 +70,10 @@ class DriveBackupWorker @AssistedInject constructor(
                 createdAt = System.currentTimeMillis(),
                 appVersion = appVersion(applicationContext),
             )
-            // Dedup: hash over content with createdAt zeroed so identical layouts on different
-            // days produce the same hash.
-            val hashable = BackupCodec.encode(doc.copy(createdAt = 0L))
+            // Dedup: hash over content with createdAt AND appVersion zeroed so identical layouts on
+            // different days — or after a pure launcher-version bump — produce the same hash and don't
+            // rotate a Drive restore point.
+            val hashable = BackupCodec.encode(doc.copy(createdAt = 0L, appVersion = ""))
             val hash = MessageDigest.getInstance("SHA-256")
                 .digest(hashable.toByteArray())
                 .joinToString("") { "%02x".format(it) }
