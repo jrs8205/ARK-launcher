@@ -56,6 +56,9 @@ class ApkInstaller @Inject constructor(
             if (!resp.isSuccessful) throw IOException("download HTTP ${resp.code}")
             val body = resp.body ?: throw IOException("empty body")
             val total = body.contentLength()
+            // The release API tells us the size; allow slack but never write unboundedly (a wrong or
+            // corrupt response must not fill the cache).
+            val cap = if (info.sizeBytes > 0) info.sizeBytes + 1_048_576 else MAX_APK_BYTES
             var downloaded = 0L
             onProgress(0)
             out.outputStream().use { o ->
@@ -64,15 +67,27 @@ class ApkInstaller @Inject constructor(
                     while (true) {
                         val n = input.read(buf)
                         if (n < 0) break
-                        o.write(buf, 0, n)
                         downloaded += n
+                        if (downloaded > cap) throw IOException("APK exceeds expected size")
+                        o.write(buf, 0, n)
                         if (total > 0) onProgress(((downloaded * 100) / total).toInt().coerceIn(0, 100))
                     }
                 }
             }
             onProgress(100)
         }
+        validateApk(out)
         return out
+    }
+
+    /** Rejects a download whose package doesn't match this app, so a wrong asset never reaches the
+     *  installer. Signature and downgrade are enforced by the OS installer; this catches gross
+     *  mismatch (wrong app, corrupt file) before we even show the install prompt. */
+    private fun validateApk(file: File) {
+        val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+            ?: throw IOException("Not a valid APK")
+        val expected = context.packageName.removeSuffix(".debug")
+        if (archive.packageName != expected) throw IOException("Unexpected package ${archive.packageName}")
     }
 
     private fun openReleasePage() {
@@ -86,5 +101,8 @@ class ApkInstaller @Inject constructor(
 
     private companion object {
         const val RELEASE_PAGE_URL = "https://github.com/jrs8205/ARK-launcher/releases/latest"
+
+        /** Hard ceiling when the release API reports no asset size (a real APK is a few MB). */
+        const val MAX_APK_BYTES = 200L * 1024 * 1024
     }
 }
