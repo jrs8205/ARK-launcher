@@ -2,8 +2,6 @@ package org.arkikeskus.launcher.feature.backup
 
 import android.content.Context
 import android.net.Uri
-import android.os.Process
-import android.os.UserManager
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -134,10 +132,8 @@ class BackupViewModel @Inject constructor(
                 ?: error("Could not open input stream")
             val doc = BackupCodec.decode(json)
             val apps = appRepository.apps.first()
-            val mainSerial = mainUserSerial()
             backupRepository.restoreDocument(
                 doc = doc,
-                mainUserSerial = mainSerial,
                 installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
                 installedPackages = apps.map { it.packageName }.toSet(),
             )
@@ -264,10 +260,8 @@ class BackupViewModel @Inject constructor(
             val json = withContext(Dispatchers.IO) { DriveRestClient(token, driveHttp).download(fileId) }
             val doc = BackupCodec.decode(json)
             val apps = appRepository.apps.first()
-            val mainSerial = mainUserSerial()
             backupRepository.restoreDocument(
                 doc = doc,
-                mainUserSerial = mainSerial,
                 installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
                 installedPackages = apps.map { it.packageName }.toSet(),
             )
@@ -285,10 +279,6 @@ class BackupViewModel @Inject constructor(
 
     /** Called by the Screen when Drive authorization fails (e.g. user cancels consent). */
     fun emitAuthFailed() = viewModelScope.launch { _events.emit(BackupEvent.AuthFailed) }
-
-    private fun mainUserSerial(): Long = runCatching {
-        context.getSystemService(UserManager::class.java).getSerialNumberForUser(Process.myUserHandle())
-    }.getOrDefault(0L)
 
     private companion object {
         const val TAG = "BackupVM"
