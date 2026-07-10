@@ -1,0 +1,2 @@
+New Notifications widget: your active notifications as colored app icons on the home screen — one icon per app, newest first, tap to open the notification. Choose the count style (number, dot or none) in Settings.
+New Permissions section in Settings: see at a glance which permissions are granted and grant missing ones with a tap.
