@@ -253,7 +253,11 @@ class HomeViewModel @Inject constructor(
                         spanX = row.spanX, spanY = row.spanY,
                     )
                     row.isFolder -> {
-                        val folderApps = childrenByFolder[row.id].orEmpty().mapNotNull { byKey[it.key] }
+                        // distinctBy: a duplicate child row (old data from before the merge fix, or
+                        // an edited backup) must never reach the folder grid's app-key lazy keys.
+                        val folderApps = childrenByFolder[row.id].orEmpty()
+                            .mapNotNull { byKey[it.key] }
+                            .distinctBy { it.key }
                         PlacedFolder(row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY)
                     }
                     row.isShortcut -> {

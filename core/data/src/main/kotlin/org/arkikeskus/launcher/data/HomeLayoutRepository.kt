@@ -164,11 +164,17 @@ class HomeLayoutRepository @Inject constructor(
             folderId
         }
 
-    /** Moves [appItem] off the home screen into [folderId], appended after its current children. */
+    /** Moves [appItem] off the home screen into [folderId], appended after its current children.
+     *  If the folder already contains the app the drop merges: the direct home icon is removed
+     *  instead of inserting a duplicate child (duplicate keys crash the folder grid). */
     suspend fun addToFolder(appItem: AppItem, folderId: Long) {
         db.withTransaction {
             val row = dao.getByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
                 ?: return@withTransaction
+            if (dao.getByKey(folderId, appItem.packageName, appItem.className, appItem.userSerial) != null) {
+                dao.deleteById(row.id)
+                return@withTransaction
+            }
             val order = dao.childCount(folderId)
             dao.moveById(row.id, folderId, 0, order, 0)
         }
