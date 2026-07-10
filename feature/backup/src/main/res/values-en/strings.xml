@@ -12,6 +12,7 @@
         <item quantity="other">Backup restored — %1$d skipped (not installed)</item>
     </plurals>
     <string name="backup_import_invalid">Invalid or incompatible backup file</string>
+    <string name="backup_error_too_large">The backup file is too large</string>
     <string name="backup_failed">Operation failed</string>
     <string name="backup_restore_confirm_title">Restore backup?</string>
     <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets are restored as tap-to-set-up placeholders.</string>

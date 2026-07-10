@@ -33,10 +33,14 @@ sealed interface BackupEvent {
     data class Exported(val name: String) : BackupEvent
     data class Restored(val restored: Int, val skipped: Int) : BackupEvent
     data object InvalidFile : BackupEvent
+    data object TooLarge : BackupEvent
     data class Failed(val message: String) : BackupEvent
     data object DriveUploaded : BackupEvent
     data object AuthFailed : BackupEvent
 }
+
+/** Thrown when a backup file exceeds the import size cap — never buffer it whole. */
+internal class BackupTooLargeException : Exception()
 
 data class DriveState(
     val enabled: Boolean = false,
@@ -111,9 +115,11 @@ class BackupViewModel @Inject constructor(
 
     fun exportTo(uri: Uri) = viewModelScope.launch {
         runCatching {
-            val doc = backupRepository.exportDocument(createdAt = System.currentTimeMillis(), appVersion = appVersion)
-            context.contentResolver.openOutputStream(uri)?.use { it.write(BackupCodec.encode(doc).toByteArray()) }
-                ?: error("Could not open output stream")
+            withContext(Dispatchers.IO) {
+                val doc = backupRepository.exportDocument(createdAt = System.currentTimeMillis(), appVersion = appVersion)
+                context.contentResolver.openOutputStream(uri)?.use { it.write(BackupCodec.encode(doc).toByteArray()) }
+                    ?: error("Could not open output stream")
+            }
         }.onSuccess {
             settings.setLocalLastBackup(System.currentTimeMillis())
             _events.emit(BackupEvent.Exported(uri.lastPathSegment ?: ""))
@@ -128,21 +134,49 @@ class BackupViewModel @Inject constructor(
 
     fun importFrom(uri: Uri) = viewModelScope.launch {
         runCatching {
-            val json = context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
-                ?: error("Could not open input stream")
-            val doc = BackupCodec.decode(json)
-            val apps = appRepository.apps.first()
-            backupRepository.restoreDocument(
-                doc = doc,
-                installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
-                installedPackages = apps.map { it.packageName }.toSet(),
-            )
+            withContext(Dispatchers.IO) {
+                val json = context.contentResolver.openInputStream(uri)?.use { readBounded(it).decodeToString() }
+                    ?: error("Could not open input stream")
+                val doc = BackupCodec.decode(json)
+                val apps = installedApps()
+                backupRepository.restoreDocument(
+                    doc = doc,
+                    installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
+                    installedPackages = apps.map { it.packageName }.toSet(),
+                )
+            }
         }.onSuccess { _events.emit(BackupEvent.Restored(it.restored, it.skipped)) }
             .onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
-                if (it is BackupFormatException || it is JSONException) _events.emit(BackupEvent.InvalidFile)
-                else _events.emit(BackupEvent.Failed(it.message.orEmpty()))
+                when {
+                    it is BackupTooLargeException -> _events.emit(BackupEvent.TooLarge)
+                    it is BackupFormatException || it is JSONException -> _events.emit(BackupEvent.InvalidFile)
+                    else -> _events.emit(BackupEvent.Failed(it.message.orEmpty()))
+                }
             }
+    }
+
+    /** The current app list, REQUIRED non-empty: a transient LauncherApps failure yields an empty
+     *  list, and restoring against it would silently drop every app item from the layout. */
+    private suspend fun installedApps() =
+        kotlinx.coroutines.withTimeoutOrNull(APP_LIST_TIMEOUT_MS) {
+            appRepository.apps.first { it.isNotEmpty() }
+        } ?: error("App list unavailable")
+
+    /** Reads the stream fully but never past [MAX_BACKUP_BYTES] — an oversized or corrupt file
+     *  must fail fast instead of OOMing the HOME process. */
+    private fun readBounded(stream: java.io.InputStream): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            val n = stream.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > MAX_BACKUP_BYTES) throw BackupTooLargeException()
+            out.write(buf, 0, n)
+        }
+        return out.toByteArray()
     }
 
     // -------------------------------------------------------------------------
@@ -154,13 +188,13 @@ class BackupViewModel @Inject constructor(
      * Hash is over [BackupCodec.encode] with [createdAt]=0 so identical content on different
      * days produces the same hash (dedup guard).
      */
-    private suspend fun currentJsonAndHash(): Pair<String, String> {
+    private suspend fun currentJsonAndHash(): Pair<String, String> = withContext(Dispatchers.Default) {
         val doc = backupRepository.exportDocument(System.currentTimeMillis(), appVersion)
         val json = BackupCodec.encode(doc)
         val hashable = BackupCodec.encode(doc.copy(createdAt = 0L))
         val hash = java.security.MessageDigest.getInstance("SHA-256")
             .digest(hashable.toByteArray()).joinToString("") { "%02x".format(it) }
-        return json to hash
+        json to hash
     }
 
     fun setDriveEnabled(enabled: Boolean) = viewModelScope.launch {
@@ -257,14 +291,16 @@ class BackupViewModel @Inject constructor(
     fun restoreFromDrive(token: String, fileId: String) = viewModelScope.launch {
         _driveState.update { it.copy(isLoading = true) }
         runCatching {
-            val json = withContext(Dispatchers.IO) { DriveRestClient(token, driveHttp).download(fileId) }
-            val doc = BackupCodec.decode(json)
-            val apps = appRepository.apps.first()
-            backupRepository.restoreDocument(
-                doc = doc,
-                installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
-                installedPackages = apps.map { it.packageName }.toSet(),
-            )
+            withContext(Dispatchers.IO) {
+                val json = DriveRestClient(token, driveHttp).download(fileId)
+                val doc = BackupCodec.decode(json)
+                val apps = installedApps()
+                backupRepository.restoreDocument(
+                    doc = doc,
+                    installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
+                    installedPackages = apps.map { it.packageName }.toSet(),
+                )
+            }
         }.onSuccess { result ->
             _driveState.update { it.copy(isLoading = false) }
             _events.emit(BackupEvent.Restored(result.restored, result.skipped))
@@ -272,15 +308,23 @@ class BackupViewModel @Inject constructor(
             if (it is kotlinx.coroutines.CancellationException) throw it
             Log.w(TAG, "Drive restore failed", it)
             _driveState.update { it.copy(isLoading = false) }
-            if (it is BackupFormatException || it is JSONException) _events.emit(BackupEvent.InvalidFile)
-            else _events.emit(BackupEvent.Failed(it.message.orEmpty()))
+            when {
+                it is BackupTooLargeException -> _events.emit(BackupEvent.TooLarge)
+                it is BackupFormatException || it is JSONException -> _events.emit(BackupEvent.InvalidFile)
+                else -> _events.emit(BackupEvent.Failed(it.message.orEmpty()))
+            }
         }
     }
 
     /** Called by the Screen when Drive authorization fails (e.g. user cancels consent). */
     fun emitAuthFailed() = viewModelScope.launch { _events.emit(BackupEvent.AuthFailed) }
 
-    private companion object {
+    internal companion object {
         const val TAG = "BackupVM"
+
+        /** Hard cap for a backup file; a real backup is a few kB, so 10 MiB is generous. */
+        const val MAX_BACKUP_BYTES = 10L * 1024 * 1024
+
+        private const val APP_LIST_TIMEOUT_MS = 10_000L
     }
 }

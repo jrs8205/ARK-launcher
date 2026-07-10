@@ -5,6 +5,8 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.arkikeskus.launcher.feature.backup.BackupTooLargeException
+import org.arkikeskus.launcher.feature.backup.BackupViewModel
 import org.json.JSONObject
 import java.io.IOException
 
@@ -51,7 +53,10 @@ class DriveRestClient(
             .url("https://www.googleapis.com/drive/v3/files/$id?alt=media")).build()
         http.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) throw resp.toError("download")
-            return resp.body?.string().orEmpty()
+            val source = resp.body?.source() ?: return ""
+            // Bounded read — a wrong or corrupt file must not be buffered into memory unbounded.
+            if (source.request(BackupViewModel.MAX_BACKUP_BYTES + 1)) throw BackupTooLargeException()
+            return source.buffer.readUtf8()
         }
     }
 

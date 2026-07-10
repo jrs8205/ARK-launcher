@@ -12,6 +12,7 @@
         <item quantity="other">Varmuuskopio palautettu — %1$d ohitettu (ei asennettu)</item>
     </plurals>
     <string name="backup_import_invalid">Virheellinen tai yhteensopimaton varmuuskopiotiedosto</string>
+    <string name="backup_error_too_large">Varmuuskopiotiedosto on liian suuri</string>
     <string name="backup_failed">Toiminto epäonnistui</string>
     <string name="backup_restore_confirm_title">Palauta varmuuskopio?</string>
     <string name="backup_restore_confirm_msg">Nykyinen kotinäyttö ja asetukset korvataan. Widgetit palautetaan napautettavina paikkamerkkeinä.</string>

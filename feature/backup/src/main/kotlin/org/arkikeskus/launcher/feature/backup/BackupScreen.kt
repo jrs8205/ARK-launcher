@@ -174,6 +174,7 @@ fun BackupScreen(
     // --- Event handler ---
     val restoredMsg = stringResource(R.string.backup_restored)
     val invalidMsg = stringResource(R.string.backup_import_invalid)
+    val tooLargeMsg = stringResource(R.string.backup_error_too_large)
     val failedMsg = stringResource(R.string.backup_failed)
     val exportedMsg = stringResource(R.string.backup_exported)
     val authFailedMsg = stringResource(R.string.backup_auth_failed)
@@ -195,6 +196,7 @@ fun BackupScreen(
                             restoredMsg
                         }
                     BackupEvent.InvalidFile -> invalidMsg
+                    BackupEvent.TooLarge -> tooLargeMsg
                     is BackupEvent.Failed -> if (e.message.isBlank()) failedMsg else "$failedMsg: ${e.message}"
                     BackupEvent.DriveUploaded -> exportedMsg
                     BackupEvent.AuthFailed -> authFailedMsg
