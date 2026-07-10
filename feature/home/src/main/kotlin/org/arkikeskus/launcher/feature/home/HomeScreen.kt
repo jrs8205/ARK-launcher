@@ -707,6 +707,10 @@ fun HomeScreen(
                 showWidgetPicker = false
                 viewModel.addSmartspace()
             },
+            onPickBuiltinNotifications = {
+                showWidgetPicker = false
+                viewModel.addNotificationsWidget()
+            },
             onDismiss = { showWidgetPicker = false },
             modifier = Modifier.fillMaxSize(),
         )

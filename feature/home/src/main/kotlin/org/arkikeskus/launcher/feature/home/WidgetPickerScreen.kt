@@ -53,6 +53,7 @@ private data class WidgetGroup(
 fun WidgetPickerScreen(
     onPick: (AppWidgetProviderInfo) -> Unit,
     onPickBuiltin: () -> Unit = {},
+    onPickBuiltinNotifications: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -128,14 +129,19 @@ fun WidgetPickerScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 4.dp),
             )
-            // The built-in smartspace widget: shown at the top, filtered by the same query.
+            // The built-in widgets: shown at the top, each filtered by the same query.
             val builtinSection = stringResource(R.string.widget_builtin_section)
             val builtinName = stringResource(R.string.smartspace_widget_name)
+            val notifName = stringResource(R.string.notifications_widget_name)
             val builtinVisible = remember(query, builtinSection, builtinName) {
                 val q = query.trim().lowercase()
                 q.isEmpty() || builtinSection.lowercase().contains(q) || builtinName.lowercase().contains(q)
             }
-            if (filtered.isEmpty() && !builtinVisible) {
+            val notifVisible = remember(query, builtinSection, notifName) {
+                val q = query.trim().lowercase()
+                q.isEmpty() || builtinSection.lowercase().contains(q) || notifName.lowercase().contains(q)
+            }
+            if (filtered.isEmpty() && !builtinVisible && !notifVisible) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     Text(
                         text = stringResource(R.string.widget_search_none),
@@ -145,7 +151,7 @@ fun WidgetPickerScreen(
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    if (builtinVisible) {
+                    if (builtinVisible || notifVisible) {
                         item(key = "h-builtin") {
                             Text(
                                 text = builtinSection,
@@ -154,6 +160,8 @@ fun WidgetPickerScreen(
                                 modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
                             )
                         }
+                    }
+                    if (builtinVisible) {
                         item(key = "builtin-smartspace") {
                             Row(
                                 modifier = Modifier
@@ -172,6 +180,32 @@ fun WidgetPickerScreen(
                                     Text(builtinName, color = MaterialTheme.colorScheme.onSurface)
                                     Text(
                                         text = stringResource(R.string.smartspace_size_full),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 12.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (notifVisible) {
+                        item(key = "builtin-notifications") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = onPickBuiltinNotifications)
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_widgets),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp),
+                                )
+                                Column(modifier = Modifier.padding(start = 16.dp)) {
+                                    Text(notifName, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(
+                                        text = stringResource(R.string.notifications_widget_desc),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 12.sp,
                                     )
