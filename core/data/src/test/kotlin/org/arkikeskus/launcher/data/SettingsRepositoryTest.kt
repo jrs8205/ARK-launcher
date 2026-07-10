@@ -215,4 +215,37 @@ class SettingsRepositoryTest {
         assertThat(repo.settings.first().notificationWidgetCountStyle)
             .isEqualTo(LauncherSettings.COUNT_NUMBER)
     }
+
+    @Test
+    fun `importRaw ignores a wrong-typed value for a known key`() = runTest {
+        val repo = newRepository()
+        repo.importRaw(
+            mapOf(
+                "home_columns" to true,        // boolean for an int key -> must be dropped
+                "show_weather" to 7,           // number for a boolean key -> must be dropped
+                "drawer_columns" to 6,         // correct type -> applied
+            ),
+        )
+        val s = repo.settings.first()          // must not throw ClassCastException
+        assertThat(s.homeColumns).isEqualTo(4) // default
+        assertThat(s.showWeather).isTrue()     // default
+        assertThat(s.drawerColumns).isEqualTo(6)
+    }
+
+    @Test
+    fun `importRaw never imports device-local bookkeeping keys`() = runTest {
+        val repo = newRepository()
+        repo.importRaw(mapOf("drive_backup_enabled" to "not-a-boolean", "app_usage" to 12345))
+        assertThat(repo.driveEnabled.first()).isFalse() // readable, default false
+    }
+
+    @Test
+    fun `drawer folder names with tabs and newlines round-trip without corrupting the record`() = runTest {
+        val repo = newRepository()
+        val id = repo.createDrawerFolder("Fun\tstuff\nrow2")
+        repo.addAppsToDrawerFolder(id, listOf("com.a/A/0", "com.b/B/0"))
+        val folder = repo.drawerFolders.first().single()
+        assertThat(folder.name).isEqualTo("Fun stuff row2")
+        assertThat(folder.appKeys).containsExactly("com.a/A/0", "com.b/B/0").inOrder()
+    }
 }

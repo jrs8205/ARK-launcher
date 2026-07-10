@@ -101,8 +101,9 @@ class SettingsRepository @Inject constructor(
         }?.toMap() ?: emptyMap()
 
     // --- App-drawer folders ----------------------------------------------------------------------
-    // Serialized one folder per line, tab-separated fields: "id\tname\tkey1\tkey2...". App keys and
-    // folder names never contain a tab, so a plain split round-trips cleanly.
+    // Serialized one folder per line, tab-separated fields: "id\tname\tkey1\tkey2...". App keys
+    // never contain a tab; folder names are normalized in serializeFolders, so a plain split
+    // round-trips cleanly.
 
     val drawerFolders: Flow<List<DrawerFolder>> = dataStore.data.map { p -> parseFolders(p[Keys.DRAWER_FOLDERS]) }
 
@@ -145,7 +146,14 @@ class SettingsRepository @Inject constructor(
         } ?: emptyList()
 
     private fun serializeFolders(folders: List<DrawerFolder>): String =
-        folders.joinToString("\n") { f -> (listOf(f.id.toString(), f.name) + f.appKeys).joinToString("\t") }
+        folders.joinToString("\n") { f ->
+            // The record format is tab/newline-separated; a pasted separator in a folder name would
+            // truncate the record and corrupt the member list — normalize at the one write point.
+            val safeName = f.name.replace(SEPARATORS, " ")
+            (listOf(f.id.toString(), safeName) + f.appKeys).joinToString("\t")
+        }
+
+    private val SEPARATORS = Regex("[\\t\\n\\r]+")
 
     suspend fun setDockEnabled(value: Boolean) = edit { it[Keys.DOCK_ENABLED] = value }
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }
@@ -323,8 +331,10 @@ class SettingsRepository @Inject constructor(
             .associate { (k, v) -> k.name to v }
 
     /**
-     * Replaces all preferences with [values]. JSON collapses Int/Float into "number", so numeric
-     * values are coerced back by the known-key registry; unknown keys fall back to their JSON type.
+     * Replaces all preferences with [values]. Known keys are written only with their registered
+     * type (see [BOOLEAN_KEYS]/[STRING_KEYS]/[FLOAT_KEYS]/[INT_KEYS]); JSON collapses Int/Float
+     * into "number", so numeric values are coerced back by the registry; unknown keys fall back
+     * to their JSON type.
      *
      * The device-local bookkeeping keys in [DRIVE_INTERNAL_KEYS] (Drive enable / last-time / last-hash,
      * the local file-backup time, and the Drive scheduling options interval/Wi-Fi/charging) are
@@ -352,10 +362,19 @@ class SettingsRepository @Inject constructor(
             prefs.clear()
             for ((name, value) in values) {
                 when {
+                    // Device-local bookkeeping is excluded from export, but a hand-edited file
+                    // could smuggle a wrong-typed value in — never import these names.
+                    name in DRIVE_INTERNAL_KEYS || name == AppUsageRepository.USAGE_KEY -> Unit
+                    // Known keys are written ONLY with their registered type — a wrong-typed value
+                    // in an edited/corrupted file would otherwise be stored under the same key name
+                    // and crash every settings read with a ClassCastException.
+                    name in BOOLEAN_KEYS -> if (value is Boolean) prefs[booleanPreferencesKey(name)] = value
+                    name in STRING_KEYS -> if (value is String) prefs[stringPreferencesKey(name)] = value
+                    name in FLOAT_KEYS -> if (value is Number) prefs[floatPreferencesKey(name)] = value.toFloat()
+                    name in INT_KEYS -> if (value is Number) prefs[intPreferencesKey(name)] = value.toInt()
+                    // Unknown key (e.g. a newer version's setting) — fall back to the JSON type.
                     value is Boolean -> prefs[booleanPreferencesKey(name)] = value
                     value is String -> prefs[stringPreferencesKey(name)] = value
-                    name in FLOAT_KEYS && value is Number -> prefs[floatPreferencesKey(name)] = value.toFloat()
-                    name in INT_KEYS && value is Number -> prefs[intPreferencesKey(name)] = value.toInt()
                     value is Number -> prefs[longPreferencesKey(name)] = value.toLong()
                 }
             }
@@ -449,6 +468,21 @@ class SettingsRepository @Inject constructor(
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale", "app_label_scale", "status_bar_scrim")
         val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns", "app_label_color")
+
+        /** Known boolean/string preference keys. importRaw writes a known key ONLY with its
+         *  registered type — a wrong-typed value in an edited/corrupted backup would otherwise be
+         *  stored under the same key name and crash every settings read with a ClassCastException. */
+        val BOOLEAN_KEYS = setOf(
+            "dock_enabled", "show_drawer_search", "swipe_up_drawer", "swipe_down_notif",
+            "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
+            "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
+            "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
+            "show_weather", "hide_system_status_bar",
+        )
+        val STRING_KEYS = setOf(
+            "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
+            "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key",
+        )
 
         /** Device-local bookkeeping keys excluded from an exported backup and preserved across a
          *  restore: Drive enable/last-backup/hash + the local file-backup timestamp. */
