@@ -190,6 +190,12 @@ fun NotificationsWidget(
                                 shadow = shadow,
                             ),
                             maxLines = 1,
+                            // The chip opens the shade — the hidden notifications are one tap away
+                            // instead of unreachable from the widget.
+                            modifier = Modifier.clickable(
+                                interactionSource = noIndication,
+                                indication = null,
+                            ) { NotificationShade.expand(context) },
                         )
                     }
                 }

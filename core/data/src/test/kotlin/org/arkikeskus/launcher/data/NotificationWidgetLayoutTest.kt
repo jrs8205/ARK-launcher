@@ -20,10 +20,10 @@ class NotificationWidgetLayoutTest {
     }
 
     @Test
-    fun `a single slot with several items shows only the chip`() {
+    fun `a single slot with several items keeps the newest item actionable`() {
         val (shown, overflow) = NotificationWidgetLayout.select(listOf("a", "b"), maxSlots = 1)
-        assertThat(shown).isEmpty()
-        assertThat(overflow).isEqualTo(2)
+        assertThat(shown).containsExactly("a")
+        assertThat(overflow).isEqualTo(1)
     }
 
     @Test
