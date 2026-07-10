@@ -88,12 +88,19 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     private fun refresh() {
-        val active = runCatching { activeNotifications }.getOrNull() ?: return
+        val active = runCatching { activeNotifications }.getOrNull()
+        if (active == null) {
+            // A transient Binder failure: keep the last good snapshot (a stale removal self-heals on
+            // the next post/remove callback) but leave a trail so a persistent failure is visible.
+            Log.w(TAG, "activeNotifications unavailable; keeping the previous snapshot")
+            return
+        }
         val ranking = runCatching { currentRanking }.getOrNull()
         val tmp = Ranking()
         val counts = HashMap<String, Int>()
         val iconCounts = HashMap<String, Int>()
-        val icons = LinkedHashMap<String, StatusNotification>()
+        val visual = LinkedHashMap<String, StatusNotification>()
+        val openable = HashMap<String, StatusNotification>()
         for (sbn in active) {
             if (sbn == null) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
@@ -106,28 +113,40 @@ class NotificationDotListenerService : NotificationListenerService() {
             // notifs (Google News etc.) show too. One entry per app — the most recent — carrying
             // the app's icon-worthy total so the widget's count always matches what it lists.
             if (isIconWorthy(sbn)) {
-                val smallIcon = sbn.notification?.smallIcon
-                if (smallIcon != null) {
-                    iconCounts[key] = (iconCounts[key] ?: 0) + 1
-                    val existing = icons[key]
-                    if (existing == null || sbn.postTime > existing.postTime) {
-                        icons[key] = StatusNotification(
-                            key = sbn.key,
-                            packageName = sbn.packageName,
-                            icon = smallIcon,
-                            postTime = sbn.postTime,
-                            userSerial = serial,
-                            contentIntent = sbn.notification?.contentIntent,
-                            autoCancel = ((sbn.notification?.flags ?: 0) and Notification.FLAG_AUTO_CANCEL) != 0,
-                        )
-                    }
+                val smallIcon = sbn.notification?.smallIcon ?: continue
+                iconCounts[key] = (iconCounts[key] ?: 0) + 1
+                val flags = sbn.notification?.flags ?: 0
+                val entry = StatusNotification(
+                    key = sbn.key,
+                    packageName = sbn.packageName,
+                    icon = smallIcon,
+                    postTime = sbn.postTime,
+                    userSerial = serial,
+                    contentIntent = sbn.notification?.contentIntent,
+                    autoCancel = (flags and Notification.FLAG_AUTO_CANCEL) != 0,
+                )
+                val curVisual = visual[key]
+                if (curVisual == null || sbn.postTime > curVisual.postTime) visual[key] = entry
+                if (entry.contentIntent != null) {
+                    val curOpen = openable[key]
+                    if (curOpen == null || sbn.postTime > curOpen.postTime) openable[key] = entry
                 }
             }
         }
         Log.d(TAG, "badge snapshot: ${counts.size} app(s) badged")
         badgeRepository.setBadges(counts)
         badgeRepository.setIcons(
-            icons.map { (k, n) -> n.copy(count = iconCounts[k] ?: 1) }.sortedByDescending { it.postTime },
+            visual.map { (k, v) ->
+                // Visual icon = newest notification; tap action = newest OPENABLE notification, so a
+                // newer intentless post never buries an older tappable one. count = app's total.
+                val open = openable[k]
+                v.copy(
+                    count = iconCounts[k] ?: 1,
+                    key = open?.key ?: v.key,
+                    contentIntent = open?.contentIntent,
+                    autoCancel = open?.autoCancel ?: false,
+                )
+            }.sortedByDescending { it.postTime },
         )
     }
 
@@ -167,15 +186,17 @@ class NotificationDotListenerService : NotificationListenerService() {
     /**
      * Looser filter for the status-bar icons: like the system status bar, it shows a glyph for any real
      * notification — including silent / low-importance ones whose channel disables badges (Google News,
-     * "now playing", etc.). We only drop group summaries (they duplicate their children's icons) and
-     * content-less placeholders. Notably it does NOT consult `canShowBadge()`, which is what the strict
-     * [isBadgeWorthy] dot filter uses.
+     * "now playing", etc.) and custom-view/MediaStyle ones that carry a small icon but no title/text.
+     * We only drop group summaries (they duplicate their children's icons). Notably it does NOT consult
+     * `canShowBadge()`, which is what the strict [isBadgeWorthy] dot filter uses.
      */
     private fun isIconWorthy(sbn: StatusBarNotification): Boolean {
         val n = sbn.notification ?: return false
         if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return false
+        // A custom-RemoteViews / MediaStyle notification can carry a user-visible glyph with neither
+        // EXTRA_TITLE nor EXTRA_TEXT — the system bar shows it, so we do too. Require a small icon.
         val title = n.extras?.getCharSequence(Notification.EXTRA_TITLE)
         val text = n.extras?.getCharSequence(Notification.EXTRA_TEXT)
-        return !title.isNullOrEmpty() || !text.isNullOrEmpty()
+        return !title.isNullOrEmpty() || !text.isNullOrEmpty() || n.smallIcon != null
     }
 }
