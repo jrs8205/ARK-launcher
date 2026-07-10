@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -39,9 +40,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import org.arkikeskus.launcher.ui.LauncherIcons
 
-/** A widget app group: the app label, its providers, and each provider's pre-resolved widget label
- *  (resolved once so the search filter doesn't hit the PackageManager on every keystroke). */
+/** A widget app group: the package, the app label, its providers, and each provider's pre-resolved
+ *  widget label (resolved once so the search filter doesn't hit the PackageManager on every keystroke). */
 private data class WidgetGroup(
+    val packageName: String,
     val appLabel: String,
     val providers: List<AppWidgetProviderInfo>,
     val widgetLabels: List<String>,
@@ -67,10 +69,16 @@ fun WidgetPickerScreen(
         value = withContext(Dispatchers.IO) {
             AppWidgetManager.getInstance(context).installedProviders
                 .groupBy { it.provider.packageName }
-                .map { (_, providers) ->
+                .map { (pkg, providers) ->
                     val sorted = providers.sortedBy { it.loadLabel(pm) }
+                    // The APP's label, not the first widget's: the header names the app, and a
+                    // widget-label header also collided across packages (duplicate lazy keys).
+                    val appLabel = runCatching {
+                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                    }.getOrNull()?.takeIf { it.isNotBlank() } ?: sorted.first().loadLabel(pm)
                     WidgetGroup(
-                        appLabel = sorted.first().loadLabel(pm),
+                        packageName = pkg,
+                        appLabel = appLabel,
                         providers = sorted,
                         widgetLabels = sorted.map { it.loadLabel(pm) },
                     )
@@ -214,7 +222,7 @@ fun WidgetPickerScreen(
                         }
                     }
                     filtered.forEach { group ->
-                        item(key = "h-${group.appLabel}") {
+                        item(key = "h-${group.packageName}") {
                             Text(
                                 text = group.appLabel,
                                 color = MaterialTheme.colorScheme.primary,
@@ -237,10 +245,31 @@ private fun WidgetRow(provider: AppWidgetProviderInfo, onClick: () -> Unit) {
     val context = LocalContext.current
     val pm = context.packageManager
     val (sx, sy) = remember(provider) { defaultWidgetSpans(provider, context) }
-    val preview = remember(provider) {
-        val d = runCatching { provider.loadPreviewImage(context, 0) }.getOrNull()
-            ?: runCatching { provider.loadIcon(context, 0) }.getOrNull()
-        d?.let { runCatching { it.toBitmap().asImageBitmap() }.getOrNull() }
+    // Preview decode is Binder + bitmap work — off the main thread, and bounded: some third-party
+    // previews are wallpaper-sized but land in a 56 dp box.
+    val preview by produceState<ImageBitmap?>(initialValue = null, provider) {
+        value = withContext(Dispatchers.IO) {
+            val d = runCatching { provider.loadPreviewImage(context, 0) }.getOrNull()
+                ?: runCatching { provider.loadIcon(context, 0) }.getOrNull()
+            d?.let {
+                runCatching {
+                    val raw = it.toBitmap()
+                    val max = 512
+                    val bmp = if (raw.width > max || raw.height > max) {
+                        val s = max.toFloat() / maxOf(raw.width, raw.height)
+                        android.graphics.Bitmap.createScaledBitmap(
+                            raw,
+                            (raw.width * s).toInt().coerceAtLeast(1),
+                            (raw.height * s).toInt().coerceAtLeast(1),
+                            true,
+                        )
+                    } else {
+                        raw
+                    }
+                    bmp.asImageBitmap()
+                }.getOrNull()
+            }
+        }
     }
     Row(
         modifier = Modifier
@@ -249,8 +278,9 @@ private fun WidgetRow(provider: AppWidgetProviderInfo, onClick: () -> Unit) {
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (preview != null) {
-            Image(bitmap = preview, contentDescription = null, modifier = Modifier.size(56.dp))
+        val previewBitmap = preview
+        if (previewBitmap != null) {
+            Image(bitmap = previewBitmap, contentDescription = null, modifier = Modifier.size(56.dp))
         }
         Column(modifier = Modifier.padding(start = 16.dp)) {
             Text(provider.loadLabel(pm), color = MaterialTheme.colorScheme.onSurface)
