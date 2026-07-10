@@ -17,7 +17,7 @@ import org.arkikeskus.launcher.model.WifiStatus
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Streams Wi-Fi connection state + signal level + band via the default-network callback. */
+/** Streams Wi-Fi connection state + signal level + band via a Wi-Fi network callback. */
 @Singleton
 class ConnectivityMonitor @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -28,17 +28,29 @@ class ConnectivityMonitor @Inject constructor(
     private val disconnected = WifiStatus(connected = false, level = 0, band = WifiBand.UNKNOWN)
 
     val wifi: Flow<WifiStatus> = callbackFlow {
+        // The callback can track SEVERAL Wi-Fi networks at once (STA+STA concurrency, make-before-break
+        // handovers); each gets its own onLost. Keep a per-network map and only report disconnected
+        // when the LAST one is gone — otherwise one network's loss falsely blanked the indicator.
+        val networks = HashMap<Network, WifiStatus>()
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                trySend(parse(caps))
+                networks[network] = parse(caps)
+                emitCurrent()
             }
 
             override fun onLost(network: Network) {
-                trySend(disconnected)
+                networks.remove(network)
+                emitCurrent()
             }
 
             override fun onUnavailable() {
+                networks.clear()
                 trySend(disconnected)
+            }
+
+            private fun emitCurrent() {
+                val best = networks.values.filter { it.connected }.maxByOrNull { it.level }
+                trySend(best ?: disconnected)
             }
         }
         val request = NetworkRequest.Builder()
