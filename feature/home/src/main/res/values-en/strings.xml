@@ -36,6 +36,8 @@
     <string name="onboarding_perm_phone_desc">Signal strength in the status bar</string>
     <string name="onboarding_perm_location">Location</string>
     <string name="onboarding_perm_location_desc">Weather in the clock widget</string>
+    <string name="onboarding_perm_post_notif">Notifications</string>
+    <string name="onboarding_perm_post_notif_desc">Update and backup notifications</string>
     <string name="onboarding_grant_all">Grant all</string>
     <string name="onboarding_grant">Grant</string>
     <string name="onboarding_granted">Granted</string>

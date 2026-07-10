@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -304,13 +305,20 @@ private fun granted(context: Context, permission: String): Boolean =
 @Composable
 private fun PermissionsPage(onContactsGranted: () -> Unit) {
     val context = LocalContext.current
+    // POST_NOTIFICATIONS is a runtime permission only on API 33+; below that, notifications post by
+    // default, so treat it as always granted (and never show the row / add it to the chain).
+    val postNotifNeeded = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     var notifAccess by remember { mutableStateOf(hasNotificationAccess(context)) }
+    var postNotif by remember {
+        mutableStateOf(!postNotifNeeded || granted(context, Manifest.permission.POST_NOTIFICATIONS))
+    }
     var calendar by remember { mutableStateOf(granted(context, Manifest.permission.READ_CALENDAR)) }
     var contacts by remember { mutableStateOf(granted(context, Manifest.permission.READ_CONTACTS)) }
     var phone by remember { mutableStateOf(granted(context, Manifest.permission.READ_PHONE_STATE)) }
     var location by remember { mutableStateOf(granted(context, Manifest.permission.ACCESS_COARSE_LOCATION)) }
     fun refresh() {
         notifAccess = hasNotificationAccess(context)
+        postNotif = !postNotifNeeded || granted(context, Manifest.permission.POST_NOTIFICATIONS)
         calendar = granted(context, Manifest.permission.READ_CALENDAR)
         contacts = granted(context, Manifest.permission.READ_CONTACTS)
         phone = granted(context, Manifest.permission.READ_PHONE_STATE)
@@ -390,19 +398,30 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
             granted = location,
             onClick = { permissionsLauncher.launch(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)) },
         )
+        if (postNotifNeeded) {
+            PermissionRow(
+                title = stringResource(R.string.onboarding_perm_post_notif),
+                description = stringResource(R.string.onboarding_perm_post_notif_desc),
+                granted = postNotif,
+                onClick = { permissionsLauncher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS)) },
+            )
+        }
         Spacer(Modifier.height(20.dp))
-        if (!(calendar && contacts && phone && location && notifAccess)) {
+        if (!(calendar && contacts && phone && location && notifAccess && postNotif)) {
             Button(
                 onClick = {
                     openNotifAfterChain = true
-                    permissionsLauncher.launch(
-                        arrayOf(
-                            Manifest.permission.READ_CALENDAR,
-                            Manifest.permission.READ_CONTACTS,
-                            Manifest.permission.READ_PHONE_STATE,
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                        ),
-                    )
+                    // POST_NOTIFICATIONS joins the runtime-dialog chain (API 33+) so a fresh user who
+                    // taps "grant all" also gets update/Drive notifications, not just the ones a
+                    // Settings visit would prompt for.
+                    val perms = buildList {
+                        add(Manifest.permission.READ_CALENDAR)
+                        add(Manifest.permission.READ_CONTACTS)
+                        add(Manifest.permission.READ_PHONE_STATE)
+                        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        if (postNotifNeeded) add(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                    permissionsLauncher.launch(perms.toTypedArray())
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = AURORA_BLUE),
             ) {

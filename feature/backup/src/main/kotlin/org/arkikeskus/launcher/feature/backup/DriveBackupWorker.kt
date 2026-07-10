@@ -100,11 +100,13 @@ class DriveBackupWorker @AssistedInject constructor(
     }
 
     /** Counts one failure per backup period (retries of the same period are not re-counted) and
-     *  posts the failing notification exactly when the threshold is crossed. */
+     *  posts the failing notification at or past the threshold — `>=` not `==`, so a period whose
+     *  notify was suppressed (POST_NOTIFICATIONS missing at that exact moment) still gets another
+     *  chance on the next failing period instead of the alert being lost forever. */
     private suspend fun registerFailure() {
         if (runAttemptCount > 0) return
         val count = settings.registerDriveFailure()
-        if (count == SettingsRepository.DRIVE_FAILING_THRESHOLD) {
+        if (count >= SettingsRepository.DRIVE_FAILING_THRESHOLD) {
             DriveBackupNotifier.notifyFailing(applicationContext)
         }
     }

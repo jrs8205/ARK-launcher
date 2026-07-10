@@ -36,6 +36,8 @@
     <string name="onboarding_perm_phone_desc">Tilapalkin signaalinäyttö</string>
     <string name="onboarding_perm_location">Sijainti</string>
     <string name="onboarding_perm_location_desc">Sää kello-widgetissä</string>
+    <string name="onboarding_perm_post_notif">Ilmoitukset</string>
+    <string name="onboarding_perm_post_notif_desc">Päivitys- ja varmuuskopiointi-ilmoitukset</string>
     <string name="onboarding_grant_all">Myönnä kaikki</string>
     <string name="onboarding_grant">Myönnä</string>
     <string name="onboarding_granted">Myönnetty</string>
