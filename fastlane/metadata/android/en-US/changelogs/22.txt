@@ -1,0 +1,3 @@
+Battery indicator fix.
+
+- The battery widget and the status bar's battery reading now appear immediately on every device. On some older devices (e.g. Samsung Galaxy A40) the first reading could take up to a minute to arrive after opening the launcher or adding the widget.
