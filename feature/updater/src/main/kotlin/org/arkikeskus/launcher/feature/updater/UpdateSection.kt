@@ -128,15 +128,10 @@ fun UpdateSection(modifier: Modifier = Modifier, viewModel: UpdateViewModel = hi
                 )
                 Switch(
                     checked = s.autoEnabled,
-                    onCheckedChange = { checked ->
-                        if (checked &&
-                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                        viewModel.setAutoUpdate(checked)
-                    },
+                    // The permission request lives ONLY in the autoEnabled-keyed LaunchedEffect
+                    // above: launching here too would fire the SAME launcher twice on enable
+                    // (once from this callback, again when the state flip re-runs the effect).
+                    onCheckedChange = { viewModel.setAutoUpdate(it) },
                     colors = SwitchDefaults.colors(
                         checkedTrackColor = Accent,
                         checkedThumbColor = Color.White,

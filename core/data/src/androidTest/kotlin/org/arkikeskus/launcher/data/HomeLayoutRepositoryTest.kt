@@ -49,6 +49,42 @@ class HomeLayoutRepositoryTest {
     private fun HomeItemEntity.cell() = Triple(page, cellX, cellY)
 
     @Test
+    fun removeStaleAppRows_compactsFolderChildren_soAddToFolderCannotCollide() = runTest {
+        repo.addToHome(app("a"), columns = 4, rows = 6)
+        repo.addToHome(app("b"), columns = 4, rows = 6)
+        repo.addToHome(app("c"), columns = 4, rows = 6)
+        repo.addToHome(app("d"), columns = 4, rows = 6)
+        val folderId = repo.createFolder(app("a"), app("b"), "F")
+        repo.addToFolder(app("c"), folderId) // children: a(0), b(1), c(2)
+
+        // "a" — the FIRST child — gets uninstalled; the sweep removes its row.
+        repo.removeStaleAppRows { pkg, _ -> pkg != "a" }
+
+        // The children must be re-indexed 0..n-1: a cellX gap would make the next insert reuse an
+        // occupied index (childCount) and crash on the unique cell index.
+        val children = dao.getContainerOrdered(folderId)
+        assertThat(children.map { it.cellX }).containsExactly(0, 1).inOrder()
+        repo.addToFolder(app("d"), folderId) // must not throw
+        assertThat(dao.getContainerOrdered(folderId)).hasSize(3)
+    }
+
+    @Test
+    fun removeStaleAppRows_dissolvesAFolderLeftWithOneChild() = runTest {
+        repo.addToHome(app("a"), columns = 4, rows = 6)
+        repo.addToHome(app("b"), columns = 4, rows = 6)
+        val folderId = repo.createFolder(app("a"), app("b"), "F")
+
+        repo.removeStaleAppRows { pkg, _ -> pkg != "b" }
+
+        // One child left → the folder dissolves and the survivor takes its cell on HOME.
+        val home = dao.getContainer(HomeItemEntity.HOME)
+        assertThat(home).hasSize(1)
+        assertThat(home.single().packageName).isEqualTo("a")
+        assertThat(home.single().isFolder).isFalse()
+        assertThat(dao.getContainerOrdered(folderId)).isEmpty()
+    }
+
+    @Test
     fun moveItem_toFreeCell_moves() = runTest {
         repo.addToHome(app("a"), columns = 4, rows = 6) // lands at (0,0,0)
 

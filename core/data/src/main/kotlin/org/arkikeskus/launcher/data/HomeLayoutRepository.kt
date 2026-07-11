@@ -398,8 +398,22 @@ class HomeLayoutRepository @Inject constructor(
      */
     suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
         db.withTransaction {
-            val stale = staleAppRowIds(dao.getAll(), isInstalled)
+            val all = dao.getAll()
+            val stale = staleAppRowIds(all, isInstalled)
+            if (stale.isEmpty()) return@withTransaction 0
+            val staleSet = stale.toHashSet()
+            val touchedFolders = all
+                .filter { it.id in staleSet && it.containerId != HOME }
+                .map { it.containerId }
+                .toSet()
             stale.forEach { dao.deleteById(it) }
+            // Restore the folder invariants a manual removal keeps: a cellX gap would collide with
+            // addToFolder's childCount-as-index (unique cell index → SQLiteConstraintException),
+            // and a folder left with 0–1 children must dissolve.
+            touchedFolders.forEach { folderId ->
+                reindexFolder(folderId)
+                dissolveIfNeeded(folderId)
+            }
             stale.size
         }
 
