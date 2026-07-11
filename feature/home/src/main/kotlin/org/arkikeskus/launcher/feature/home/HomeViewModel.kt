@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -454,15 +455,21 @@ class HomeViewModel @Inject constructor(
     /** Cross-surface: an icon dragged from the dock onto a home cell — place it and leave the dock. */
     fun moveToHome(appItem: AppItem, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
         val columns = settingsRepository.settings.first().homeColumns
-        if (homeLayoutRepository.placeAt(appItem, page, cellX, cellY, columns)) {
-            settingsRepository.removeFromDock(appItem.key)
+        // Add-first so an interruption can only duplicate, never lose; NonCancellable so a
+        // ViewModel clear between the halves can't strand the item on both surfaces.
+        withContext(NonCancellable) {
+            if (homeLayoutRepository.placeAt(appItem, page, cellX, cellY, columns)) {
+                settingsRepository.removeFromDock(appItem.key)
+            }
         }
     }
 
     /** Cross-surface: a home icon dragged into the dock at [index] — add to dock and leave home. */
     fun moveToDock(appItem: AppItem, index: Int) = viewModelScope.launch {
-        settingsRepository.addToDockAt(appItem.key, index)
-        homeLayoutRepository.removeFromHome(appItem)
+        withContext(NonCancellable) {
+            settingsRepository.addToDockAt(appItem.key, index)
+            homeLayoutRepository.removeFromHome(appItem)
+        }
     }
 
     /** Drop an app onto another home app → make a folder of the two. */
