@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.launcher.system
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -119,6 +120,8 @@ class SignalMonitor @Inject constructor(
      * (WWAN PS) registration; on API 31/32 getNetworkType() is itself IWLAN in this state, so the label
      * stays absent there — no worse than before.
      */
+    @SuppressLint("MissingPermission") // only reached from the display callback, which is
+    // registered when READ_PHONE_STATE is granted; a revocation race lands in the catch below
     private fun generationOf(display: TelephonyDisplayInfo?): String? = try {
         when (display?.overrideNetworkType) {
             TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA,

@@ -37,7 +37,7 @@
     <!-- A home launcher legitimately interacts with every installed app (open, uninstall, app info,
          notification badges). Without this, package-visibility filtering in a non-debuggable build
          silently blocks those cross-app intents (e.g. uninstall opens nothing). -->
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
     <!-- Required so the system package installer honors our ACTION_DELETE uninstall request; without
          it the uninstaller silently rejects the call ("does not have REQUEST_DELETE_PACKAGES"). -->

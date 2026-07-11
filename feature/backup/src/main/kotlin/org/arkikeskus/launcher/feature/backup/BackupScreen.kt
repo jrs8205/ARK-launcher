@@ -218,8 +218,9 @@ fun BackupScreen(
 
             // --- File section ---
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
+            val backupDefaultName = stringResource(R.string.backup_default_name)
             Button(
-                onClick = { createDoc.launch(context.getString(R.string.backup_default_name) + ".json") },
+                onClick = { createDoc.launch("$backupDefaultName.json") },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_export)) }
             OutlinedButton(

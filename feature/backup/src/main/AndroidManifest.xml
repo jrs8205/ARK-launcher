@@ -5,4 +5,7 @@
          network, so this permission is declared by the backup feature module and merges into the app. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- The "Drive backup keeps failing" push (API 33+; requested at runtime elsewhere). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 </manifest>

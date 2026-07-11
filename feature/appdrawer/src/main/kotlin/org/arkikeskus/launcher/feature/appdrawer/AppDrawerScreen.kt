@@ -469,13 +469,11 @@ private fun AppDrawerContent(
                 } else {
                     calc?.let { c ->
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "calc" }) {
+                            val copiedMsg = stringResource(R.string.search_calc_copied)
                             CalcResultCard(c) {
                                 val clip = context.getSystemService(android.content.ClipboardManager::class.java)
                                 clip?.setPrimaryClip(android.content.ClipData.newPlainText("result", c.result))
-                                android.widget.Toast.makeText(
-                                    context, context.getString(R.string.search_calc_copied),
-                                    android.widget.Toast.LENGTH_SHORT,
-                                ).show()
+                                android.widget.Toast.makeText(context, copiedMsg, android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }

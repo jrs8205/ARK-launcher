@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Also declared by :app (this module's only consumer); repeated here so this module's own
+         lint pass can see that the connectivity callbacks have their normal permission. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+</manifest>
