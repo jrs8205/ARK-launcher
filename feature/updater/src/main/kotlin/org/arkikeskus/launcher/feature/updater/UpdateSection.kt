@@ -49,10 +49,12 @@ fun UpdateSection(modifier: Modifier = Modifier, viewModel: UpdateViewModel = hi
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { /* result intentionally ignored — push is optional */ }
-    // Fix 1: also request on first composition so auto_update_enabled=true (default) never
-    // silently misses the permission prompt on Android 13+.
-    LaunchedEffect(s.isReleaseBuild) {
+    // Ask only when auto-update notifications are actually in use: on first composition when the
+    // default-on setting is active (Android 13+ would otherwise never prompt), and again when the
+    // user turns the toggle on. Merely opening the settings page with auto-update off must not ask.
+    LaunchedEffect(s.isReleaseBuild, s.autoEnabled) {
         if (s.isReleaseBuild &&
+            s.autoEnabled &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
