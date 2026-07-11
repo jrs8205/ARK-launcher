@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.IOException
+import java.security.MessageDigest
 import javax.inject.Inject
 
 class ApkInstaller @Inject constructor(
@@ -60,6 +61,7 @@ class ApkInstaller @Inject constructor(
             // corrupt response must not fill the cache).
             val cap = if (info.sizeBytes > 0) info.sizeBytes + 1_048_576 else MAX_APK_BYTES
             var downloaded = 0L
+            val digest = MessageDigest.getInstance("SHA-256")
             onProgress(0)
             out.outputStream().use { o ->
                 body.byteStream().use { input ->
@@ -69,25 +71,35 @@ class ApkInstaller @Inject constructor(
                         if (n < 0) break
                         downloaded += n
                         if (downloaded > cap) throw IOException("APK exceeds expected size")
+                        digest.update(buf, 0, n)
                         o.write(buf, 0, n)
                         if (total > 0) onProgress(((downloaded * 100) / total).toInt().coerceIn(0, 100))
                     }
                 }
             }
+            // A cleanly-dropped connection ends the stream without an exception; the exact size and
+            // the release digest make a truncated or tampered download deterministic to catch.
+            if (info.sizeBytes > 0 && downloaded != info.sizeBytes) throw IOException("APK size mismatch")
+            val sha = digest.digest().joinToString("") { "%02x".format(it) }
+            if (info.sha256 != null && sha != info.sha256) throw IOException("APK checksum mismatch")
             onProgress(100)
         }
-        validateApk(out)
+        validateApk(out, info)
         return out
     }
 
-    /** Rejects a download whose package doesn't match this app, so a wrong asset never reaches the
-     *  installer. Signature and downgrade are enforced by the OS installer; this catches gross
-     *  mismatch (wrong app, corrupt file) before we even show the install prompt. */
-    private fun validateApk(file: File) {
+    /** Rejects a download whose package or version doesn't match the release we offered, so a wrong
+     *  asset never reaches the installer. Signature and downgrade are enforced by the OS installer;
+     *  this catches gross mismatch (wrong app, wrong build, corrupt file) before the install prompt. */
+    private fun validateApk(file: File, info: UpdateInfo) {
         val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
             ?: throw IOException("Not a valid APK")
         val expected = context.packageName.removeSuffix(".debug")
         if (archive.packageName != expected) throw IOException("Unexpected package ${archive.packageName}")
+        val archiveVersion = archive.versionName
+        if (archiveVersion != null && archiveVersion != info.versionName) {
+            throw IOException("Unexpected version $archiveVersion")
+        }
     }
 
     private fun openReleasePage() {

@@ -28,6 +28,9 @@ class UpdateRepository @Inject constructor(private val http: OkHttpClient) {
     fun decide(currentVersionName: String, parsed: ParsedRelease?): UpdateInfo? {
         if (parsed == null) return null
         if (!SemVer.isNewer(parsed.tag, currentVersionName)) return null
-        return UpdateInfo(parsed.tag.removePrefix("v").removePrefix("V"), parsed.notes, parsed.apkUrl, parsed.sizeBytes)
+        return UpdateInfo(
+            parsed.tag.removePrefix("v").removePrefix("V"), parsed.notes, parsed.apkUrl,
+            parsed.sizeBytes, parsed.sha256,
+        )
     }
 }

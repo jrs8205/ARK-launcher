@@ -35,6 +35,26 @@ class GitHubReleaseParserTest {
         assertThat(GitHubReleaseParser.parse(json)!!.apkUrl).isEqualTo("https://x/rel.apk")
     }
 
+    @Test fun parses_the_asset_sha256_digest() {
+        val sha = "a".repeat(64)
+        val json = """
+          {"tag_name":"v0.8.0","body":"x","assets":[
+            {"name":"ARK-launcher-0.8.0.apk","browser_download_url":"https://x/a.apk","size":100,"digest":"sha256:$sha"}
+          ]}
+        """.trimIndent()
+        assertThat(GitHubReleaseParser.parse(json)!!.sha256).isEqualTo(sha)
+    }
+
+    @Test fun missing_or_malformed_digest_gives_null_sha256() {
+        val json = """
+          {"tag_name":"v0.8.0","body":"x","assets":[
+            {"name":"ARK-launcher-0.8.0.apk","browser_download_url":"https://x/a.apk","size":100,"digest":"md5:zz"}
+          ]}
+        """.trimIndent()
+        assertThat(GitHubReleaseParser.parse(json)!!.sha256).isNull()
+        assertThat(GitHubReleaseParser.parse(sample)!!.sha256).isNull()
+    }
+
     @Test fun ignores_a_debug_apk_when_no_named_apk_present() {
         val json = """
           {"tag_name":"v0.8.0","body":"x","assets":[

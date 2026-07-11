@@ -2,7 +2,13 @@ package org.arkikeskus.launcher.feature.updater
 
 import org.json.JSONObject
 
-data class ParsedRelease(val tag: String, val notes: String, val apkUrl: String, val sizeBytes: Long)
+data class ParsedRelease(
+    val tag: String,
+    val notes: String,
+    val apkUrl: String,
+    val sizeBytes: Long,
+    val sha256: String? = null,
+)
 
 /** Parses a GitHub `releases/latest` JSON payload; null if it carries no release APK asset. */
 object GitHubReleaseParser {
@@ -19,7 +25,10 @@ object GitHubReleaseParser {
             val a = assets.getJSONObject(i)
             if (RELEASE_APK.matches(a.optString("name"))) {
                 val url = a.optString("browser_download_url").ifEmpty { continue }
-                return ParsedRelease(tag, notes, url, a.optLong("size"))
+                // GitHub exposes the asset checksum as digest: "sha256:<64 hex>"; absent on old releases.
+                val sha256 = a.optString("digest").removePrefix("sha256:").lowercase()
+                    .takeIf { it.length == 64 && it.all { ch -> ch in '0'..'9' || ch in 'a'..'f' } }
+                return ParsedRelease(tag, notes, url, a.optLong("size"), sha256)
             }
         }
         return null

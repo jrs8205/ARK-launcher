@@ -6,4 +6,6 @@ data class UpdateInfo(
     val notes: String,
     val apkUrl: String,
     val sizeBytes: Long,
+    /** Lower-case hex from the asset's `digest` field; null on releases published before GitHub added it. */
+    val sha256: String? = null,
 )
