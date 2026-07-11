@@ -157,6 +157,21 @@ class BackupMapperTest {
     }
 
     @Test
+    fun toEntities_validates_against_the_backups_own_row_count() {
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 7), // row 7 — only on an 8-row grid
+        )
+        val eightRows = BackupMapper.toEntities(
+            items, 42L, setOf("com.a/A"), setOf("com.a"), emptySet(), columns = 4, gridRows = 8,
+        )
+        assertThat(eightRows.entities.map { it.id }).containsExactly(1L)
+
+        val sixRows = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
+        assertThat(sixRows.entities).isEmpty()
+        assertThat(sixRows.skipped).isEqualTo(1)
+    }
+
+    @Test
     fun toEntities_keeps_an_item_on_the_trailing_page_index_MAX_PAGES() {
         // The pager offers one page past the cap while dragging, so index MAX_PAGES is a legal
         // home for an item — restore must keep it (and still reject anything beyond).

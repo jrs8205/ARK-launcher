@@ -48,9 +48,10 @@ object BackupMapper {
         installedPackages: Set<String>,
         widgetPackages: Set<String>,
         columns: Int,
+        gridRows: Int = HomeLayoutRepository.ROWS,
     ): RestoreMapping {
         val cols = columns.coerceIn(SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS)
-        val rows = HomeLayoutRepository.ROWS
+        val rows = gridRows.coerceIn(SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS)
         val kept = ArrayList<HomeItemEntity>()
         var skipped = 0
         val seenIds = HashSet<Long>()

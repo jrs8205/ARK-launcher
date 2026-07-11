@@ -25,6 +25,21 @@ class ReflowPlanTest {
     }
 
     @Test
+    fun `packs into the given row count and spills to the next page`() {
+        // 2 columns × 5 rows = 10 cells per page: the 11th item must start page 1.
+        val plan = HomeLayoutRepository.reflowPlan((1L..11L).map { app(it) }, columns = 2, gridRows = 5)
+        assertThat(plan.take(10).map { it.page }).doesNotContain(1)
+        assertThat(plan.last().let { Triple(it.page, it.cellX, it.cellY) }).isEqualTo(Triple(1, 0, 0))
+        assertNoOverlaps(plan)
+    }
+
+    @Test
+    fun `shrinks a widget taller than the new row count`() {
+        val plan = HomeLayoutRepository.reflowPlan(listOf(widget(1, spanX = 2, spanY = 7)), columns = 4, gridRows = 5)
+        assertThat(plan.single().spanY).isEqualTo(5)
+    }
+
+    @Test
     fun `packs 1x1 items sequentially in reading order`() {
         val plan = HomeLayoutRepository.reflowPlan(listOf(app(1), app(2), app(3)), columns = 2)
         assertThat(plan.map { Triple(it.page, it.cellX, it.cellY) })

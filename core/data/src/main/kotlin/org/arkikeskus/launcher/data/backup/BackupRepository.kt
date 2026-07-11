@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Process
 import android.os.UserManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import javax.inject.Inject
@@ -32,10 +33,12 @@ class BackupRepository @Inject constructor(
         installedAppKeys: Set<String>,
         installedPackages: Set<String>,
     ): RestoreResult {
-        // Items are validated against the grid the backup itself declares — its home_columns is
-        // imported right below, so the restored layout and the live grid agree.
+        // Items are validated against the grid the backup itself declares — its home_columns and
+        // home_rows are imported right below, so the restored layout and the live grid agree.
         val columns = ((doc.settings["home_columns"] as? Number)?.toInt() ?: 4)
             .coerceIn(SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS)
+        val gridRows = ((doc.settings["home_rows"] as? Number)?.toInt() ?: HomeLayoutRepository.ROWS)
+            .coerceIn(SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS)
         val mapping = BackupMapper.toEntities(
             items = doc.homeItems,
             mainUserSerial = mainUserSerial(),
@@ -43,6 +46,7 @@ class BackupRepository @Inject constructor(
             installedPackages = installedPackages,
             widgetPackages = widgetPackages(),
             columns = columns,
+            gridRows = gridRows,
         )
         val previous = homeItemDao.getAllOnce()
         homeItemDao.replaceLayout(mapping.entities)

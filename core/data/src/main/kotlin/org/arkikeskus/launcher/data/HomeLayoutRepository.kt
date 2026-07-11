@@ -32,14 +32,14 @@ class HomeLayoutRepository @Inject constructor(
     /** All rows (home items, folders, folder children); the ViewModel partitions by container. */
     val homeItems: Flow<List<HomeItemEntity>> = dao.observeAll()
 
-    suspend fun addToHome(appItem: AppItem, columns: Int) {
+    suspend fun addToHome(appItem: AppItem, columns: Int, rows: Int) {
         // Atomic count-then-insert: without a transaction a fast double call could read "absent" twice
         // and place the same app into two different cells.
         db.withTransaction {
             if (dao.count(HOME, appItem.packageName, appItem.className, appItem.userSerial) > 0) {
                 return@withTransaction
             }
-            val (page, cellX, cellY) = firstFreeCell(dao.getContainer(HOME), columns)
+            val (page, cellX, cellY) = firstFreeCell(dao.getContainer(HOME), columns, rows)
             dao.insert(homeApp(appItem, HOME, page, cellX, cellY))
         }
     }
@@ -54,7 +54,7 @@ class HomeLayoutRepository @Inject constructor(
         }
 
     /** Places [appItem] on the home screen at a cell (used for a dock→home drop), swapping/falling back. */
-    suspend fun placeAt(appItem: AppItem, page: Int, cellX: Int, cellY: Int, columns: Int): Boolean =
+    suspend fun placeAt(appItem: AppItem, page: Int, cellX: Int, cellY: Int, columns: Int, rows: Int): Boolean =
         db.withTransaction {
             val existing = dao.getByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
             if (existing != null) {
@@ -66,7 +66,7 @@ class HomeLayoutRepository @Inject constructor(
             ) {
                 Triple(page, cellX, cellY)
             } else {
-                firstFreeCell(items, columns)
+                firstFreeCell(items, columns, rows)
             }
             dao.insert(homeApp(appItem, HOME, p, x, y))
             true
@@ -84,13 +84,13 @@ class HomeLayoutRepository @Inject constructor(
         }
 
     /** Pins a deep shortcut at the first free home cell (no-op if it's already on home). */
-    suspend fun addShortcut(packageName: String, shortcutId: String, userSerial: Long, columns: Int) {
+    suspend fun addShortcut(packageName: String, shortcutId: String, userSerial: Long, columns: Int, rows: Int) {
         db.withTransaction {
             val present = dao.getContainer(HOME).any {
                 it.shortcutId == shortcutId && it.packageName == packageName && it.userSerial == userSerial
             }
             if (present) return@withTransaction
-            val (page, x, y) = firstFreeCell(dao.getContainer(HOME), columns)
+            val (page, x, y) = firstFreeCell(dao.getContainer(HOME), columns, rows)
             dao.insert(
                 HomeItemEntity(
                     containerId = HOME,
@@ -122,15 +122,15 @@ class HomeLayoutRepository @Inject constructor(
      * [reflowPlan]: reading order is preserved, widgets keep (or shrink to fit) their footprint and
      * the packing reserves it, overflow spills onto later pages. Folder *contents* are untouched.
      */
-    suspend fun reflow(columns: Int) {
-        if (columns <= 0) return
+    suspend fun reflow(columns: Int, rows: Int) {
+        if (columns <= 0 || rows <= 0) return
         db.withTransaction {
-            val rows = dao.getContainerOrdered(HOME)
-            if (rows.isEmpty()) return@withTransaction
-            val plan = reflowPlan(rows, columns)
+            val items = dao.getContainerOrdered(HOME)
+            if (items.isEmpty()) return@withTransaction
+            val plan = reflowPlan(items, columns, rows)
             // Park everything off-grid first (unique temp cells) so the repack can't collide.
-            rows.forEachIndexed { i, row -> dao.moveById(row.id, HOME, -1, -(i + 1), -1) }
-            rows.zip(plan).forEach { (row, p) ->
+            items.forEachIndexed { i, row -> dao.moveById(row.id, HOME, -1, -(i + 1), -1) }
+            items.zip(plan).forEach { (row, p) ->
                 dao.moveById(p.id, HOME, p.page, p.cellX, p.cellY)
                 // Persist a span shrink (widget wider/taller than the new grid, or a corrupt span).
                 if (p.spanX != row.spanX || p.spanY != row.spanY) dao.updateSpans(p.id, p.spanX, p.spanY)
@@ -184,11 +184,11 @@ class HomeLayoutRepository @Inject constructor(
      * Moves [appItem] out of [folderId] back to a free home cell. Re-indexes the remaining children;
      * if only one is left the folder is dissolved (the last app takes the folder's cell).
      */
-    suspend fun removeFromFolder(appItem: AppItem, folderId: Long, columns: Int) {
+    suspend fun removeFromFolder(appItem: AppItem, folderId: Long, columns: Int, rows: Int) {
         db.withTransaction {
             val row = dao.getByKey(folderId, appItem.packageName, appItem.className, appItem.userSerial)
                 ?: return@withTransaction
-            val (p, x, y) = firstFreeCell(dao.getContainer(HOME), columns)
+            val (p, x, y) = firstFreeCell(dao.getContainer(HOME), columns, rows)
             dao.moveById(row.id, HOME, p, x, y)
             reindexFolder(folderId)
             dissolveIfNeeded(folderId)
@@ -269,19 +269,19 @@ class HomeLayoutRepository @Inject constructor(
                 cellY in it.cellY until (it.cellY + it.spanY)
         }
 
-    private fun firstFreeCell(items: List<HomeItemEntity>, columns: Int): Triple<Int, Int, Int> =
-        firstFreeRect(items, columns, 1, 1)
+    private fun firstFreeCell(items: List<HomeItemEntity>, columns: Int, rows: Int): Triple<Int, Int, Int> =
+        firstFreeRect(items, columns, 1, 1, rows)
 
     /** Places a bound widget at the first free [spanX]×[spanY] rectangle on the home grid. */
-    suspend fun addWidget(appWidgetId: Int, provider: String, spanX: Int, spanY: Int, columns: Int) {
+    suspend fun addWidget(appWidgetId: Int, provider: String, spanX: Int, spanY: Int, columns: Int, rows: Int) {
         db.withTransaction {
-            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY)
+            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY, rows)
             dao.insert(
                 HomeItemEntity(
                     containerId = HOME,
                     page = page, cellX = x, cellY = y,
                     spanX = spanX.coerceIn(1, columns.coerceAtLeast(1)),
-                    spanY = spanY.coerceIn(1, ROWS),
+                    spanY = spanY.coerceIn(1, rows.coerceAtLeast(1)),
                     appWidgetId = appWidgetId,
                     widgetProvider = provider,
                 ),
@@ -295,15 +295,15 @@ class HomeLayoutRepository @Inject constructor(
     }
 
     /** Places a built-in widget (e.g. [HomeItemEntity.BUILTIN_SMARTSPACE]) at the first free rectangle. */
-    suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int) {
+    suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int, rows: Int) {
         db.withTransaction {
-            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY)
+            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY, rows)
             dao.insert(
                 HomeItemEntity(
                     containerId = HOME,
                     page = page, cellX = x, cellY = y,
                     spanX = spanX.coerceIn(1, columns.coerceAtLeast(1)),
-                    spanY = spanY.coerceIn(1, ROWS),
+                    spanY = spanY.coerceIn(1, rows.coerceAtLeast(1)),
                     builtinType = type,
                 ),
             )
@@ -342,14 +342,14 @@ class HomeLayoutRepository @Inject constructor(
      *  ([ReorderPlanner]); returns false (no change) if the row is gone, isn't a widget, or no
      *  arrangement fits. */
     suspend fun setWidgetBounds(
-        rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int,
+        rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int, rows: Int,
     ): Boolean = db.withTransaction {
         val row = dao.getById(rowId) ?: return@withTransaction false
         if (!row.isWidget && !row.isBuiltin) return@withTransaction false
         val sx = spanX.coerceAtLeast(1)
         val sy = spanY.coerceAtLeast(1)
         val items = dao.getContainer(HOME)
-        if (rectFitsForRow(items, rowId, page, cellX, cellY, sx, sy, columns)) {
+        if (rectFitsForRow(items, rowId, page, cellX, cellY, sx, sy, columns, rows)) {
             dao.moveById(rowId, HOME, page, cellX, cellY)
             dao.updateSpans(rowId, sx, sy)
             return@withTransaction true
@@ -358,7 +358,7 @@ class HomeLayoutRepository @Inject constructor(
         val cols = columns.coerceAtLeast(1)
         val plan = ReorderPlanner.planFit(
             items.map { ReorderPlanner.Rect(it.id, it.page, it.cellX, it.cellY, it.spanX, it.spanY) },
-            rowId, page, cellX, cellY, sx, sy, cols, ROWS,
+            rowId, page, cellX, cellY, sx, sy, cols, rows.coerceAtLeast(1),
         ) ?: return@withTransaction false
         // Park the widget + every displaced item off-grid (unique temp cells) so the unique
         // (page,cellX,cellY) index can't be violated mid-update, then place each at its final cell.
@@ -390,7 +390,8 @@ class HomeLayoutRepository @Inject constructor(
         removeStaleAppRows { pkg, serial -> !(pkg == packageName && serial == userSerial) }
 
     companion object {
-        /** Rows per home page (fixed for now). */
+        /** DEFAULT rows per home page — the live value is the user's homeRows setting (5..8);
+         *  this constant only backs default parameters and old backups without home_rows. */
         const val ROWS = 6
 
         /** Hard cap on home pages. The pager offers one trailing page past the cap, so the highest
@@ -403,15 +404,16 @@ class HomeLayoutRepository @Inject constructor(
          * cells they cover are reserved, so no later item can be packed inside a widget's rectangle
          * (the old 1×1-slot packing buried icons under widgets). Non-widget rows are always 1×1.
          */
-        fun reflowPlan(rows: List<HomeItemEntity>, columns: Int): List<ReflowPlacement> {
+        fun reflowPlan(rows: List<HomeItemEntity>, columns: Int, gridRows: Int = ROWS): List<ReflowPlacement> {
             val cols = columns.coerceAtLeast(1)
+            val rws = gridRows.coerceAtLeast(1)
             val placed = ArrayList<HomeItemEntity>(rows.size)
             val plan = ArrayList<ReflowPlacement>(rows.size)
             for (row in rows) {
                 val widget = row.hasFootprint
                 val sx = if (widget) row.spanX.coerceIn(1, cols) else 1
-                val sy = if (widget) row.spanY.coerceIn(1, ROWS) else 1
-                val (page, x, y) = firstFreeRect(placed, cols, sx, sy)
+                val sy = if (widget) row.spanY.coerceIn(1, rws) else 1
+                val (page, x, y) = firstFreeRect(placed, cols, sx, sy, rws)
                 plan += ReflowPlacement(row.id, page, x, y, sx, sy)
                 // Occupancy carrier for the next iteration's firstFreeRect scan.
                 placed += HomeItemEntity(page = page, cellX = x, cellY = y, spanX = sx, spanY = sy)
@@ -442,10 +444,10 @@ class HomeLayoutRepository @Inject constructor(
          *  except [excludeRowId] (so a widget never blocks its own move/resize). */
         fun rectFitsForRow(
             items: List<HomeItemEntity>, excludeRowId: Long,
-            page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int,
+            page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int, rows: Int = ROWS,
         ): Boolean {
             val cols = columns.coerceAtLeast(1)
-            if (cellX < 0 || cellY < 0 || cellX + spanX > cols || cellY + spanY > ROWS) return false
+            if (cellX < 0 || cellY < 0 || cellX + spanX > cols || cellY + spanY > rows.coerceAtLeast(1)) return false
             val occupied = HashSet<Triple<Int, Int, Int>>()
             for (e in items) if (e.id != excludeRowId) for (dx in 0 until e.spanX) for (dy in 0 until e.spanY) {
                 occupied += Triple(e.page, e.cellX + dx, e.cellY + dy)
@@ -461,17 +463,18 @@ class HomeLayoutRepository @Inject constructor(
          * overlapping any item (each item occupies its own spanX×spanY cells; apps/folders/shortcuts
          * are 1×1). Spans are clamped to the grid; advances to a fresh trailing page when needed.
          */
-        fun firstFreeRect(items: List<HomeItemEntity>, columns: Int, spanX: Int, spanY: Int): Triple<Int, Int, Int> {
+        fun firstFreeRect(items: List<HomeItemEntity>, columns: Int, spanX: Int, spanY: Int, rows: Int = ROWS): Triple<Int, Int, Int> {
             val cols = columns.coerceAtLeast(1)
+            val rws = rows.coerceAtLeast(1)
             val sx = spanX.coerceIn(1, cols)
-            val sy = spanY.coerceIn(1, ROWS)
+            val sy = spanY.coerceIn(1, rws)
             val occupied = HashSet<Triple<Int, Int, Int>>()
             for (e in items) for (dx in 0 until e.spanX) for (dy in 0 until e.spanY) {
                 occupied += Triple(e.page, e.cellX + dx, e.cellY + dy)
             }
             var page = 0
             while (true) {
-                for (y in 0..ROWS - sy) for (x in 0..cols - sx) {
+                for (y in 0..rws - sy) for (x in 0..cols - sx) {
                     val fits = (0 until sx).all { dx -> (0 until sy).all { dy -> Triple(page, x + dx, y + dy) !in occupied } }
                     if (fits) return Triple(page, x, y)
                 }
