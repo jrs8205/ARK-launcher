@@ -375,7 +375,8 @@ class HomeLayoutRepository @Inject constructor(
         /** Rows per home page (fixed for now). */
         const val ROWS = 6
 
-        /** Hard cap on home pages: restore sanitization and the pager both refuse anything past it. */
+        /** Hard cap on home pages. The pager offers one trailing page past the cap, so the highest
+         *  legal item page INDEX is MAX_PAGES itself; restore accepts 0..MAX_PAGES inclusive. */
         const val MAX_PAGES = 50
 
         /**

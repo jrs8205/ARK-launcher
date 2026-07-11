@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data.backup
 
 import com.google.common.truth.Truth.assertThat
+import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.junit.Test
@@ -153,6 +154,19 @@ class BackupMapperTest {
         val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
         assertThat(mapping.entities.map { it.id }).containsExactly(5L)
         assertThat(mapping.skipped).isEqualTo(4)
+    }
+
+    @Test
+    fun toEntities_keeps_an_item_on_the_trailing_page_index_MAX_PAGES() {
+        // The pager offers one page past the cap while dragging, so index MAX_PAGES is a legal
+        // home for an item — restore must keep it (and still reject anything beyond).
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, HomeLayoutRepository.MAX_PAGES, 0, 0),
+            BackupItem(2, -1, null, "com.a", "A", true, null, HomeLayoutRepository.MAX_PAGES + 1, 1, 0),
+        )
+        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
+        assertThat(mapping.entities.map { it.id }).containsExactly(1L)
+        assertThat(mapping.skipped).isEqualTo(1)
     }
 
     @Test

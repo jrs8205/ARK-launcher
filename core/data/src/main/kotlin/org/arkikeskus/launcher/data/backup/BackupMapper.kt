@@ -85,7 +85,7 @@ object BackupMapper {
             val footprint = it.widgetProvider != null || it.builtinType != null
             val spanX = if (footprint) it.spanX.coerceIn(1, cols) else 1
             val spanY = if (footprint) it.spanY.coerceIn(1, rows) else 1
-            val inGrid = it.page in 0 until HomeLayoutRepository.MAX_PAGES &&
+            val inGrid = it.page in 0..HomeLayoutRepository.MAX_PAGES &&
                 it.cellX >= 0 && it.cellY >= 0 &&
                 it.cellX + spanX <= cols && it.cellY + spanY <= rows
             if (!inGrid) { skipped++; continue }
@@ -118,7 +118,7 @@ object BackupMapper {
             if (it.id in seenIds) { skipped++; continue }
             val appKey = "${it.containerId}/${it.packageName}/${it.className}"
             if (appKey in seenAppKeys) { skipped++; continue }
-            val sane = it.page in 0 until HomeLayoutRepository.MAX_PAGES &&
+            val sane = it.page in 0..HomeLayoutRepository.MAX_PAGES &&
                 it.cellX in 0..MAX_CHILD_INDEX && it.cellY in 0..MAX_CHILD_INDEX
             if (!sane) { skipped++; continue }
             if (!seenChildCells.add(listOf(it.containerId, it.page.toLong(), it.cellX.toLong(), it.cellY.toLong()))) {
