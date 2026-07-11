@@ -18,6 +18,9 @@ data class LauncherColors(
     /** Signal quality colors, index 0 (weakest) .. 4 (strongest). */
     val signal: List<Color>,
     val signalFaint: Color,
+    /** The status-bar flag glyphs (Bluetooth, VPN, alarm, DND, …) — a vivid azure matching the
+     *  battery/signal ramps' brightness; the M3 theme primary read pastel on the dark scrim. */
+    val statusFlag: Color,
     val dockScrim: Color,
     val pageIndicatorActive: Color,
     val pageIndicatorInactive: Color,
@@ -50,6 +53,7 @@ internal val LightLauncherColors = LauncherColors(
         Color(0xFF00FF6A),
     ),
     signalFaint = Color(0x73FFFFFF),
+    statusFlag = Color(0xFF448AFF),
     dockScrim = Color(0x2EFFFFFF),
     pageIndicatorActive = Color(0xFFFFFFFF),
     pageIndicatorInactive = Color(0x66FFFFFF),
@@ -69,6 +73,7 @@ internal val DarkLauncherColors = LauncherColors(
         Color(0xFF00FF6A),
     ),
     signalFaint = Color(0x29FFFFFF),
+    statusFlag = Color(0xFF448AFF),
     dockScrim = Color(0x12FFFFFF),
     pageIndicatorActive = Color(0xFFFFFFFF),
     pageIndicatorInactive = Color(0x4DEAF0FF),

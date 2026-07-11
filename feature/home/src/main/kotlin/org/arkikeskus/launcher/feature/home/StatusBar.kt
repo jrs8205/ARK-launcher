@@ -144,7 +144,7 @@ fun StatusBar(
 ) {
     val s by viewModel.state.collectAsStateWithLifecycle()
     val colors = LocalLauncherColors.current
-    val accent = MaterialTheme.colorScheme.primary
+    val accent = colors.statusFlag
     val time = rememberClock()
     val view = LocalView.current
     val density = LocalDensity.current
