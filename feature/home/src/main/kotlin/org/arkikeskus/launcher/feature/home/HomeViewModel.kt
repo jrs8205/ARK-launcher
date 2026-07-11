@@ -148,8 +148,6 @@ class HomeViewModel @Inject constructor(
     private val signalMonitor: org.arkikeskus.launcher.launcher.system.SignalMonitor,
 ) : ViewModel() {
 
-    val rows: Int = HomeLayoutRepository.ROWS
-
     /** True while the first-run intro should cover the home screen (fresh installs only). */
     private val _showOnboarding = kotlinx.coroutines.flow.MutableStateFlow(false)
     val showOnboarding: StateFlow<Boolean> = _showOnboarding
@@ -180,7 +178,7 @@ class HomeViewModel @Inject constructor(
                         // Full width so the centered clock sits in the middle of the screen.
                         homeLayoutRepository.addBuiltin(
                             HomeItemEntity.BUILTIN_SMARTSPACE,
-                            settings.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, settings.homeColumns,
+                            settings.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, settings.homeColumns, settings.homeRows,
                         )
                     }
                     // The app list needs a beat on a cold start; a fresh device always has apps.
@@ -386,8 +384,8 @@ class HomeViewModel @Inject constructor(
     /** Stores a pinned shortcut on home (the system-level pin is done by the caller, which has a
      *  Context). Idempotent — the repository skips one already present. */
     fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
     }
 
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
@@ -407,8 +405,8 @@ class HomeViewModel @Inject constructor(
 
     /** Places a freshly-bound widget on the home grid (spans are the picker's default). */
     fun addWidget(appWidgetId: Int, provider: String, spanX: Int, spanY: Int) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.addWidget(appWidgetId, provider, spanX, spanY, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.addWidget(appWidgetId, provider, spanX, spanY, s.homeColumns, s.homeRows)
     }
 
     /** Removes a placed widget row (caller frees the host id). */
@@ -416,10 +414,10 @@ class HomeViewModel @Inject constructor(
 
     /** Adds the built-in smartspace widget at the first free full-width rectangle (widget picker). */
     fun addSmartspace() = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
+        val s = settingsRepository.settings.first()
         homeLayoutRepository.addBuiltin(
             HomeItemEntity.BUILTIN_SMARTSPACE,
-            columns, SMARTSPACE_DEFAULT_SPAN_Y, columns,
+            s.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, s.homeColumns, s.homeRows,
         )
     }
 
@@ -427,10 +425,10 @@ class HomeViewModel @Inject constructor(
      *  Full width like the smartspace clock: the icon group centers inside its own footprint, so any
      *  narrower default could never sit symmetric on an odd column count (e.g. 4 wide in 5 columns). */
     fun addNotificationsWidget() = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
+        val s = settingsRepository.settings.first()
         homeLayoutRepository.addBuiltin(
             HomeItemEntity.BUILTIN_NOTIFICATIONS,
-            columns, NOTIFICATIONS_DEFAULT_SPAN_Y, columns,
+            s.homeColumns, NOTIFICATIONS_DEFAULT_SPAN_Y, s.homeColumns, s.homeRows,
         )
     }
 
@@ -459,8 +457,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
 
     fun addToHome(appItem: AppItem) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.addToHome(appItem, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows)
     }
 
     /** Moves/swaps a home shortcut; returns whether the repository accepted it (see [Workspace]). */
@@ -474,17 +472,17 @@ class HomeViewModel @Inject constructor(
     /** Moves or resizes a widget to the given bounds; returns whether the repository accepted it
      *  (the Workspace clears its optimistic override on false). */
     suspend fun setWidgetBounds(rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int): Boolean {
-        val columns = settingsRepository.settings.first().homeColumns
-        return homeLayoutRepository.setWidgetBounds(rowId, page, cellX, cellY, spanX, spanY, columns)
+        val s = settingsRepository.settings.first()
+        return homeLayoutRepository.setWidgetBounds(rowId, page, cellX, cellY, spanX, spanY, s.homeColumns, s.homeRows)
     }
 
     /** Cross-surface: an icon dragged from the dock onto a home cell — place it and leave the dock. */
     fun moveToHome(appItem: AppItem, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
+        val s = settingsRepository.settings.first()
         // Add-first so an interruption can only duplicate, never lose; NonCancellable so a
         // ViewModel clear between the halves can't strand the item on both surfaces.
         withContext(NonCancellable) {
-            if (homeLayoutRepository.placeAt(appItem, page, cellX, cellY, columns)) {
+            if (homeLayoutRepository.placeAt(appItem, page, cellX, cellY, s.homeColumns, s.homeRows)) {
                 settingsRepository.removeFromDock(appItem.key)
             }
         }
@@ -510,8 +508,8 @@ class HomeViewModel @Inject constructor(
 
     /** Take an app out of a folder back onto the home screen (dissolves the folder if one is left). */
     fun removeFromFolder(appItem: AppItem, folderId: Long) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.removeFromFolder(appItem, folderId, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.removeFromFolder(appItem, folderId, s.homeColumns, s.homeRows)
     }
 
     fun renameFolder(folderId: Long, name: String) =

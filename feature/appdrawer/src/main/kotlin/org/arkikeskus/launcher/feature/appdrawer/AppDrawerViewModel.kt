@@ -181,22 +181,22 @@ class AppDrawerViewModel @Inject constructor(
     fun removeFromDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
 
     fun addToHome(appItem: AppItem) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.addToHome(appItem, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows)
     }
 
     /** Drag-and-drop from the drawer onto a specific home cell (free cell, or first free if taken). */
     fun addToHomeAt(appItem: AppItem, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.placeAt(appItem, page, cellX, cellY, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.placeAt(appItem, page, cellX, cellY, s.homeColumns, s.homeRows)
     }
 
     fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 
     /** Stores a pinned shortcut on home (system-level pin done by the caller, which has a Context). */
     fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
-        val columns = settingsRepository.settings.first().homeColumns
-        homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, columns)
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
     }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and

@@ -50,7 +50,7 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun moveItem_toFreeCell_moves() = runTest {
-        repo.addToHome(app("a"), columns = 4) // lands at (0,0,0)
+        repo.addToHome(app("a"), columns = 4, rows = 6) // lands at (0,0,0)
 
         val accepted = repo.moveItem(app("a"), page = 0, cellX = 2, cellY = 1)
 
@@ -62,8 +62,8 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun moveItem_ontoOccupiedCell_swaps() = runTest {
-        repo.addToHome(app("a"), columns = 4) // (0,0,0)
-        repo.addToHome(app("b"), columns = 4) // (0,1,0)
+        repo.addToHome(app("a"), columns = 4, rows = 6) // (0,0,0)
+        repo.addToHome(app("b"), columns = 4, rows = 6) // (0,1,0)
 
         val accepted = repo.moveItem(app("a"), page = 0, cellX = 1, cellY = 0)
 
@@ -76,7 +76,7 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun moveItem_ontoOwnCell_isNoOp() = runTest {
-        repo.addToHome(app("a"), columns = 4) // (0,0,0)
+        repo.addToHome(app("a"), columns = 4, rows = 6) // (0,0,0)
 
         val accepted = repo.moveItem(app("a"), page = 0, cellX = 0, cellY = 0)
 
@@ -98,7 +98,7 @@ class HomeLayoutRepositoryTest {
         dao.insert(HomeItemEntity(packageName = "a", className = "a.M", userSerial = 0, page = 0, cellX = 0, cellY = 0))
         dao.insert(HomeItemEntity(packageName = "b", className = "b.M", userSerial = 0, page = 0, cellX = 6, cellY = 0))
 
-        repo.reflow(columns = 4)
+        repo.reflow(columns = 4, rows = 6)
 
         val items = dao.getContainer(HomeItemEntity.HOME)
         assertThat(items.all { it.cellX in 0..3 }).isTrue()
@@ -121,7 +121,7 @@ class HomeLayoutRepositoryTest {
             )
         }
 
-        repo.reflow(columns = 2)
+        repo.reflow(columns = 2, rows = 6)
 
         val items = dao.getContainer(HomeItemEntity.HOME)
         assertThat(items).hasSize(13)
@@ -132,7 +132,7 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun placeAt_newApp_freeCell_inserts() = runTest {
-        val accepted = repo.placeAt(app("a"), page = 0, cellX = 2, cellY = 1, columns = 4)
+        val accepted = repo.placeAt(app("a"), page = 0, cellX = 2, cellY = 1, columns = 4, rows = 6)
 
         assertThat(accepted).isTrue()
         assertThat(dao.getContainer(HomeItemEntity.HOME).single().cell()).isEqualTo(Triple(0, 2, 1))
@@ -140,9 +140,9 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun placeAt_newApp_occupiedCell_fallsBackToFirstFree() = runTest {
-        repo.addToHome(app("a"), columns = 4) // occupies (0,0,0)
+        repo.addToHome(app("a"), columns = 4, rows = 6) // occupies (0,0,0)
 
-        val accepted = repo.placeAt(app("b"), page = 0, cellX = 0, cellY = 0, columns = 4)
+        val accepted = repo.placeAt(app("b"), page = 0, cellX = 0, cellY = 0, columns = 4, rows = 6)
 
         assertThat(accepted).isTrue()
         val byPkg = dao.getContainer(HomeItemEntity.HOME).associateBy { it.packageName }
@@ -153,10 +153,10 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun placeAt_existingApp_swaps() = runTest {
-        repo.addToHome(app("a"), columns = 4) // (0,0,0)
-        repo.addToHome(app("b"), columns = 4) // (0,1,0)
+        repo.addToHome(app("a"), columns = 4, rows = 6) // (0,0,0)
+        repo.addToHome(app("b"), columns = 4, rows = 6) // (0,1,0)
 
-        val accepted = repo.placeAt(app("a"), page = 0, cellX = 1, cellY = 0, columns = 4)
+        val accepted = repo.placeAt(app("a"), page = 0, cellX = 1, cellY = 0, columns = 4, rows = 6)
 
         assertThat(accepted).isTrue()
         val byPkg = dao.getContainer(HomeItemEntity.HOME).associateBy { it.packageName }
@@ -167,16 +167,16 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun addToHome_isIdempotentPerKey() = runTest {
-        repo.addToHome(app("a"), columns = 4)
-        repo.addToHome(app("a"), columns = 4)
+        repo.addToHome(app("a"), columns = 4, rows = 6)
+        repo.addToHome(app("a"), columns = 4, rows = 6)
 
         assertThat(dao.getContainer(HomeItemEntity.HOME)).hasSize(1)
     }
 
     @Test
     fun createFolder_movesBothAppsIntoFolderAtTargetCell() = runTest {
-        repo.addToHome(app("a"), columns = 4) // (0,0,0)
-        repo.addToHome(app("b"), columns = 4) // (0,1,0)
+        repo.addToHome(app("a"), columns = 4, rows = 6) // (0,0,0)
+        repo.addToHome(app("b"), columns = 4, rows = 6) // (0,1,0)
         val targetRow = dao.getByKey(HomeItemEntity.HOME, "a", "a.Main", 0L)!!
 
         val folderId = repo.createFolder(target = app("a"), dropped = app("b"), name = "Folder")
@@ -193,9 +193,9 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun addToFolder_appendsChild() = runTest {
-        repo.addToHome(app("a"), columns = 4)
-        repo.addToHome(app("b"), columns = 4)
-        repo.addToHome(app("c"), columns = 4)
+        repo.addToHome(app("a"), columns = 4, rows = 6)
+        repo.addToHome(app("b"), columns = 4, rows = 6)
+        repo.addToHome(app("c"), columns = 4, rows = 6)
         val folderId = repo.createFolder(app("a"), app("b"), "F")
 
         repo.addToFolder(app("c"), folderId)
@@ -206,12 +206,12 @@ class HomeLayoutRepositoryTest {
 
     @Test
     fun removeFromFolder_dissolvesWhenOneRemains() = runTest {
-        repo.addToHome(app("a"), columns = 4)
-        repo.addToHome(app("b"), columns = 4)
+        repo.addToHome(app("a"), columns = 4, rows = 6)
+        repo.addToHome(app("b"), columns = 4, rows = 6)
         val folderId = repo.createFolder(app("a"), app("b"), "F")
         val folderCell = dao.getById(folderId)!!.cell()
 
-        repo.removeFromFolder(app("a"), folderId, columns = 4)
+        repo.removeFromFolder(app("a"), folderId, columns = 4, rows = 6)
 
         // Folder gone; the last app ("b") sits at the folder's old cell; "a" back on home elsewhere.
         assertThat(dao.getById(folderId)).isNull()

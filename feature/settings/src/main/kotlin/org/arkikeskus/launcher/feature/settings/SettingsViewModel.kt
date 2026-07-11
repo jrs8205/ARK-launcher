@@ -66,9 +66,16 @@ class SettingsViewModel @Inject constructor(
     fun setHomeColumns(value: Int) = viewModelScope.launch {
         // Shrinking the grid can leave shortcuts at an out-of-range cellX; repack them back on-screen
         // before the new (smaller) column count reaches the home screen, so nothing draws off-grid.
-        val old = repository.settings.first().homeColumns
-        if (value < old) homeLayoutRepository.reflow(value)
+        val s = repository.settings.first()
+        if (value < s.homeColumns) homeLayoutRepository.reflow(value, s.homeRows)
         repository.setHomeColumns(value)
+    }
+
+    fun setHomeRows(value: Int) = viewModelScope.launch {
+        // Same off-grid guard as the column stepper, on the vertical axis.
+        val s = repository.settings.first()
+        if (value < s.homeRows) homeLayoutRepository.reflow(s.homeColumns, value)
+        repository.setHomeRows(value)
     }
     fun setShowDockLabels(value: Boolean) = update { repository.setShowDockLabels(value) }
     fun setShowHomeLabels(value: Boolean) = update { repository.setShowHomeLabels(value) }

@@ -476,7 +476,7 @@ fun HomeScreen(
             Workspace(
                 pageCount = uiState.pageCount,
                 columns = settings.homeColumns,
-                rows = viewModel.rows,
+                rows = settings.homeRows,
                 entries = uiState.entries,
                 badges = badges,
                 badgeShowCount = badgeShowCount,

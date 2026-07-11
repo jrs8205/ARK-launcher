@@ -1129,7 +1129,7 @@ fun Workspace(
                                     horizontal = true, vertical = true,
                                 )
                             } else {
-                                info?.let { widgetResizeRange(it, ctxE, columns) }?.takeIf { it.isResizable }
+                                info?.let { widgetResizeRange(it, ctxE, columns, rows) }?.takeIf { it.isResizable }
                             }
                         }
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }

@@ -14,6 +14,7 @@
     <string name="settings_drawer">App drawer</string>
     <string name="settings_home">Home screen</string>
     <string name="settings_columns">Columns</string>
+    <string name="settings_rows">Rows</string>
     <string name="settings_show_labels">Show labels</string>
     <string name="settings_dock_bg">Dock background opacity</string>
     <string name="settings_page_indicator">Page dots</string>

@@ -216,6 +216,7 @@ fun SettingsScreen(
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_home))
                 StepperRow(stringResource(R.string.settings_columns), s.homeColumns, 3, 7, viewModel::setHomeColumns)
+                StepperRow(stringResource(R.string.settings_rows), s.homeRows, 5, 8, viewModel::setHomeRows)
                 SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, viewModel::setShowHomeLabels)
                 SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, viewModel::setShowPageIndicator)
                 SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, viewModel::setDesktopLocked)

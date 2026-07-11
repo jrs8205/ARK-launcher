@@ -58,10 +58,14 @@ data class WidgetResizeRange(
 }
 
 /** Resize limits for [info]: min/max cells per axis (provider min/maxResize + grid), allowed axes. */
-fun widgetResizeRange(info: AppWidgetProviderInfo, context: Context, gridColumns: Int): WidgetResizeRange {
+fun widgetResizeRange(
+    info: AppWidgetProviderInfo,
+    context: Context,
+    gridColumns: Int,
+    rows: Int = HomeLayoutRepository.ROWS,
+): WidgetResizeRange {
     val density = context.resources.displayMetrics.density
     fun cells(px: Int) = ((px / density + 30) / 70).toInt().coerceAtLeast(1)
-    val rows = HomeLayoutRepository.ROWS
     val minX = if (info.minResizeWidth > 0) cells(info.minResizeWidth) else 1
     val minY = if (info.minResizeHeight > 0) cells(info.minResizeHeight) else 1
     val maxX = if (Build.VERSION.SDK_INT >= 31 && info.maxResizeWidth > 0) cells(info.maxResizeWidth) else gridColumns
