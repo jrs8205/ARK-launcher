@@ -1,0 +1,4 @@
+Home grid density and widget placement.
+
+- New "Rows" setting (Settings > Home, 5-8): more rows tighten the icon grid and free whole rows for widgets; fewer rows give a roomier layout. Shrinking reflows items safely, and backups carry the row count.
+- Adding a widget now pushes icons aside on the current pages instead of silently placing the widget on a new page - a full-width clock no longer "refuses to install" on a page with scattered icons.
