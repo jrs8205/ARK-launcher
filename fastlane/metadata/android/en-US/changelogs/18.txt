@@ -1,0 +1,21 @@
+Reliability and bug-fix release.
+
+Home screen
+- Uninstalling an app now frees its home-screen cells: stale invisible rows no longer block placing, moving or resizing items.
+- The notifications widget is added full-width, so its icons stay centered on any column count.
+- Drag gestures always release cleanly, cross-surface moves can't be interrupted half-way, and the first-run setup survives an interrupted start.
+
+Weather
+- The place name now falls back to a network lookup when the device has no working geocoder (fixes missing city on some Samsung devices), and the cached name expires after a day.
+
+Notifications widget
+- Tapping an icon whose app can't be launched now opens its notification settings as intended.
+
+Backup
+- Dialogs survive screen rotation, Drive backup asks for authorization before turning on, and items on the last home page restore correctly.
+
+Updater
+- The downloaded APK's checksum, size and version are verified before install, and the notification permission is only requested while auto-update is on.
+
+Other
+- Calendar refreshes are more robust, search results update live when apps change, and the signal label appears right after granting the phone permission in setup.
