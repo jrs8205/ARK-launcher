@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data
 import android.content.Context
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -47,6 +48,22 @@ class LauncherAppsSource @Inject constructor(
     private val _packageEvents = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val packageEvents: SharedFlow<String> = _packageEvents
 
+    /** (package, profile serial) from onPackageRemoved — a DEFINITIVE uninstall for that profile.
+     *  Updates fire onPackageChanged and storage ejection onPackagesUnavailable, so neither can
+     *  reach this flow and trigger a wrongful home-row cleanup. */
+    private val _packageRemovals = MutableSharedFlow<Pair<String, Long>>(extraBufferCapacity = 16)
+    val packageRemovals: SharedFlow<Pair<String, Long>> = _packageRemovals
+
+    /** Fail-safe install check for the ghost-row sweep: only a definitive "name not found" (or a
+     *  removed profile) answers false — any other failure keeps the row (a locked work profile or
+     *  a transient Binder error must never wipe real items). */
+    fun isAppInstalled(packageName: String, userSerial: Long): Boolean {
+        val user = runCatching { userManager?.getUserForSerialNumber(userSerial) }.getOrNull()
+            ?: return false // the whole profile is gone → its rows are stale
+        val result = runCatching { launcherApps.getApplicationInfo(packageName, 0, user) }
+        return result.isSuccess || result.exceptionOrNull() !is PackageManager.NameNotFoundException
+    }
+
     fun appsFlow(): Flow<List<AppItem>> = callbackFlow {
         val handler = Handler(Looper.getMainLooper())
 
@@ -74,7 +91,11 @@ class LauncherAppsSource @Inject constructor(
 
         val callback = object : LauncherApps.Callback() {
             override fun onPackageAdded(packageName: String, user: UserHandle) = packageEvent(packageName)
-            override fun onPackageRemoved(packageName: String, user: UserHandle) = packageEvent(packageName)
+            override fun onPackageRemoved(packageName: String, user: UserHandle) {
+                val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
+                _packageRemovals.tryEmit(packageName to serial)
+                packageEvent(packageName)
+            }
             override fun onPackageChanged(packageName: String, user: UserHandle) =
                 packageEvent(packageName, iconsMayHaveChanged = true)
             override fun onPackagesAvailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =

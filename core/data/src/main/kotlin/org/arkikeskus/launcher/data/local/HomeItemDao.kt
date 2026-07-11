@@ -18,6 +18,10 @@ interface HomeItemDao {
     @Query("SELECT * FROM home_items WHERE containerId = :containerId")
     suspend fun getContainer(containerId: Long): List<HomeItemEntity>
 
+    /** Every row in both containers, for the ghost-row sweep. */
+    @Query("SELECT * FROM home_items")
+    suspend fun getAll(): List<HomeItemEntity>
+
     @Query("SELECT * FROM home_items WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): HomeItemEntity?
 

@@ -371,6 +371,24 @@ class HomeLayoutRepository @Inject constructor(
         true
     }
 
+    /**
+     * Deletes every row whose app or shortcut is gone per [isInstalled]: an uninstalled app's rows
+     * never render, but they still occupy their cells and silently block placement, resizes and
+     * moves with no visible reason. [isInstalled] must be fail-safe — answer true when unsure
+     * (locked profile, transient error) so a hiccup can never wipe real items.
+     */
+    suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
+        db.withTransaction {
+            val stale = staleAppRowIds(dao.getAll(), isInstalled)
+            stale.forEach { dao.deleteById(it) }
+            stale.size
+        }
+
+    /** Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
+     *  [userSerial] (widgets, built-ins and folder rows are never touched). */
+    suspend fun removeAppRowsForPackage(packageName: String, userSerial: Long): Int =
+        removeStaleAppRows { pkg, serial -> !(pkg == packageName && serial == userSerial) }
+
     companion object {
         /** Rows per home page (fixed for now). */
         const val ROWS = 6
@@ -403,6 +421,22 @@ class HomeLayoutRepository @Inject constructor(
 
         /** Off-grid parking slot used while swapping two cells inside a transaction. */
         private const val TEMP_SLOT = -1
+
+        /** Pure selection for [removeStaleAppRows]: plain app rows, pinned-shortcut rows and folder
+         *  children whose (package, profile) fails [isInstalled] — never widget/builtin/folder rows. */
+        fun staleAppRowIds(
+            items: List<HomeItemEntity>,
+            isInstalled: (packageName: String, userSerial: Long) -> Boolean,
+        ): List<Long> {
+            val verdict = HashMap<Pair<String, Long>, Boolean>()
+            return items.filter { row ->
+                row.folderName == null && row.builtinType == null && row.widgetProvider == null &&
+                    row.packageName.isNotEmpty() &&
+                    !verdict.getOrPut(row.packageName to row.userSerial) {
+                        isInstalled(row.packageName, row.userSerial)
+                    }
+            }.map { it.id }
+        }
 
         /** True if a [spanX]×[spanY] rect at (page,cellX,cellY) is on-grid and free of every item
          *  except [excludeRowId] (so a widget never blocks its own move/resize). */

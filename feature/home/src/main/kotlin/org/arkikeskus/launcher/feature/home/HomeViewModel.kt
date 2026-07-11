@@ -206,6 +206,18 @@ class HomeViewModel @Inject constructor(
                 shortcutCache.keys.removeIf { it.startsWith("$pkg/") }
             }
         }
+        // Ghost-row hygiene: an uninstalled app's home rows never render but still occupy their
+        // cells, silently blocking placement/resizes/moves with no visible reason. Delete them on
+        // the uninstall event, and sweep once per launch for uninstalls the launcher slept through.
+        viewModelScope.launch {
+            appRepository.packageRemovals.collect { (pkg, serial) ->
+                homeLayoutRepository.removeAppRowsForPackage(pkg, serial)
+            }
+        }
+        viewModelScope.launch {
+            appRepository.apps.first { it.isNotEmpty() } // let the app providers settle on a cold start
+            homeLayoutRepository.removeStaleAppRows(appRepository::isAppInstalled)
+        }
     }
 
     /** Closes the first-run intro (finished or skipped) and never shows it again. */

@@ -34,6 +34,13 @@ class AppRepository @Inject constructor(
     /** See [LauncherAppsSource.packageEvents]. */
     val packageEvents: Flow<String> get() = source.packageEvents
 
+    /** See [LauncherAppsSource.packageRemovals]. */
+    val packageRemovals: Flow<Pair<String, Long>> get() = source.packageRemovals
+
+    /** See [LauncherAppsSource.isAppInstalled] (fail-safe: unknown → true). */
+    fun isAppInstalled(packageName: String, userSerial: Long): Boolean =
+        source.isAppInstalled(packageName, userSerial)
+
     /** Launches [appItem]; on success, records the launch for the "most used" ranking (fire-and-forget). */
     fun launch(appItem: AppItem): Result<Unit> {
         val result = source.launch(appItem)
