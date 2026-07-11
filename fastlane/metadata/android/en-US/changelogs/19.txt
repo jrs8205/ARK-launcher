@@ -1,0 +1,5 @@
+Clock widget layout improvement.
+
+- When a calendar event (or its permission prompt) is visible, the weather, date and next alarm now share one row, so the widget tops out at three rows and the calendar line gets more room.
+- Without a calendar line the airy layout is unchanged (weather, date and alarm on their own rows).
+- The compact widget stays readable when resized down to one grid row, so the clock and the notifications widget fit on the same page with three rows of icons.
