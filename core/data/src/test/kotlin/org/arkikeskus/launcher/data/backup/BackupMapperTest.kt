@@ -157,6 +157,18 @@ class BackupMapperTest {
     }
 
     @Test
+    fun toEntities_keeps_a_battery_builtin_row() {
+        val items = listOf(
+            BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, spanX = 1, spanY = 1, builtinType = "battery"),
+        )
+        val mapping = toEntities(items)
+        assertThat(mapping.skipped).isEqualTo(0)
+        val e = mapping.entities.single()
+        assertThat(e.builtinType).isEqualTo("battery")
+        assertThat(e.spanX).isEqualTo(1)
+    }
+
+    @Test
     fun toEntities_validates_against_the_backups_own_row_count() {
         val items = listOf(
             BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 7), // row 7 — only on an 8-row grid

@@ -54,6 +54,9 @@ const val NOTIFICATIONS_DEFAULT_SPAN_Y = 1
 /** Smallest allowed notifications-widget width — one icon + the overflow chip still fit. */
 const val NOTIFICATIONS_MIN_SPAN_X = 2
 
+/** Default AND minimum footprint of the built-in battery widget — app-icon sized. */
+const val BATTERY_SPAN = 1
+
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
     val page: Int
@@ -429,6 +432,15 @@ class HomeViewModel @Inject constructor(
         homeLayoutRepository.addBuiltin(
             HomeItemEntity.BUILTIN_NOTIFICATIONS,
             s.homeColumns, NOTIFICATIONS_DEFAULT_SPAN_Y, s.homeColumns, s.homeRows,
+        )
+    }
+
+    /** Adds the built-in battery widget (an app-icon-sized ring) at the first free cell (widget picker). */
+    fun addBatteryWidget() = viewModelScope.launch {
+        val s = settingsRepository.settings.first()
+        homeLayoutRepository.addBuiltin(
+            HomeItemEntity.BUILTIN_BATTERY,
+            BATTERY_SPAN, BATTERY_SPAN, s.homeColumns, s.homeRows,
         )
     }
 

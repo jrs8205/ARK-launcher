@@ -9,6 +9,8 @@
     <string name="smartspace_allow_calendar">Tap to allow calendar access</string>
     <string name="smartspace_no_title">(No title)</string>
     <string name="smartspace_size_full">Full width</string>
+    <string name="battery_widget_name">Battery</string>
+    <string name="battery_widget_desc">Charge ring and percent</string>
     <string name="smartspace_next_alarm">Next alarm</string>
     <string name="smartspace_allow_location">Tap to allow location – weather</string>
     <string name="notifications_widget_name">Notifications</string>

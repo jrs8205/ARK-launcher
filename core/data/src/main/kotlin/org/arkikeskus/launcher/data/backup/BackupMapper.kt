@@ -153,7 +153,11 @@ object BackupMapper {
     )
 
     /** The builtin types this version can render — anything else in a file must not restore. */
-    private val KNOWN_BUILTINS = setOf(HomeItemEntity.BUILTIN_SMARTSPACE, HomeItemEntity.BUILTIN_NOTIFICATIONS)
+    private val KNOWN_BUILTINS = setOf(
+        HomeItemEntity.BUILTIN_SMARTSPACE,
+        HomeItemEntity.BUILTIN_NOTIFICATIONS,
+        HomeItemEntity.BUILTIN_BATTERY,
+    )
 
     /** Upper bound for folder-child order indices (roomy; children index by cellX). */
     private const val MAX_CHILD_INDEX = 999

@@ -56,6 +56,7 @@ fun WidgetPickerScreen(
     onPick: (AppWidgetProviderInfo) -> Unit,
     onPickBuiltin: () -> Unit = {},
     onPickBuiltinNotifications: () -> Unit = {},
+    onPickBuiltinBattery: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -141,6 +142,7 @@ fun WidgetPickerScreen(
             val builtinSection = stringResource(R.string.widget_builtin_section)
             val builtinName = stringResource(R.string.smartspace_widget_name)
             val notifName = stringResource(R.string.notifications_widget_name)
+            val batteryName = stringResource(R.string.battery_widget_name)
             val builtinVisible = remember(query, builtinSection, builtinName) {
                 val q = query.trim().lowercase()
                 q.isEmpty() || builtinSection.lowercase().contains(q) || builtinName.lowercase().contains(q)
@@ -149,7 +151,11 @@ fun WidgetPickerScreen(
                 val q = query.trim().lowercase()
                 q.isEmpty() || builtinSection.lowercase().contains(q) || notifName.lowercase().contains(q)
             }
-            if (filtered.isEmpty() && !builtinVisible && !notifVisible) {
+            val batteryVisible = remember(query, builtinSection, batteryName) {
+                val q = query.trim().lowercase()
+                q.isEmpty() || builtinSection.lowercase().contains(q) || batteryName.lowercase().contains(q)
+            }
+            if (filtered.isEmpty() && !builtinVisible && !notifVisible && !batteryVisible) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     Text(
                         text = stringResource(R.string.widget_search_none),
@@ -159,7 +165,7 @@ fun WidgetPickerScreen(
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    if (builtinVisible || notifVisible) {
+                    if (builtinVisible || notifVisible || batteryVisible) {
                         item(key = "h-builtin") {
                             Text(
                                 text = builtinSection,
@@ -188,6 +194,32 @@ fun WidgetPickerScreen(
                                     Text(builtinName, color = MaterialTheme.colorScheme.onSurface)
                                     Text(
                                         text = stringResource(R.string.smartspace_size_full),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 12.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (batteryVisible) {
+                        item(key = "builtin-battery") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = onPickBuiltinBattery)
+                                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_widgets),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(40.dp),
+                                )
+                                Column(modifier = Modifier.padding(start = 16.dp)) {
+                                    Text(batteryName, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(
+                                        text = stringResource(R.string.battery_widget_desc),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 12.sp,
                                     )

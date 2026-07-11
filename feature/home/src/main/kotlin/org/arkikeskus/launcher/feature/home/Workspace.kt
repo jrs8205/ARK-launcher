@@ -1097,6 +1097,8 @@ fun Workspace(
                                     when (space.type) {
                                         HomeItemEntity.BUILTIN_NOTIFICATIONS ->
                                             NotificationsWidget(modifier = Modifier.fillMaxSize())
+                                        HomeItemEntity.BUILTIN_BATTERY ->
+                                            BatteryWidget(modifier = Modifier.fillMaxSize())
                                         else -> SmartspaceWidget(modifier = Modifier.fillMaxSize())
                                     }
                                 }
@@ -1118,10 +1120,10 @@ fun Workspace(
                         }
                         val range = remember(ew.rowId, columns) {
                             if (ew.appWidgetId == null) {
-                                val minSpanX = if (builtinType == HomeItemEntity.BUILTIN_NOTIFICATIONS) {
-                                    NOTIFICATIONS_MIN_SPAN_X
-                                } else {
-                                    SMARTSPACE_MIN_SPAN_X
+                                val minSpanX = when (builtinType) {
+                                    HomeItemEntity.BUILTIN_NOTIFICATIONS -> NOTIFICATIONS_MIN_SPAN_X
+                                    HomeItemEntity.BUILTIN_BATTERY -> BATTERY_SPAN
+                                    else -> SMARTSPACE_MIN_SPAN_X
                                 }
                                 WidgetResizeRange(
                                     minX = minSpanX.coerceAtMost(columns), minY = 1,
@@ -1135,10 +1137,10 @@ fun Workspace(
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }
                         val defaultSpanX = remember(ew.appWidgetId, columns) {
                             if (ew.appWidgetId == null) {
-                                val d = if (builtinType == HomeItemEntity.BUILTIN_NOTIFICATIONS) {
-                                    NOTIFICATIONS_DEFAULT_SPAN_X
-                                } else {
-                                    SMARTSPACE_DEFAULT_SPAN_X
+                                val d = when (builtinType) {
+                                    HomeItemEntity.BUILTIN_NOTIFICATIONS -> NOTIFICATIONS_DEFAULT_SPAN_X
+                                    HomeItemEntity.BUILTIN_BATTERY -> BATTERY_SPAN
+                                    else -> SMARTSPACE_DEFAULT_SPAN_X
                                 }
                                 d.coerceIn(1, columns)
                             } else {

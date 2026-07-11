@@ -712,6 +712,10 @@ fun HomeScreen(
                 showWidgetPicker = false
                 viewModel.addNotificationsWidget()
             },
+            onPickBuiltinBattery = {
+                showWidgetPicker = false
+                viewModel.addBatteryWidget()
+            },
             onDismiss = { showWidgetPicker = false },
             modifier = Modifier.fillMaxSize(),
         )

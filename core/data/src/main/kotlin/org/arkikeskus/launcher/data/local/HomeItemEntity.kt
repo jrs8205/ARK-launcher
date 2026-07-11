@@ -67,5 +67,8 @@ data class HomeItemEntity(
 
         /** [builtinType] of the notifications widget (active notifications as app icons). */
         const val BUILTIN_NOTIFICATIONS = "notifications"
+
+        /** [builtinType] of the battery widget (a ring gauge + percent, app-icon sized). */
+        const val BUILTIN_BATTERY = "battery"
     }
 }

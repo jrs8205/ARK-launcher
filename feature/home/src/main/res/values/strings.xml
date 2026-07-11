@@ -9,6 +9,8 @@
     <string name="smartspace_allow_calendar">Salli kalenterin käyttö napauttamalla</string>
     <string name="smartspace_no_title">(Ei otsikkoa)</string>
     <string name="smartspace_size_full">Koko leveys</string>
+    <string name="battery_widget_name">Akku</string>
+    <string name="battery_widget_desc">Varausrengas ja prosentti</string>
     <string name="smartspace_next_alarm">Seuraava herätys</string>
     <string name="smartspace_allow_location">Salli sijainti napauttamalla – sää</string>
     <string name="notifications_widget_name">Ilmoitukset</string>
