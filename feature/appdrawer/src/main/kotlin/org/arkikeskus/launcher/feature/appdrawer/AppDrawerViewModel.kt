@@ -84,11 +84,14 @@ class AppDrawerViewModel @Inject constructor(
         settingsRepository.dockFavorites,
         homeLayoutRepository.homeItems,
     ) { apps, q, settings, favorites, homeItems ->
+        // Favorites whose app was uninstalled don't render in the dock (HomeViewModel drops them),
+        // so they must not count toward its visible capacity either.
+        val installed = apps.mapTo(HashSet()) { it.key }
         AppDrawerUiState(
             apps = apps,
             query = q,
             columns = settings.drawerColumns,
-            dockKeys = favorites.toSet(),
+            dockKeys = favorites.filterTo(LinkedHashSet()) { it in installed },
             dockColumns = settings.dockColumns,
             // Only apps placed directly on home (not folder rows or apps inside folders).
             homeKeys = homeItems
