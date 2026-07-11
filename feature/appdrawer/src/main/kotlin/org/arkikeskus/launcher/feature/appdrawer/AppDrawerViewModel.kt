@@ -73,9 +73,11 @@ class AppDrawerViewModel @Inject constructor(
     private val query = MutableStateFlow("")
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    private val searchResults: Flow<SearchResults> = query
-        .debounce { if (it.isBlank()) 0L else 200L } // contacts hit ContentResolver; avoid per-keystroke
-        .mapLatest { searchAggregator.search(it) }    // mapLatest cancels the previous run
+    private val searchResults: Flow<SearchResults> = combine(
+        query.debounce { if (it.isBlank()) 0L else 200L }, // contacts hit ContentResolver; avoid per-keystroke
+        appRepository.apps,                                 // install/uninstall/rename re-runs a live query
+    ) { q, _ -> q }
+        .mapLatest { searchAggregator.search(it) }          // mapLatest cancels the previous run
 
     val uiState: StateFlow<AppDrawerUiState> = combine(
         appRepository.apps,
