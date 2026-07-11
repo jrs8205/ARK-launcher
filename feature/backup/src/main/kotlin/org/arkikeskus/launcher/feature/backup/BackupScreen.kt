@@ -35,6 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,8 +58,37 @@ import org.arkikeskus.launcher.feature.backup.drive.DriveFile
 private sealed interface DriveAction {
     data object Backup : DriveAction
     data object List : DriveAction
+    /** Turning the auto-backup switch on: authorize first, only then persist the flag. */
+    data object Enable : DriveAction
     data class Restore(val fileId: String) : DriveAction
 }
+
+/** DriveAction encoded as a string so a pending consent round-trip survives rotation. */
+private val DriveActionSaver = Saver<DriveAction?, String>(
+    save = {
+        when (it) {
+            DriveAction.Backup -> "backup"
+            DriveAction.List -> "list"
+            DriveAction.Enable -> "enable"
+            is DriveAction.Restore -> "restore:${it.fileId}"
+            null -> ""
+        }
+    },
+    restore = {
+        when {
+            it == "backup" -> DriveAction.Backup
+            it == "list" -> DriveAction.List
+            it == "enable" -> DriveAction.Enable
+            it.startsWith("restore:") -> DriveAction.Restore(it.removePrefix("restore:"))
+            else -> null
+        }
+    },
+)
+
+private val DriveFileSaver = listSaver<DriveFile?, String>(
+    save = { if (it == null) emptyList() else listOf(it.id, it.name, it.modifiedTime) },
+    restore = { if (it.isEmpty()) null else DriveFile(it[0], it[1], it[2]) },
+)
 
 @Composable
 fun BackupScreen(
@@ -70,8 +102,8 @@ fun BackupScreen(
     val snackbar = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    // --- File-import state ---
-    var pendingImport by remember { mutableStateOf<android.net.Uri?>(null) }
+    // --- File-import state (rememberSaveable: the confirm dialog must survive rotation) ---
+    var pendingImport by rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
     val localLastBackupMs by viewModel.localLastBackupMs.collectAsStateWithLifecycle()
 
     // --- Drive state ---
@@ -79,13 +111,15 @@ fun BackupScreen(
     /**
      * Access token cached within the screen's lifetime.
      * Identity's auth client caches tokens server-side; caching here avoids redundant auth calls
-     * within a single screen session.
+     * within a single screen session. Deliberately NOT saved across rotation: the token is
+     * short-lived and a silent re-auth replaces it.
      */
     var cachedToken by remember { mutableStateOf<String?>(null) }
-    /** The Drive action waiting for the consent-resolution result. */
-    var pendingDriveAction by remember { mutableStateOf<DriveAction?>(null) }
-    var showDriveFiles by remember { mutableStateOf(false) }
-    var pendingDriveRestore by remember { mutableStateOf<DriveFile?>(null) }
+    /** The Drive action waiting for the consent-resolution result (saved: the consent dialog is a
+     *  separate activity, and rotating behind it must not orphan its result). */
+    var pendingDriveAction by rememberSaveable(stateSaver = DriveActionSaver) { mutableStateOf<DriveAction?>(null) }
+    var showDriveFiles by rememberSaveable { mutableStateOf(false) }
+    var pendingDriveRestore by rememberSaveable(stateSaver = DriveFileSaver) { mutableStateOf<DriveFile?>(null) }
 
     /**
      * Dispatches a resolved Drive action to the ViewModel.
@@ -98,6 +132,8 @@ fun BackupScreen(
                 viewModel.listDriveBackups(token)
                 showDriveFiles = true
             }
+            // Reaching here proves authorization succeeded — only now persist the enable flag.
+            DriveAction.Enable -> viewModel.setDriveEnabled(true)
             is DriveAction.Restore -> viewModel.restoreFromDrive(token, action.fileId)
         }
     }
@@ -248,7 +284,12 @@ fun BackupScreen(
                 Text(stringResource(R.string.backup_daily_toggle))
                 Switch(
                     checked = driveState.enabled,
-                    onCheckedChange = { viewModel.setDriveEnabled(it) },
+                    onCheckedChange = { checked ->
+                        // Enabling goes through the auth path first: a failed or cancelled consent
+                        // leaves the flag off (with the auth-failed snackbar) instead of arming a
+                        // worker that can never upload.
+                        if (checked) launchDriveOp(DriveAction.Enable) else viewModel.setDriveEnabled(false)
+                    },
                 )
             }
             if (driveState.lastBackupMs > 0L) {
