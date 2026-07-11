@@ -4,6 +4,8 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ComponentName
+import android.os.Handler
+import android.os.Looper
 import android.os.UserManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -42,19 +44,35 @@ class NotificationDotListenerService : NotificationListenerService() {
      *  Touched only from NLS callbacks (main thread), so it needs no synchronisation. */
     private val alertedKeys = HashSet<String>()
 
+    private val handler = Handler(Looper.getMainLooper())
+    private var snapshotRetriesLeft = 0
+    private val retryRefresh = Runnable { refresh() }
+
     private companion object {
         const val TAG = "NotifDots"
+        const val MAX_SNAPSHOT_RETRIES = 2
+        const val SNAPSHOT_RETRY_DELAY_MS = 500L
+    }
+
+    /** Refresh now, allowing a bounded number of delayed retries if the snapshot read fails —
+     *  without one, a single transient Binder failure would leave a removed notification visible
+     *  until the next callback happens to fire. */
+    private fun refreshWithRetries() {
+        snapshotRetriesLeft = MAX_SNAPSHOT_RETRIES
+        handler.removeCallbacks(retryRefresh)
+        refresh()
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "listener connected")
         badgeRepository.registerCanceller { key -> runCatching { cancelNotification(key) } }
-        refresh()
+        refreshWithRetries()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        handler.removeCallbacks(retryRefresh)
         badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
@@ -70,12 +88,12 @@ class NotificationDotListenerService : NotificationListenerService() {
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).
         if (sbn != null && isHeadsUpWorthy(sbn) && shouldAlert(sbn)) badgeRepository.notifyHeadsUp()
-        refresh()
+        refreshWithRetries()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         if (sbn != null) alertedKeys.remove(sbn.key)
-        refresh()
+        refreshWithRetries()
     }
 
     /** A FLAG_ONLY_ALERT_ONCE notification heads-ups only on its FIRST post; a re-post (same key) must
@@ -93,6 +111,10 @@ class NotificationDotListenerService : NotificationListenerService() {
             // A transient Binder failure: keep the last good snapshot (a stale removal self-heals on
             // the next post/remove callback) but leave a trail so a persistent failure is visible.
             Log.w(TAG, "activeNotifications unavailable; keeping the previous snapshot")
+            if (snapshotRetriesLeft > 0) {
+                snapshotRetriesLeft--
+                handler.postDelayed(retryRefresh, SNAPSHOT_RETRY_DELAY_MS)
+            }
             return
         }
         val ranking = runCatching { currentRanking }.getOrNull()
