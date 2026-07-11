@@ -12,10 +12,13 @@ import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import org.arkikeskus.launcher.model.MobileStatus
@@ -34,7 +37,17 @@ class SignalMonitor @Inject constructor(
 
     private val inactive = MobileStatus(active = false, level = 0, generation = null)
 
-    val mobile: Flow<MobileStatus> =
+    /** Bumped when READ_PHONE_STATE is granted while the status bar is already collecting (the
+     *  onboarding flow): the callbackFlow below checks the permission once at collection start,
+     *  so it must be restarted to register the permission-gated display callback. */
+    private val permissionEpoch = MutableStateFlow(0)
+
+    fun onPermissionsChanged() {
+        permissionEpoch.value++
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val mobile: Flow<MobileStatus> = permissionEpoch.flatMapLatest {
         if (telephonyManager == null || !hasTelephony() || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             flowOf(inactive)
         } else {
@@ -100,9 +113,11 @@ class SignalMonitor @Inject constructor(
         }
             // Emit an immediate snapshot so combine() never stalls waiting for the first async signal
             // callback (it may be slow, or never arrive when READ_PHONE_STATE is denied). Without this a
-            // single non-emitting flow would freeze the whole status bar on its default values.
+            // single non-emitting flow would freeze the whole status bar on its default values. Kept
+            // INSIDE flatMapLatest so every permission-epoch restart re-emits immediately too.
             .onStart { emit(inactive) }
             .distinctUntilChanged()
+    }
 
     private fun hasTelephony(): Boolean =
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)

@@ -641,6 +641,7 @@ fun HomeScreen(
             OnboardingFlow(
                 onFinish = { viewModel.finishOnboarding() },
                 onContactsGranted = { viewModel.onContactsPermissionGranted() },
+                onPhoneGranted = { viewModel.onPhonePermissionGranted() },
                 modifier = Modifier.fillMaxSize(),
             )
         }

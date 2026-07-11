@@ -143,6 +143,7 @@ class HomeViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
     notificationBadgeRepository: NotificationBadgeRepository,
+    private val signalMonitor: org.arkikeskus.launcher.launcher.system.SignalMonitor,
 ) : ViewModel() {
 
     val rows: Int = HomeLayoutRepository.ROWS
@@ -204,6 +205,10 @@ class HomeViewModel @Inject constructor(
     /** Contacts granted in the intro → also enable the drawer's contact search (its whole point). */
     fun onContactsPermissionGranted() =
         viewModelScope.launch { settingsRepository.setSearchContacts(true) }
+
+    /** Phone-state granted in the intro → restart the telephony callbacks so the network
+     *  generation label appears without waiting for a process restart. */
+    fun onPhonePermissionGranted() = signalMonitor.onPermissionsChanged()
 
     /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial.
      *  Concurrent: filled from the uiState combine, invalidated from the package-event collector. */

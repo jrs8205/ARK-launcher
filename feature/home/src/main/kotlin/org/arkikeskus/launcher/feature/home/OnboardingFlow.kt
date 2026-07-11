@@ -75,12 +75,14 @@ private val AURORA_AMBER = Color(0xFFB5530F)
  * First-run intro shown once on a fresh install, over the whole home screen: welcome +
  * set-as-default, the core gestures, and a centralized permission step. [onFinish] fires on
  * "Valmis" and on "Ohita" (either way it is never shown again); [onContactsGranted] lets the
- * caller flip the contact-search setting on when READ_CONTACTS is granted here.
+ * caller flip the contact-search setting on when READ_CONTACTS is granted here, and
+ * [onPhoneGranted] lets it restart the telephony callbacks so the signal label appears right away.
  */
 @Composable
 fun OnboardingFlow(
     onFinish: () -> Unit,
     onContactsGranted: () -> Unit,
+    onPhoneGranted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var page by rememberSaveable { mutableIntStateOf(0) }
@@ -121,7 +123,7 @@ fun OnboardingFlow(
                 when (p) {
                     0 -> WelcomePage()
                     1 -> GesturesPage()
-                    else -> PermissionsPage(onContactsGranted)
+                    else -> PermissionsPage(onContactsGranted, onPhoneGranted)
                 }
             }
             Row(
@@ -303,7 +305,7 @@ private fun granted(context: Context, permission: String): Boolean =
     context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 
 @Composable
-private fun PermissionsPage(onContactsGranted: () -> Unit) {
+private fun PermissionsPage(onContactsGranted: () -> Unit, onPhoneGranted: () -> Unit) {
     val context = LocalContext.current
     // POST_NOTIFICATIONS is a runtime permission only on API 33+; below that, notifications post by
     // default, so treat it as always granted (and never show the row / add it to the chain).
@@ -345,6 +347,7 @@ private fun PermissionsPage(onContactsGranted: () -> Unit) {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         if (result[Manifest.permission.READ_CONTACTS] == true) onContactsGranted()
+        if (result[Manifest.permission.READ_PHONE_STATE] == true) onPhoneGranted()
         refresh()
         if (openNotifAfterChain) {
             openNotifAfterChain = false
