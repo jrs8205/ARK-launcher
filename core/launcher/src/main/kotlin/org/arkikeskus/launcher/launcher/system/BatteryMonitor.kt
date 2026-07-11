@@ -26,13 +26,17 @@ class BatteryMonitor @Inject constructor(
                 intent?.let { trySend(parse(it)) }
             }
         }
-        // ACTION_BATTERY_CHANGED is sticky, so registration immediately delivers the current value.
-        ContextCompat.registerReceiver(
+        // ACTION_BATTERY_CHANGED is sticky and registerReceiver RETURNS the current sticky value —
+        // send it ourselves instead of trusting the registration-time redelivery: on API < 33 the
+        // ContextCompat NOT_EXPORTED emulation suppresses that redelivery on some OEMs (Samsung
+        // A40: the battery widget stayed blank until the next battery tick, about a minute).
+        val sticky = ContextCompat.registerReceiver(
             context,
             receiver,
             IntentFilter(Intent.ACTION_BATTERY_CHANGED),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        sticky?.let { trySend(parse(it)) }
         awaitClose { context.unregisterReceiver(receiver) }
     }.distinctUntilChanged()
 
