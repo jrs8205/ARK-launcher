@@ -119,7 +119,8 @@ class NotificationsWidgetViewModel @Inject constructor(
             if (slot.notification.autoCancel) badgeRepository.cancelNotification(slot.notification.key)
             return
         }
-        if (slot.app != null && runCatching { appRepository.launch(slot.app); true }.getOrDefault(false)) return
+        val app = slot.app
+        if (app != null && appRepository.launch(app).isSuccess) return
         openAppNotificationSettings(slot.notification.packageName)
     }
 
