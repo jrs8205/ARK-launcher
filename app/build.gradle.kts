@@ -19,8 +19,8 @@ android {
 
     defaultConfig {
         applicationId = "org.arkikeskus.launcher"
-        versionCode = 22
-        versionName = "0.7.7"
+        versionCode = 23
+        versionName = "0.7.8"
     }
 
     signingConfigs {

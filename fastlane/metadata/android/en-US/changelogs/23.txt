@@ -1,0 +1,4 @@
+Stability fixes.
+
+- Fixed a crash when dropping an app into a folder after an app that was inside the folder had been uninstalled; folders left with one item now dissolve correctly.
+- Turning auto-updates on now shows the notification permission dialog only once.
