@@ -1,0 +1,4 @@
+New battery widget and brighter indicator colors.
+
+- New built-in Battery widget: an app-icon-sized ring with the percent and a charging bolt, in a dynamic red-yellow-green color. It follows the system battery exactly (same source as the status bar, no lag), can be resized, and a tap opens the battery settings.
+- Brighter indicator colors across the launcher: the battery and signal ramps are now vivid in both themes (the dark theme used pale pastels), and the status-bar icons (Bluetooth, location, VPN and friends) got a vivid azure.
