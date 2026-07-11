@@ -128,7 +128,7 @@ class WeatherRepository @Inject constructor(
 
     private fun resolveCity(exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double): String? {
         val areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon)
-        val fresh = cityName(exactLat, exactLon)
+        val fresh = cityName(exactLat, exactLon) ?: networkCityName(roundedLat, roundedLon)
         if (fresh != null) {
             lastCity = fresh
             lastCityAreaKey = areaKey
@@ -165,6 +165,32 @@ class WeatherRepository @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Reverse geocoding failed: ${e.javaClass.simpleName}")
             null
+        }
+    }
+
+    /** Network reverse-geocode fallback for devices whose platform Geocoder has no usable backend
+     *  (the Samsung A40 symptom): BigDataCloud's keyless client API. Client-side calls with the
+     *  device's own current fix are exactly its permitted use. Sends only the SAME 2-decimal
+     *  rounded coordinates the weather query already sends — the exact fix never leaves the device.
+     *  Reached at most once per 30-min weather refresh, and only when the local geocoder failed. */
+    private fun networkCityName(roundedLat: Double, roundedLon: Double): String? {
+        val url = URL(
+            "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=%.2f&longitude=%.2f&localityLanguage=%s"
+                .format(Locale.US, roundedLat, roundedLon, Locale.getDefault().language),
+        )
+        val connection = url.openConnection() as HttpURLConnection
+        return try {
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 10_000
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            PlaceNameFallback.parseCity(body).also {
+                if (it == null) Log.d(TAG, "Network reverse geocoding found no usable name")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Network reverse geocoding failed: ${e.javaClass.simpleName}")
+            null
+        } finally {
+            connection.disconnect()
         }
     }
 
