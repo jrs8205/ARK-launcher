@@ -46,7 +46,8 @@ const val SMARTSPACE_DEFAULT_SPAN_Y = 2
 /** Smallest allowed smartspace size — below 3 columns the clock + event row no longer fit. */
 const val SMARTSPACE_MIN_SPAN_X = 3
 
-/** Default grid footprint of the built-in notifications widget (clamped to the column count). */
+/** Edit-frame default width of the built-in notifications widget (the picker ADDS it full-width —
+ *  a narrower footprint can't center its icon group on an odd column count). */
 const val NOTIFICATIONS_DEFAULT_SPAN_X = 4
 const val NOTIFICATIONS_DEFAULT_SPAN_Y = 1
 
@@ -422,12 +423,14 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-    /** Adds the built-in notifications widget at the first free rectangle (widget picker). */
+    /** Adds the built-in notifications widget at the first free full-width rectangle (widget picker).
+     *  Full width like the smartspace clock: the icon group centers inside its own footprint, so any
+     *  narrower default could never sit symmetric on an odd column count (e.g. 4 wide in 5 columns). */
     fun addNotificationsWidget() = viewModelScope.launch {
         val columns = settingsRepository.settings.first().homeColumns
         homeLayoutRepository.addBuiltin(
             HomeItemEntity.BUILTIN_NOTIFICATIONS,
-            NOTIFICATIONS_DEFAULT_SPAN_X.coerceAtMost(columns), NOTIFICATIONS_DEFAULT_SPAN_Y, columns,
+            columns, NOTIFICATIONS_DEFAULT_SPAN_Y, columns,
         )
     }
 
