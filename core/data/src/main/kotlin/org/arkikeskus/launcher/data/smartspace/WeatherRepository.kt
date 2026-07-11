@@ -124,6 +124,7 @@ class WeatherRepository @Inject constructor(
      *  must not keep showing the previous town. Guarded by the [fetching] gate (single writer). */
     private var lastCity: String? = null
     private var lastCityAreaKey: String? = null
+    private var lastCityAtMs = 0L
 
     private fun resolveCity(exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double): String? {
         val areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon)
@@ -131,9 +132,13 @@ class WeatherRepository @Inject constructor(
         if (fresh != null) {
             lastCity = fresh
             lastCityAreaKey = areaKey
+            lastCityAtMs = System.currentTimeMillis()
             return fresh
         }
-        return if (areaKey == lastCityAreaKey) lastCity else null
+        // Same rounded area AND recent enough: a transient failure must not blank the name, but a
+        // dead geocoder must not pin a stale name forever either.
+        val cacheAlive = System.currentTimeMillis() - lastCityAtMs < CITY_CACHE_MAX_AGE_MS
+        return if (areaKey == lastCityAreaKey && cacheAlive) lastCity else null
     }
 
     /** Locality via the platform Geocoder — works worldwide on devices with a geocoder backend
@@ -165,6 +170,7 @@ class WeatherRepository @Inject constructor(
 
     companion object {
         private const val REFRESH_INTERVAL_MS = 30L * 60 * 1000
+        private const val CITY_CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000
         private const val TAG = "WeatherRepo"
     }
 }
