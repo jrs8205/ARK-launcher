@@ -198,6 +198,21 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `homeRows defaults to 6, persists and coerces to its range`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().homeRows).isEqualTo(6)
+
+        repo.setHomeRows(7)
+        assertThat(repo.settings.first().homeRows).isEqualTo(7)
+
+        repo.setHomeRows(99)
+        assertThat(repo.settings.first().homeRows).isEqualTo(SettingsRepository.MAX_ROWS)
+
+        repo.setHomeRows(1)
+        assertThat(repo.settings.first().homeRows).isEqualTo(SettingsRepository.MIN_ROWS)
+    }
+
+    @Test
     fun `notificationWidgetCountStyle defaults to number and round-trips`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().notificationWidgetCountStyle)

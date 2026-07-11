@@ -37,6 +37,7 @@ class SettingsRepository @Inject constructor(
             dockEnabled = p[Keys.DOCK_ENABLED] ?: true,
             dockColumns = (p[Keys.DOCK_COLUMNS] ?: 4).coerceIn(MIN_COLUMNS, MAX_COLUMNS),
             homeColumns = (p[Keys.HOME_COLUMNS] ?: 4).coerceIn(MIN_COLUMNS, MAX_COLUMNS),
+            homeRows = (p[Keys.HOME_ROWS] ?: 6).coerceIn(MIN_ROWS, MAX_ROWS),
             drawerColumns = (p[Keys.DRAWER_COLUMNS] ?: 4).coerceIn(MIN_COLUMNS, MAX_COLUMNS),
             showDrawerSearch = p[Keys.SHOW_DRAWER_SEARCH] ?: true,
             swipeUpForDrawer = p[Keys.SWIPE_UP_DRAWER] ?: true,
@@ -158,6 +159,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setDockEnabled(value: Boolean) = edit { it[Keys.DOCK_ENABLED] = value }
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }
     suspend fun setHomeColumns(value: Int) = edit { it[Keys.HOME_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }
+    suspend fun setHomeRows(value: Int) = edit { it[Keys.HOME_ROWS] = value.coerceIn(MIN_ROWS, MAX_ROWS) }
     suspend fun setDrawerColumns(value: Int) = edit { it[Keys.DRAWER_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }
     suspend fun setShowDrawerSearch(value: Boolean) = edit { it[Keys.SHOW_DRAWER_SEARCH] = value }
     suspend fun setSwipeUpForDrawer(value: Boolean) = edit { it[Keys.SWIPE_UP_DRAWER] = value }
@@ -416,6 +418,7 @@ class SettingsRepository @Inject constructor(
         val DOCK_ENABLED = booleanPreferencesKey("dock_enabled")
         val DOCK_COLUMNS = intPreferencesKey("dock_columns")
         val HOME_COLUMNS = intPreferencesKey("home_columns")
+        val HOME_ROWS = intPreferencesKey("home_rows")
         val DRAWER_COLUMNS = intPreferencesKey("drawer_columns")
         val SHOW_DRAWER_SEARCH = booleanPreferencesKey("show_drawer_search")
         val SWIPE_UP_DRAWER = booleanPreferencesKey("swipe_up_drawer")
@@ -467,6 +470,10 @@ class SettingsRepository @Inject constructor(
         const val MIN_COLUMNS = 3
         const val MAX_COLUMNS = 7
 
+        /** Valid range for the home-grid row count (mirrors the settings stepper). */
+        const val MIN_ROWS = 5
+        const val MAX_ROWS = 8
+
         /** Consecutive failed Drive-backup periods before the failure is surfaced to the user. */
         const val DRIVE_FAILING_THRESHOLD = 3
 
@@ -480,7 +487,7 @@ class SettingsRepository @Inject constructor(
 
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale", "app_label_scale", "status_bar_scrim")
-        val INT_KEYS = setOf("dock_columns", "home_columns", "drawer_columns", "app_label_color")
+        val INT_KEYS = setOf("dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color")
 
         /** Known boolean/string preference keys. importRaw writes a known key ONLY with its
          *  registered type — a wrong-typed value in an edited/corrupted backup would otherwise be
