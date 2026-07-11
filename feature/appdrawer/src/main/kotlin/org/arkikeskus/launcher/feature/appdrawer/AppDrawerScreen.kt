@@ -873,37 +873,43 @@ private fun LazyGridScope.appCells(
                         // accurate.
                         dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position)
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val completed = drag(down.id) { change ->
-                            change.consume()
-                            // Only commit to a drag-out once the finger has moved past the
-                            // slop — otherwise a still long-press (with finger jitter) would
-                            // collapse the drawer instead of just showing the menu.
-                            if (!dragController.moving &&
-                                (change.position - down.position).getDistance() > slop
-                            ) {
-                                dragController.beginMove()
-                                onDragOutStart()
-                            }
-                            if (dragController.moving) {
-                                dragController.update(bounds.topLeft + change.position)
-                            }
-                        }
-                        if (completed && dragController.moving) {
-                            val root = dragController.rootPosition
-                            when {
-                                dragController.isOverDock(root) && dragController.dockHasSpace ->
-                                    onDropOnDock(app)
-                                dragController.isOverGrid(root) -> {
-                                    val (page, cx, cy) = dragController.cellAt(root)
-                                    onDropOnHome(app, page, cx, cy)
+                        try {
+                            val completed = drag(down.id) { change ->
+                                change.consume()
+                                // Only commit to a drag-out once the finger has moved past the
+                                // slop — otherwise a still long-press (with finger jitter) would
+                                // collapse the drawer instead of just showing the menu.
+                                if (!dragController.moving &&
+                                    (change.position - down.position).getDistance() > slop
+                                ) {
+                                    dragController.beginMove()
+                                    onDragOutStart()
+                                }
+                                if (dragController.moving) {
+                                    dragController.update(bounds.topLeft + change.position)
                                 }
                             }
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        } else if (completed) {
-                            // No movement → static long-press → show the menu by the icon.
-                            onAppLongClick(app, bounds)
+                            if (completed && dragController.moving) {
+                                val root = dragController.rootPosition
+                                when {
+                                    dragController.isOverDock(root) && dragController.dockHasSpace ->
+                                        onDropOnDock(app)
+                                    dragController.isOverGrid(root) -> {
+                                        val (page, cx, cy) = dragController.cellAt(root)
+                                        onDropOnHome(app, page, cx, cy)
+                                    }
+                                }
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            } else if (completed) {
+                                // No movement → static long-press → show the menu by the icon.
+                                onAppLongClick(app, bounds)
+                            }
+                        } finally {
+                            // Reset even on cancellation (node disposed / pointerInput restarted),
+                            // mirroring Workspace's local-drag path, so a dead gesture can't leave
+                            // the shared controller lifted.
+                            dragController.stop()
                         }
-                        dragController.stop()
                     }
                 }
                 .padding(vertical = 10.dp, horizontal = 4.dp),

@@ -167,53 +167,59 @@ fun Dock(
                                 val itemRoot = itemRoots[index] ?: Offset.Zero
                                 dragController.start(app, DragSource.Dock, itemRoot + down.position)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                val completed = drag(down.id) { change ->
-                                    // Accumulate the delta BEFORE consuming: positionChange() returns
-                                    // Offset.Zero once the change is consumed, which silently zeroed
-                                    // dragOffsetX and broke in-dock reordering (the drag-out path still
-                                    // worked because it uses the absolute change.position below).
-                                    dragOffsetX += change.positionChange().x
-                                    dragDistance += change.positionChange().getDistance()
-                                    change.consume()
-                                    // Only promote to a real move once the finger travels past the slop.
-                                    // A tiny drift during a static long-press must stay a long-press so the
-                                    // popup (app shortcuts) opens instead of a no-op reorder + 2nd haptic —
-                                    // this was the "vibrates twice, no menu" flakiness.
-                                    if (dragDistance > moveThreshold && !dragController.moving) {
-                                        dragController.beginMove()
-                                    }
-                                    if (dragController.moving) {
-                                        dragController.update((itemRoots[index] ?: itemRoot) + change.position)
-                                    }
-                                }
-                                if (completed && dragController.moving) {
-                                    val rootPos = dragController.rootPosition
-                                    if (dragController.isOverRemove(rootPos)) {
-                                        onRemoveFromDock(app)
-                                    } else if (dragController.isOverGrid(rootPos)) {
-                                        val (page, cx, cy) = dragController.cellAt(rootPos)
-                                        onMoveToHome(app, page, cx, cy)
-                                    } else {
-                                        val slot = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 1f
-                                        val shift = if (slot > 0f) (dragOffsetX / slot).roundToInt() else 0
-                                        val target = (index + shift).coerceIn(0, apps.size - 1)
-                                        if (target != index) {
-                                            val reordered = apps.toMutableList().also {
-                                                it.add(target, it.removeAt(index))
-                                            }
-                                            onReorder(reordered)
+                                try {
+                                    val completed = drag(down.id) { change ->
+                                        // Accumulate the delta BEFORE consuming: positionChange() returns
+                                        // Offset.Zero once the change is consumed, which silently zeroed
+                                        // dragOffsetX and broke in-dock reordering (the drag-out path still
+                                        // worked because it uses the absolute change.position below).
+                                        dragOffsetX += change.positionChange().x
+                                        dragDistance += change.positionChange().getDistance()
+                                        change.consume()
+                                        // Only promote to a real move once the finger travels past the slop.
+                                        // A tiny drift during a static long-press must stay a long-press so the
+                                        // popup (app shortcuts) opens instead of a no-op reorder + 2nd haptic —
+                                        // this was the "vibrates twice, no menu" flakiness.
+                                        if (dragDistance > moveThreshold && !dragController.moving) {
+                                            dragController.beginMove()
+                                        }
+                                        if (dragController.moving) {
+                                            dragController.update((itemRoots[index] ?: itemRoot) + change.position)
                                         }
                                     }
-                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                } else if (completed) {
-                                    // No movement → static long-press → show the menu above the item.
-                                    val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
-                                    val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
-                                    onAppMenu(app, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
+                                    if (completed && dragController.moving) {
+                                        val rootPos = dragController.rootPosition
+                                        if (dragController.isOverRemove(rootPos)) {
+                                            onRemoveFromDock(app)
+                                        } else if (dragController.isOverGrid(rootPos)) {
+                                            val (page, cx, cy) = dragController.cellAt(rootPos)
+                                            onMoveToHome(app, page, cx, cy)
+                                        } else {
+                                            val slot = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 1f
+                                            val shift = if (slot > 0f) (dragOffsetX / slot).roundToInt() else 0
+                                            val target = (index + shift).coerceIn(0, apps.size - 1)
+                                            if (target != index) {
+                                                val reordered = apps.toMutableList().also {
+                                                    it.add(target, it.removeAt(index))
+                                                }
+                                                onReorder(reordered)
+                                            }
+                                        }
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    } else if (completed) {
+                                        // No movement → static long-press → show the menu above the item.
+                                        val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
+                                        val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
+                                        onAppMenu(app, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
+                                    }
+                                } finally {
+                                    // Reset even on cancellation (node disposed / pointerInput restarted),
+                                    // mirroring the local-drag path in Workspace, so a dead gesture can't
+                                    // leave the shared controller lifted.
+                                    dragController.stop()
+                                    draggingIndex = -1
+                                    dragOffsetX = 0f
                                 }
-                                dragController.stop()
-                                draggingIndex = -1
-                                dragOffsetX = 0f
                             }
                         },
                     contentAlignment = Alignment.Center,
