@@ -38,7 +38,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import androidx.compose.ui.graphics.lerp
+import org.arkikeskus.launcher.designsystem.theme.LocalLauncherColors
 import org.arkikeskus.launcher.launcher.system.BatteryMonitor
 import org.arkikeskus.launcher.model.BatteryStatus
 import javax.inject.Inject
@@ -53,22 +53,11 @@ class BatteryWidgetViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
-// The ring's own vivid ramp (user feedback: the status bar's shared battery palette read pale on
-// the large ring) — neon-bright A400-style stops, deliberately NOT LauncherColors so the status
-// bar keeps its calmer tones.
-private val RingLow = Color(0xFFFF1744)
-private val RingMedium = Color(0xFFFFEA00)
-private val RingHigh = Color(0xFF00FF6A)
-
-private fun ringColor(percent: Int): Color {
-    val p = percent.coerceIn(0, 100)
-    return if (p <= 50) lerp(RingLow, RingMedium, p / 50f) else lerp(RingMedium, RingHigh, (p - 50) / 50f)
-}
-
 /**
  * The built-in battery widget: an app-icon-sized ring gauge with the percent in the middle and a
- * bolt while charging, in a vivid red→yellow→green ramp. Scales with its footprint like the other
- * built-ins. Tap opens the system battery screen.
+ * bolt while charging, in the launcher's shared vivid battery ramp (the status bar uses the same
+ * [org.arkikeskus.launcher.designsystem.theme.LauncherColors], so the two always agree). Scales
+ * with its footprint like the other built-ins. Tap opens the system battery screen.
  */
 @Composable
 fun BatteryWidget(
@@ -77,6 +66,7 @@ fun BatteryWidget(
 ) {
     val context = LocalContext.current
     val status by viewModel.status.collectAsStateWithLifecycle()
+    val colors = LocalLauncherColors.current
     val density = LocalDensity.current
     val noIndication = remember { MutableInteractionSource() }
     val shadow = Shadow(color = Color.Black.copy(alpha = 0.55f), blurRadius = 8f)
@@ -85,7 +75,7 @@ fun BatteryWidget(
         val s = status ?: return@BoxWithConstraints
         // The ring hugs the smaller cell axis, like an app icon does; resizing the footprint scales it.
         val diameter = minOf(maxWidth, maxHeight) * 0.84f
-        val color = ringColor(s.percent)
+        val color = colors.batteryColor(s.percent)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier

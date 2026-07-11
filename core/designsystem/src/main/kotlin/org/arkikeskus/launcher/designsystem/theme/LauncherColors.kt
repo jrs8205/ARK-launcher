@@ -36,9 +36,11 @@ data class LauncherColors(
 }
 
 internal val LightLauncherColors = LauncherColors(
-    batteryHigh = Color(0xFF30D158),
-    batteryMedium = Color(0xFFFFD60A),
-    batteryLow = Color(0xFFFF3B30),
+    // Vivid battery ramp (user choice 2026-07-11): the ramp renders on dark scrims/wallpaper in
+    // both themes, and the old calmer stops read pale on the battery widget's large ring.
+    batteryHigh = Color(0xFF00FF6A),
+    batteryMedium = Color(0xFFFFEA00),
+    batteryLow = Color(0xFFFF1744),
     signal = listOf(
         Color(0xFFFF3B30),
         Color(0xFFFF9F0A),
@@ -53,9 +55,10 @@ internal val LightLauncherColors = LauncherColors(
 )
 
 internal val DarkLauncherColors = LauncherColors(
-    batteryHigh = Color(0xFF8FD89E),
-    batteryMedium = Color(0xFFFFB68A),
-    batteryLow = Color(0xFFFFB4AB),
+    // Same vivid battery ramp as light — the dark pastels were the "pale green" the user reported.
+    batteryHigh = Color(0xFF00FF6A),
+    batteryMedium = Color(0xFFFFEA00),
+    batteryLow = Color(0xFFFF1744),
     signal = listOf(
         Color(0xFFFFB4AB),
         Color(0xFFFFB4AB),
