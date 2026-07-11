@@ -18,6 +18,10 @@ data class ReflowPlacement(
     val id: Long, val page: Int, val cellX: Int, val cellY: Int, val spanX: Int, val spanY: Int,
 )
 
+/** Where [HomeLayoutRepository.firstRectWithPush] places a new rect, plus the displacements
+ *  (rowId → new cell on [page]) that free it. Empty [moved] = the rect was genuinely free. */
+data class PushPlacement(val page: Int, val cellX: Int, val cellY: Int, val moved: Map<Long, Pair<Int, Int>>)
+
 /**
  * Persists the home layout (Room): app shortcuts and folders placed at free cells, and the apps
  * inside each folder. Top-level items live in the [HOME] container; a folder's children live in the
@@ -272,10 +276,22 @@ class HomeLayoutRepository @Inject constructor(
     private fun firstFreeCell(items: List<HomeItemEntity>, columns: Int, rows: Int): Triple<Int, Int, Int> =
         firstFreeRect(items, columns, 1, 1, rows)
 
-    /** Places a bound widget at the first free [spanX]×[spanY] rectangle on the home grid. */
+    /** Applies a [PushPlacement]'s displacements: park off-grid first (unique temp cells) so the
+     *  unique (page,cellX,cellY) index can't be violated mid-update, then place at the final cells. */
+    private suspend fun applyPush(p: PushPlacement) {
+        if (p.moved.isEmpty()) return
+        var temp = -1
+        for (id in p.moved.keys) { dao.moveById(id, HOME, temp, temp, temp); temp-- }
+        for ((id, pos) in p.moved) dao.moveById(id, HOME, p.page, pos.first, pos.second)
+    }
+
+    /** Places a bound widget at the first [spanX]×[spanY] rectangle on the home grid, pushing
+     *  overlapping icons aside before spilling onto a fresh page (see [firstRectWithPush]). */
     suspend fun addWidget(appWidgetId: Int, provider: String, spanX: Int, spanY: Int, columns: Int, rows: Int) {
         db.withTransaction {
-            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY, rows)
+            val placement = firstRectWithPush(dao.getContainer(HOME), columns, spanX, spanY, rows)
+            applyPush(placement)
+            val (page, x, y) = Triple(placement.page, placement.cellX, placement.cellY)
             dao.insert(
                 HomeItemEntity(
                     containerId = HOME,
@@ -294,10 +310,13 @@ class HomeLayoutRepository @Inject constructor(
         dao.deleteById(rowId)
     }
 
-    /** Places a built-in widget (e.g. [HomeItemEntity.BUILTIN_SMARTSPACE]) at the first free rectangle. */
+    /** Places a built-in widget (e.g. [HomeItemEntity.BUILTIN_SMARTSPACE]) at the first rectangle,
+     *  pushing overlapping icons aside before spilling onto a fresh page (see [firstRectWithPush]). */
     suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int, rows: Int) {
         db.withTransaction {
-            val (page, x, y) = firstFreeRect(dao.getContainer(HOME), columns, spanX, spanY, rows)
+            val placement = firstRectWithPush(dao.getContainer(HOME), columns, spanX, spanY, rows)
+            applyPush(placement)
+            val (page, x, y) = Triple(placement.page, placement.cellX, placement.cellY)
             dao.insert(
                 HomeItemEntity(
                     containerId = HOME,
@@ -463,6 +482,38 @@ class HomeLayoutRepository @Inject constructor(
          * overlapping any item (each item occupies its own spanX×spanY cells; apps/folders/shortcuts
          * are 1×1). Spans are clamped to the grid; advances to a fresh trailing page when needed.
          */
+        /**
+         * Like [firstFreeRect], but before exiling the rect to a fresh page it tries to PUSH items
+         * aside on the existing pages ([ReorderPlanner.planFit], the same plan move/resize commits).
+         * A full-width widget can only start at column 0, so without this a single icon on a row
+         * disqualifies the whole row and a picker add silently lands on a page the user isn't
+         * looking at — the "the clock won't install" report.
+         */
+        fun firstRectWithPush(
+            items: List<HomeItemEntity>, columns: Int, spanX: Int, spanY: Int, rows: Int = ROWS,
+        ): PushPlacement {
+            val cols = columns.coerceAtLeast(1)
+            val rws = rows.coerceAtLeast(1)
+            val sx = spanX.coerceIn(1, cols)
+            val sy = spanY.coerceIn(1, rws)
+            val free = firstFreeRect(items, cols, sx, sy, rws)
+            val maxPage = items.filter { it.page >= 0 }.maxOfOrNull { it.page } ?: -1
+            if (free.first <= maxPage) {
+                return PushPlacement(free.first, free.second, free.third, emptyMap())
+            }
+            val rects = items.map { ReorderPlanner.Rect(it.id, it.page, it.cellX, it.cellY, it.spanX, it.spanY) }
+            for (page in 0..maxPage) {
+                for (y in 0..rws - sy) for (x in 0..cols - sx) {
+                    val plan = ReorderPlanner.planFit(rects, NO_ROW, page, x, y, sx, sy, cols, rws)
+                    if (plan != null) return PushPlacement(page, x, y, plan)
+                }
+            }
+            return PushPlacement(free.first, free.second, free.third, emptyMap())
+        }
+
+        /** A row id no real row carries — excludes nothing from [ReorderPlanner.planFit]'s collisions. */
+        private const val NO_ROW = -1L
+
         fun firstFreeRect(items: List<HomeItemEntity>, columns: Int, spanX: Int, spanY: Int, rows: Int = ROWS): Triple<Int, Int, Int> {
             val cols = columns.coerceAtLeast(1)
             val rws = rows.coerceAtLeast(1)
