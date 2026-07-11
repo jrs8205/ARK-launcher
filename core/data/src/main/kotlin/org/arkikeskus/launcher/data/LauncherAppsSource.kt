@@ -19,6 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.model.AppItem
@@ -40,6 +42,11 @@ class LauncherAppsSource @Inject constructor(
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
 
+    /** Package names from LauncherApps callbacks — lets feature-layer caches (e.g. resolved pinned
+     *  shortcuts) invalidate per package instead of guessing from full app-list reloads. */
+    private val _packageEvents = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val packageEvents: SharedFlow<String> = _packageEvents
+
     fun appsFlow(): Flow<List<AppItem>> = callbackFlow {
         val handler = Handler(Looper.getMainLooper())
 
@@ -54,6 +61,7 @@ class LauncherAppsSource @Inject constructor(
         }
 
         fun packageEvent(vararg packageNames: String, iconsMayHaveChanged: Boolean = false) {
+            packageNames.forEach { _packageEvents.tryEmit(it) }
             // Drop the rasterized icon cache when either the active icon pack changed OR a package was
             // updated/replaced: the AppIcon cache key is version-agnostic, so a normal app update would
             // otherwise keep serving the OLD launcher icon until the launcher process died.

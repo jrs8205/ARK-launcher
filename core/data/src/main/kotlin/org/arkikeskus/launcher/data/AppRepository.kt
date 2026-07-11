@@ -31,6 +31,9 @@ class AppRepository @Inject constructor(
         }
     }
 
+    /** See [LauncherAppsSource.packageEvents]. */
+    val packageEvents: Flow<String> get() = source.packageEvents
+
     /** Launches [appItem]; on success, records the launch for the "most used" ranking (fire-and-forget). */
     fun launch(appItem: AppItem): Result<Unit> {
         val result = source.launch(appItem)

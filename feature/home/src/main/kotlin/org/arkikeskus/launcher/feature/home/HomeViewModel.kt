@@ -186,6 +186,13 @@ class HomeViewModel @Inject constructor(
                 if (fresh) _showOnboarding.value = true else settingsRepository.setOnboardingDone()
             }
         }
+        // A package update can change a pinned shortcut's label/icon; drop its cached resolutions
+        // so the uiState combine re-resolves them (cache keys are "package/id/serial").
+        viewModelScope.launch {
+            appRepository.packageEvents.collect { pkg ->
+                shortcutCache.keys.removeIf { it.startsWith("$pkg/") }
+            }
+        }
     }
 
     /** Closes the first-run intro (finished or skipped) and never shows it again. */
@@ -198,8 +205,9 @@ class HomeViewModel @Inject constructor(
     fun onContactsPermissionGranted() =
         viewModelScope.launch { settingsRepository.setSearchContacts(true) }
 
-    /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial. */
-    private val shortcutCache = mutableMapOf<String, AppShortcuts.Resolved>()
+    /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial.
+     *  Concurrent: filled from the uiState combine, invalidated from the package-event collector. */
+    private val shortcutCache = java.util.concurrent.ConcurrentHashMap<String, AppShortcuts.Resolved>()
 
     /**
      * True for a short window after a heads-up-worthy notification is posted, while the system
