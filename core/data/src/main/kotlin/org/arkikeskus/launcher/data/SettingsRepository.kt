@@ -315,6 +315,16 @@ class SettingsRepository @Inject constructor(
     suspend fun onboardingDoneOnce(): Boolean = dataStore.data.first()[Keys.ONBOARDING_DONE] ?: false
     suspend fun setOnboardingDone() = edit { it[Keys.ONBOARDING_DONE] = true }
 
+    /** One-time first-run freshness decision, persisted BEFORE any seeding writes so a mid-seed
+     *  death can't flip a fresh install into an "updating user". Null = not decided yet. */
+    suspend fun firstRunFreshOnce(): Boolean? =
+        when (dataStore.data.first()[Keys.FIRST_RUN_FRESH]) {
+            "yes" -> true
+            "no" -> false
+            else -> null
+        }
+    suspend fun setFirstRunFresh(fresh: Boolean) = edit { it[Keys.FIRST_RUN_FRESH] = if (fresh) "yes" else "no" }
+
     /** Replaces the (empty) dock with the first-run default apps — seeding only, not a user API. */
     suspend fun seedDock(keys: List<String>) = edit { it[Keys.DOCK_FAVORITES] = keys.joinToString("\n") }
 
@@ -357,6 +367,7 @@ class SettingsRepository @Inject constructor(
             val updateLastNotified = prefs[Keys.UPDATE_LAST_NOTIFIED]
             val layoutSeeded = prefs[Keys.DEFAULT_LAYOUT_SEEDED]
             val onboardingDone = prefs[Keys.ONBOARDING_DONE]
+            val firstRunFresh = prefs[Keys.FIRST_RUN_FRESH]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             prefs.clear()
@@ -392,6 +403,7 @@ class SettingsRepository @Inject constructor(
             if (updateLastNotified != null) prefs[Keys.UPDATE_LAST_NOTIFIED] = updateLastNotified
             if (layoutSeeded != null) prefs[Keys.DEFAULT_LAYOUT_SEEDED] = layoutSeeded
             if (onboardingDone != null) prefs[Keys.ONBOARDING_DONE] = onboardingDone
+            if (firstRunFresh != null) prefs[Keys.FIRST_RUN_FRESH] = firstRunFresh
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
         }
     }
@@ -447,6 +459,7 @@ class SettingsRepository @Inject constructor(
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        val FIRST_RUN_FRESH = stringPreferencesKey("first_run_fresh")
     }
 
     companion object {
@@ -491,7 +504,7 @@ class SettingsRepository @Inject constructor(
             "drive_failure_count", "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
-            "default_layout_seeded", "onboarding_done",
+            "default_layout_seeded", "onboarding_done", "first_run_fresh",
         )
     }
 }

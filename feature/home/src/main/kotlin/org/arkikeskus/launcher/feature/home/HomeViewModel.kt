@@ -162,15 +162,26 @@ class HomeViewModel @Inject constructor(
             val seeded = settingsRepository.defaultLayoutSeededOnce()
             val onboarded = settingsRepository.onboardingDoneOnce()
             if (seeded && onboarded) return@launch
-            val fresh = homeLayoutRepository.isHomeEmpty()
+            // Decide freshness ONCE and persist the decision BEFORE any seeding writes: a death
+            // mid-seed leaves the home non-empty, which must not flip a fresh install into an
+            // "updating user" on the retry (dock never seeded, intro never shown).
+            val fresh = settingsRepository.firstRunFreshOnce() ?: run {
+                val decided = homeLayoutRepository.isHomeEmpty()
+                settingsRepository.setFirstRunFresh(decided)
+                decided
+            }
             if (!seeded) {
                 if (fresh) {
                     val settings = settingsRepository.settings.first()
-                    // Full width so the centered clock sits in the middle of the screen.
-                    homeLayoutRepository.addBuiltin(
-                        HomeItemEntity.BUILTIN_SMARTSPACE,
-                        settings.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, settings.homeColumns,
-                    )
+                    // Idempotent on a retry: the widget only while home is still empty, the dock
+                    // only while the favorites are still empty.
+                    if (homeLayoutRepository.isHomeEmpty()) {
+                        // Full width so the centered clock sits in the middle of the screen.
+                        homeLayoutRepository.addBuiltin(
+                            HomeItemEntity.BUILTIN_SMARTSPACE,
+                            settings.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, settings.homeColumns,
+                        )
+                    }
                     // The app list needs a beat on a cold start; a fresh device always has apps.
                     val apps = appRepository.apps.first { it.isNotEmpty() }
                     val dockKeys = resolveDefaultDockKeys(context, apps)
