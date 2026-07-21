@@ -1,0 +1,3 @@
+New feedback channel.
+
+- New Feedback section at the bottom of Settings: one tap opens the project's GitHub Discussions — the place for questions, feature ideas and general feedback, in English or Finnish.
