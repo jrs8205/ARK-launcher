@@ -66,6 +66,9 @@
     <string name="settings_frequent_apps">Most used at the top</string>
     <string name="settings_drawer_open_top">Always open at top</string>
     <string name="settings_backup">Backup</string>
+    <string name="settings_feedback">Feedback</string>
+    <string name="settings_feedback_discussions">Feedback &amp; discussion</string>
+    <string name="settings_feedback_discussions_desc">Questions and ideas — GitHub Discussions</string>
     <string name="settings_step_decrease">Decrease</string>
     <string name="settings_step_increase">Increase</string>
 </resources>

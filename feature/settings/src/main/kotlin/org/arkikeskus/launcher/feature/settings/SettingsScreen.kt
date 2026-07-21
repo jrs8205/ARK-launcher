@@ -329,6 +329,12 @@ fun SettingsScreen(
                 ) { showBackup = true }
 
                 UpdateSection()
+
+                ExpressiveSectionTitle(stringResource(R.string.settings_feedback))
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_feedback_discussions),
+                    description = stringResource(R.string.settings_feedback_discussions_desc),
+                ) { openDiscussions(context) }
             }
         }
 
@@ -546,6 +552,16 @@ private tailrec fun android.content.Context.findActivity(): android.app.Activity
     is android.app.Activity -> this
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+private const val DISCUSSIONS_URL = "https://github.com/jrs8205/ARK-launcher/discussions"
+
+private fun openDiscussions(context: android.content.Context) {
+    runCatching {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(DISCUSSIONS_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
 }
 
 /** The app's system details page — where a permanently denied permission can still be granted. */
