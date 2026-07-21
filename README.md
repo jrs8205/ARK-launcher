@@ -47,6 +47,13 @@ https://github.com/jrs8205/ARK-launcher
 
 Obtainium watches the Releases page and updates the launcher for you.
 
+## Feedback & questions
+
+Questions, ideas, and general chat are all welcome in
+[**GitHub Discussions**](https://github.com/jrs8205/ARK-launcher/discussions) — in English or
+Finnish. Found a bug? Please [open an issue](https://github.com/jrs8205/ARK-launcher/issues)
+instead. You can also reach Discussions straight from the app: **Settings ▸ Feedback**.
+
 ## Features
 
 - **Paged home screen** with free icon placement and smooth drag-and-drop — move icons within a
@@ -120,5 +127,6 @@ Android Open Source Project's **Launcher3** (also Apache-2.0); see [NOTICE](NOTI
 
 ## Contributing
 
-Issues and pull requests are welcome. By contributing you agree your contributions are licensed
-under the project's Apache-2.0 license.
+Issues and pull requests are welcome — for feature ideas, consider starting a
+[Discussion](https://github.com/jrs8205/ARK-launcher/discussions) first. By contributing you agree
+your contributions are licensed under the project's Apache-2.0 license.
