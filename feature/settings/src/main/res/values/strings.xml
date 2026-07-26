@@ -69,6 +69,8 @@
     <string name="settings_feedback">Palaute</string>
     <string name="settings_feedback_discussions">Palaute ja keskustelu</string>
     <string name="settings_feedback_discussions_desc">Kysymykset ja ideat — GitHub Discussions</string>
+    <string name="settings_feedback_telegram">Telegram-ryhmä</string>
+    <string name="settings_feedback_telegram_desc">Keskustele muiden käyttäjien kanssa — t.me/ARKlauncher</string>
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
 </resources>

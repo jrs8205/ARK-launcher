@@ -334,7 +334,11 @@ fun SettingsScreen(
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_feedback_discussions),
                     description = stringResource(R.string.settings_feedback_discussions_desc),
-                ) { openDiscussions(context) }
+                ) { openLink(context, DISCUSSIONS_URL) }
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_feedback_telegram),
+                    description = stringResource(R.string.settings_feedback_telegram_desc),
+                ) { openLink(context, TELEGRAM_URL) }
             }
         }
 
@@ -555,11 +559,12 @@ private tailrec fun android.content.Context.findActivity(): android.app.Activity
 }
 
 private const val DISCUSSIONS_URL = "https://github.com/jrs8205/ARK-launcher/discussions"
+private const val TELEGRAM_URL = "https://t.me/ARKlauncher"
 
-private fun openDiscussions(context: android.content.Context) {
+private fun openLink(context: android.content.Context, url: String) {
     runCatching {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse(DISCUSSIONS_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }
 }

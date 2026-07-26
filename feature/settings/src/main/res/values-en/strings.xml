@@ -69,6 +69,8 @@
     <string name="settings_feedback">Feedback</string>
     <string name="settings_feedback_discussions">Feedback &amp; discussion</string>
     <string name="settings_feedback_discussions_desc">Questions and ideas — GitHub Discussions</string>
+    <string name="settings_feedback_telegram">Telegram group</string>
+    <string name="settings_feedback_telegram_desc">Chat with other users — t.me/ARKlauncher</string>
     <string name="settings_step_decrease">Decrease</string>
     <string name="settings_step_increase">Increase</string>
 </resources>
