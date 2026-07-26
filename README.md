@@ -50,9 +50,10 @@ Obtainium watches the Releases page and updates the launcher for you.
 ## Feedback & questions
 
 Questions, ideas, and general chat are all welcome in
-[**GitHub Discussions**](https://github.com/jrs8205/ARK-launcher/discussions) — in English or
-Finnish. Found a bug? Please [open an issue](https://github.com/jrs8205/ARK-launcher/issues)
-instead. You can also reach Discussions straight from the app: **Settings ▸ Feedback**.
+[**GitHub Discussions**](https://github.com/jrs8205/ARK-launcher/discussions) or the
+[**Telegram group**](https://t.me/ARKlauncher) — in English or Finnish. Found a bug? Please
+[open an issue](https://github.com/jrs8205/ARK-launcher/issues) instead. Both links are also in
+the app: **Settings ▸ Feedback**.
 
 ## Features
 
