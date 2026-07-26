@@ -1,0 +1,3 @@
+Telegram group.
+
+- The Feedback section in Settings now also links to the project's Telegram group (t.me/ARKlauncher) — a place to chat with other users, ask questions and follow new releases, in English or Finnish.
