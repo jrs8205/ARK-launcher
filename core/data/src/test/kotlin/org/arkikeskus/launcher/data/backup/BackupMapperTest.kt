@@ -78,11 +78,17 @@ class BackupMapperTest {
         val items = listOf(
             BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 0),   // installed
             BackupItem(2, -1, null, "com.gone", "G", true, null, 0, 1, 0), // not installed -> skipped
-            BackupItem(3, -1, "Tools", "", "", false, null, 0, 2, 0),      // folder -> always kept
+            BackupItem(3, -1, "Tools", "", "", false, null, 0, 2, 0),      // folder with 2 children
+            BackupItem(4, 3, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(5, 3, null, "com.b", "B", true, null, 0, 1, 0),
         )
-        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
+        val mapping = toEntities(
+            items,
+            installedAppKeys = setOf("com.a/A", "com.b/B"),
+            installedPackages = setOf("com.a", "com.b"),
+        )
         assertThat(mapping.skipped).isEqualTo(1)
-        assertThat(mapping.entities.map { it.id }).containsExactly(1L, 3L)
+        assertThat(mapping.entities.map { it.id }).containsExactly(1L, 3L, 4L, 5L)
         assertThat(mapping.entities.first { it.id == 1L }.userSerial).isEqualTo(42L)
         assertThat(mapping.entities.first { it.id == 3L }.userSerial).isEqualTo(0L) // folder
         assertThat(mapping.entities.all { it.appWidgetId == null }).isTrue()
@@ -261,13 +267,67 @@ class BackupMapperTest {
     @Test
     fun toEntities_skips_orphan_folder_children() {
         val items = listOf(
-            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),      // folder kept
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),      // folder kept (2 children)
             BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),   // child of kept folder
+            BackupItem(13, 10, null, "com.b", "B", true, null, 0, 1, 0),   // child of kept folder
             BackupItem(12, 99, null, "com.a", "A", true, null, 0, 0, 0),   // orphan -> skipped
         )
-        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
-        assertThat(mapping.entities.map { it.id }).containsExactly(10L, 11L)
+        val mapping = toEntities(
+            items,
+            installedAppKeys = setOf("com.a/A", "com.b/B"),
+            installedPackages = setOf("com.a", "com.b"),
+        )
+        assertThat(mapping.entities.map { it.id }).containsExactly(10L, 11L, 13L)
         assertThat(mapping.skipped).isEqualTo(1)
+    }
+
+    // --- Folder dissolution (mirrors HomeLayoutRepository.dissolveIfNeeded) -------------------
+
+    @Test
+    fun toEntities_drops_a_folder_whose_children_were_all_filtered_out() {
+        // Neither child app is installed on the restore target: without the post-pass the folder row
+        // restored EMPTY — and an empty folder has no delete affordance, so it was stuck forever.
+        val items = listOf(
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),
+            BackupItem(11, 10, null, "com.gone", "G", true, null, 0, 0, 0),
+            BackupItem(12, 10, null, "com.gone2", "G2", true, null, 0, 1, 0),
+        )
+        val mapping = toEntities(items)
+        assertThat(mapping.entities).isEmpty()
+        assertThat(mapping.skipped).isEqualTo(3) // both children AND the emptied folder
+    }
+
+    @Test
+    fun toEntities_dissolves_a_folder_left_with_a_single_child_onto_its_cell() {
+        val items = listOf(
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 2, 3),
+            BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),    // survives
+            BackupItem(12, 10, null, "com.gone", "G", true, null, 0, 1, 0), // filtered out
+        )
+        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
+        val promoted = mapping.entities.single()
+        assertThat(promoted.id).isEqualTo(11L)
+        assertThat(promoted.containerId).isEqualTo(HomeItemEntity.HOME)
+        assertThat(promoted.page).isEqualTo(0)
+        assertThat(promoted.cellX).isEqualTo(2)
+        assertThat(promoted.cellY).isEqualTo(3)
+        assertThat(mapping.skipped).isEqualTo(2) // the filtered child + the dissolved folder row
+    }
+
+    @Test
+    fun toEntities_dissolve_may_duplicate_an_app_already_on_home() {
+        // Like the live dissolveIfNeeded, promotion is unconditional: the same app already sitting
+        // on home does not block the folder's last child from taking the folder's cell.
+        val items = listOf(
+            BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 1, 0),
+            BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),
+        )
+        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
+        assertThat(mapping.entities.map { it.id }).containsExactly(1L, 11L)
+        val promoted = mapping.entities.first { it.id == 11L }
+        assertThat(promoted.containerId).isEqualTo(HomeItemEntity.HOME)
+        assertThat(promoted.cellX).isEqualTo(1)
     }
 
     @Test
@@ -277,9 +337,14 @@ class BackupMapperTest {
             BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 1),
             BackupItem(2, -1, null, "com.a", "A", true, null, 0, 1, 1),   // dup on HOME -> skipped
             BackupItem(3, 10, null, "com.a", "A", true, null, 0, 0, 0),   // same app in folder -> OK
+            BackupItem(4, 10, null, "com.b", "B", true, null, 0, 1, 0),   // second child keeps the folder alive
         )
-        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
-        assertThat(mapping.entities.map { it.id }).containsExactly(10L, 1L, 3L)
+        val mapping = toEntities(
+            items,
+            installedAppKeys = setOf("com.a/A", "com.b/B"),
+            installedPackages = setOf("com.a", "com.b"),
+        )
+        assertThat(mapping.entities.map { it.id }).containsExactly(10L, 1L, 3L, 4L)
         assertThat(mapping.skipped).isEqualTo(1)
     }
 

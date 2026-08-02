@@ -129,7 +129,35 @@ object BackupMapper {
             seenAppKeys.add(appKey)
             kept.add(entity(it, mainUserSerial, 1, 1))
         }
-        return RestoreMapping(kept, skipped)
+
+        // Mirror HomeLayoutRepository.dissolveIfNeeded for the ONE write path that can produce an
+        // under-filled folder (children dropped above as uninstalled): a folder restored with zero
+        // children would be stuck on the grid forever — folders have no delete affordance and an
+        // empty one has nothing to long-press — and a single-child folder dissolves to that app on
+        // the folder's own cell, exactly like the live paths. Promotion is unconditional (a
+        // duplicate of an app already on home is allowed), matching dissolveIfNeeded.
+        val childCounts = kept.filter { it.containerId != HomeItemEntity.HOME }
+            .groupingBy { it.containerId }.eachCount()
+        val dissolving = HashMap<Long, HomeItemEntity>()
+        val dropped = HashSet<Long>()
+        for (folder in kept) {
+            if (folder.folderName == null) continue
+            when (childCounts[folder.id] ?: 0) {
+                0 -> { dropped.add(folder.id); skipped++ }
+                1 -> { dissolving[folder.id] = folder; skipped++ }
+            }
+        }
+        if (dropped.isEmpty() && dissolving.isEmpty()) return RestoreMapping(kept, skipped)
+        val entities = kept.mapNotNull { e ->
+            val folder = dissolving[e.containerId]
+            when {
+                e.folderName != null && (e.id in dropped || e.id in dissolving) -> null
+                folder != null ->
+                    e.copy(containerId = HomeItemEntity.HOME, page = folder.page, cellX = folder.cellX, cellY = folder.cellY)
+                else -> e
+            }
+        }
+        return RestoreMapping(entities, skipped)
     }
 
     private fun entity(it: BackupItem, mainUserSerial: Long, spanX: Int, spanY: Int) = HomeItemEntity(
