@@ -71,6 +71,10 @@ class UpdateViewModel @Inject constructor(
     }
 
     fun installUpdate(info: UpdateInfo) = viewModelScope.launch {
+        // Same re-entrancy guard as checkNow(): a double-tap on "Asenna" otherwise reached
+        // ApkInstaller's no-op guard, whose immediate return flipped downloading back to false and
+        // hid the progress bar while the first download was still running.
+        if (_state.value.downloading) return@launch
         _state.update { it.copy(downloading = true, downloadProgress = 0, error = null) }
         runCatching {
             installer.downloadAndInstall(info) { p -> _state.update { it.copy(downloadProgress = p) } }
