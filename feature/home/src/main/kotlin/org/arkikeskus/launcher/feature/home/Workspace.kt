@@ -152,7 +152,7 @@ fun Workspace(
     // While the edit frame is open, the root swipe-up detector must yield (it bails on localGestureActive),
     // so a handle/scrim drag can never open the drawer. Reset when the frame closes.
     LaunchedEffect(editingWidget) { dragController.localGestureActive = editingWidget != null }
-    var widgetOptimistic by remember { mutableStateOf<Pair<Long, Triple<Int, Int, Int>>?>(null) }
+    var widgetOptimistic by remember { mutableStateOf<Pair<Long, WidgetBounds>?>(null) }
 
     // Relocation of a folder or pinned shortcut, kept local: neither travels to the dock/drawer, so
     // they don't use the shared cross-surface controller — Workspace owns the gesture, floating
@@ -183,21 +183,27 @@ fun Workspace(
     val effectiveWidgets = remember(placedWidgets, widgetOptimistic) {
         val opt = widgetOptimistic
         if (opt == null) placedWidgets else placedWidgets.map { w ->
-            if (w.rowId == opt.first) w.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else w
+            if (w.rowId == opt.first) {
+                w.copy(page = opt.second.page, cellX = opt.second.cellX, cellY = opt.second.cellY,
+                    spanX = opt.second.spanX, spanY = opt.second.spanY)
+            } else w
         }
     }
     val effectiveBuiltins = remember(builtins, widgetOptimistic) {
         val opt = widgetOptimistic
         if (opt == null) builtins else builtins.map { s ->
-            if (s.rowId == opt.first) s.copy(page = opt.second.first, cellX = opt.second.second, cellY = opt.second.third) else s
+            if (s.rowId == opt.first) {
+                s.copy(page = opt.second.page, cellX = opt.second.cellX, cellY = opt.second.cellY,
+                    spanX = opt.second.spanX, spanY = opt.second.spanY)
+            } else s
         }
     }
-    // clear the optimistic override once the DB flow reports the widget at its new cell
+    // clear the optimistic override once the DB flow reports the widget at its new bounds
     LaunchedEffect(placedWidgets, builtins) {
         val opt = widgetOptimistic ?: return@LaunchedEffect
-        val landed = (placedWidgets.map { Triple(it.rowId, it.page, it.cellX to it.cellY) } +
-            builtins.map { Triple(it.rowId, it.page, it.cellX to it.cellY) })
-            .any { it.first == opt.first && it.second == opt.second.first && it.third == opt.second.second to opt.second.third }
+        val landed = (placedWidgets.map { it.rowId to WidgetBounds(it.page, it.cellX, it.cellY, it.spanX, it.spanY) } +
+            builtins.map { it.rowId to WidgetBounds(it.page, it.cellX, it.cellY, it.spanX, it.spanY) })
+            .any { it == opt }
         if (landed) widgetOptimistic = null
     }
 
@@ -1179,16 +1185,23 @@ fun Workspace(
                                         ew.rowId, ew.page, x, y, sx, sy, columns, rows,
                                     ) != null
                             },
-                            onSetBounds = { x, y, sx, sy -> scope.launch { onSetWidgetBounds(ew.rowId, ew.page, x, y, sx, sy) } },
+                            // Optimistic like the app-drag path: the new bounds show immediately (the
+                            // hosted content too, not just the edit frame) and a repository rejection
+                            // rolls the override back; the overlay also resets its frame on `false`.
+                            onSetBounds = { x, y, sx, sy ->
+                                widgetOptimistic = ew.rowId to WidgetBounds(ew.page, x, y, sx, sy)
+                                val ok = onSetWidgetBounds(ew.rowId, ew.page, x, y, sx, sy)
+                                if (!ok) widgetOptimistic = null
+                                ok
+                            },
+                            // Size-only preview while a resize handle is mid-drag: no DB write yet, the
+                            // commit (or the overlay's reset) lands on release.
+                            onPreviewBounds = { x, y, sx, sy ->
+                                widgetOptimistic = ew.rowId to WidgetBounds(ew.page, x, y, sx, sy)
+                            },
                             onReconfigure = { ew.appWidgetId?.let(onReconfigureWidget); editingWidget = null },
                             onExit = { editingWidget = null },
                             onRemove = { onRemoveWidget(ew.rowId, ew.appWidgetId); editingWidget = null },
-                            onMove = { x, y, spanX, spanY ->
-                                        widgetOptimistic = ew.rowId to Triple(ew.page, x, y)
-                                        scope.launch {
-                                            if (!onSetWidgetBounds(ew.rowId, ew.page, x, y, spanX, spanY)) widgetOptimistic = null
-                                        }
-                                    },
                             dragController = dragController,
                             canMovePrev = ew.page > 0,
                             canMoveNext = ew.page < pageCount,
@@ -1199,7 +1212,7 @@ fun Workspace(
                                     for (fy in 0..(rows - msy).coerceAtLeast(0)) {
                                         for (fx in 0..(columns - msx).coerceAtLeast(0)) {
                                             if (rectFreeOnGrid(ew.rowId, targetPage, fx, fy, msx, msy)) {
-                                                widgetOptimistic = ew.rowId to Triple(targetPage, fx, fy)
+                                                widgetOptimistic = ew.rowId to WidgetBounds(targetPage, fx, fy, msx, msy)
                                                 scope.launch {
                                                     if (!onSetWidgetBounds(ew.rowId, targetPage, fx, fy, msx, msy)) widgetOptimistic = null
                                                 }
@@ -1296,12 +1309,12 @@ private fun WidgetEditOverlay(
     density: androidx.compose.ui.unit.Density,
     rectFree: (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
     canFit: (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
-    onSetBounds: (x: Int, y: Int, spanX: Int, spanY: Int) -> Unit,
+    onSetBounds: suspend (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
+    onPreviewBounds: (x: Int, y: Int, spanX: Int, spanY: Int) -> Unit,
     onReconfigure: () -> Unit,
     onExit: () -> Unit,
     dragController: HomeDragController,
     onRemove: () -> Unit,
-    onMove: (x: Int, y: Int, spanX: Int, spanY: Int) -> Unit,
     canMovePrev: Boolean,
     canMoveNext: Boolean,
     onMoveToPage: (targetPage: Int, spanX: Int, spanY: Int) -> Unit,
@@ -1310,6 +1323,24 @@ private fun WidgetEditOverlay(
     var cy by remember(widget.rowId) { mutableStateOf(widget.cellY) }
     var sx by remember(widget.rowId) { mutableStateOf(widget.spanX) }
     var sy by remember(widget.rowId) { mutableStateOf(widget.spanY) }
+    // Last bounds the repository ACCEPTED. A rejected commit (a collision canFit's plan couldn't
+    // foresee) resets the frame here — before this, the overlay silently kept showing the rejected
+    // geometry while the widget itself stayed put.
+    var okX by remember(widget.rowId) { mutableStateOf(widget.cellX) }
+    var okY by remember(widget.rowId) { mutableStateOf(widget.cellY) }
+    var okSx by remember(widget.rowId) { mutableStateOf(widget.spanX) }
+    var okSy by remember(widget.rowId) { mutableStateOf(widget.spanY) }
+    val commitScope = rememberCoroutineScope()
+    fun commitBounds() {
+        val x = cx; val y = cy; val w = sx; val h = sy
+        commitScope.launch {
+            if (onSetBounds(x, y, w, h)) {
+                okX = x; okY = y; okSx = w; okSy = h
+            } else {
+                cx = okX; cy = okY; sx = okSx; sy = okSy
+            }
+        }
+    }
     val primary = MaterialTheme.colorScheme.primary
     val handlePx = with(density) { 28.dp.toPx() }
 
@@ -1347,7 +1378,7 @@ private fun WidgetEditOverlay(
                             onRemove()
                         } else {
                             val t = targetCell
-                            if (t != null && (t.x != cx || t.y != cy)) { onMove(t.x, t.y, sx, sy); cx = t.x; cy = t.y }
+                            if (t != null && (t.x != cx || t.y != cy)) { cx = t.x; cy = t.y; commitBounds() }
                         }
                     },
                     onDragCancel = { dragging = false; dragController.localDragging = false },
@@ -1399,13 +1430,22 @@ private fun WidgetEditOverlay(
             .size(with(density) { handlePx.toDp() })
             .background(primary, CircleShape)
             .pointerInput(widget.rowId) {
-                detectDragGestures(onDragEnd = { accX = 0f; accY = 0f; onSetBounds(cx, cy, sx, sy) }) { ch, d -> ch.consume(); onDrag(d) }
+                detectDragGestures(
+                    onDragEnd = { accX = 0f; accY = 0f; commitBounds() },
+                    onDragCancel = { accX = 0f; accY = 0f; commitBounds() },
+                ) { ch, d -> ch.consume(); onDrag(d) }
             }
+        // Each accepted step previews the new bounds into the workspace (onPreviewBounds), so the
+        // hosted widget CONTENT resizes with the frame mid-drag instead of jumping on release.
         if (range.horizontal) {
             Box(hMod(right, (top + bottom) / 2f) { d ->
                 accX += d.x
                 val s = step(accX, cellW)
-                if (s != 0) { val n = (sx + s).coerceIn(range.minX, range.maxX); if (n != sx && canFit(cx, cy, n, sy)) sx = n; accX = 0f }
+                if (s != 0) {
+                    val n = (sx + s).coerceIn(range.minX, range.maxX)
+                    if (n != sx && canFit(cx, cy, n, sy)) { sx = n; onPreviewBounds(cx, cy, sx, sy) }
+                    accX = 0f
+                }
             })
             Box(hMod(left, (top + bottom) / 2f) { d ->
                 accX += d.x
@@ -1415,7 +1455,10 @@ private fun WidgetEditOverlay(
                     val nCx = (cx + s).coerceIn(0, rightEdge - range.minX)
                     val nSx = (rightEdge - nCx).coerceIn(range.minX, range.maxX)
                     val fCx = rightEdge - nSx
-                    if ((fCx != cx || nSx != sx) && canFit(fCx, cy, nSx, sy)) { cx = fCx; sx = nSx }
+                    if ((fCx != cx || nSx != sx) && canFit(fCx, cy, nSx, sy)) {
+                        cx = fCx; sx = nSx
+                        onPreviewBounds(cx, cy, sx, sy)
+                    }
                     accX = 0f
                 }
             })
@@ -1424,7 +1467,11 @@ private fun WidgetEditOverlay(
             Box(hMod((left + right) / 2f, bottom) { d ->
                 accY += d.y
                 val s = step(accY, cellH)
-                if (s != 0) { val n = (sy + s).coerceIn(range.minY, range.maxY); if (n != sy && canFit(cx, cy, sx, n)) sy = n; accY = 0f }
+                if (s != 0) {
+                    val n = (sy + s).coerceIn(range.minY, range.maxY)
+                    if (n != sy && canFit(cx, cy, sx, n)) { sy = n; onPreviewBounds(cx, cy, sx, sy) }
+                    accY = 0f
+                }
             })
             Box(hMod((left + right) / 2f, top) { d ->
                 accY += d.y
@@ -1434,7 +1481,10 @@ private fun WidgetEditOverlay(
                     val nCy = (cy + s).coerceIn(0, bottomEdge - range.minY)
                     val nSy = (bottomEdge - nCy).coerceIn(range.minY, range.maxY)
                     val fCy = bottomEdge - nSy
-                    if ((fCy != cy || nSy != sy) && canFit(cx, fCy, sx, nSy)) { cy = fCy; sy = nSy }
+                    if ((fCy != cy || nSy != sy) && canFit(cx, fCy, sx, nSy)) {
+                        cy = fCy; sy = nSy
+                        onPreviewBounds(cx, cy, sx, sy)
+                    }
                     accY = 0f
                 }
             })
@@ -1459,10 +1509,10 @@ private fun WidgetEditOverlay(
                 .clickable {
                     if (isFull) {
                         val target = defaultSpanX.coerceIn(1, columns)
-                        if (rectFree(cx, cy, target, sy)) { sx = target; onSetBounds(cx, cy, target, sy) }
+                        if (rectFree(cx, cy, target, sy)) { sx = target; commitBounds() }
                     } else if (rectFree(0, cy, columns, sy)) {
                         cx = 0; sx = columns
-                        onSetBounds(0, cy, columns, sy)
+                        commitBounds()
                     }
                 },
             contentAlignment = Alignment.Center,
@@ -1633,3 +1683,7 @@ private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/** Widget bounds applied optimistically (by row id) until the DB flow catches up — spans included,
+ *  so an edit-frame resize shows on the hosted content immediately, not only after the round-trip. */
+private data class WidgetBounds(val page: Int, val cellX: Int, val cellY: Int, val spanX: Int, val spanY: Int)
