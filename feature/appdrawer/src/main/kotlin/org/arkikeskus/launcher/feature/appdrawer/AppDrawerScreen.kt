@@ -103,6 +103,7 @@ import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
+import org.arkikeskus.launcher.ui.component.NotificationBadge
 import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
@@ -461,6 +462,11 @@ private fun AppDrawerContent(
                             folder = folder,
                             showLabel = showLabels,
                             tileSize = drawerIconSize,
+                            // Aggregated like the home-screen FolderIcon: members left the flat A–Z
+                            // grid, so without this their unread badges vanished from the drawer.
+                            badgeCount = folder.apps.sumOf { badges[it.badgeKey] ?: 0 },
+                            badgeShowCount = badgeShowCount,
+                            badgeScale = badgeScale,
                             onClick = { onFolderClick(folder) },
                         )
                     }
@@ -509,6 +515,20 @@ private fun AppDrawerContent(
                             ContactResultRow(contact)
                         }
                     }
+                    // No app, setting, contact or calculator hit: say so — a silently empty grid
+                    // under the search box was indistinguishable from a stuck drawer.
+                    if (calc == null && apps.isEmpty() && settingResults.isEmpty() && contactResults.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, contentType = { "empty" }) {
+                            Text(
+                                text = stringResource(R.string.search_no_results),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -544,6 +564,9 @@ private fun DrawerFolderTile(
     showLabel: Boolean,
     onClick: () -> Unit,
     tileSize: Dp = 56.dp,
+    badgeCount: Int = 0,
+    badgeShowCount: Boolean = true,
+    badgeScale: Float = 1f,
 ) {
     val haptics = LocalHapticFeedback.current
     Column(
@@ -559,23 +582,30 @@ private fun DrawerFolderTile(
             .padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(tileSize)
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
-                .padding(7.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            // Preview icons scale with the tile so a shrunken folder still fits its 2×2 grid.
-            val mini = tileSize * (18f / 56f)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FolderSlot(folder.apps.getOrNull(0), mini); FolderSlot(folder.apps.getOrNull(1), mini)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    FolderSlot(folder.apps.getOrNull(2), mini); FolderSlot(folder.apps.getOrNull(3), mini)
+        // EVERYTHING inside scales with the tile — padding and gaps included. A fixed padding/gap
+        // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 drawer columns on a
+        // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
+        val scale = tileSize / 56.dp
+        Box(contentAlignment = Alignment.TopEnd) {
+            Box(
+                modifier = Modifier
+                    .size(tileSize)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                    .padding(7.dp * scale),
+                contentAlignment = Alignment.Center,
+            ) {
+                val mini = 18.dp * scale
+                val gap = 2.dp * scale
+                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        FolderSlot(folder.apps.getOrNull(0), mini); FolderSlot(folder.apps.getOrNull(1), mini)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                        FolderSlot(folder.apps.getOrNull(2), mini); FolderSlot(folder.apps.getOrNull(3), mini)
+                    }
                 }
             }
+            NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         if (showLabel) {
             Spacer(Modifier.height(4.dp))

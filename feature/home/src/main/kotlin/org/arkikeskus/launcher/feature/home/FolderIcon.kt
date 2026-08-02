@@ -43,18 +43,21 @@ fun FolderIcon(
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.TopEnd) {
+            // EVERYTHING inside scales with the tile — padding and gap included. A fixed padding/gap
+            // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 columns on a
+            // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
+            val scale = size / 52.dp
             Box(
                 modifier = Modifier
                     .size(size)
                     .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(15.dp))
-                    .padding(6.dp),
+                    .padding(6.dp * scale),
                 contentAlignment = Alignment.Center,
             ) {
-                // Preview icons scale with the tile so a shrunken folder still fits its 2×2 grid.
-                val mini = size * (17f / 52f)
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    PreviewRow(apps.getOrNull(0), apps.getOrNull(1), mini)
-                    PreviewRow(apps.getOrNull(2), apps.getOrNull(3), mini)
+                val mini = 17.dp * scale
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp * scale)) {
+                    PreviewRow(apps.getOrNull(0), apps.getOrNull(1), mini, gap = 2.dp * scale)
+                    PreviewRow(apps.getOrNull(2), apps.getOrNull(3), mini, gap = 2.dp * scale)
                 }
             }
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
@@ -76,8 +79,8 @@ fun FolderIcon(
 }
 
 @Composable
-private fun PreviewRow(left: AppItem?, right: AppItem?, size: Dp) {
-    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+private fun PreviewRow(left: AppItem?, right: AppItem?, size: Dp, gap: Dp = 2.dp) {
+    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
         PreviewSlot(left, size)
         PreviewSlot(right, size)
     }
