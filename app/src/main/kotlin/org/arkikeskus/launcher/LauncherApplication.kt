@@ -23,11 +23,17 @@ class LauncherApplication : Application(), SingletonImageLoader.Factory, Configu
         if (isReleaseBuild(this)) {
             // Schedule the periodic update check only when auto-update is enabled; cancel it otherwise.
             // (Reads the persisted setting off the main thread; the worker also double-checks the flag.)
+            // runCatching: this is a root coroutine on every process start of the HOME app — an
+            // uncaught DataStore IOException or WorkManager init error here would kill the process
+            // again on every launch, a genuine HOME crash loop. Losing one scheduling pass is fine;
+            // the next process start (or the settings toggle) reschedules.
             CoroutineScope(Dispatchers.Default).launch {
-                if (settingsRepository.autoUpdateEnabledOnce()) {
-                    UpdateScheduler.schedule(this@LauncherApplication)
-                } else {
-                    UpdateScheduler.cancel(this@LauncherApplication)
+                runCatching {
+                    if (settingsRepository.autoUpdateEnabledOnce()) {
+                        UpdateScheduler.schedule(this@LauncherApplication)
+                    } else {
+                        UpdateScheduler.cancel(this@LauncherApplication)
+                    }
                 }
             }
         }
