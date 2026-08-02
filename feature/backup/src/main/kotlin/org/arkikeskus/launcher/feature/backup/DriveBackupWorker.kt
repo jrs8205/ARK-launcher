@@ -85,8 +85,13 @@ class DriveBackupWorker @AssistedInject constructor(
                 "arkikeskus-launcher-backup-${System.currentTimeMillis()}.json",
                 BackupCodec.encode(doc),
             )
-            client.pruneToNewest(BackupScheduler.KEEP_BACKUPS)
+            // The backup is safe in Drive once upload returns: record the hash BEFORE pruning, and
+            // never let a prune-only failure (e.g. a 404 when another device already deleted the
+            // same victim file) count as a backup failure — it flagged a SUCCESSFUL period toward
+            // the "re-authorize" warning and, with the hash unrecorded, re-uploaded a duplicate on
+            // every following run.
             settings.setDriveLastBackup(System.currentTimeMillis(), hash)
+            runCatching { client.pruneToNewest(BackupScheduler.KEEP_BACKUPS) }
         }.fold(
             onSuccess = {
                 settings.clearDriveFailures()

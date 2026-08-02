@@ -243,11 +243,15 @@ class BackupViewModel @Inject constructor(
                 withContext(Dispatchers.IO) {
                     val client = DriveRestClient(token, driveHttp)
                     client.upload("arkikeskus-launcher-backup-$nowMs.json", json)
-                    // Keep Drive storage bounded from the manual path too (the periodic worker
-                    // prunes as well, but it may be stuck failing — see driveBackupFailing).
-                    client.pruneToNewest(BackupScheduler.KEEP_BACKUPS)
+                    // The backup is safe in Drive once upload returns: record the hash BEFORE the
+                    // prune, and never let a prune-only failure (e.g. a 404 racing another device's
+                    // prune) surface as "backup failed" — the user's data DID back up, and an
+                    // unrecorded hash re-uploaded a duplicate on every following attempt. Pruning
+                    // keeps Drive bounded from the manual path too (the periodic worker also prunes,
+                    // but it may be stuck failing — see driveBackupFailing).
+                    settings.setDriveLastBackup(nowMs, hash)
+                    runCatching { client.pruneToNewest(BackupScheduler.KEEP_BACKUPS) }
                 }
-                settings.setDriveLastBackup(nowMs, hash)
                 nowMs
             } else {
                 null // already up-to-date; skip upload
