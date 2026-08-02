@@ -1,0 +1,9 @@
+Reliability fixes from a full-app review.
+
+- App icons now refresh immediately when an app updates — even the ones already visible on the dock, home screen and app drawer.
+- App-list scanning no longer runs 3–4 times per package event, and typing in search no longer rescans installed apps on every keystroke.
+- Restoring a backup can no longer leave a stuck, unremovable empty folder on the home screen.
+- A successful Google Drive backup is no longer reported as failed (and re-uploaded as a duplicate) when only the old-backup cleanup hiccups.
+- Widget resizing now resizes the widget content live while you drag, and a rejected resize snaps the frame back instead of desyncing.
+- Folder previews no longer distort at small icon sizes (6–7 columns), drawer folders show notification badges, and an empty search says "No results found".
+- The 4G/5G label appears right after granting the phone permission from Settings, and a rare startup crash-loop risk was removed.
