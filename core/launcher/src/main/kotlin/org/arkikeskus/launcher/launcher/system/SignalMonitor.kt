@@ -42,9 +42,27 @@ class SignalMonitor @Inject constructor(
      *  so it must be restarted to register the permission-gated display callback. */
     private val permissionEpoch = MutableStateFlow(0)
 
+    private var lastKnownPhoneState = hasPhoneStatePermission()
+
     fun onPermissionsChanged() {
+        lastKnownPhoneState = hasPhoneStatePermission()
         permissionEpoch.value++
     }
+
+    /** Restarts the telephony callbacks only if the READ_PHONE_STATE grant actually changed — the
+     *  path for a grant made OUTSIDE onboarding (Settings ▸ Luvat, system app info), which has no
+     *  callback into [onPermissionsChanged]. Safe to call on every home resume: no change is free. */
+    fun refreshPermission() {
+        val granted = hasPhoneStatePermission()
+        if (granted != lastKnownPhoneState) {
+            lastKnownPhoneState = granted
+            permissionEpoch.value++
+        }
+    }
+
+    private fun hasPhoneStatePermission(): Boolean = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.READ_PHONE_STATE,
+    ) == PackageManager.PERMISSION_GRANTED
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val mobile: Flow<MobileStatus> = permissionEpoch.flatMapLatest {

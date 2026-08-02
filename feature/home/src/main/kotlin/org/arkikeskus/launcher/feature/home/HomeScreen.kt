@@ -91,6 +91,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
@@ -167,6 +168,14 @@ fun HomeScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // READ_PHONE_STATE granted outside onboarding (Settings ▸ Luvat, system app info) has no callback
+    // into SignalMonitor — re-check on every resume so the 4G/5G generation label appears when the
+    // user comes back home. No-op when the grant state hasn't changed.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshPhonePermission()
+        onPauseOrDispose { }
     }
 
     // First-run onboarding: when we are NOT the default home, surface the system "set default launcher"

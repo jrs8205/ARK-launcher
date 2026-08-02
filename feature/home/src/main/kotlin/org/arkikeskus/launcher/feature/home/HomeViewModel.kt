@@ -236,6 +236,11 @@ class HomeViewModel @Inject constructor(
      *  generation label appears without waiting for a process restart. */
     fun onPhonePermissionGranted() = signalMonitor.onPermissionsChanged()
 
+    /** Called on every home resume: catches a READ_PHONE_STATE grant made outside onboarding
+     *  (Settings ▸ Luvat, system app info), which has no callback into the monitor. Cheap no-op
+     *  when the grant state hasn't changed. */
+    fun refreshPhonePermission() = signalMonitor.refreshPermission()
+
     /** Resolved (label + icon) cache for pinned shortcuts, keyed by package/id/userSerial.
      *  Concurrent: filled from the uiState combine, invalidated from the package-event collector. */
     private val shortcutCache = java.util.concurrent.ConcurrentHashMap<String, AppShortcuts.Resolved>()
