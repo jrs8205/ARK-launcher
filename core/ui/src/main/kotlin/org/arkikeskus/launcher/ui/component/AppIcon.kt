@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.model.IconRequest
 
 /**
@@ -37,6 +38,13 @@ val LocalThemedIcons = compositionLocalOf { false }
  * use the pack's icon and unmapped ones are masked to its style; overrides [LocalThemedIcons].
  */
 val LocalIconPack = compositionLocalOf { "" }
+
+/**
+ * Icon re-fetch tokens (see [IconEpochs]), provided once at the shell root. [AppIcon] folds the
+ * app's epoch into the Coil request so a package update re-renders that icon immediately — even
+ * when it is already composed (dock, open home page), where only a model change re-launches the load.
+ */
+val LocalIconEpochs = compositionLocalOf { IconEpochs() }
 
 /**
  * Size multiplier for [AppIcon] labels under this subtree (1.0 = the default 11sp). Provided per
@@ -75,6 +83,7 @@ fun AppIcon(
                     themed = LocalThemedIcons.current,
                     dark = isSystemInDarkTheme(),
                     iconPack = LocalIconPack.current,
+                    epoch = LocalIconEpochs.current.of(appItem.packageName),
                 ),
                 contentDescription = appItem.label,
                 modifier = Modifier.size(iconSize),

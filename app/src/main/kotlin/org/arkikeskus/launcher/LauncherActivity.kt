@@ -7,7 +7,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +20,8 @@ import org.arkikeskus.launcher.feature.home.LocalAppWidgetHost
 import org.arkikeskus.launcher.feature.home.LocalOrphanWidgetConfigResult
 import org.arkikeskus.launcher.feature.home.LocalWidgetConfigLauncher
 import org.arkikeskus.launcher.ui.LauncherShell
+import org.arkikeskus.launcher.ui.LauncherShellViewModel
+import org.arkikeskus.launcher.ui.component.LocalIconEpochs
 
 @AndroidEntryPoint
 class LauncherActivity : ComponentActivity() {
@@ -44,10 +49,15 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             LauncherTheme {
+                // Icon re-fetch epochs above EVERY icon surface (home, dock, drawer, folder sheets):
+                // a package update bumps its epoch, which re-keys and re-fetches that icon everywhere
+                // — including AsyncImages already on screen, which only re-load on a model change.
+                val iconEpochs by hiltViewModel<LauncherShellViewModel>().iconEpochs.collectAsStateWithLifecycle()
                 CompositionLocalProvider(
                     LocalAppWidgetHost provides appWidgetHost,
                     LocalWidgetConfigLauncher provides ::startWidgetConfig,
                     LocalOrphanWidgetConfigResult provides orphanConfigResult,
+                    LocalIconEpochs provides iconEpochs,
                 ) {
                     LauncherShell(
                         homeSignals = homeSignals,

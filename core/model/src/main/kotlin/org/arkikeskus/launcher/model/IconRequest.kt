@@ -11,10 +11,15 @@ package org.arkikeskus.launcher.model
  * [iconPack] is the package name of a selected third-party icon pack (empty = none). When set it takes
  * priority over [themed]: mapped apps use the pack's drawable, unmapped apps are masked to the pack's
  * style. It's part of the model/cache key so switching packs re-renders every icon.
+ *
+ * [epoch] is the app's [IconEpochs] token. It's part of the model/cache key so a package update
+ * re-renders that app's icon immediately — including icons already on screen, whose AsyncImage only
+ * re-fetches when the model changes.
  */
 data class IconRequest(
     val app: AppItem,
     val themed: Boolean = false,
     val dark: Boolean = false,
     val iconPack: String = "",
+    val epoch: Int = 0,
 )

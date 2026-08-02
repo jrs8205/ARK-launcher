@@ -21,10 +21,14 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.IconEpochs
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -54,6 +58,12 @@ class LauncherAppsSource @Inject constructor(
     private val _packageRemovals = MutableSharedFlow<Pair<String, Long>>(extraBufferCapacity = 16)
     val packageRemovals: SharedFlow<Pair<String, Long>> = _packageRemovals
 
+    /** Re-fetch tokens for app icons (see [IconEpochs]): a package update bumps that package, an
+     *  icon-pack content change bumps the global generation. AppIcon feeds these into the Coil
+     *  model/cache key, so even icons already on screen re-fetch immediately. */
+    private val _iconEpochs = MutableStateFlow(IconEpochs())
+    val iconEpochs: StateFlow<IconEpochs> = _iconEpochs
+
     /** Fail-safe install check for the ghost-row sweep: only a definitive "name not found" (or a
      *  removed profile) answers false — any other failure keeps the row (a locked work profile or
      *  a transient Binder error must never wipe real items). */
@@ -79,11 +89,17 @@ class LauncherAppsSource @Inject constructor(
 
         fun packageEvent(vararg packageNames: String, iconsMayHaveChanged: Boolean = false) {
             packageNames.forEach { _packageEvents.tryEmit(it) }
-            // Drop the rasterized icon cache when either the active icon pack changed OR a package was
-            // updated/replaced: the AppIcon cache key is version-agnostic, so a normal app update would
-            // otherwise keep serving the OLD launcher icon until the launcher process died.
-            val packInvalidated = packageNames.any { iconPacks.invalidate(it) }
-            if (packInvalidated || iconsMayHaveChanged) {
+            // An updated/replaced package bumps its icon epoch: the epoch is in the Coil model/cache
+            // key, so the changed app's icon re-fetches everywhere — including AsyncImages already on
+            // screen (dock, open home page, drawer top), which only re-launch when the model changes.
+            // A memory-cache clear alone left those painters showing the OLD icon until process death.
+            if (iconsMayHaveChanged) {
+                _iconEpochs.update { it.bump(packageNames.asIterable()) }
+            }
+            // A changed icon PACK invalidates every mapped/masked icon, not just its own package:
+            // bump the global generation (re-keys all icons) and drop the now-dead cache entries.
+            if (packageNames.any { iconPacks.invalidate(it) }) {
+                _iconEpochs.update { it.bumpGlobal() }
                 runCatching { imageLoader.get().memoryCache?.clear() }
             }
             reload()
