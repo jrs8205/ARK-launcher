@@ -97,6 +97,15 @@ class WeatherRepository @Inject constructor(
             .maxByOrNull { it.time }
     }
 
+    /** App-identifying User-Agent WITHOUT device details — Android's default Dalvik UA names the
+     *  device model and OS build, which has no business going to third-party weather services. */
+    private val userAgent: String by lazy {
+        val version = runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: "?"
+        "ARK-launcher/$version"
+    }
+
     private fun fetch(lat: Double, lon: Double): CurrentWeather? {
         val url = URL(
             "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&current=temperature_2m,weather_code"
@@ -104,6 +113,7 @@ class WeatherRepository @Inject constructor(
         )
         val connection = url.openConnection() as HttpURLConnection
         return try {
+            connection.setRequestProperty("User-Agent", userAgent)
             connection.connectTimeout = 10_000
             connection.readTimeout = 10_000
             val body = connection.inputStream.bufferedReader().use { it.readText() }
@@ -180,6 +190,7 @@ class WeatherRepository @Inject constructor(
         )
         val connection = url.openConnection() as HttpURLConnection
         return try {
+            connection.setRequestProperty("User-Agent", userAgent)
             connection.connectTimeout = 10_000
             connection.readTimeout = 10_000
             val body = connection.inputStream.bufferedReader().use { it.readText() }
