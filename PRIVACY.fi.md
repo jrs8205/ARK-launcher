@@ -1,6 +1,7 @@
 # ARK-launcherin tietosuojaseloste
 
-*Päivitetty: 12.8.2026 · koskee ARK-launcherin versiota 0.7.11 ja uudempia*
+*Päivitetty: 12.8.2026 · koskee ARK-launcherin versiota 0.7.12 ja uudempia
+([version 0.7.11 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.7.11/PRIVACY.fi.md))*
 
 *This policy in English: [PRIVACY.md](PRIVACY.md)*
 
@@ -14,14 +15,16 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
 - Kotinäytön asettelu, asetukset, sovelluslista ja ilmoitustiedot **pysyvät
   laitteellasi**. Sovelluksessa ei ole telemetriaa, analytiikkaa, mainoksia
   eikä minkäänlaista seurantaa.
-- Verkkoa käytetään vain alla kohdassa *Verkon käyttö* lueteltuihin
-  tarkoituksiin: sään näyttämiseen kellowidgetissä (mukaan lukien kuntanimen
-  selvittäminen), sovelluspäivitysten tarkistamiseen GitHubista sekä — vain
-  jos otat sen käyttöön — asettelun varmuuskopiointiin *omaan* Google
-  Driveesi.
+- Verkkoa käytetään täsmälleen yhteen tarkoitukseen: sään näyttämiseen
+  kellowidgetissä (mukaan lukien kuntanimen selvittäminen). Mikään muu
+  sovelluksessa ei käytä internetiä.
 - Sovelluksessa ei ole käyttäjätilejä, eikä se koskaan lähetä käyttötietoja,
   analytiikkaa tai mainostunnisteita kehittäjälle tai millekään kolmannelle
   osapuolelle.
+- Versiosta 0.7.12 alkaen sovelluksessa ei ole sisäistä päivitintä eikä
+  Google Drive -varmuuskopiointia: päivitykset tulevat valitsemastasi
+  sovelluskaupasta (tai GitHubista), ja varmuuskopiot ovat paikallisia
+  tiedostoja, jotka viet itse.
 
 ## Laitteelle tallennettavat tiedot
 
@@ -51,31 +54,15 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
    ja lähettää sinne samat ~1 km:n tarkkuuteen pyöristetyt koordinaatit sekä
    laitteen käyttöliittymäkielen — enintään kerran 30 minuutin säähakua
    kohden, ja vain kun paikallinen geokooderi epäonnistui.
-3. **Päivitystarkistus**: sovellus kysyy tämän julkisen GitHub-repositorion
-   Releases-rajapinnasta, onko uudempi versio olemassa, ja lataa uuden APK:n
-   GitHubista, kun sinä pyydät. Pelkkiä GET-pyyntöjä.
-4. **Google Drive -varmuuskopiointi** (valinnainen, oletuksena **pois
-   päältä**): jos otat Drive-varmuuskopioinnin käyttöön, sovellus lähettää
-   varmuuskopiotiedoston *oman* Google Drivesi piilotettuun sovelluskohtaiseen
-   tila-alueeseen (`appDataFolder`, OAuth-scope `drive.appdata`). Tämä scope
-   antaa sovellukselle pääsyn **vain sen omiin varmuuskopiotiedostoihin**, ei
-   mihinkään muuhun Drivessäsi; kehittäjällä ei ole pääsyä mihinkään niistä.
-   Kolme käytännön seurausta:
-   - Varmuuskopiot **eivät näy** Driven tavallisessa tiedostolistassa. Näet
-     niiden tilankäytön ja voit poistaa ne kaikki Driven kohdasta
-     **Asetukset → Sovellusten hallinta** (drive.google.com).
-   - Sovellus säilyttää vain **3 uusinta** varmuuskopiotiedostoa: jokaisen
-     onnistuneen lähetyksen jälkeen se poistaa automaattisesti luomansa
-     vanhemmat varmuuskopiotiedostot, jotta vanhoja palautuspisteitä ei
-     kerry — vanhimmat poistetaan.
-   - Ominaisuuden poistaminen käytöstä lopettaa sekä lähetykset että
-     automaattisen poiston.
 
-Mikään näistä pyynnöistä ei sisällä tilitietoja, evästeitä tai
-mainostunnisteita. Kuten kaikki internet-liikenne, ne kuitenkin
-väistämättä paljastavat IP-osoitteesi palvelimelle, ja Androidin
-sisäänrakennetun HTTP-asiakkaan pyynnöissä kulkee Androidin oletusarvoinen
-`User-Agent`-otsake, joka kertoo Android-version ja laitemallin.
+Tämä on koko lista. Asetusten "Tarkista päivitykset" -rivi vain avaa GitHubin
+julkaisusivun selaimessa — sovellus itse ei tee päivitystarkistuksia eikä
+latauksia.
+
+Kumpikaan pyyntö ei sisällä tilitietoja, evästeitä tai mainostunnisteita.
+Kuten kaikki internet-liikenne, ne väistämättä paljastavat IP-osoitteesi
+palvelimelle; pyynnöt tunnistautuvat yleisluontoisella
+`ARK-launcher/<versio>`-User-Agent-otsakkeella, jossa ei ole laitetietoja.
 
 ## Luvat
 
@@ -83,17 +70,15 @@ sisäänrakennetun HTTP-asiakkaan pyynnöissä kulkee Androidin oletusarvoinen
 |---|---|
 | `QUERY_ALL_PACKAGES` | Asennettujen sovellusten listaus ja käynnistys — launcherin ydintehtävä |
 | Ilmoitusten käyttöoikeus (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Pistemerkit, tilarivin kuvakkeet ja ilmoituswidget |
+| Esteettömyyspalvelu (`BIND_ACCESSIBILITY_SERVICE`, valinnainen) | Ainoastaan tuplanapautuslukitus. Palvelu ei vastaanota esteettömyystapahtumia eikä voi lukea näytön sisältöä; se on olemassa vain näytön lukitsemista varten ja käynnissä vain, jos itse otat sen käyttöön |
 | `READ_CALENDAR` | Seuraavan tapahtuman näyttäminen kellowidgetissä |
 | `READ_CONTACTS` | Yhteystulokset sovellushaussa (valinnainen) |
 | `READ_PHONE_STATE` | Signaalinvoimakkuus tilarivillä |
 | `ACCESS_COARSE_LOCATION` | Sää kellowidgetissä |
 | `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `BLUETOOTH` (≤ Android 11) | Yhteysilmaisimet tilarivillä |
-| `INTERNET` | Sää, päivitystarkistukset, valinnainen Drive-varmuuskopiointi |
-| `POST_NOTIFICATIONS` | Päivitys- ja varmuuskopioilmoitukset |
-| `REQUEST_INSTALL_PACKAGES` | Hyväksymiesi päivitysten asennus sovelluksen omalla päivittimellä |
+| `INTERNET` | Yllä kuvatut sääpyynnöt |
 | `REQUEST_DELETE_PACKAGES` | Kuvakkeen pitkän painalluksen "poista asennus" -toiminto |
 | `EXPAND_STATUS_BAR` | Ilmoitusten avaus alaspyyhkäisyllä |
-| `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE` | Androidin WorkManager-kirjaston automaattisesti lisäämiä; kirjasto ajaa ajastetun Drive-varmuuskopioinnin (pitää laitteen hereillä lähetyksen ajan ja ajastaa työn uudelleen käynnistyksen jälkeen). Ei käytetä mihinkään muuhun |
 
 Kalenteri-, yhteystieto- ja puhelintilatiedot luetaan tarvittaessa yllä
 kuvattuja ominaisuuksia varten, niitä käytetään vain laitteella, eikä niitä
