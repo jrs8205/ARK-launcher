@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Double-tap-to-lock: bound by the system only after the user allows it in accessibility
+             settings. Reads nothing — see the service class + lock_accessibility_service.xml. -->
+        <service
+            android:name="org.arkikeskus.launcher.feature.home.LockAccessibilityService"
+            android:exported="false"
+            android:label="@string/lock_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/lock_accessibility_service" />
+        </service>
+    </application>
+
+</manifest>

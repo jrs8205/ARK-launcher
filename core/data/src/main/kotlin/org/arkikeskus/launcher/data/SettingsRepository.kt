@@ -65,8 +65,11 @@ class SettingsRepository @Inject constructor(
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: 0.6f).coerceIn(0f, 1f),
             notificationWidgetCountStyle = (p[Keys.NOTIF_WIDGET_COUNT_STYLE] ?: LauncherSettings.COUNT_NUMBER)
                 .let { if (it == LauncherSettings.COUNT_DOT || it == LauncherSettings.COUNT_NONE) it else LauncherSettings.COUNT_NUMBER },
+            doubleTapToLock = p[Keys.DOUBLE_TAP_LOCK] ?: false,
         )
     }
+
+    suspend fun setDoubleTapToLock(value: Boolean) = edit { it[Keys.DOUBLE_TAP_LOCK] = value }
 
     /** Ordered list of dock favorite app keys (see AppItem.key). */
     val dockFavorites: Flow<List<String>> = dataStore.data.map { p ->
@@ -365,6 +368,7 @@ class SettingsRepository @Inject constructor(
         val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
+        val DOUBLE_TAP_LOCK = booleanPreferencesKey("double_tap_lock")
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
@@ -408,7 +412,7 @@ class SettingsRepository @Inject constructor(
             "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
-            "show_weather", "hide_system_status_bar",
+            "show_weather", "hide_system_status_bar", "double_tap_lock",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

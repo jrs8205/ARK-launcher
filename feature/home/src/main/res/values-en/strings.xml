@@ -87,4 +87,7 @@
     <string name="status_wifi_band_24">2.4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
+    <string name="lock_service_label">ARK-launcher: screen lock</string>
+    <string name="lock_service_description">Used only to lock the screen when you double-tap empty space on the home screen. The service does not read screen content or receive accessibility events.</string>
+    <string name="double_tap_lock_needs_service">Screen lock needs the accessibility permission — grant it in Settings ▸ Gestures</string>
 </resources>

@@ -482,6 +482,7 @@ fun HomeScreen(
                         ),
                 )
             }
+            val lockNeedsServiceMsg = stringResource(R.string.double_tap_lock_needs_service)
             Workspace(
                 pageCount = uiState.pageCount,
                 columns = settings.homeColumns,
@@ -508,6 +509,16 @@ fun HomeScreen(
                 onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
                 onEmptyAreaMenu = { anchor, above -> homeOptions = anchor to above },
+                onEmptyAreaDoubleTap = {
+                    // Setting checked here (not in Workspace) so the gesture detector never goes stale.
+                    if (settings.doubleTapToLock && !LockAccessibilityService.lock()) {
+                        android.widget.Toast.makeText(
+                            context,
+                            lockNeedsServiceMsg,
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
                 onRemoveWidget = { rowId, appWidgetId ->
                     // A built-in widget has no host id to free (appWidgetId == null).
                     appWidgetId?.let { widgetHost?.deleteAppWidgetId(it) }

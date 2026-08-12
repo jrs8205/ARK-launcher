@@ -93,6 +93,7 @@ class SettingsViewModel @Inject constructor(
     fun setLeftSwipeAppKey(key: String?) = update { repository.setLeftSwipeAppKey(key) }
 
     fun setDesktopLocked(value: Boolean) = update { repository.setDesktopLocked(value) }
+    fun setDoubleTapToLock(value: Boolean) = update { repository.setDoubleTapToLock(value) }
 
     fun setAppLabelTextScale(value: Float) = update { repository.setAppLabelTextScale(value) }
     fun setAppLabelColor(argb: Int) = update { repository.setAppLabelColor(argb) }

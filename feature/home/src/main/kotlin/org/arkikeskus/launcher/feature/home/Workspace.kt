@@ -124,6 +124,9 @@ fun Workspace(
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
+    // Two clean taps on empty space within the platform double-tap timeout. The caller decides what
+    // (if anything) happens — Workspace only reports the gesture.
+    onEmptyAreaDoubleTap: () -> Unit = {},
     // Removes a widget-like row from the grid; [appWidgetId] is null for a built-in widget (no host id).
     onRemoveWidget: (rowId: Long, appWidgetId: Int?) -> Unit = { _, _ -> },
     // Tap a restored-widget placeholder to re-bind it; long-press to discard the placeholder row.
@@ -525,10 +528,16 @@ fun Workspace(
                         .pointerInput(Unit) {
                             // Still long-press on empty space opens settings. Times out a touch
                             // later than the icon long-press, so an icon pickup (which consumes the
-                            // pointer) always wins and suppresses this.
+                            // pointer) always wins and suppresses this. The same detector also spots
+                            // clean empty-area taps for double-tap-to-lock: nothing is consumed and
+                            // nothing fires on a single tap, so every existing gesture is untouched.
+                            var lastTapUpMs = 0L
+                            var lastTapPos = Offset.Zero
+                            val doubleTapSlopPx = 48.dp.toPx()
                             awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = true)
                                 var resolved = false
+                                var tapUpMs = -1L
                                 val held = withTimeoutOrNull(
                                     viewConfiguration.longPressTimeoutMillis + 180L,
                                 ) {
@@ -539,6 +548,13 @@ fun Workspace(
                                             (change.position - down.position).getDistance() >
                                             viewConfiguration.touchSlop
                                         ) {
+                                            // A clean finger-up (unconsumed, within slop) completed a tap.
+                                            if (change != null && !change.pressed && !change.isConsumed &&
+                                                (change.position - down.position).getDistance() <=
+                                                viewConfiguration.touchSlop
+                                            ) {
+                                                tapUpMs = change.uptimeMillis
+                                            }
                                             resolved = true
                                         }
                                     }
@@ -557,6 +573,19 @@ fun Workspace(
                                         IntOffset(anchorPt.x.roundToInt(), anchorPt.y.roundToInt()),
                                         anchorPt.y > windowHeightPx * 0.45f,
                                     )
+                                }
+                                if (tapUpMs >= 0 && dragging == null && editingWidget == null) {
+                                    // Double-tap = previous tap's UP → this tap's DOWN within the
+                                    // platform timeout, close enough together on screen.
+                                    if (down.uptimeMillis - lastTapUpMs <= viewConfiguration.doubleTapTimeoutMillis &&
+                                        (down.position - lastTapPos).getDistance() <= doubleTapSlopPx
+                                    ) {
+                                        lastTapUpMs = 0L
+                                        onEmptyAreaDoubleTap()
+                                    } else {
+                                        lastTapUpMs = tapUpMs
+                                        lastTapPos = down.position
+                                    }
                                 }
                             }
                         },

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deliberately minimal: no accessibilityEventTypes (the service receives no events) and no
+     window-content access. The service exists solely for performGlobalAction(LOCK_SCREEN). -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/lock_service_description"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="false" />

@@ -55,6 +55,8 @@ data class LauncherSettings(
     val statusBarScrimOpacity: Float = 0.6f,
     /** Count indicator of the built-in notifications widget: [COUNT_NUMBER], [COUNT_DOT] or [COUNT_NONE]. */
     val notificationWidgetCountStyle: String = COUNT_NUMBER,
+    /** Double-tap on empty home-screen space locks the screen (needs the lock accessibility service). */
+    val doubleTapToLock: Boolean = false,
 ) {
     companion object {
         const val COUNT_NUMBER = "number"

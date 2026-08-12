@@ -66,6 +66,9 @@
     <string name="settings_frequent_apps">Eniten käytetyt ylimmäisinä</string>
     <string name="settings_drawer_open_top">Avaa aina ylhäältä</string>
     <string name="settings_backup">Varmuuskopiointi</string>
+    <string name="settings_double_tap_lock">Tuplanapautus lukitsee näytön</string>
+    <string name="settings_double_tap_lock_grant">Myönnä esteettömyyslupa</string>
+    <string name="settings_double_tap_lock_grant_desc">Lukitus tarvitsee esteettömyyspalvelun, jota käytetään vain näytön lukitsemiseen</string>
     <string name="settings_updates">Päivitykset</string>
     <string name="settings_updates_check">Tarkista päivitykset</string>
     <string name="settings_updates_check_desc">Avaa GitHubin julkaisusivun selaimessa</string>

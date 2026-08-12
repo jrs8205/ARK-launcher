@@ -115,6 +115,18 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `doubleTapToLock defaults to false and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().doubleTapToLock).isFalse()
+
+        repo.setDoubleTapToLock(true)
+        assertThat(repo.settings.first().doubleTapToLock).isTrue()
+
+        repo.setDoubleTapToLock(false)
+        assertThat(repo.settings.first().doubleTapToLock).isFalse()
+    }
+
+    @Test
     fun `showFrequentApps defaults to false and round-trips`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().showFrequentApps).isFalse()

@@ -184,6 +184,7 @@ fun SettingsScreen(
                     label = stringResource(R.string.settings_left_edge),
                     description = leftSwipeLabel,
                 ) { showLeftSwipePicker = true }
+                DoubleTapLockToggle(enabled = s.doubleTapToLock, onSetEnabled = viewModel::setDoubleTapToLock)
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_dock))
                 SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, viewModel::setDockEnabled)
@@ -561,6 +562,18 @@ private tailrec fun android.content.Context.findActivity(): android.app.Activity
     else -> null
 }
 
+/** The home module's lock service; referenced by name (feature modules don't depend on each other). */
+private const val LOCK_SERVICE_CLASS = "org.arkikeskus.launcher.feature.home.LockAccessibilityService"
+
+private fun lockServiceEnabled(context: android.content.Context): Boolean {
+    val enabled = android.provider.Settings.Secure.getString(
+        context.contentResolver,
+        android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+    ) ?: return false
+    val target = android.content.ComponentName(context.packageName, LOCK_SERVICE_CLASS)
+    return enabled.split(':').any { android.content.ComponentName.unflattenFromString(it) == target }
+}
+
 private const val DISCUSSIONS_URL = "https://github.com/jrs8205/ARK-launcher/discussions"
 private const val TELEGRAM_URL = "https://t.me/ARKlauncher"
 private const val RELEASES_URL = "https://github.com/jrs8205/ARK-launcher/releases"
@@ -640,6 +653,38 @@ private fun StatusBarToggle(enabled: Boolean, onSetEnabled: (Boolean) -> Unit) {
         ) {
             launcher.launch(android.Manifest.permission.READ_PHONE_STATE)
         }
+    }
+}
+
+/** Double-tap-to-lock toggle. Locking needs the lock accessibility service (used ONLY for
+ *  performGlobalAction(LOCK_SCREEN)); enabling the switch opens the system accessibility settings
+ *  when the service isn't allowed yet, and a grant row stays visible until it is. */
+@Composable
+private fun DoubleTapLockToggle(enabled: Boolean, onSetEnabled: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    var serviceEnabled by remember { mutableStateOf(lockServiceEnabled(context)) }
+    // Re-check when returning from the system accessibility settings.
+    LifecycleResumeEffect(Unit) {
+        serviceEnabled = lockServiceEnabled(context)
+        onPauseOrDispose { }
+    }
+    fun openAccessibilitySettings() {
+        runCatching {
+            context.startActivity(
+                android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
+    SwitchRow(stringResource(R.string.settings_double_tap_lock), enabled) { wantOn ->
+        onSetEnabled(wantOn)
+        if (wantOn && !lockServiceEnabled(context)) openAccessibilitySettings()
+    }
+    if (enabled && !serviceEnabled) {
+        ExpressiveActionRow(
+            label = stringResource(R.string.settings_double_tap_lock_grant),
+            description = stringResource(R.string.settings_double_tap_lock_grant_desc),
+        ) { openAccessibilitySettings() }
     }
 }
 

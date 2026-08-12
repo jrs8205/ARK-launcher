@@ -66,6 +66,9 @@
     <string name="settings_frequent_apps">Most used at the top</string>
     <string name="settings_drawer_open_top">Always open at top</string>
     <string name="settings_backup">Backup</string>
+    <string name="settings_double_tap_lock">Double-tap to lock the screen</string>
+    <string name="settings_double_tap_lock_grant">Grant accessibility permission</string>
+    <string name="settings_double_tap_lock_grant_desc">Locking needs the accessibility service, used only to lock the screen</string>
     <string name="settings_updates">Updates</string>
     <string name="settings_updates_check">Check for updates</string>
     <string name="settings_updates_check_desc">Opens the GitHub releases page in your browser</string>
