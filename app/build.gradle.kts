@@ -60,12 +60,6 @@ dependencies {
     implementation(project(":feature:appdrawer"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:backup"))
-    implementation(project(":feature:updater"))
-
-    // WorkManager + Hilt-Work: required by LauncherApplication (Configuration.Provider + HiltWorkerFactory).
-    implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.androidx.hilt.work)
-    ksp(libs.androidx.hilt.compiler)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

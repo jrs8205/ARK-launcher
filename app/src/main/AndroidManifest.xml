@@ -87,20 +87,6 @@
             android:label="@string/settings_label"
             android:theme="@style/Theme.ArkikeskusLauncher" />
 
-        <!-- Disable the default WorkManager startup initializer so we can supply our own
-             Configuration.Provider (with HiltWorkerFactory) from LauncherApplication.
-             See: https://developer.android.com/topic/libraries/architecture/workmanager/advanced/custom-configuration -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <meta-data
-                android:name="androidx.work.WorkManagerInitializer"
-                android:value="androidx.startup"
-                tools:node="remove" />
-        </provider>
-
         <!-- Notification dots: the system binds this once the user grants notification access. -->
         <service
             android:name=".notifications.NotificationDotListenerService"

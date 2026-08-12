@@ -10,7 +10,8 @@ Features:
 * Third-party icon packs (ADW/Nova appfilter format) and Material You themed icons.
 * Configurable gestures: swipe up for the app drawer, swipe down for notifications, and a configurable left-edge swipe.
 * Notification dots / badges, and an optional themed status bar.
-* Backup and restore your layout to a file, plus optional Google Drive auto-backup. Widgets are included in backups.
+* Backup and restore your layout and settings to a file. Widgets are included in backups.
+* Double-tap empty home-screen space to lock the screen (opt-in).
 * Lock desktop, hide apps, rename apps with custom labels, and a self-contained settings screen.
 
 Free and open-source under the Apache-2.0 license.

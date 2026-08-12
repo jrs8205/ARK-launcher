@@ -127,40 +127,11 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun `drive failure counter flips failing at the threshold and clears`() = runTest {
-        val repo = newRepository()
-        assertThat(repo.driveBackupFailing.first()).isFalse()
-
-        repeat(SettingsRepository.DRIVE_FAILING_THRESHOLD - 1) { repo.registerDriveFailure() }
-        assertThat(repo.driveBackupFailing.first()).isFalse()
-
-        val count = repo.registerDriveFailure()
-        assertThat(count).isEqualTo(SettingsRepository.DRIVE_FAILING_THRESHOLD)
-        assertThat(repo.driveBackupFailing.first()).isTrue()
-
-        repo.clearDriveFailures()
-        assertThat(repo.driveBackupFailing.first()).isFalse()
-    }
-
-    @Test
-    fun `drive failure counter is excluded from export and preserved across restore`() = runTest {
-        val repo = newRepository()
-        repeat(SettingsRepository.DRIVE_FAILING_THRESHOLD) { repo.registerDriveFailure() }
-
-        assertThat(repo.exportRaw().keys).doesNotContain("drive_failure_count")
-
-        repo.importRaw(mapOf("home_columns" to 5))
-        assertThat(repo.driveBackupFailing.first()).isTrue()
-    }
-
-    @Test
     fun `app usage is excluded from export`() = runTest {
         val store = InMemoryDataStore()
         val settings = SettingsRepository(store)
         val usage = AppUsageRepository(store)
-        // Volatile per-launch frecency data must not enter a backup (it changed the dedup hash on
-        // every app launch, so the Drive worker uploaded a fresh copy even when the layout was
-        // unchanged).
+        // Volatile per-launch frecency data is device-local and must not enter a backup.
         usage.recordLaunch("com.example/Main/0")
 
         assertThat(settings.exportRaw().keys).doesNotContain(AppUsageRepository.USAGE_KEY)
@@ -181,20 +152,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
-    fun `importRaw preserves Drive state and applies restored values`() = runTest {
+    fun `importRaw preserves device-local state and applies restored values`() = runTest {
         val repo = newRepository()
-        // Arrange: enable Drive with known last-backup metadata.
-        repo.setDriveEnabled(true)
-        repo.setDriveLastBackup(123L, "testhash")
+        repo.setLocalLastBackup(123L)
 
-        // Act: restore a backup that does not include any Drive keys.
         repo.importRaw(mapOf("home_columns" to 5))
 
-        // Assert: Drive enable and last-backup time survive the restore.
-        assertThat(repo.driveEnabled.first()).isTrue()
-        assertThat(repo.driveLastBackupTime.first()).isEqualTo(123L)
-        // Assert: the restored setting was actually applied.
+        // The device's own last-export timestamp survives the restore; the value applies.
+        assertThat(repo.localLastBackupTime.first()).isEqualTo(123L)
         assertThat(repo.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test
+    fun `importRaw tolerates a legacy Drive-era backup without importing its keys`() = runTest {
+        val repo = newRepository()
+        // A ≤0.7.11 backup may contain Drive/updater bookkeeping (both features were removed in
+        // 0.7.12); the names must be dropped silently and the rest of the restore must apply.
+        repo.importRaw(
+            mapOf(
+                "drive_backup_enabled" to true,
+                "auto_update_enabled" to false,
+                "update_last_notified_version" to "0.7.11",
+                "home_columns" to 5,
+            ),
+        )
+
+        assertThat(repo.settings.first().homeColumns).isEqualTo(5)
+        assertThat(repo.exportRaw().keys).containsNoneOf("drive_backup_enabled", "auto_update_enabled")
     }
 
     @Test
@@ -251,7 +235,9 @@ class SettingsRepositoryTest {
     fun `importRaw never imports device-local bookkeeping keys`() = runTest {
         val repo = newRepository()
         repo.importRaw(mapOf("drive_backup_enabled" to "not-a-boolean", "app_usage" to 12345))
-        assertThat(repo.driveEnabled.first()).isFalse() // readable, default false
+        // Settings stay readable (no wrong-typed value landed) and the name never re-exports.
+        assertThat(repo.settings.first().homeColumns).isEqualTo(4) // default, no crash
+        assertThat(repo.exportRaw().keys).doesNotContain("drive_backup_enabled")
     }
 
     @Test

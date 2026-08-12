@@ -76,9 +76,9 @@ the app: **Settings ▸ Feedback**.
   **left-edge swipe** that launches an app of your choice.
 - **Customizable look** — adjustable app-label **text size** and **colour**, dock opacity, grid
   columns, page indicator, and more.
-- **Backup & restore** — export/import your layout to a file, plus optional **Google Drive**
-  auto-backup (Wi-Fi-only / charging-only schedules).
-- **In-app updater** — checks GitHub releases in the background and installs updates with one tap.
+- **Backup & restore** — export/import your layout and settings to a file (widgets included).
+- **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
+  minimal accessibility service that reads nothing).
 - **Lock desktop** — a toggle that prevents accidental moving, removing, or adding of items.
 - **Pixel-style long-press menus** with app shortcuts and actions, plus an **empty-area menu**
   (home settings / wallpaper), all in one consistent visual style.
@@ -88,7 +88,7 @@ the app: **Settings ▸ Feedback**.
 
 - **Kotlin** + **Jetpack Compose** (Material 3), single-Activity.
 - **Hilt** (DI), **Room** (layout persistence), **DataStore** (preferences), **Coil** (icons),
-  **WorkManager** (background tasks), **AppWidgetHost** (widgets), **OkHttp** (networking).
+  **AppWidgetHost** (widgets).
 - Multi-module architecture with `build-logic` convention plugins.
 - JDK 21, AGP 9, Gradle 9.
 
@@ -117,7 +117,7 @@ Requirements: `minSdk 30`.
 - `app` — the single Activity, manifest HOME intent filter, DI entry point, the AppWidgetHost.
 - `core/*` — `model`, `common`, `data` (Room/DataStore/repositories + search providers + backup),
   `ui` (shared Compose components, popups, the expressive theme), `designsystem`, `launcher`.
-- `feature/*` — `home` (workspace + dock + widgets), `appdrawer`, `settings`, `backup`, `updater`.
+- `feature/*` — `home` (workspace + dock + widgets), `appdrawer`, `settings`, `backup`.
 
 ## License
 

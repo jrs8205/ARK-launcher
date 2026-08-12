@@ -73,7 +73,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.feature.backup.BackupScreen
-import org.arkikeskus.launcher.feature.updater.UpdateSection
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.DefaultLauncher
@@ -328,7 +327,11 @@ fun SettingsScreen(
                     description = "",
                 ) { showBackup = true }
 
-                UpdateSection()
+                ExpressiveSectionTitle(stringResource(R.string.settings_updates))
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_updates_check),
+                    description = stringResource(R.string.settings_updates_check_desc),
+                ) { openLink(context, RELEASES_URL) }
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_feedback))
                 ExpressiveActionRow(
@@ -560,6 +563,7 @@ private tailrec fun android.content.Context.findActivity(): android.app.Activity
 
 private const val DISCUSSIONS_URL = "https://github.com/jrs8205/ARK-launcher/discussions"
 private const val TELEGRAM_URL = "https://t.me/ARKlauncher"
+private const val RELEASES_URL = "https://github.com/jrs8205/ARK-launcher/releases"
 
 private fun openLink(context: android.content.Context, url: String) {
     runCatching {

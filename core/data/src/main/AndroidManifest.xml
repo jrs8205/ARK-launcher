@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The smartspace widget's weather: Open-Meteo current conditions + the BigDataCloud
+         reverse-geocode fallback (WeatherRepository). The launcher needs no other network, so the
+         permission is declared here in the module that owns the network code. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>

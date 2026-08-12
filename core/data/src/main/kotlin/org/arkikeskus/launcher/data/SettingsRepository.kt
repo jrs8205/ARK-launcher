@@ -251,65 +251,10 @@ class SettingsRepository @Inject constructor(
     private fun currentFavorites(p: MutablePreferences): List<String> =
         p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
 
-    // --- Drive backup bookkeeping ---
-
-    val driveEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_ENABLED] ?: false }
-    val driveLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.DRIVE_LAST_TIME] ?: 0L }
-
-    suspend fun setDriveEnabled(v: Boolean) = edit { it[Keys.DRIVE_ENABLED] = v }
-
-    suspend fun setDriveLastBackup(timeMs: Long, hash: String) = edit {
-        it[Keys.DRIVE_LAST_TIME] = timeMs; it[Keys.DRIVE_LAST_HASH] = hash
-    }
-
-    suspend fun driveLastHash(): String? = dataStore.data.first()[Keys.DRIVE_LAST_HASH]
-
-    /** One-shot read for use in background workers (Task 7). */
-    suspend fun driveEnabledOnce(): Boolean = dataStore.data.first()[Keys.DRIVE_ENABLED] ?: false
-
-    // --- Drive failure tracking (device-local) ---
-
-    /** True once Drive auto-backup has failed [DRIVE_FAILING_THRESHOLD]+ consecutive periods. */
-    val driveBackupFailing: Flow<Boolean> =
-        dataStore.data.map { (it[Keys.DRIVE_FAILURE_COUNT] ?: 0) >= DRIVE_FAILING_THRESHOLD }
-
-    /** Records one failed Drive backup period; returns the new consecutive-failure count. */
-    suspend fun registerDriveFailure(): Int {
-        var count = 0
-        dataStore.edit { p ->
-            count = (p[Keys.DRIVE_FAILURE_COUNT] ?: 0) + 1
-            p[Keys.DRIVE_FAILURE_COUNT] = count
-        }
-        return count
-    }
-
-    /** Resets the consecutive Drive-failure counter after a successful backup. */
-    suspend fun clearDriveFailures() = edit { it.remove(Keys.DRIVE_FAILURE_COUNT) }
-
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */
     val localLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.LOCAL_LAST_BACKUP] ?: 0L }
 
     suspend fun setLocalLastBackup(timeMs: Long) = edit { it[Keys.LOCAL_LAST_BACKUP] = timeMs }
-
-    // --- Drive backup scheduling options (device-local) ---
-    /** Periodic backup interval in days (1 = daily, 7 = weekly). */
-    val driveIntervalDays: Flow<Int> = dataStore.data.map { it[Keys.DRIVE_INTERVAL_DAYS] ?: 1 }
-    val driveWifiOnly: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_WIFI_ONLY] ?: false }
-    val driveChargingOnly: Flow<Boolean> = dataStore.data.map { it[Keys.DRIVE_CHARGING_ONLY] ?: false }
-
-    suspend fun setDriveIntervalDays(days: Int) = edit { it[Keys.DRIVE_INTERVAL_DAYS] = days }
-    suspend fun setDriveWifiOnly(v: Boolean) = edit { it[Keys.DRIVE_WIFI_ONLY] = v }
-    suspend fun setDriveChargingOnly(v: Boolean) = edit { it[Keys.DRIVE_CHARGING_ONLY] = v }
-
-    // --- In-app updater bookkeeping (device-local) ---
-    val autoUpdateEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_UPDATE_ENABLED] ?: true }
-    val updateLastCheck: Flow<Long> = dataStore.data.map { it[Keys.UPDATE_LAST_CHECK] ?: 0L }
-
-    suspend fun setAutoUpdateEnabled(v: Boolean) = edit { it[Keys.AUTO_UPDATE_ENABLED] = v }
-    suspend fun setUpdateLastCheck(timeMs: Long) = edit { it[Keys.UPDATE_LAST_CHECK] = timeMs }
-    suspend fun setUpdateLastNotifiedVersion(v: String) = edit { it[Keys.UPDATE_LAST_NOTIFIED] = v }
-    suspend fun updateLastNotifiedVersion(): String? = dataStore.data.first()[Keys.UPDATE_LAST_NOTIFIED]
-    suspend fun autoUpdateEnabledOnce(): Boolean = dataStore.data.first()[Keys.AUTO_UPDATE_ENABLED] ?: true
 
     // --- First-run default layout + onboarding (device-local) ---
     suspend fun defaultLayoutSeededOnce(): Boolean = dataStore.data.first()[Keys.DEFAULT_LAYOUT_SEEDED] ?: false
@@ -332,14 +277,14 @@ class SettingsRepository @Inject constructor(
 
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
-     * Drive bookkeeping keys are excluded so a restore never reimports another device's Drive state;
-     * the volatile per-launch [AppUsageRepository.USAGE_KEY] is excluded because it changed on every
-     * app launch and so made the Drive dedup hash differ each run → a redundant upload even when the
-     * layout was unchanged (and it is device-local behavioural data, not worth carrying to a new phone).
+     * Device-local bookkeeping keys are excluded so a restore never reimports another device's
+     * state (this also keeps the ≤0.7.11 Drive/updater leftovers on an upgraded device out of new
+     * exports); the volatile per-launch [AppUsageRepository.USAGE_KEY] is excluded because it is
+     * device-local behavioural data, not worth carrying to a new phone.
      */
     suspend fun exportRaw(): Map<String, Any> =
         dataStore.data.first().asMap().entries
-            .filterNot { it.key.name in DRIVE_INTERNAL_KEYS || it.key.name == AppUsageRepository.USAGE_KEY }
+            .filterNot { it.key.name in DEVICE_LOCAL_KEYS || it.key.name == AppUsageRepository.USAGE_KEY }
             .associate { (k, v) -> k.name to v }
 
     /**
@@ -348,25 +293,14 @@ class SettingsRepository @Inject constructor(
      * into "number", so numeric values are coerced back by the registry; unknown keys fall back
      * to their JSON type.
      *
-     * The device-local bookkeeping keys in [DRIVE_INTERNAL_KEYS] (Drive enable / last-time / last-hash,
-     * the local file-backup time, and the Drive scheduling options interval/Wi-Fi/charging) are
-     * snapshotted before the clear and re-applied afterward, so restoring a backup never wipes this
-     * device's Drive enable state, last-backup timestamps, or scheduling preferences.
+     * The device-local bookkeeping keys in [DEVICE_LOCAL_KEYS] (the local file-backup time and the
+     * first-run/onboarding flags) are snapshotted before the clear and re-applied afterward, so
+     * restoring a backup never wipes this device's local state.
      */
     suspend fun importRaw(values: Map<String, Any>) {
         dataStore.edit { prefs ->
-            // Snapshot Drive bookkeeping before clearing.
-            val driveEnabled = prefs[Keys.DRIVE_ENABLED]
-            val driveLastTime = prefs[Keys.DRIVE_LAST_TIME]
-            val driveLastHash = prefs[Keys.DRIVE_LAST_HASH]
-            val driveFailures = prefs[Keys.DRIVE_FAILURE_COUNT]
+            // Snapshot device-local bookkeeping before clearing.
             val localLastBackup = prefs[Keys.LOCAL_LAST_BACKUP]
-            val driveInterval = prefs[Keys.DRIVE_INTERVAL_DAYS]
-            val driveWifiOnly = prefs[Keys.DRIVE_WIFI_ONLY]
-            val driveChargingOnly = prefs[Keys.DRIVE_CHARGING_ONLY]
-            val autoUpdate = prefs[Keys.AUTO_UPDATE_ENABLED]
-            val updateLastCheck = prefs[Keys.UPDATE_LAST_CHECK]
-            val updateLastNotified = prefs[Keys.UPDATE_LAST_NOTIFIED]
             val layoutSeeded = prefs[Keys.DEFAULT_LAYOUT_SEEDED]
             val onboardingDone = prefs[Keys.ONBOARDING_DONE]
             val firstRunFresh = prefs[Keys.FIRST_RUN_FRESH]
@@ -375,9 +309,9 @@ class SettingsRepository @Inject constructor(
             prefs.clear()
             for ((name, value) in values) {
                 when {
-                    // Device-local bookkeeping is excluded from export, but a hand-edited file
-                    // could smuggle a wrong-typed value in — never import these names.
-                    name in DRIVE_INTERNAL_KEYS || name == AppUsageRepository.USAGE_KEY -> Unit
+                    // Device-local bookkeeping is excluded from export, but a hand-edited (or old,
+                    // ≤0.7.11 Drive-era) file could smuggle a value in — never import these names.
+                    name in DEVICE_LOCAL_KEYS || name == AppUsageRepository.USAGE_KEY -> Unit
                     // Known keys are written ONLY with their registered type — a wrong-typed value
                     // in an edited/corrupted file would otherwise be stored under the same key name
                     // and crash every settings read with a ClassCastException.
@@ -391,18 +325,8 @@ class SettingsRepository @Inject constructor(
                     value is Number -> prefs[longPreferencesKey(name)] = value.toLong()
                 }
             }
-            // Re-apply Drive bookkeeping so this device's Drive state is preserved.
-            if (driveEnabled != null) prefs[Keys.DRIVE_ENABLED] = driveEnabled
-            if (driveLastTime != null) prefs[Keys.DRIVE_LAST_TIME] = driveLastTime
-            if (driveLastHash != null) prefs[Keys.DRIVE_LAST_HASH] = driveLastHash
-            if (driveFailures != null) prefs[Keys.DRIVE_FAILURE_COUNT] = driveFailures
+            // Re-apply device-local bookkeeping so this device's state is preserved.
             if (localLastBackup != null) prefs[Keys.LOCAL_LAST_BACKUP] = localLastBackup
-            if (driveInterval != null) prefs[Keys.DRIVE_INTERVAL_DAYS] = driveInterval
-            if (driveWifiOnly != null) prefs[Keys.DRIVE_WIFI_ONLY] = driveWifiOnly
-            if (driveChargingOnly != null) prefs[Keys.DRIVE_CHARGING_ONLY] = driveChargingOnly
-            if (autoUpdate != null) prefs[Keys.AUTO_UPDATE_ENABLED] = autoUpdate
-            if (updateLastCheck != null) prefs[Keys.UPDATE_LAST_CHECK] = updateLastCheck
-            if (updateLastNotified != null) prefs[Keys.UPDATE_LAST_NOTIFIED] = updateLastNotified
             if (layoutSeeded != null) prefs[Keys.DEFAULT_LAYOUT_SEEDED] = layoutSeeded
             if (onboardingDone != null) prefs[Keys.ONBOARDING_DONE] = onboardingDone
             if (firstRunFresh != null) prefs[Keys.FIRST_RUN_FRESH] = firstRunFresh
@@ -443,17 +367,7 @@ class SettingsRepository @Inject constructor(
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
-        val DRIVE_ENABLED = booleanPreferencesKey("drive_backup_enabled")
-        val DRIVE_LAST_TIME = longPreferencesKey("drive_last_backup_time")
-        val DRIVE_LAST_HASH = stringPreferencesKey("drive_last_backup_hash")
-        val DRIVE_FAILURE_COUNT = intPreferencesKey("drive_failure_count")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
-        val DRIVE_INTERVAL_DAYS = intPreferencesKey("drive_interval_days")
-        val DRIVE_WIFI_ONLY = booleanPreferencesKey("drive_wifi_only")
-        val DRIVE_CHARGING_ONLY = booleanPreferencesKey("drive_charging_only")
-        val AUTO_UPDATE_ENABLED = booleanPreferencesKey("auto_update_enabled")
-        val UPDATE_LAST_CHECK = longPreferencesKey("update_last_check")
-        val UPDATE_LAST_NOTIFIED = stringPreferencesKey("update_last_notified_version")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
@@ -473,9 +387,6 @@ class SettingsRepository @Inject constructor(
         /** Valid range for the home-grid row count (mirrors the settings stepper). */
         const val MIN_ROWS = 5
         const val MAX_ROWS = 8
-
-        /** Consecutive failed Drive-backup periods before the failure is surfaced to the user. */
-        const val DRIVE_FAILING_THRESHOLD = 3
 
         /** Valid range for the notification-dot scale slider. */
         const val MIN_DOT_SCALE = 0.6f
@@ -504,9 +415,11 @@ class SettingsRepository @Inject constructor(
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key",
         )
 
-        /** Device-local bookkeeping keys excluded from an exported backup and preserved across a
-         *  restore: Drive enable/last-backup/hash + the local file-backup timestamp. */
-        val DRIVE_INTERNAL_KEYS = setOf(
+        /** Device-local bookkeeping keys excluded from an exported backup and never imported.
+         *  The `drive_*`/`update_*` names are ≤0.7.11 leftovers (the Drive backup and in-app
+         *  updater were removed in 0.7.12): upgraded devices still carry them in the DataStore and
+         *  old backup files still contain them, so the names must stay blocked here. */
+        val DEVICE_LOCAL_KEYS = setOf(
             "drive_backup_enabled", "drive_last_backup_time", "drive_last_backup_hash",
             "drive_failure_count", "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",

@@ -14,19 +14,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.backup.BackupCodec
 import org.arkikeskus.launcher.data.backup.BackupFormatException
 import org.arkikeskus.launcher.data.backup.BackupRepository
-import org.arkikeskus.launcher.feature.backup.drive.DriveFile
-import org.arkikeskus.launcher.feature.backup.drive.DriveRestClient
 import org.json.JSONException
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 sealed interface BackupEvent {
@@ -35,24 +30,10 @@ sealed interface BackupEvent {
     data object InvalidFile : BackupEvent
     data object TooLarge : BackupEvent
     data class Failed(val message: String) : BackupEvent
-    data object DriveUploaded : BackupEvent
-    data object AuthFailed : BackupEvent
 }
 
 /** Thrown when a backup file exceeds the import size cap — never buffer it whole. */
 internal class BackupTooLargeException : Exception()
-
-data class DriveState(
-    val enabled: Boolean = false,
-    val lastBackupMs: Long = 0L,
-    val availableFiles: List<DriveFile> = emptyList(),
-    val isLoading: Boolean = false,
-    val intervalDays: Int = 1,
-    val wifiOnly: Boolean = false,
-    val chargingOnly: Boolean = false,
-    /** True when the periodic Drive backup has failed repeatedly (shown as a warning banner). */
-    val failing: Boolean = false,
-)
 
 @HiltViewModel
 class BackupViewModel @Inject constructor(
@@ -65,46 +46,13 @@ class BackupViewModel @Inject constructor(
     private val _events = MutableSharedFlow<BackupEvent>(extraBufferCapacity = 4)
     val events = _events.asSharedFlow()
 
-    private val _driveState = MutableStateFlow(DriveState())
-    val driveState: StateFlow<DriveState> = _driveState.asStateFlow()
-
     /** Epoch-ms timestamp of the last successful local file export (0 = never), for the file card. */
     private val _localLastBackupMs = MutableStateFlow(0L)
     val localLastBackupMs: StateFlow<Long> = _localLastBackupMs.asStateFlow()
 
-    /** OkHttpClient shared across Drive calls; explicit timeouts prevent network stalls. */
-    private val driveHttp: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
-
     init {
-        // Keep driveState in sync with the DataStore so it reflects changes from restores as well.
-        viewModelScope.launch {
-            settings.driveEnabled.collect { enabled ->
-                _driveState.update { it.copy(enabled = enabled) }
-            }
-        }
-        viewModelScope.launch {
-            settings.driveLastBackupTime.collect { time ->
-                _driveState.update { it.copy(lastBackupMs = time) }
-            }
-        }
         viewModelScope.launch {
             settings.localLastBackupTime.collect { time -> _localLastBackupMs.value = time }
-        }
-        viewModelScope.launch {
-            settings.driveIntervalDays.collect { d -> _driveState.update { it.copy(intervalDays = d) } }
-        }
-        viewModelScope.launch {
-            settings.driveWifiOnly.collect { w -> _driveState.update { it.copy(wifiOnly = w) } }
-        }
-        viewModelScope.launch {
-            settings.driveChargingOnly.collect { c -> _driveState.update { it.copy(chargingOnly = c) } }
-        }
-        viewModelScope.launch {
-            settings.driveBackupFailing.collect { f -> _driveState.update { it.copy(failing = f) } }
         }
     }
 
@@ -178,152 +126,6 @@ class BackupViewModel @Inject constructor(
         }
         return out.toByteArray()
     }
-
-    // -------------------------------------------------------------------------
-    // Drive ops
-    // -------------------------------------------------------------------------
-
-    /**
-     * Builds the current backup JSON and a content hash.
-     * Hash is over [BackupCodec.encode] with [createdAt]=0 so identical content on different
-     * days produces the same hash (dedup guard).
-     */
-    private suspend fun currentJsonAndHash(): Pair<String, String> = withContext(Dispatchers.Default) {
-        val doc = backupRepository.exportDocument(System.currentTimeMillis(), appVersion)
-        val json = BackupCodec.encode(doc)
-        // Hash over content with createdAt AND appVersion zeroed, so a pure launcher-version bump
-        // (identical layout + settings) doesn't look like new content and rotate a Drive restore point.
-        val hashable = BackupCodec.encode(doc.copy(createdAt = 0L, appVersion = ""))
-        val hash = java.security.MessageDigest.getInstance("SHA-256")
-            .digest(hashable.toByteArray()).joinToString("") { "%02x".format(it) }
-        json to hash
-    }
-
-    fun setDriveEnabled(enabled: Boolean) = viewModelScope.launch {
-        settings.setDriveEnabled(enabled)
-        // _driveState.enabled will auto-update via the settings.driveEnabled collector in init.
-        if (enabled) rescheduleDrive() else BackupScheduler.cancel(context)
-    }
-
-    fun setDriveIntervalDays(days: Int) = viewModelScope.launch {
-        settings.setDriveIntervalDays(days)
-        if (settings.driveEnabledOnce()) rescheduleDrive()
-    }
-
-    fun setDriveWifiOnly(value: Boolean) = viewModelScope.launch {
-        settings.setDriveWifiOnly(value)
-        if (settings.driveEnabledOnce()) rescheduleDrive()
-    }
-
-    fun setDriveChargingOnly(value: Boolean) = viewModelScope.launch {
-        settings.setDriveChargingOnly(value)
-        if (settings.driveEnabledOnce()) rescheduleDrive()
-    }
-
-    /** (Re)schedules the periodic Drive worker with the current interval + network/charging options. */
-    private suspend fun rescheduleDrive() {
-        BackupScheduler.schedule(
-            context,
-            intervalDays = settings.driveIntervalDays.first(),
-            wifiOnly = settings.driveWifiOnly.first(),
-            chargingOnly = settings.driveChargingOnly.first(),
-        )
-    }
-
-    /**
-     * Uploads a new backup to Drive if the content has changed since the last upload.
-     * [token] is a valid Drive access token obtained by the Screen after auth.
-     */
-    fun backupToDrive(token: String) = viewModelScope.launch {
-        _driveState.update { it.copy(isLoading = true) }
-        runCatching {
-            val (json, hash) = currentJsonAndHash()
-            if (hash != settings.driveLastHash()) {
-                val nowMs = System.currentTimeMillis()
-                withContext(Dispatchers.IO) {
-                    val client = DriveRestClient(token, driveHttp)
-                    client.upload("arkikeskus-launcher-backup-$nowMs.json", json)
-                    // The backup is safe in Drive once upload returns: record the hash BEFORE the
-                    // prune, and never let a prune-only failure (e.g. a 404 racing another device's
-                    // prune) surface as "backup failed" — the user's data DID back up, and an
-                    // unrecorded hash re-uploaded a duplicate on every following attempt. Pruning
-                    // keeps Drive bounded from the manual path too (the periodic worker also prunes,
-                    // but it may be stuck failing — see driveBackupFailing).
-                    settings.setDriveLastBackup(nowMs, hash)
-                    runCatching { client.pruneToNewest(BackupScheduler.KEEP_BACKUPS) }
-                }
-                nowMs
-            } else {
-                null // already up-to-date; skip upload
-            }
-        }.onSuccess { uploadedAt ->
-            // A manual backup succeeded (or auth worked for the dedup check) → the failing
-            // episode is over; the banner clears and the worker may notify again if it recurs.
-            settings.clearDriveFailures()
-            _driveState.update { s ->
-                s.copy(isLoading = false, lastBackupMs = uploadedAt ?: s.lastBackupMs)
-            }
-            if (uploadedAt != null) _events.emit(BackupEvent.DriveUploaded)
-        }.onFailure {
-            if (it is kotlinx.coroutines.CancellationException) throw it
-            Log.w(TAG, "Drive backup failed", it)
-            _driveState.update { it.copy(isLoading = false) }
-            _events.emit(BackupEvent.Failed(it.message.orEmpty()))
-        }
-    }
-
-    /**
-     * Lists backups from Drive and updates [driveState].availableFiles.
-     * [token] is a valid Drive access token obtained by the Screen after auth.
-     */
-    fun listDriveBackups(token: String) = viewModelScope.launch {
-        _driveState.update { it.copy(isLoading = true) }
-        runCatching {
-            withContext(Dispatchers.IO) { DriveRestClient(token, driveHttp).list() }
-        }.onSuccess { files ->
-            _driveState.update { it.copy(isLoading = false, availableFiles = files) }
-        }.onFailure {
-            if (it is kotlinx.coroutines.CancellationException) throw it
-            Log.w(TAG, "Drive list failed", it)
-            _driveState.update { it.copy(isLoading = false) }
-            _events.emit(BackupEvent.Failed(it.message.orEmpty()))
-        }
-    }
-
-    /**
-     * Downloads [fileId] from Drive and restores it using the same path as file import.
-     * [token] is a valid Drive access token obtained by the Screen after auth.
-     */
-    fun restoreFromDrive(token: String, fileId: String) = viewModelScope.launch {
-        _driveState.update { it.copy(isLoading = true) }
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val json = DriveRestClient(token, driveHttp).download(fileId)
-                val doc = BackupCodec.decode(json)
-                val apps = installedApps()
-                backupRepository.restoreDocument(
-                    doc = doc,
-                    installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
-                    installedPackages = apps.map { it.packageName }.toSet(),
-                )
-            }
-        }.onSuccess { result ->
-            _driveState.update { it.copy(isLoading = false) }
-            _events.emit(BackupEvent.Restored(result.restored, result.skipped))
-        }.onFailure {
-            if (it is kotlinx.coroutines.CancellationException) throw it
-            Log.w(TAG, "Drive restore failed", it)
-            _driveState.update { it.copy(isLoading = false) }
-            when {
-                it is BackupTooLargeException -> _events.emit(BackupEvent.TooLarge)
-                it is BackupFormatException || it is JSONException -> _events.emit(BackupEvent.InvalidFile)
-                else -> _events.emit(BackupEvent.Failed(it.message.orEmpty()))
-            }
-        }
-    }
-
-    /** Called by the Screen when Drive authorization fails (e.g. user cancels consent). */
-    fun emitAuthFailed() = viewModelScope.launch { _events.emit(BackupEvent.AuthFailed) }
 
     internal companion object {
         const val TAG = "BackupVM"
