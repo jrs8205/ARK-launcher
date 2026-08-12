@@ -1,6 +1,8 @@
 # ARK-launcher Privacy Policy
 
-*Last updated: 2026-08-03 · applies to ARK-launcher v0.7.11 and later*
+*Last updated: 2026-08-12 · applies to ARK-launcher v0.7.11 and later*
+
+*Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
 
 ARK-launcher is a free, open-source Android home-screen launcher (Apache 2.0).
 This policy describes exactly what data the app handles. The source code is
@@ -12,11 +14,12 @@ public, so every claim here can be verified:
 - Your home-screen layout, settings, app list and notification data **stay on
   your device**. There is no telemetry, no analytics, no ads and no tracking of
   any kind.
-- The network is used only for three things: fetching the current weather for
-  the clock widget, checking GitHub for app updates, and — only if you enable
-  it — backing up your layout to *your own* Google Drive.
-- The app never sends any identifier, account information or usage data to the
-  developer or to any third party.
+- The network is used only for the purposes listed under *Network use* below:
+  showing the weather in the clock widget (including resolving the municipality
+  name), checking GitHub for app updates, and — only if you enable it —
+  backing up your layout to *your own* Google Drive.
+- The app has no user accounts and never sends usage data, analytics or
+  advertising identifiers to the developer or to any third party.
 
 ## Data stored on your device
 
@@ -36,17 +39,37 @@ public, so every claim here can be verified:
 1. **Weather** (only while the weather row is enabled and location permission
    is granted): the app requests the current temperature and conditions from
    the keyless [Open-Meteo](https://open-meteo.com) API. Your coordinates are
-   rounded to about one-kilometre precision before the request, and no
-   identifiers or cookies are sent with it. The municipality name is resolved
-   with the device's own geocoder.
-2. **Update check**: the app queries the public GitHub Releases API of this
+   rounded to about one-kilometre precision before the request; the exact
+   position never leaves the device.
+2. **Municipality name** shown next to the weather: the name is resolved with
+   the device's own geocoder first. If the device has no working geocoder
+   backend (some models don't), the app falls back to the keyless
+   [BigDataCloud](https://www.bigdatacloud.com) reverse-geocoding API, sending
+   the same ~1 km rounded coordinates plus the device's interface language —
+   at most once per 30-minute weather refresh, and only when the local
+   geocoder failed.
+3. **Update check**: the app queries the public GitHub Releases API of this
    repository to see whether a newer version exists, and downloads the new APK
-   from GitHub when you ask it to. Plain GET requests, no identifiers.
-3. **Google Drive backup** (opt-in, default **off**): if you enable Drive
-   backup, the app uploads your backup file to your own Google Drive using the
-   Google account you pick. The file goes only to your Drive; the developer has
-   no access to it. Disabling the feature stops the uploads; files already in
-   your Drive remain under your control.
+   from GitHub when you ask it to. Plain GET requests.
+4. **Google Drive backup** (opt-in, default **off**): if you enable Drive
+   backup, the app uploads your backup file into the hidden app-specific data
+   area of *your own* Google Drive (the `appDataFolder`, OAuth scope
+   `drive.appdata`). That scope lets the app see **only its own backup files**
+   and nothing else in your Drive; the developer has no access to any of it.
+   Three practical consequences:
+   - The backups do **not** appear in the normal Drive file list. You can see
+     their storage use and delete them all under Drive **Settings → Manage
+     apps** (drive.google.com).
+   - The app keeps only the **3 newest** backup files: after each successful
+     upload it automatically deletes the older backup files it created, so
+     old restore points do not accumulate — the oldest ones are removed.
+   - Disabling the feature stops both the uploads and the automatic deletion.
+
+None of these requests carries account information, cookies or advertising
+identifiers. Like all internet traffic, they necessarily reveal your IP
+address to the server, and requests made through Android's built-in HTTP
+client include Android's default `User-Agent` header, which names the Android
+version and device model.
 
 ## Permissions
 
@@ -64,15 +87,20 @@ public, so every claim here can be verified:
 | `REQUEST_INSTALL_PACKAGES` | Installing updates you approve via the in-app updater |
 | `REQUEST_DELETE_PACKAGES` | The "uninstall" action in an icon's long-press menu |
 | `EXPAND_STATUS_BAR` | The swipe-down-for-notifications gesture |
+| `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED`, `FOREGROUND_SERVICE` | Added automatically by Android's WorkManager library, which runs the scheduled Drive-backup job: keeping the device awake while a backup uploads and re-scheduling the job after a reboot. Not used for anything else |
 
-Calendar, contacts, phone-state and location data are read on demand for the
-features above, used on the device only, and never stored beyond in-memory
-caches or transmitted anywhere.
+Calendar, contacts and phone-state data are read on demand for the features
+above, used on the device only, and never stored beyond in-memory caches or
+transmitted anywhere. Location is handled the same way on the device; the only
+location data that ever leaves it is the ~1 km rounded coordinates sent to the
+weather and reverse-geocoding services described under *Network use*.
 
 ## Children
 
 ARK-launcher is a general-purpose utility with no content of its own, no ads
-and no purchases.
+and no purchases. It is not directed at children, and it does not knowingly
+collect personal data from children — or from anyone else: the app has no
+accounts and collects no personal data at all.
 
 ## Changes and contact
 
