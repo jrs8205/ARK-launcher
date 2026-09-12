@@ -31,8 +31,8 @@ It is **bilingual** — Finnish (default) and English — and shares the visual 
 
 Download the latest signed APK from the
 [**Releases**](https://github.com/jrs8205/ARK-launcher/releases/latest) page and open it on
-your device to install. After the first install the app keeps itself up to date from new GitHub
-releases (it notifies you and installs with one tap).
+your device to install. To update, install the newer APK from the same page (Settings ▸ Updates ▸
+"Check for updates" opens it), or let Obtainium do it for you (below).
 
 Requires **Android 11 (API 30)** or newer.
 
