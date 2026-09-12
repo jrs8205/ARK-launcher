@@ -72,6 +72,7 @@
     <string name="settings_updates">Päivitykset</string>
     <string name="settings_updates_check">Tarkista päivitykset</string>
     <string name="settings_updates_check_desc">Avaa GitHubin julkaisusivun selaimessa</string>
+    <string name="settings_open_link_failed">Selainta ei löytynyt. Osoite: %1$s</string>
     <string name="settings_feedback">Palaute</string>
     <string name="settings_feedback_discussions">Palaute ja keskustelu</string>
     <string name="settings_feedback_discussions_desc">Kysymykset ja ideat — GitHub Discussions</string>

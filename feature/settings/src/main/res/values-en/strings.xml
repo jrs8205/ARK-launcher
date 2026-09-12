@@ -72,6 +72,7 @@
     <string name="settings_updates">Updates</string>
     <string name="settings_updates_check">Check for updates</string>
     <string name="settings_updates_check_desc">Opens the GitHub releases page in your browser</string>
+    <string name="settings_open_link_failed">No browser found. Address: %1$s</string>
     <string name="settings_feedback">Feedback</string>
     <string name="settings_feedback_discussions">Feedback &amp; discussion</string>
     <string name="settings_feedback_discussions_desc">Questions and ideas — GitHub Discussions</string>

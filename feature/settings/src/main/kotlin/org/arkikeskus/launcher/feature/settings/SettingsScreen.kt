@@ -579,10 +579,18 @@ private const val TELEGRAM_URL = "https://t.me/ARKlauncher"
 private const val RELEASES_URL = "https://github.com/jrs8205/ARK-launcher/releases"
 
 private fun openLink(context: android.content.Context, url: String) {
-    runCatching {
+    val opened = runCatching {
         context.startActivity(
             Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
+    }.isSuccess
+    if (!opened) {
+        // No browser (or the handler is disabled): say so and show the address instead of a dead tap.
+        android.widget.Toast.makeText(
+            context,
+            context.getString(R.string.settings_open_link_failed, url),
+            android.widget.Toast.LENGTH_LONG,
+        ).show()
     }
 }
 
