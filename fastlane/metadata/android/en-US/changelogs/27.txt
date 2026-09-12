@@ -7,6 +7,7 @@ Changed
 - The in-app updater is gone. This is the last version it installs for you: from now on, updates come from your app store, Obtainium, or GitHub. "Check for updates" in Settings opens the releases page.
 - Google Drive auto-backup is gone (its Google sign-in library was the last non-free dependency). Local file backup and restore work as before. Old Drive backups stay in your Drive: remove them via Drive Settings > Manage apps.
 - Weather requests now send a neutral ARK-launcher User-Agent instead of the Android default that named the device model.
+- The app now opts out of Android's system backup: its data never leaves the device unless you export a backup file yourself.
 - Dropped permissions: install packages, post notifications, and the background-work permissions that came with the updater and Drive backup.
 
 Fixed

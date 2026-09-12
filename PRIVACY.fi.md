@@ -39,6 +39,10 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
   muistissa, eikä sitä koskaan tallenneta pysyvästi tai lähetetä minnekään.
 - **Varmuuskopiot** — viemäsi varmuuskopio kirjoitetaan valitsemaasi
   tiedostosijaintiin. Se sisältää asettelusi ja asetuksesi, ei mitään muuta.
+  Sovellus on jättäytynyt Androidin järjestelmävarmuuskopioinnin ulkopuolelle
+  (`allowBackup="false"`), joten sen tietoja ei koskaan kopioida Google-tilisi
+  laitevarmuuskopioon eikä siirretä laitteelta toiselle; viemäsi tiedosto on
+  ainoa varmuuskopio.
 
 ## Verkon käyttö
 

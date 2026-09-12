@@ -35,7 +35,10 @@ public, so every claim here can be verified:
   notifications widget. Notification content is processed in memory on the
   device and never stored persistently or transmitted anywhere.
 - **Backups** — a backup you export is written to the file location you choose.
-  It contains your layout and settings, nothing else.
+  It contains your layout and settings, nothing else. The app opts out of
+  Android's system backup (`allowBackup="false"`), so its data is never copied
+  into your Google account's device backup or carried over by a
+  device-to-device transfer; the file you export is the only backup.
 
 ## Network use
 
