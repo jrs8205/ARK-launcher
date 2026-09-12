@@ -1,0 +1,2 @@
+Fixed
+- The release APK no longer carries Google Play's encrypted dependency-metadata block (F-Droid inclusion requires this). No other changes since 0.7.12.
