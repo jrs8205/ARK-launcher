@@ -17,4 +17,16 @@ object NotificationWidgetLayout {
         maxSlots == 1 -> items.take(1) to (items.size - 1)
         else -> items.take(maxSlots - 1) to (items.size - (maxSlots - 1))
     }
+
+    /**
+     * The launcher entry that stands for a package in the widget when the package has several
+     * (an activity plus an activity-alias, say): the one the package's launch intent points to,
+     * else the first. Picking by launch intent keeps the icon independent of label sort order,
+     * which is locale-dependent. [launchClassName] is only resolved when there is a choice.
+     */
+    fun <T> representative(entries: List<T>, className: (T) -> String, launchClassName: () -> String?): T {
+        if (entries.size == 1) return entries.first()
+        val launch = launchClassName()
+        return entries.firstOrNull { className(it) == launch } ?: entries.first()
+    }
 }

@@ -8,3 +8,6 @@ Changed
 - Google Drive auto-backup is gone (its Google sign-in library was the last non-free dependency). Local file backup and restore work as before. Old Drive backups stay in your Drive: remove them via Drive Settings > Manage apps.
 - Weather requests now send a neutral ARK-launcher User-Agent instead of the Android default that named the device model.
 - Dropped permissions: install packages, post notifications, and the background-work permissions that came with the updater and Drive backup.
+
+Fixed
+- Notifications widget: an app with several launcher entries (a dialer's Phone and Messages icons, say) now shows its main launcher icon instead of whichever entry sorts last, and a notification that asks for its own small icon (Android 17's preferSmallIcon) is drawn with that icon - so a missed or blocked call shows a handset, not a message bubble.

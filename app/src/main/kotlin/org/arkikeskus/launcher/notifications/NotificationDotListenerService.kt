@@ -146,6 +146,8 @@ class NotificationDotListenerService : NotificationListenerService() {
                     userSerial = serial,
                     contentIntent = sbn.notification?.contentIntent,
                     autoCancel = (flags and Notification.FLAG_AUTO_CANCEL) != 0,
+                    preferSmallIcon = sbn.notification?.extras
+                        ?.getBoolean(Notification.EXTRA_PREFER_SMALL_ICON) == true,
                 )
                 val curVisual = visual[key]
                 if (curVisual == null || sbn.postTime > curVisual.postTime) visual[key] = entry

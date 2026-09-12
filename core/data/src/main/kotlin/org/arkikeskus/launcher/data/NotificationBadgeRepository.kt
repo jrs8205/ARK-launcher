@@ -24,6 +24,9 @@ data class StatusNotification(
     val contentIntent: PendingIntent? = null,
     /** True when the newest notification auto-cancels on open (FLAG_AUTO_CANCEL). */
     val autoCancel: Boolean = false,
+    /** The app asked surfaces to show [icon] over its launcher icon
+     *  (Notification.EXTRA_PREFER_SMALL_ICON — a dialer's handset vs. its message-bubble app icon). */
+    val preferSmallIcon: Boolean = false,
 )
 
 /**

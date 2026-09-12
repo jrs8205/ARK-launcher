@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -75,8 +76,11 @@ class NotificationsWidgetViewModel @Inject constructor(
 ) : ViewModel() {
 
     /** One widget slot: an app's newest notification + the resolved launcher app (null when the
-     *  package has no launcher activity — rendered from the notification's small icon instead). */
-    data class Slot(val notification: StatusNotification, val app: AppItem?)
+     *  package has no launcher activity). Rendered from the notification's small icon when there
+     *  is no app or the notification prefers it. */
+    data class Slot(val notification: StatusNotification, val app: AppItem?) {
+        val showsAppIcon: Boolean get() = app != null && !notification.preferSmallIcon
+    }
 
     /** Whether our notification listener is enabled — re-checked on home resume (granting happens
      *  in the system settings, so there is no result callback to observe). */
@@ -94,10 +98,22 @@ class NotificationsWidgetViewModel @Inject constructor(
         .map { it.notificationWidgetCountStyle }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LauncherSettings.COUNT_NUMBER)
 
-    val slots: StateFlow<List<Slot>> = combine(badgeRepository.icons, appRepository.apps) { notifs, apps ->
-        val byBadgeKey = apps.associateBy { it.badgeKey }
+    /** One launcher entry per package+profile; see [NotificationWidgetLayout.representative]. */
+    private val appsByBadgeKey: Flow<Map<String, AppItem>> = appRepository.apps.map { apps ->
+        apps.groupBy { it.badgeKey }.mapValues { (_, entries) ->
+            NotificationWidgetLayout.representative(entries, { it.className }) {
+                launchClassName(entries.first().packageName)
+            }
+        }
+    }
+
+    val slots: StateFlow<List<Slot>> = combine(badgeRepository.icons, appsByBadgeKey) { notifs, byBadgeKey ->
         notifs.map { Slot(it, byBadgeKey["${it.packageName}/${it.userSerial}"]) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private fun launchClassName(packageName: String): String? = runCatching {
+        context.packageManager.getLaunchIntentForPackage(packageName)?.component?.className
+    }.getOrNull()
 
     /** Tap = the notification's own action (shade parity: auto-cancel dismisses it). Falls back
      *  through app launch → app notification settings → app details so a visible icon always does
@@ -237,7 +253,7 @@ private fun NotificationSlot(
         modifier = Modifier.clickable(interactionSource = interaction, indication = null, onClick = onOpen),
     ) {
         val app = slot.app
-        if (app != null) {
+        if (app != null && slot.showsAppIcon) {
             AppIcon(
                 appItem = app,
                 labelColor = Color.White,
@@ -248,8 +264,8 @@ private fun NotificationSlot(
                 badgeScale = scale,
             )
         } else {
-            // The package has no launcher activity — fall back to the notification's own small
-            // icon, tinted white like the status bar renders it.
+            // No launcher activity, or the notification prefers its small icon (the Android 17
+            // notification-row rule) — draw that icon, tinted white like the status bar renders it.
             val bitmap = rememberNotifSmallIcon(slot.notification, iconSize)
             Box(contentAlignment = Alignment.TopEnd) {
                 if (bitmap != null) {
