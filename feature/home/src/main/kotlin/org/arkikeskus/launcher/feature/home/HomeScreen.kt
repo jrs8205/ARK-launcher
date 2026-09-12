@@ -510,7 +510,8 @@ fun HomeScreen(
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
                 onEmptyAreaMenu = { anchor, above -> homeOptions = anchor to above },
                 onEmptyAreaDoubleTap = {
-                    // Setting checked here (not in Workspace) so the gesture detector never goes stale.
+                    // `settings` is this composition's value; Workspace reads the latest lambda via
+                    // rememberUpdatedState, so a toggled setting takes effect without a restart.
                     if (settings.doubleTapToLock && !LockAccessibilityService.lock()) {
                         android.widget.Toast.makeText(
                             context,

@@ -264,6 +264,11 @@ fun Workspace(
     // The drag gesture's pointerInput block outlives recomposition (its keys don't include the entry
     // list), so it must read the *latest* placements through this state, not a stale closure capture.
     val latestEntries by rememberUpdatedState(effectiveEntries)
+    // The empty-area detector below is a pointerInput(Unit) that lives as long as the page; read the
+    // callbacks through rememberUpdatedState so a recomposition with a new lambda (a changed setting)
+    // reaches it instead of the lambda captured at first composition.
+    val currentEmptyAreaMenu by rememberUpdatedState(onEmptyAreaMenu)
+    val currentEmptyAreaDoubleTap by rememberUpdatedState(onEmptyAreaDoubleTap)
 
     val cellW = if (columns > 0 && gridSize.width > 0) gridSize.width.toFloat() / columns else 1f
     val cellH = if (rows > 0 && gridSize.height > 0) gridSize.height.toFloat() / rows else 1f
@@ -569,7 +574,7 @@ fun Workspace(
                                     // Anchor the options popup at the press point (root coords); flip it
                                     // above when the press is in the lower half of the screen.
                                     val anchorPt = dragController.gridBounds.topLeft + down.position
-                                    onEmptyAreaMenu(
+                                    currentEmptyAreaMenu(
                                         IntOffset(anchorPt.x.roundToInt(), anchorPt.y.roundToInt()),
                                         anchorPt.y > windowHeightPx * 0.45f,
                                     )
@@ -581,7 +586,7 @@ fun Workspace(
                                         (down.position - lastTapPos).getDistance() <= doubleTapSlopPx
                                     ) {
                                         lastTapUpMs = 0L
-                                        onEmptyAreaDoubleTap()
+                                        currentEmptyAreaDoubleTap()
                                     } else {
                                         lastTapUpMs = tapUpMs
                                         lastTapPos = down.position
