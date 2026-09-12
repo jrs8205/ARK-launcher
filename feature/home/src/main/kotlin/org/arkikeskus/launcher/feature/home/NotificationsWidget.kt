@@ -102,7 +102,8 @@ class NotificationsWidgetViewModel @Inject constructor(
     private val appsByBadgeKey: Flow<Map<String, AppItem>> = appRepository.apps.map { apps ->
         apps.groupBy { it.badgeKey }.mapValues { (_, entries) ->
             NotificationWidgetLayout.representative(entries, { it.className }) {
-                launchClassName(entries.first().packageName)
+                val first = entries.first()
+                appRepository.launchClassName(first.packageName, first.user)
             }
         }
     }
@@ -110,10 +111,6 @@ class NotificationsWidgetViewModel @Inject constructor(
     val slots: StateFlow<List<Slot>> = combine(badgeRepository.icons, appsByBadgeKey) { notifs, byBadgeKey ->
         notifs.map { Slot(it, byBadgeKey["${it.packageName}/${it.userSerial}"]) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    private fun launchClassName(packageName: String): String? = runCatching {
-        context.packageManager.getLaunchIntentForPackage(packageName)?.component?.className
-    }.getOrNull()
 
     /** Tap = the notification's own action (shade parity: auto-cancel dismisses it). Falls back
      *  through app launch → app notification settings → app details so a visible icon always does

@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import android.os.UserHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -53,6 +54,9 @@ class AppRepository @Inject constructor(
         source.isAppInstalled(packageName, userSerial)
 
     /** Launches [appItem]; on success, records the launch for the "most used" ranking (fire-and-forget). */
+    /** See [LauncherAppsSource.launchClassName]. */
+    fun launchClassName(packageName: String, user: UserHandle): String? = source.launchClassName(packageName, user)
+
     fun launch(appItem: AppItem): Result<Unit> {
         val result = source.launch(appItem)
         if (result.isSuccess) scope.launch { appUsageRepository.recordLaunch(appItem.key) }

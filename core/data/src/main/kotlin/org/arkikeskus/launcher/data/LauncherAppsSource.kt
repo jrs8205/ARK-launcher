@@ -154,6 +154,16 @@ class LauncherAppsSource @Inject constructor(
     }
 
     /**
+     * The launcher entry the system lists first for [packageName] in [user] — the one the package's
+     * launch intent resolves to when it declares several MAIN/LAUNCHER activities. Resolved through
+     * [LauncherApps] so work-profile packages resolve in their own profile. Null when the package has
+     * no launcher entry or the profile is unavailable.
+     */
+    fun launchClassName(packageName: String, user: UserHandle): String? = runCatching {
+        launcherApps.getActivityList(packageName, user).firstOrNull()?.componentName?.className
+    }.getOrNull()
+
+    /**
      * Resolves [appItem]'s icon. Like [launch], this must never crash the process (the launcher is the
      * device HOME): the app can be removed mid-load or its profile locked, so any failure resolves to
      * a null icon instead of propagating.
