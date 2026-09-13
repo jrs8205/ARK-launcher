@@ -19,14 +19,23 @@ android {
 
     defaultConfig {
         applicationId = "org.arkikeskus.launcher"
-        versionCode = 28
-        versionName = "0.7.13"
+        versionCode = 29
+        versionName = "0.7.14"
     }
 
     // F-Droid rejects the Play "Dependency metadata" signing block AGP adds by default.
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
+    }
+
+    // F-Droid's build server has no NDK, so AGP packages the native libraries untouched there.
+    // Keep them untouched here too, whatever NDK this machine has, so the release build is
+    // byte-identical on both sides.
+    packaging {
+        jniLibs {
+            keepDebugSymbols += "**/*.so"
+        }
     }
 
     signingConfigs {
@@ -46,6 +55,10 @@ android {
         }
         release {
             isMinifyEnabled = true
+            // The git-revision file AGP embeds would tie reproducibility to the exact checkout.
+            vcsInfo {
+                include = false
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

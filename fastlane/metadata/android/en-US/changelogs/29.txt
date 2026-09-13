@@ -1,0 +1,2 @@
+Fixed
+- Native libraries are now packaged unmodified and the APK no longer embeds version-control info, so F-Droid can reproduce the release build byte for byte. No other changes since 0.7.13.
