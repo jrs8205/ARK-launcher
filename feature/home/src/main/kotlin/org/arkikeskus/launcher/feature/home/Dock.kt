@@ -12,16 +12,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -74,6 +77,16 @@ fun Dock(
     val itemRoots = remember { mutableStateMapOf<Int, Offset>() }
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
+    // The per-icon pointerInput block outlives recomposition (its keys don't include the order), so a
+    // reorder must build on the *latest* list: an icon that stayed put kept the list captured before
+    // its neighbours moved, and dragging it afterwards silently undid that earlier reorder.
+    val latestApps by rememberUpdatedState(apps)
+    // The dock leaves composition when it is switched off in settings; without this its last bounds
+    // stayed in the controller, so the workspace cells that expanded into that area still hit-tested
+    // as "over the dock" and rejected every drop (and swallowed the gestures that started there).
+    DisposableEffect(dragController) {
+        onDispose { dragController.dockBounds = Rect.Zero }
+    }
     // Icon size derived from the slot so 6–7 dock icons fit a narrow screen (fixed 52dp overlapped).
     val dockIconSize = if (rowWidthPx > 0 && apps.isNotEmpty()) {
         iconSizeForCell(with(density) { (rowWidthPx.toFloat() / apps.size).toDp() }, 52.dp)
@@ -195,12 +208,14 @@ fun Dock(
                                             val (page, cx, cy) = dragController.cellAt(rootPos)
                                             onMoveToHome(app, page, cx, cy)
                                         } else {
-                                            val slot = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 1f
+                                            val current = latestApps
+                                            val from = current.indexOfFirst { it.key == app.key }
+                                            val slot = if (current.isNotEmpty()) rowWidthPx.toFloat() / current.size else 1f
                                             val shift = if (slot > 0f) (dragOffsetX / slot).roundToInt() else 0
-                                            val target = (index + shift).coerceIn(0, apps.size - 1)
-                                            if (target != index) {
-                                                val reordered = apps.toMutableList().also {
-                                                    it.add(target, it.removeAt(index))
+                                            val target = (from + shift).coerceIn(0, (current.size - 1).coerceAtLeast(0))
+                                            if (from >= 0 && target != from) {
+                                                val reordered = current.toMutableList().also {
+                                                    it.add(target, it.removeAt(from))
                                                 }
                                                 onReorder(reordered)
                                             }
