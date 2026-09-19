@@ -5,6 +5,8 @@ import android.content.Context
 import android.os.Process
 import android.os.UserManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemDao
@@ -48,15 +50,20 @@ class BackupRepository @Inject constructor(
             columns = columns,
             gridRows = gridRows,
         )
-        val previous = homeItemDao.getAllOnce()
-        homeItemDao.replaceLayout(mapping.entities)
-        try {
-            settings.importRaw(doc.settings)
-        } catch (t: Throwable) {
-            // The layout was already replaced; put the old one back so a failed settings write
-            // never leaves a half-restored home screen (Room and DataStore share no transaction).
-            runCatching { homeItemDao.replaceLayout(previous) }
-            throw t
+        // NonCancellable: the caller's scope dies when the user leaves Settings mid-restore. A
+        // cancellation between the two writes would fail the settings write AND the rollback below
+        // (both suspend in an already-cancelled coroutine), leaving the new layout on the old grid.
+        withContext(NonCancellable) {
+            val previous = homeItemDao.getAllOnce()
+            homeItemDao.replaceLayout(mapping.entities)
+            try {
+                settings.importRaw(doc.settings)
+            } catch (t: Throwable) {
+                // The layout was already replaced; put the old one back so a failed settings write
+                // never leaves a half-restored home screen (Room and DataStore share no transaction).
+                runCatching { homeItemDao.replaceLayout(previous) }
+                throw t
+            }
         }
         return RestoreResult(mapping.entities.size, mapping.skipped)
     }

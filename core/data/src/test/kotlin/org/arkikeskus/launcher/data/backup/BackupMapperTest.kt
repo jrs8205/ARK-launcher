@@ -331,6 +331,47 @@ class BackupMapperTest {
     }
 
     @Test
+    fun toEntities_compacts_folder_children_so_addToFolder_cannot_collide() {
+        // The middle child is not installed on the restore target. Left as [0, 2, 3] the next
+        // addToFolder (childCount 3 as the new index) hit the unique cell index and crashed.
+        val items = listOf(
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),
+            BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(12, 10, null, "com.gone", "G", true, null, 0, 1, 0),
+            BackupItem(13, 10, null, "com.b", "B", true, null, 0, 2, 0),
+            BackupItem(14, 10, null, "com.c", "C", true, null, 0, 3, 0),
+        )
+        val mapping = toEntities(
+            items,
+            installedAppKeys = setOf("com.a/A", "com.b/B", "com.c/C"),
+            installedPackages = setOf("com.a", "com.b", "com.c"),
+        )
+        val children = mapping.entities.filter { it.containerId == 10L }.sortedBy { it.cellX }
+        assertThat(children.map { it.id }).containsExactly(11L, 13L, 14L).inOrder()
+        assertThat(children.map { it.cellX }).containsExactly(0, 1, 2).inOrder()
+    }
+
+    @Test
+    fun toEntities_normalizes_hand_edited_child_positions_to_the_order_index() {
+        // A child's page/cellY are not grid coordinates; the live paths keep them 0 and order by
+        // cellX, so an edited file must come back in that shape, in the file's reading order.
+        val items = listOf(
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),
+            BackupItem(11, 10, null, "com.a", "A", true, null, 0, 5, 1),
+            BackupItem(12, 10, null, "com.b", "B", true, null, 0, 7, 0),
+        )
+        val mapping = toEntities(
+            items,
+            installedAppKeys = setOf("com.a/A", "com.b/B"),
+            installedPackages = setOf("com.a", "com.b"),
+        )
+        val children = mapping.entities.filter { it.containerId == 10L }.sortedBy { it.cellX }
+        assertThat(children.map { it.id }).containsExactly(12L, 11L).inOrder()
+        assertThat(children.map { Triple(it.page, it.cellX, it.cellY) })
+            .containsExactly(Triple(0, 0, 0), Triple(0, 1, 0)).inOrder()
+    }
+
+    @Test
     fun toEntities_skips_duplicate_app_in_the_same_container_but_allows_it_in_another() {
         val items = listOf(
             BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),

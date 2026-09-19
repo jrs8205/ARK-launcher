@@ -130,6 +130,21 @@ object BackupMapper {
             kept.add(entity(it, mainUserSerial, 1, 1))
         }
 
+        // Mirror HomeLayoutRepository.reindexFolder: a child dropped above leaves a cellX gap, and
+        // addToFolder's childCount-as-index then lands on an occupied cell (unique cell index →
+        // SQLiteConstraintException). Re-number every folder's survivors 0…n−1 in reading order.
+        val childOrder = HashMap<Long, Int>()
+        kept.filter { it.containerId != HomeItemEntity.HOME }
+            .groupBy { it.containerId }
+            .values.forEach { children ->
+                children.sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
+                    .forEachIndexed { i, child -> childOrder[child.id] = i }
+            }
+        kept.replaceAll { e ->
+            val order = childOrder[e.id]
+            if (order == null) e else e.copy(page = 0, cellX = order, cellY = 0)
+        }
+
         // Mirror HomeLayoutRepository.dissolveIfNeeded for the ONE write path that can produce an
         // under-filled folder (children dropped above as uninstalled): a folder restored with zero
         // children would be stuck on the grid forever — folders have no delete affordance and an
