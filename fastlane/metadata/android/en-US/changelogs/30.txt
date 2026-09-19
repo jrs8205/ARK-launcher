@@ -1,0 +1,17 @@
+New
+- Widgets move in one gesture: long-press and keep dragging, hold at a screen edge to change pages, drop on Remove to delete. The widget itself follows your finger.
+- New widget picker: searchable, with large live previews. Drag a preview to the spot you want or tap Add.
+- Built-in clock, battery and notification widgets adapt their layout to their size. Optional themed backgrounds in Settings > Home screen (the translucent style stays the default).
+
+Changed
+- Widget sizes are calculated from the real grid cells, and the resize handles are easier to grab.
+- The full-width toggle on the resize frame is gone; use the handles.
+
+Fixed
+- Icon labels are no longer cut off with a large system font or display size, even with 7-8 rows.
+- Restoring a backup could crash the launcher the next time an app was dropped into a restored folder.
+- A failed profile lookup at startup could delete every home-screen icon.
+- Reordering the dock could silently undo an earlier reorder; hiding the dock left a dead zone where icons could not be dropped.
+- Long-pressing a widget no longer also opens the home-screen menu.
+- App info for a work-profile app could open the personal copy instead.
+- A widget preview that misbehaves can no longer crash the launcher.
