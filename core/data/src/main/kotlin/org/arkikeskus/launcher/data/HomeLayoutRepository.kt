@@ -305,6 +305,35 @@ class HomeLayoutRepository @Inject constructor(
         }
     }
 
+    /** Revalidate a user-selected drop after binding/configuration; never relocate it silently. */
+    suspend fun addWidgetAt(
+        appWidgetId: Int?,
+        provider: String?,
+        builtinType: String?,
+        placement: org.arkikeskus.launcher.model.WidgetPlacement,
+        columns: Int,
+        rows: Int,
+    ): Boolean = db.withTransaction {
+        val items = dao.getContainer(HOME)
+        // A configuration result may be redelivered after process recreation.
+        if (appWidgetId != null && items.any { it.appWidgetId == appWidgetId }) return@withTransaction true
+        val p = placement
+        if (p.page !in 0..MAX_PAGES) return@withTransaction false
+        val plan = ReorderPlanner.planFit(
+            items.map { ReorderPlanner.Rect(it.id, it.page, it.cellX, it.cellY, it.spanX, it.spanY) },
+            Long.MIN_VALUE, p.page, p.cellX, p.cellY, p.spanX, p.spanY, columns, rows,
+        ) ?: return@withTransaction false
+        var temp = -1
+        for (id in plan.keys) { dao.moveById(id, HOME, temp, temp, temp); temp-- }
+        for ((id, pos) in plan) dao.moveById(id, HOME, p.page, pos.first, pos.second)
+        dao.insert(HomeItemEntity(
+            containerId = HOME, page = p.page, cellX = p.cellX, cellY = p.cellY,
+            spanX = p.spanX, spanY = p.spanY, appWidgetId = appWidgetId,
+            widgetProvider = provider, builtinType = builtinType,
+        ))
+        true
+    }
+
     /** Removes a placed widget row (the host id is freed by the caller). */
     suspend fun removeWidget(rowId: Long) {
         dao.deleteById(rowId)
@@ -349,8 +378,11 @@ class HomeLayoutRepository @Inject constructor(
 
     /** Binds a restored widget placeholder row to a freshly allocated [appWidgetId] on this device,
      *  turning it back into a live widget (its spanX/spanY were preserved from the backup). */
-    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int) {
+    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int): Boolean = db.withTransaction {
+        val row = dao.getById(rowId) ?: return@withTransaction false
+        if (row.widgetProvider == null || row.containerId != HOME) return@withTransaction false
         dao.updateWidgetId(rowId, appWidgetId)
+        true
     }
 
     /** Device-local ids of all bound widgets, for reconciling leftover ids in the AppWidgetHost. */

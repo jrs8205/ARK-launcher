@@ -67,8 +67,12 @@ the app: **Settings ▸ Feedback**.
   - **contacts** (opt-in; gated by a setting + the `READ_CONTACTS` permission),
   - a **calculator / unit converter** (type `12*7` or `100 cm to in`).
   - plus an optional **most-used apps** row.
-- **Home-screen widgets** — add, resize, move, **reconfigure**, and stretch a widget to **full
-  width** (edge to edge). Collection widgets (e.g. chat lists) scroll in place.
+- **Home-screen widgets** — browse large previews, tap Add or drag a preview onto the home screen.
+  Long-press and continue dragging to move a widget; hold at a screen edge to change pages.
+  Resize handles show the footprint and respect the widget's size limits; compatible widgets can
+  stretch to full width or be reconfigured. Collection widgets (e.g. chat lists) scroll in place.
+  Built-in clock, battery and notification widgets adapt to their size and offer translucent or
+  themed backgrounds in Home screen settings.
 - **Folders** on the home screen and inside the drawer.
 - **Notification dots / badges** (via a notification-listener service; dot or Nova-style count).
 - **Material You themed icons** (monochrome, on supported Android versions).

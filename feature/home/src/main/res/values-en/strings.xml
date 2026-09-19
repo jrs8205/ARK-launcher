@@ -64,7 +64,6 @@
     <string name="widget_restore_tap">Tap to set up</string>
     <string name="widget_resize">Resize</string>
     <string name="widget_reconfigure">Widget settings</string>
-    <string name="widget_full_width">Full width</string>
     <string name="widget_move_prev_page">Move to previous page</string>
     <string name="widget_move_next_page">Move to next page</string>
     <string name="widget_picker_title">Choose a widget</string>
@@ -90,4 +89,15 @@
     <string name="lock_service_label">ARK-launcher: screen lock</string>
     <string name="lock_service_description">Used only to lock the screen when you double-tap empty space on the home screen. The service does not read screen content or receive accessibility events.</string>
     <string name="double_tap_lock_needs_service">Screen lock needs the accessibility permission — grant it in Settings ▸ Gestures</string>
+    <string name="widget_picker_close">Close widget picker</string>
+    <string name="widget_picker_hint">Drag a preview to your home screen or tap Add.</string>
+    <string name="widget_picker_load_failed">Could not load widgets. Close the picker and try again.</string>
+    <string name="widget_add">Add</string>
+    <string name="widget_size">%1$d × %2$d</string>
+    <string name="widget_no_space">No space here</string>
+    <string name="widget_add_failed">Could not add the widget at the selected position. Try again.</string>
+    <string name="battery_widget_charging">Charging</string>
+    <string name="battery_widget_on_battery">On battery</string>
+    <string name="widget_resize_width">Resize width</string>
+    <string name="widget_resize_height">Resize height</string>
 </resources>

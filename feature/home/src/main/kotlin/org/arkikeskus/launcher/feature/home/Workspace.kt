@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -58,7 +60,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.drawToBitmap
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,7 +74,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -77,7 +87,11 @@ import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.AppLabel
+import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
+import org.arkikeskus.launcher.ui.component.labelBlockHeight
+import org.arkikeskus.launcher.ui.component.labelFontFactor
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlin.math.roundToInt
 
@@ -112,6 +126,8 @@ fun Workspace(
     locked: Boolean,
     homeSignals: Flow<Boolean>,
     dragController: HomeDragController,
+    widgetDragController: WidgetDragController,
+    onAddWidget: (WidgetChoice, WidgetPlacement) -> Unit,
     onAppClick: (AppItem) -> Unit,
     onAppMenu: (AppItem, IntOffset, Boolean) -> Unit,
     onMove: suspend (AppItem, Int, Int, Int) -> Boolean,
@@ -142,6 +158,7 @@ fun Workspace(
     widgetScrollableById: Map<Int, Boolean> = emptyMap(),
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -154,7 +171,9 @@ fun Workspace(
     var editingWidget by remember { mutableStateOf<EditingItem?>(null) }
     // While the edit frame is open, the root swipe-up detector must yield (it bails on localGestureActive),
     // so a handle/scrim drag can never open the drawer. Reset when the frame closes.
-    LaunchedEffect(editingWidget) { dragController.localGestureActive = editingWidget != null }
+    LaunchedEffect(editingWidget, widgetDragController.active) {
+        dragController.localGestureActive = editingWidget != null || widgetDragController.active != null
+    }
     var widgetOptimistic by remember { mutableStateOf<Pair<Long, WidgetBounds>?>(null) }
 
     // Relocation of a folder or pinned shortcut, kept local: neither travels to the dock/drawer, so
@@ -201,8 +220,11 @@ fun Workspace(
             } else s
         }
     }
-    // clear the optimistic override once the DB flow reports the widget at its new bounds
-    LaunchedEffect(placedWidgets, builtins) {
+    // clear the optimistic override once the DB flow reports the widget at its new bounds. Keyed on
+    // the override too: a drop (or resize) back onto the SAME bounds writes nothing, so the flow never
+    // emits and the override used to stay forever — pinning the widget to that cell on screen even
+    // after a later add pushed its row elsewhere.
+    LaunchedEffect(placedWidgets, builtins, widgetOptimistic) {
         val opt = widgetOptimistic ?: return@LaunchedEffect
         val landed = (placedWidgets.map { it.rowId to WidgetBounds(it.page, it.cellX, it.cellY, it.spanX, it.spanY) } +
             builtins.map { it.rowId to WidgetBounds(it.page, it.cellX, it.cellY, it.spanX, it.spanY) })
@@ -216,7 +238,9 @@ fun Workspace(
     // Keys optimistically removed from home (dragged into the dock or a folder) — hidden until the
     // flow drops them, so the icon doesn't reappear at its old cell for a frame.
     var removedKeys by remember { mutableStateOf(emptySet<String>()) }
-    LaunchedEffect(placedApps) {
+    // Keyed on the overrides too (see the widget override above): an icon dropped back onto its own
+    // cell writes nothing, so without this its override would never be released.
+    LaunchedEffect(placedApps, optimistic) {
         if (optimistic.isNotEmpty()) {
             optimistic = optimistic.filterNot { (key, pos) ->
                 placedApps.any {
@@ -269,13 +293,16 @@ fun Workspace(
     // reaches it instead of the lambda captured at first composition.
     val currentEmptyAreaMenu by rememberUpdatedState(onEmptyAreaMenu)
     val currentEmptyAreaDoubleTap by rememberUpdatedState(onEmptyAreaDoubleTap)
+    val currentWidgetDrag by rememberUpdatedState(widgetDragController)
 
     val cellW = if (columns > 0 && gridSize.width > 0) gridSize.width.toFloat() / columns else 1f
     val cellH = if (rows > 0 && gridSize.height > 0) gridSize.height.toFloat() / rows else 1f
     // Icon/folder/shortcut size derived from the cell so 6–7 columns fit a narrow screen (a fixed
-    // 52dp icon bled into neighbouring cells there). 52dp until the grid reports its real size.
-    val cellIconSize = if (gridSize.width > 0) {
-        iconSizeForCell(with(density) { cellW.toDp() }, 52.dp)
+    // 52dp icon bled into neighbouring cells there) AND so a whole label line fits under it in a
+    // short cell (7–8 rows on an enlarged display size). 52dp until the grid reports its real size.
+    val labelBlock = labelBlockHeight(showLabels, LocalAppLabelScale.current, labelFontFactor(density.fontScale))
+    val cellIconSize = if (gridSize.width > 0 && gridSize.height > 0) {
+        iconSizeForCell(with(density) { cellW.toDp() }, 52.dp, with(density) { cellH.toDp() }, labelBlock)
     } else {
         52.dp
     }
@@ -305,6 +332,109 @@ fun Workspace(
         }
         for (dx in 0 until spanX) for (dy in 0 until spanY) if (Triple(page, x + dx, y + dy) in occupied) return false
         return true
+    }
+
+    fun canPlaceWidget(p: WidgetPlacement, rowId: Long = Long.MIN_VALUE): Boolean =
+        ReorderPlanner.planFit(latestEntries.widgetRects(), rowId, p.page, p.cellX, p.cellY,
+            p.spanX, p.spanY, columns, rows) != null
+
+    fun liftWidget(item: EditingItem, root: Offset, fraction: Offset, owner: Any) {
+        // A second finger on another widget: the first drag keeps the controller (no snapshot, no buzz).
+        if (widgetDragController.active != null) return
+        val bitmap = item.appWidgetId?.let { id ->
+            widgetViews[id]?.let { view -> runCatching { view.drawToBitmap() }.getOrNull() }
+        }
+        val builtin = builtins.firstOrNull { it.rowId == item.rowId }
+        val choice = builtin?.let { WidgetChoice.Builtin(it.type) } ?: item.appWidgetId?.let { id ->
+            runCatching { AppWidgetManager.getInstance(context).getAppWidgetInfo(id) }.getOrNull()
+                ?.let { WidgetChoice.App(it) }
+        }
+        widgetDragController.start(
+            WidgetDrag(item, choice,
+                item.spanX, item.spanY, fraction, bitmap), root, owner,
+        )
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    SideEffect {
+        widgetDragController.cellWidthDp = cellW / density.density
+        widgetDragController.cellHeightDp = cellH / density.density
+        widgetDragController.target = {
+            val drag = widgetDragController.active
+            if (drag == null || locked || pagerState.isScrollInProgress) null else {
+                val pos = widgetDragController.position - dragController.gridBounds.topLeft
+                widgetDropPlacement(pagerState.currentPage, pos.x, pos.y,
+                    gridSize.width.toFloat(), gridSize.height.toFloat(), columns, rows,
+                    drag.spanX, drag.spanY, drag.grabFraction.x, drag.grabFraction.y
+                )?.takeIf { canPlaceWidget(it, drag.item?.rowId ?: Long.MIN_VALUE) }
+            }
+        }
+        widgetDragController.findSpace = { sx, sy ->
+            val pages = listOf(pagerState.currentPage) + (0..pageCount).filter { it != pagerState.currentPage }
+            pages.firstNotNullOfOrNull { page ->
+                val candidates = (0..(rows - sy)).flatMap { y ->
+                    (0..(columns - sx)).map { x -> WidgetPlacement(page, x, y, sx, sy) }
+                }
+                candidates.firstOrNull { rectFreeOnGrid(Long.MIN_VALUE, it.page, it.cellX, it.cellY, sx, sy) }
+                    ?: candidates.firstOrNull { canPlaceWidget(it) }
+            }
+        }
+        widgetDragController.keepsGestureLock = { editingWidget != null }
+        widgetDragController.onStill = { drag ->
+            drag.item?.let { editingWidget = it }
+        }
+        widgetDragController.onDrop = { drag, target ->
+            val item = drag.item
+            if (!locked && item != null && dragController.isOverRemove(widgetDragController.position)) {
+                onRemoveWidget(item.rowId, item.appWidgetId)
+                editingWidget = null
+            } else if (!locked && target != null) {
+                if (item != null) {
+                    editingWidget = null
+                    widgetOptimistic = item.rowId to WidgetBounds(target.page, target.cellX, target.cellY, target.spanX, target.spanY)
+                    scope.launch {
+                        if (onSetWidgetBounds(item.rowId, target.page, target.cellX, target.cellY, target.spanX, target.spanY)) {
+                            editingWidget = item.copy(page = target.page, cellX = target.cellX, cellY = target.cellY,
+                                spanX = target.spanX, spanY = target.spanY)
+                        } else {
+                            widgetOptimistic = null
+                        }
+                    }
+                } else {
+                    drag.choice?.let { onAddWidget(it, target) }
+                }
+            }
+        }
+    }
+    DisposableEffect(widgetDragController) {
+        onDispose {
+            widgetDragController.cancel()
+            widgetDragController.target = null
+            widgetDragController.findSpace = null
+            widgetDragController.onDrop = null
+            widgetDragController.onStill = null
+            widgetDragController.keepsGestureLock = { false }
+        }
+    }
+    LaunchedEffect(widgetDragController.active, widgetDragController.moving, pageCount) {
+        if (!widgetDragController.moving) return@LaunchedEffect
+        snapshotFlow {
+            val p = widgetDragController.position - dragController.gridBounds.topLeft
+            when {
+                p.y < 0 || p.y >= gridSize.height -> 0
+                p.x < edgePx -> -1
+                p.x > gridSize.width - edgePx -> 1
+                else -> 0
+            }
+        }.collectLatest { direction ->
+            if (direction == 0) return@collectLatest
+            while (widgetDragController.moving) {
+                delay(550)
+                val next = (pagerState.currentPage + direction).coerceIn(0, pageCount)
+                if (next == pagerState.currentPage) break
+                pagerState.animateScrollToPage(next)
+            }
+        }
     }
 
     // Shared drag for a local home entry (folder or pinned shortcut): long-press lifts; drag moves it
@@ -399,13 +529,17 @@ fun Workspace(
         }
     }
 
-    androidx.activity.compose.BackHandler(enabled = editingWidget != null) { editingWidget = null }
+    androidx.activity.compose.BackHandler(enabled = editingWidget != null || widgetDragController.active != null) {
+        widgetDragController.cancel()
+        editingWidget = null
+    }
 
     // HOME button / home gesture: always leave widget edit mode, but snap to the first page only
     // when HOME was pressed while the launcher was already foreground (alreadyOnHome). Coming home
     // from an app keeps the page the app was launched from — the Pixel Launcher convention.
     LaunchedEffect(homeSignals, pageCount) {
         homeSignals.collect { alreadyOnHome ->
+            widgetDragController.cancel()
             editingWidget = null
             if (alreadyOnHome && pagerState.currentPage != 0) pagerState.animateScrollToPage(0)
         }
@@ -420,8 +554,8 @@ fun Workspace(
     // dragging/draggingLocal.
     val crossSurfaceDrag = dragController.moving &&
         (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock)
-    LaunchedEffect(settledPage, dragging, draggingLocal, crossSurfaceDrag) {
-        if (dragging != null || draggingLocal != null || crossSurfaceDrag || settledPage <= 0) return@LaunchedEffect
+    LaunchedEffect(settledPage, dragging, draggingLocal, crossSurfaceDrag, widgetDragController.active) {
+        if (dragging != null || draggingLocal != null || crossSurfaceDrag || widgetDragController.active != null || settledPage <= 0) return@LaunchedEffect
         // After a cross-surface drag ends, the dropped app reaches this page via the DB flow a beat
         // later — wait briefly before deciding the page is empty, so a valid drop isn't undone.
         if (latestEntries.none { it.page == settledPage }) kotlinx.coroutines.delay(180)
@@ -473,12 +607,12 @@ fun Workspace(
         Column(modifier = Modifier.fillMaxSize()) {
             HorizontalPager(
                 state = pagerState,
-                userScrollEnabled = dragging == null && draggingLocal == null && editingWidget == null,
+                userScrollEnabled = dragging == null && draggingLocal == null && editingWidget == null && widgetDragController.active == null,
                 // While dragging, keep every page composed so flipping to another page can't
                 // dispose the dragged item's node (which would cancel the in-progress drag). Also kept
                 // composed during a drawer/dock→home drag so its target page renders as pages flip.
                 beyondViewportPageCount = if (
-                    dragging != null || draggingLocal != null ||
+                    dragging != null || draggingLocal != null || widgetDragController.active != null ||
                     (dragController.moving &&
                         (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock))
                 ) pageCount.coerceAtLeast(0) else 0,
@@ -566,10 +700,13 @@ fun Workspace(
                                 }
                                 // Fired only on a still empty-area hold. If an icon picked up
                                 // (dragging != null) the hold belonged to that icon, not settings.
+                                // A lifted widget owns the hold too: its gesture only OBSERVES the press (the
+                                // hosted view must keep its taps), so this detector still sees the still
+                                // dwell — without the check the pickup haptic was followed by this menu.
                                 // Also suppressed while a widget is in edit mode (editingWidget != null):
                                 // a still dwell on the widget during a move/remove drag must not also
                                 // open the home-options menu underneath the edit scrim.
-                                if (held == null && !resolved && dragging == null && editingWidget == null) {
+                                if (held == null && !resolved && dragging == null && editingWidget == null && currentWidgetDrag.active == null) {
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     // Anchor the options popup at the press point (root coords); flip it
                                     // above when the press is in the lower half of the screen.
@@ -579,7 +716,7 @@ fun Workspace(
                                         anchorPt.y > windowHeightPx * 0.45f,
                                     )
                                 }
-                                if (tapUpMs >= 0 && dragging == null && editingWidget == null) {
+                                if (tapUpMs >= 0 && dragging == null && editingWidget == null && currentWidgetDrag.active == null) {
                                     // Double-tap = previous tap's UP → this tap's DOWN within the
                                     // platform timeout, close enough together on screen.
                                     if (down.uptimeMillis - lastTapUpMs <= viewConfiguration.doubleTapTimeoutMillis &&
@@ -938,39 +1075,13 @@ fun Workspace(
                                             widgetRect = it.boundsInRoot()
                                             if (widgetScrollable) dragController.scrollableWidgetRects[widget.rowId] = widgetRect
                                         }
-                                        .pointerInput(widget.rowId, widget.page, widget.cellX, widget.cellY, widget.spanX, widget.spanY, locked, cellW, cellH, columns, rows, pageCount) {
-                                            if (locked) return@pointerInput
-                                            awaitEachGesture {
-                                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                                val slop = viewConfiguration.touchSlop
-                                                var movedEarly = false
-                                                val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                                                    while (true) {
-                                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
-                                                        if (!c.pressed) return@withTimeoutOrNull false
-                                                        if ((c.position - down.position).getDistance() > slop) { movedEarly = true; return@withTimeoutOrNull false }
-                                                    }
-                                                    @Suppress("UNREACHABLE_CODE") false
-                                                }
-                                                // held == null → timed out while still pressed (and not moved) → PICK UP.
-                                                if (held != null || movedEarly) return@awaitEachGesture
-                                                // held long-press → enter edit mode. Consume the REST of this
-                                                // gesture (until the finger lifts) so the embedded
-                                                // AppWidgetHostView receives a CANCEL instead of an UP and does
-                                                // not also launch the widget's own click action.
-                                                editingWidget = EditingItem(
-                                                    widget.rowId, widget.appWidgetId, widget.page,
-                                                    widget.cellX, widget.cellY, widget.spanX, widget.spanY,
-                                                )
-                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                while (true) {
-                                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                                    ev.changes.forEach { it.consume() }
-                                                    if (ev.changes.none { it.id == down.id && it.pressed }) break
-                                                }
-                                                return@awaitEachGesture
-                                            }
+                                        .graphicsLayer {
+                                            alpha = if (widgetDragController.moving &&
+                                                widgetDragController.active?.item?.rowId == widget.rowId) 0f else 1f
+                                        }
+                                        .widgetDragGesture(widget.rowId, !locked, widgetDragController) { root, fraction, owner ->
+                                            liftWidget(EditingItem(widget.rowId, widget.appWidgetId, widget.page,
+                                                widget.cellX, widget.cellY, widget.spanX, widget.spanY), root, fraction, owner)
                                         },
                                 ) {
                                     if (hostView != null) {
@@ -1100,38 +1211,13 @@ fun Workspace(
                                             with(density) { (space.spanX * cellW).toDp() },
                                             with(density) { (space.spanY * cellH).toDp() },
                                         )
-                                        // Same still-long-press → edit-frame gesture as an app widget:
-                                        // watched in the Initial pass without consuming, so the widget's own
-                                        // tap targets (clock / date / event) keep working; once edit mode
-                                        // opens, the rest of the gesture is consumed so the release can't
-                                        // also fire a child tap.
-                                        .pointerInput(space.rowId, space.page, space.cellX, space.cellY, space.spanX, space.spanY, locked, cellW, cellH) {
-                                            if (locked) return@pointerInput
-                                            awaitEachGesture {
-                                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                                val slop = viewConfiguration.touchSlop
-                                                var movedEarly = false
-                                                val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                                                    while (true) {
-                                                        val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                                        val c = ev.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
-                                                        if (!c.pressed) return@withTimeoutOrNull false
-                                                        if ((c.position - down.position).getDistance() > slop) { movedEarly = true; return@withTimeoutOrNull false }
-                                                    }
-                                                    @Suppress("UNREACHABLE_CODE") false
-                                                }
-                                                if (held != null || movedEarly) return@awaitEachGesture
-                                                editingWidget = EditingItem(
-                                                    space.rowId, null, space.page,
-                                                    space.cellX, space.cellY, space.spanX, space.spanY,
-                                                )
-                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                while (true) {
-                                                    val ev = awaitPointerEvent(PointerEventPass.Initial)
-                                                    ev.changes.forEach { it.consume() }
-                                                    if (ev.changes.none { it.id == down.id && it.pressed }) break
-                                                }
-                                            }
+                                        .graphicsLayer {
+                                            alpha = if (widgetDragController.moving &&
+                                                widgetDragController.active?.item?.rowId == space.rowId) 0f else 1f
+                                        }
+                                        .widgetDragGesture(space.rowId, !locked, widgetDragController) { root, fraction, owner ->
+                                            liftWidget(EditingItem(space.rowId, null, space.page,
+                                                space.cellX, space.cellY, space.spanX, space.spanY), root, fraction, owner)
                                         },
                                 ) {
                                     when (space.type) {
@@ -1158,7 +1244,7 @@ fun Workspace(
                         val builtinType = remember(ew.rowId) {
                             if (ew.appWidgetId == null) builtins.firstOrNull { it.rowId == ew.rowId }?.type else null
                         }
-                        val range = remember(ew.rowId, columns) {
+                        val range = remember(ew.rowId, columns, rows, cellW, cellH) {
                             if (ew.appWidgetId == null) {
                                 val minSpanX = when (builtinType) {
                                     HomeItemEntity.BUILTIN_NOTIFICATIONS -> NOTIFICATIONS_MIN_SPAN_X
@@ -1171,29 +1257,21 @@ fun Workspace(
                                     horizontal = true, vertical = true,
                                 )
                             } else {
-                                info?.let { widgetResizeRange(it, ctxE, columns, rows) }?.takeIf { it.isResizable }
+                                info?.let { widgetResizeRange(it, ctxE, columns, rows, cellW / density.density, cellH / density.density) }?.takeIf { it.isResizable }
                             }
                         }
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }
-                        val defaultSpanX = remember(ew.appWidgetId, columns) {
-                            if (ew.appWidgetId == null) {
-                                val d = when (builtinType) {
-                                    HomeItemEntity.BUILTIN_NOTIFICATIONS -> NOTIFICATIONS_DEFAULT_SPAN_X
-                                    HomeItemEntity.BUILTIN_BATTERY -> BATTERY_SPAN
-                                    else -> SMARTSPACE_DEFAULT_SPAN_X
-                                }
-                                d.coerceIn(1, columns)
-                            } else {
-                                (info?.let { defaultWidgetSpans(it, ctxE).first } ?: 2).coerceIn(1, columns)
-                            }
-                        }
-                        WidgetEditOverlay(
+                        key(ew) { Box(Modifier.fillMaxSize().graphicsLayer {
+                            alpha = if (widgetDragController.moving) 0f else 1f
+                        }) { WidgetEditOverlay(
                             widget = ew,
+                            widgetDragController = widgetDragController,
+                            commitScope = scope,
+                            onCancelPreview = { widgetOptimistic = null },
+                            onLift = ::liftWidget,
                             range = range,
                             reconfigurable = reconfigurable,
-                            defaultSpanX = defaultSpanX,
                             cellW = cellW, cellH = cellH, columns = columns, rows = rows, density = density,
-                            rectFree = { x, y, sx, sy -> rectFreeOnGrid(ew.rowId, ew.page, x, y, sx, sy) },
                             // A resize "fits" if the cells are free OR the overlapping items can be pushed
                             // aside (same plan the repository commits on release), so the handle only grows
                             // when the commit will actually succeed.
@@ -1235,8 +1313,6 @@ fun Workspace(
                             },
                             onReconfigure = { ew.appWidgetId?.let(onReconfigureWidget); editingWidget = null },
                             onExit = { editingWidget = null },
-                            onRemove = { onRemoveWidget(ew.rowId, ew.appWidgetId); editingWidget = null },
-                            dragController = dragController,
                             canMovePrev = ew.page > 0,
                             canMoveNext = ew.page < pageCount,
                             onMoveToPage = { targetPage, msx, msy ->
@@ -1258,7 +1334,7 @@ fun Workspace(
                                     }
                                 }
                             },
-                        )
+                        ) } }
                     }
                 }
             }
@@ -1273,6 +1349,7 @@ fun Workspace(
                 )
             }
         }
+        WidgetDragLayer(widgetDragController, dragController, cellW, cellH)
         // The floating dragged *app icon* is drawn by LauncherShell (above the workspace, dock and the
         // drawer) so it can travel across surfaces. A dragged folder/shortcut never leaves the grid, so
         // its floating preview is drawn here locally, following the finger ([localDragPos], grid coords).
@@ -1313,18 +1390,6 @@ fun Workspace(
     }
 }
 
-/** The grid item inside the widget edit frame: a bound app widget, or a built-in widget when
- *  [appWidgetId] is null (no provider info, no host id — resize limits come from the grid). */
-data class EditingItem(
-    val rowId: Long,
-    val appWidgetId: Int?,
-    val page: Int,
-    val cellX: Int,
-    val cellY: Int,
-    val spanX: Int,
-    val spanY: Int,
-)
-
 /** Launcher3-style widget edit frame: a touch-consuming scrim (so the resize gesture can't leak into
  *  the drawer swipe-up or page scroll), a body-drag layer (move within the page, or drop on the top
  *  Remove pill to delete), a border, edge handles on the resizable axes (each edge moves, opposite edge
@@ -1333,22 +1398,22 @@ data class EditingItem(
 @Composable
 private fun WidgetEditOverlay(
     widget: EditingItem,
+    widgetDragController: WidgetDragController,
+    onLift: (EditingItem, Offset, Offset, Any) -> Unit,
+    commitScope: kotlinx.coroutines.CoroutineScope,
+    onCancelPreview: () -> Unit,
     range: WidgetResizeRange?,
     reconfigurable: Boolean,
-    defaultSpanX: Int,
     cellW: Float,
     cellH: Float,
     columns: Int,
     rows: Int,
     density: androidx.compose.ui.unit.Density,
-    rectFree: (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
     canFit: (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
     onSetBounds: suspend (x: Int, y: Int, spanX: Int, spanY: Int) -> Boolean,
     onPreviewBounds: (x: Int, y: Int, spanX: Int, spanY: Int) -> Unit,
     onReconfigure: () -> Unit,
     onExit: () -> Unit,
-    dragController: HomeDragController,
-    onRemove: () -> Unit,
     canMovePrev: Boolean,
     canMoveNext: Boolean,
     onMoveToPage: (targetPage: Int, spanX: Int, spanY: Int) -> Unit,
@@ -1364,199 +1429,158 @@ private fun WidgetEditOverlay(
     var okY by remember(widget.rowId) { mutableStateOf(widget.cellY) }
     var okSx by remember(widget.rowId) { mutableStateOf(widget.spanX) }
     var okSy by remember(widget.rowId) { mutableStateOf(widget.spanY) }
-    val commitScope = rememberCoroutineScope()
+    // The gesture blocks below are keyed on the row id, so they outlive the recompositions an edit
+    // itself causes (a resize pushes icons aside → new entries). Read the collision checks through
+    // state: the captured lambdas kept judging moves/resizes against the layout at edit-mode entry.
+    val currentCanFit by rememberUpdatedState(canFit)
+    var previewing by remember(widget.rowId) { mutableStateOf(false) }
+    val cancelPreview by rememberUpdatedState(onCancelPreview)
+    DisposableEffect(widget.rowId) {
+        onDispose { if (previewing) cancelPreview() }
+    }
+    var committing by remember(widget.rowId) { mutableStateOf(false) }
+    val currentSetBounds by rememberUpdatedState(onSetBounds)
+    val currentPreview by rememberUpdatedState(onPreviewBounds)
+    fun showPreview(x: Int, y: Int, w: Int, h: Int) {
+        previewing = true
+        currentPreview(x, y, w, h)
+    }
+    var blocked by remember(widget.rowId) { mutableStateOf(false) }
+    fun preview(x: Int, y: Int, w: Int, h: Int): Boolean {
+        val accepted = currentCanFit(x, y, w, h)
+        blocked = !accepted
+        return accepted
+    }
     fun commitBounds() {
+        if (committing) return
         val x = cx; val y = cy; val w = sx; val h = sy
+        committing = true
+        previewing = false
         commitScope.launch {
-            if (onSetBounds(x, y, w, h)) {
-                okX = x; okY = y; okSx = w; okSy = h
-            } else {
-                cx = okX; cy = okY; sx = okSx; sy = okSy
-            }
+            try {
+                if (currentSetBounds(x, y, w, h)) {
+                    okX = x; okY = y; okSx = w; okSy = h
+                } else {
+                    cx = okX; cy = okY; sx = okSx; sy = okSy
+                    currentPreview(cx, cy, sx, sy)
+                }
+            } finally { committing = false }
         }
     }
     val primary = MaterialTheme.colorScheme.primary
-    val handlePx = with(density) { 28.dp.toPx() }
+    val handlePx = with(density) { 48.dp.toPx() }
+    val widthLabel = stringResource(R.string.widget_resize_width)
+    val heightLabel = stringResource(R.string.widget_resize_height)
+    val sizeLabel = stringResource(R.string.widget_size, sx, sy)
+    fun resizeBy(dx: Int, dy: Int): Boolean {
+        val limits = range ?: return false
+        if (committing || (dx != 0 && !limits.horizontal) || (dy != 0 && !limits.vertical)) return false
+        val w = if (dx == 0) sx else (sx + dx).coerceIn(limits.minX, limits.maxX)
+        val h = if (dy == 0) sy else (sy + dy).coerceIn(limits.minY, limits.maxY)
+        if ((w == sx && h == sy) || !preview(cx, cy, w, h)) return false
+        sx = w; sy = h
+        showPreview(cx, cy, sx, sy)
+        commitBounds()
+        return true
+    }
 
     // Scrim: consumes a tap (exit) and, by being the topmost interactive layer, keeps the resize-handle
     // drags from ever reaching the root swipe-up detector or the pager.
     Box(Modifier.fillMaxSize().pointerInput(widget.rowId) { detectTapGestures { onExit() } })
 
-    // Body drag: a drag that starts on the widget body (not a handle/gear, which sit on top and consume
-    // first) moves the widget; dropping over the top Remove pill deletes it.
-    var dragTopLeft by remember(widget.rowId) { mutableStateOf(Offset(cx * cellW, cy * cellH)) }
-    // Finger offset within the widget at grab time. The Remove hit-test (and the remove-zone highlight)
-    // must track the FINGER, not the widget's top-left: a tall widget grabbed mid-body would otherwise
-    // never reach the top Remove pill (its top-left stays below it), so it could never be removed — it
-    // just slid under the pill. Mirrors the app drag path (which adds down.position to the cell origin).
-    var grabOffset by remember(widget.rowId) { mutableStateOf(Offset.Zero) }
-    var dragging by remember(widget.rowId) { mutableStateOf(false) }
-    var targetCell by remember(widget.rowId) { mutableStateOf<IntOffset?>(IntOffset(cx, cy)) }
     Box(
-        modifier = Modifier
-            .offset { IntOffset((cx * cellW).roundToInt(), (cy * cellH).roundToInt()) }
+        Modifier.offset { IntOffset((cx * cellW).roundToInt(), (cy * cellH).roundToInt()) }
             .size(with(density) { (sx * cellW).toDp() }, with(density) { (sy * cellH).toDp() })
-            .pointerInput(widget.rowId, cellW, cellH, columns, rows) {
-                detectDragGestures(
-                    onDragStart = { start ->
-                        dragging = true
-                        dragTopLeft = Offset(cx * cellW, cy * cellH)
-                        grabOffset = start
-                        dragController.localDragging = true
-                    },
-                    onDragEnd = {
-                        dragging = false
-                        dragController.localDragging = false
-                        val rootPos = dragController.gridBounds.topLeft + dragTopLeft + grabOffset
-                        if (dragController.isOverRemove(rootPos)) {
-                            onRemove()
-                        } else {
-                            val t = targetCell
-                            if (t != null && (t.x != cx || t.y != cy)) { cx = t.x; cy = t.y; commitBounds() }
-                        }
-                    },
-                    onDragCancel = { dragging = false; dragController.localDragging = false },
-                ) { ch, d ->
-                    ch.consume()
-                    dragTopLeft += d
-                    dragController.update(dragController.gridBounds.topLeft + dragTopLeft + grabOffset)
-                    val tx = (dragTopLeft.x / cellW).roundToInt().coerceIn(0, (columns - sx).coerceAtLeast(0))
-                    val ty = (dragTopLeft.y / cellH).roundToInt().coerceIn(0, (rows - sy).coerceAtLeast(0))
-                    targetCell = if (rectFree(tx, ty, sx, sy)) IntOffset(tx, ty) else null
+            .border(2.dp, if (blocked) MaterialTheme.colorScheme.error else primary, RoundedCornerShape(24.dp))
+            .semantics {
+                stateDescription = sizeLabel
+                customActions = buildList {
+                    if (range?.horizontal == true) {
+                        add(CustomAccessibilityAction(widthLabel + " +") { resizeBy(1, 0) })
+                        add(CustomAccessibilityAction(widthLabel + " −") { resizeBy(-1, 0) })
+                    }
+                    if (range?.vertical == true) {
+                        add(CustomAccessibilityAction(heightLabel + " +") { resizeBy(0, 1) })
+                        add(CustomAccessibilityAction(heightLabel + " −") { resizeBy(0, -1) })
+                    }
                 }
+            }
+            .widgetDragGesture(widget.rowId, !committing, widgetDragController, immediate = true) { root, fraction, owner ->
+                onLift(widget.copy(cellX = cx, cellY = cy, spanX = sx, spanY = sy), root, fraction, owner)
             },
     )
-    // Live move feedback: a highlighted placeholder at the target cell while body-dragging.
-    val tgt = targetCell
-    if (dragging && tgt != null) {
-        Box(
-            modifier = Modifier
-                .offset { IntOffset((tgt.x * cellW).roundToInt(), (tgt.y * cellH).roundToInt()) }
-                .size(with(density) { (sx * cellW).toDp() }, with(density) { (sy * cellH).toDp() })
-                .padding(4.dp)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f), RoundedCornerShape(12.dp)),
-        )
-    }
-
-    // Candidate-rect border. While body-dragging it follows the finger CONTINUOUSLY: the offset reads
-    // dragTopLeft in the layout phase, so it re-positions every frame without recomposition (smooth, like
-    // Pixel); the per-cell snap target is shown by the placeholder above. A faint fill makes the moving
-    // card readable.
-    Box(
-        modifier = Modifier
-            .offset {
-                if (dragging) IntOffset(dragTopLeft.x.roundToInt(), dragTopLeft.y.roundToInt())
-                else IntOffset((cx * cellW).roundToInt(), (cy * cellH).roundToInt())
-            }
-            .size(with(density) { (sx * cellW).toDp() }, with(density) { (sy * cellH).toDp() })
-            .then(if (dragging) Modifier.background(primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp)) else Modifier)
-            .border(2.dp, primary, RoundedCornerShape(12.dp)),
-    )
-
     if (range != null) {
         val left = cx * cellW; val top = cy * cellH; val right = (cx + sx) * cellW; val bottom = (cy + sy) * cellH
         var accX by remember(widget.rowId) { mutableStateOf(0f) }
         var accY by remember(widget.rowId) { mutableStateOf(0f) }
         // 0.66-cell hysteresis (Launcher3 getSpanIncrement): a step fires only past 66% of a cell.
         fun step(acc: Float, cell: Float): Int { val f = acc / cell; return if (kotlin.math.abs(f) > 0.66f) f.roundToInt() else 0 }
-        fun hMod(centerX: Float, centerY: Float, onDrag: (Offset) -> Unit) = Modifier
+        fun hMod(centerX: Float, centerY: Float, label: String, onDrag: (Offset) -> Unit) = Modifier
             .offset { IntOffset((centerX - handlePx / 2).roundToInt(), (centerY - handlePx / 2).roundToInt()) }
             .size(with(density) { handlePx.toDp() })
-            .background(primary, CircleShape)
-            .pointerInput(widget.rowId) {
+            .drawBehind { drawCircle(primary, radius = 7.dp.toPx()) }
+            .semantics { contentDescription = label }
+            .pointerInput(widget.rowId, cellW, cellH, range, committing) {
+                if (committing) return@pointerInput
                 detectDragGestures(
-                    onDragEnd = { accX = 0f; accY = 0f; commitBounds() },
-                    onDragCancel = { accX = 0f; accY = 0f; commitBounds() },
+                    onDragEnd = { accX = 0f; accY = 0f; blocked = false; commitBounds() },
+                    onDragCancel = {
+                        accX = 0f; accY = 0f; blocked = false
+                        cx = okX; cy = okY; sx = okSx; sy = okSy
+                        previewing = false
+                        cancelPreview()
+                    },
                 ) { ch, d -> ch.consume(); onDrag(d) }
             }
         // Each accepted step previews the new bounds into the workspace (onPreviewBounds), so the
         // hosted widget CONTENT resizes with the frame mid-drag instead of jumping on release.
         if (range.horizontal) {
-            Box(hMod(right, (top + bottom) / 2f) { d ->
+            Box(hMod(right, (top + bottom) / 2f, widthLabel) { d ->
                 accX += d.x
                 val s = step(accX, cellW)
                 if (s != 0) {
                     val n = (sx + s).coerceIn(range.minX, range.maxX)
-                    if (n != sx && canFit(cx, cy, n, sy)) { sx = n; onPreviewBounds(cx, cy, sx, sy) }
+                    if (n != sx && preview(cx, cy, n, sy)) { sx = n; showPreview(cx, cy, sx, sy) }
                     accX = 0f
                 }
             })
-            Box(hMod(left, (top + bottom) / 2f) { d ->
+            Box(hMod(left, (top + bottom) / 2f, widthLabel) { d ->
                 accX += d.x
                 val s = step(accX, cellW)
                 if (s != 0) {
-                    val rightEdge = cx + sx
-                    val nCx = (cx + s).coerceIn(0, rightEdge - range.minX)
-                    val nSx = (rightEdge - nCx).coerceIn(range.minX, range.maxX)
-                    val fCx = rightEdge - nSx
-                    if ((fCx != cx || nSx != sx) && canFit(fCx, cy, nSx, sy)) {
-                        cx = fCx; sx = nSx
-                        onPreviewBounds(cx, cy, sx, sy)
+                    resizeWidgetStartEdge(cx, sx, s, range.minX, range.maxX)?.let { (x, width) ->
+                        if ((x != cx || width != sx) && preview(x, cy, width, sy)) {
+                            cx = x; sx = width
+                            showPreview(cx, cy, sx, sy)
+                        }
                     }
                     accX = 0f
                 }
             })
         }
         if (range.vertical) {
-            Box(hMod((left + right) / 2f, bottom) { d ->
+            Box(hMod((left + right) / 2f, bottom, heightLabel) { d ->
                 accY += d.y
                 val s = step(accY, cellH)
                 if (s != 0) {
                     val n = (sy + s).coerceIn(range.minY, range.maxY)
-                    if (n != sy && canFit(cx, cy, sx, n)) { sy = n; onPreviewBounds(cx, cy, sx, sy) }
+                    if (n != sy && preview(cx, cy, sx, n)) { sy = n; showPreview(cx, cy, sx, sy) }
                     accY = 0f
                 }
             })
-            Box(hMod((left + right) / 2f, top) { d ->
+            Box(hMod((left + right) / 2f, top, heightLabel) { d ->
                 accY += d.y
                 val s = step(accY, cellH)
                 if (s != 0) {
-                    val bottomEdge = cy + sy
-                    val nCy = (cy + s).coerceIn(0, bottomEdge - range.minY)
-                    val nSy = (bottomEdge - nCy).coerceIn(range.minY, range.maxY)
-                    val fCy = bottomEdge - nSy
-                    if ((fCy != cy || nSy != sy) && canFit(cx, fCy, sx, nSy)) {
-                        cy = fCy; sy = nSy
-                        onPreviewBounds(cx, cy, sx, sy)
+                    resizeWidgetStartEdge(cy, sy, s, range.minY, range.maxY)?.let { (y, height) ->
+                        if ((y != cy || height != sy) && preview(cx, y, sx, height)) {
+                            cy = y; sy = height
+                            showPreview(cx, cy, sx, sy)
+                        }
                     }
                     accY = 0f
                 }
             })
-        }
-    }
-
-    // Full-width toggle (top-left), always available in edit mode regardless of the provider's resize
-    // flags: tap to stretch the widget edge-to-edge across the grid (cellX 0, span all columns), tap
-    // again to restore the provider's default width. Commits only into a free row.
-    run {
-        val isFull = cx == 0 && sx >= columns
-        Box(
-            modifier = Modifier
-                .offset {
-                    IntOffset(
-                        (cx * cellW + 8.dp.toPx()).roundToInt(),
-                        (cy * cellH + 8.dp.toPx()).roundToInt(),
-                    )
-                }
-                .size(with(density) { handlePx.toDp() })
-                .background(primary, CircleShape)
-                .clickable {
-                    if (isFull) {
-                        val target = defaultSpanX.coerceIn(1, columns)
-                        if (rectFree(cx, cy, target, sy)) { sx = target; commitBounds() }
-                    } else if (rectFree(0, cy, columns, sy)) {
-                        cx = 0; sx = columns
-                        commitBounds()
-                    }
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_fit_width),
-                contentDescription = stringResource(R.string.widget_full_width),
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(with(density) { (handlePx * 0.6f).toDp() }),
-            )
         }
     }
 
@@ -1571,7 +1595,7 @@ private fun WidgetEditOverlay(
                 }
                 .size(with(density) { handlePx.toDp() })
                 .background(primary, CircleShape)
-                .clickable { onReconfigure() },
+                .clickable(enabled = !committing) { onReconfigure() },
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -1594,7 +1618,7 @@ private fun WidgetEditOverlay(
                     .offset { IntOffset((centerX - handlePx - with(density) { 8.dp.toPx() }).roundToInt(), arrowY.roundToInt()) }
                     .size(with(density) { handlePx.toDp() })
                     .background(primary, CircleShape)
-                    .clickable { onMoveToPage(widget.page - 1, sx, sy) },
+                    .clickable(enabled = !committing) { onMoveToPage(widget.page - 1, sx, sy) },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -1611,7 +1635,7 @@ private fun WidgetEditOverlay(
                     .offset { IntOffset((centerX + with(density) { 8.dp.toPx() }).roundToInt(), arrowY.roundToInt()) }
                     .size(with(density) { handlePx.toDp() })
                     .background(primary, CircleShape)
-                    .clickable { onMoveToPage(widget.page + 1, sx, sy) },
+                    .clickable(enabled = !committing) { onMoveToPage(widget.page + 1, sx, sy) },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -1640,19 +1664,7 @@ private fun ShortcutIconContent(
         } else {
             Box(Modifier.size(iconSize))
         }
-        if (showLabel) {
-            val scale = org.arkikeskus.launcher.ui.component.LocalAppLabelScale.current
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = shortcut.label,
-                color = labelColor,
-                fontSize = (11f * scale).sp,
-                lineHeight = (13f * scale).sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-            )
-        }
+        if (showLabel) AppLabel(shortcut.label, labelColor)
     }
 }
 

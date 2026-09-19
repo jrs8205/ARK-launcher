@@ -7,6 +7,11 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -74,8 +79,13 @@ fun BatteryWidget(
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
         val s = status ?: return@BoxWithConstraints
         // The ring hugs the smaller cell axis, like an app icon does; resizing the footprint scales it.
-        val diameter = minOf(maxWidth, maxHeight) * 0.84f
+        val wide = maxWidth >= 180.dp && maxWidth > maxHeight * 1.6f
+        val diameter = minOf(maxWidth, maxHeight) * 0.78f
+        val ink = widgetContentColor()
         val color = colors.batteryColor(s.percent)
+        WidgetSurface(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize().padding(6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -93,9 +103,9 @@ fun BatteryWidget(
                 val inset = stroke / 2f
                 val arcSize = Size(size.width - stroke, size.height - stroke)
                 // Translucent disc so the ring + number read on any wallpaper (the card idiom).
-                drawCircle(color = Color.Black.copy(alpha = 0.30f))
+                // The surrounding surface supplies a consistent background.
                 drawArc(
-                    color = Color.White.copy(alpha = 0.25f),
+                    color = ink.copy(alpha = 0.25f),
                     startAngle = -90f, sweepAngle = 360f, useCenter = false,
                     topLeft = Offset(inset, inset), size = arcSize,
                     style = Stroke(width = stroke, cap = StrokeCap.Round),
@@ -119,7 +129,7 @@ fun BatteryWidget(
                 }
                 Text(
                     text = "${s.percent.coerceIn(0, 100)}%",
-                    color = Color.White,
+                    color = ink,
                     style = TextStyle(
                         fontSize = with(density) { (diameter * 0.23f).toSp() },
                         fontWeight = FontWeight.Medium,
@@ -128,6 +138,13 @@ fun BatteryWidget(
                     maxLines = 1,
                 )
             }
+        }
+        if (wide) Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.battery_widget_name), color = ink, style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(if (s.charging) R.string.battery_widget_charging else R.string.battery_widget_on_battery),
+                color = ink.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+        }
+        }
         }
     }
 }

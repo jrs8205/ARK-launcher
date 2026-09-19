@@ -225,6 +225,7 @@ fun SettingsScreen(
                     s.hideSystemStatusBar,
                     viewModel::setHideSystemStatusBar,
                 )
+                SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, viewModel::setWidgetTonalBackground)
                 WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_notif_widget_count),

@@ -54,6 +54,8 @@ data class LauncherSettings(
      *  clock/indicators legible over bright wallpapers. Own setting, like [dockBackgroundOpacity]. */
     val statusBarScrimOpacity: Float = 0.6f,
     /** Count indicator of the built-in notifications widget: [COUNT_NUMBER], [COUNT_DOT] or [COUNT_NONE]. */
+    /** Use theme surfaces for built-in widgets; false keeps the translucent wallpaper style. */
+    val widgetTonalBackground: Boolean = false,
     val notificationWidgetCountStyle: String = COUNT_NUMBER,
     /** Double-tap on empty home-screen space locks the screen (needs the lock accessibility service). */
     val doubleTapToLock: Boolean = false,

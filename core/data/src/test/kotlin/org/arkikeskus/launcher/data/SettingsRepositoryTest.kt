@@ -15,6 +15,18 @@ class SettingsRepositoryTest {
     private fun newRepository() = SettingsRepository(InMemoryDataStore())
 
     @Test
+    fun widgetBackgroundPreservesOldDefaultAndRoundTripsThroughBackup() = runTest {
+        val source = newRepository()
+        assertThat(source.settings.first().widgetTonalBackground).isFalse()
+        source.setWidgetTonalBackground(true)
+        val restored = newRepository()
+        restored.importRaw(source.exportRaw())
+        assertThat(restored.settings.first().widgetTonalBackground).isTrue()
+        restored.importRaw(mapOf("widget_tonal_background" to "invalid"))
+        assertThat(restored.settings.first().widgetTonalBackground).isFalse()
+    }
+
+    @Test
     fun `reorderVisibleDock keeps favorites hidden by the column cap`() = runTest {
         val repo = newRepository()
         listOf("a", "b", "c", "d", "e", "f").forEach { repo.addToDock(it) }

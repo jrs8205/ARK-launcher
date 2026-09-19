@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -162,7 +164,8 @@ fun SmartspaceWidget(
     }
 
     // The wallpaper is arbitrary, so the text carries its own soft shadow (like the home labels).
-    val shadow = Shadow(color = Color.Black.copy(alpha = 0.55f), blurRadius = 8f)
+    val ink = widgetContentColor()
+    val shadow = Shadow(color = if (LocalTonalWidgets.current) Color.Transparent else Color.Black.copy(alpha = 0.55f), blurRadius = 8f)
     // Taps must not show a ripple box over the wallpaper — the widget has no background surface.
     val noIndication = remember { MutableInteractionSource() }
 
@@ -172,19 +175,60 @@ fun SmartspaceWidget(
     // giant empty panel. The TEXT scales with the footprint (user feedback: resizing must visibly
     // grow the widget): height drives the scale, width caps it so a narrow span can't overflow.
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
-    val scale = minOf(maxHeight / 190.dp, maxWidth / 220.dp).coerceIn(0.75f, 1.8f)
+    // A short widget changes layout instead of shrinking every label into unreadable text.
+    if (maxHeight < 140.dp) {
+        WidgetSurface(Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium,
+                    maxLines = 1, modifier = Modifier.clickable {
+                        runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+                    })
+                Column(Modifier.weight(1f)) {
+                    Text(dateText, color = ink, style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clickable {
+                            val uri = CalendarContract.CONTENT_URI.buildUpon()
+                                .appendPath("time").appendPath(now.toString()).build()
+                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+                        })
+                    val event = nextEvent
+                    val detail = when {
+                        !hasPermission -> stringResource(R.string.smartspace_allow_calendar)
+                        event != null -> event.title.ifBlank { stringResource(R.string.smartspace_no_title) }
+                        weather != null -> weather!!.temperatureC.roundToInt().toString() + "° " + WeatherCodes.emoji(weather!!.weatherCode)
+                        else -> null
+                    }
+                    if (detail != null) Text(detail, color = ink.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable(enabled = !hasPermission || event != null) {
+                            if (!hasPermission) permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                            else if (event != null) runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW,
+                                    ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId))
+                                    .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
+                                    .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end))
+                            }
+                        })
+                }
+            }
+        }
+        return@BoxWithConstraints
+    }
+    val scale = if (maxHeight >= 260.dp && maxWidth >= 300.dp) 1.15f else 0.9f
+    val spacious = maxHeight >= 240.dp
+    val expanded = maxHeight >= 260.dp
     Column(
         modifier = Modifier
             // A soft translucent card behind the text so the widget reads as one element on any
             // wallpaper (user feedback; same idiom as the dock background and the restore tiles).
-            .background(Color.Black.copy(alpha = 0.30f), RoundedCornerShape((24 * scale).dp))
+            .background(widgetSurfaceColor(), RoundedCornerShape(24.dp))
             .padding(horizontal = (22 * scale).dp, vertical = (10 * scale).dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = timeText,
-            color = Color.White,
+            color = widgetContentColor(),
             style = TextStyle(fontSize = (46 * scale).sp, fontWeight = FontWeight.Medium, shadow = shadow),
             maxLines = 1,
             modifier = Modifier.clickable(interactionSource = noIndication, indication = null) {
@@ -227,13 +271,13 @@ fun SmartspaceWidget(
         // The bottom line (the calendar event, or its tap-to-grant prompt) is what the compact
         // mode makes room for: with it, weather + date + alarm share ONE middle row so the widget
         // tops out at three rows; without it, they keep their own airy rows (user design).
-        if (!hasPermission || event != null) {
+        if (!spacious && (!hasPermission || event != null)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (w != null) {
                     val city = w.city?.let { " $it" }.orEmpty()
                     Text(
                         text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
-                        color = Color.White,
+                        color = widgetContentColor(),
                         style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -245,7 +289,7 @@ fun SmartspaceWidget(
                 }
                 Text(
                     text = dateText,
-                    color = Color.White,
+                    color = widgetContentColor(),
                     style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
                     maxLines = 1,
                     modifier = Modifier.clickable(interactionSource = noIndication, indication = null, onClick = openCalendarDay),
@@ -255,13 +299,13 @@ fun SmartspaceWidget(
                     Icon(
                         painter = painterResource(R.drawable.ic_status_alarm),
                         contentDescription = stringResource(R.string.smartspace_next_alarm),
-                        tint = Color.White.copy(alpha = 0.9f),
+                        tint = widgetContentColor().copy(alpha = 0.9f),
                         modifier = Modifier.size((14 * scale).dp),
                     )
                     Spacer(Modifier.width((3 * scale).dp))
                     Text(
                         text = alarmText,
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = widgetContentColor().copy(alpha = 0.9f),
                         style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
                         maxLines = 1,
                         modifier = Modifier.clickable(interactionSource = noIndication, indication = null, onClick = openAlarms),
@@ -275,7 +319,7 @@ fun SmartspaceWidget(
                 val city = w.city?.let { " $it" }.orEmpty()
                 Text(
                     text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
-                    color = Color.White,
+                    color = widgetContentColor(),
                     style = TextStyle(fontSize = (16 * scale).sp, shadow = shadow),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -283,7 +327,7 @@ fun SmartspaceWidget(
             }
             Text(
                 text = dateText,
-                color = Color.White,
+                color = widgetContentColor(),
                 style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -300,13 +344,13 @@ fun SmartspaceWidget(
                     Icon(
                         painter = painterResource(R.drawable.ic_status_alarm),
                         contentDescription = stringResource(R.string.smartspace_next_alarm),
-                        tint = Color.White.copy(alpha = 0.9f),
+                        tint = widgetContentColor().copy(alpha = 0.9f),
                         modifier = Modifier.size((15 * scale).dp),
                     )
                     Spacer(Modifier.width((4 * scale).dp))
                     Text(
                         text = alarmText,
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = widgetContentColor().copy(alpha = 0.9f),
                         style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
                         maxLines = 1,
                     )
@@ -316,7 +360,7 @@ fun SmartspaceWidget(
         when {
             !hasPermission -> Text(
                 text = stringResource(R.string.smartspace_allow_calendar),
-                color = Color.White.copy(alpha = 0.85f),
+                color = widgetContentColor().copy(alpha = 0.85f),
                 style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -347,9 +391,9 @@ fun SmartspaceWidget(
                 }
                 Text(
                     text = eventText.ifBlank { stringResource(R.string.smartspace_no_title) },
-                    color = Color.White.copy(alpha = 0.92f),
+                    color = widgetContentColor().copy(alpha = 0.92f),
                     style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
-                    maxLines = 1,
+                    maxLines = if (expanded) 2 else 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .padding(top = 2.dp)
@@ -376,7 +420,7 @@ fun SmartspaceWidget(
             ) { viewModel.refresh() }
             Text(
                 text = stringResource(R.string.smartspace_allow_location),
-                color = Color.White.copy(alpha = 0.85f),
+                color = widgetContentColor().copy(alpha = 0.85f),
                 style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -396,7 +440,7 @@ fun SmartspaceWidget(
 private fun MiddleDot(scale: Float, shadow: Shadow) {
     Text(
         text = "·",
-        color = Color.White.copy(alpha = 0.8f),
+        color = widgetContentColor().copy(alpha = 0.8f),
         style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
         modifier = Modifier.padding(horizontal = (5 * scale).dp),
     )

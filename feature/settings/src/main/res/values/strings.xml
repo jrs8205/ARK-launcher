@@ -80,4 +80,5 @@
     <string name="settings_feedback_telegram_desc">Keskustele muiden käyttäjien kanssa — t.me/ARKlauncher</string>
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
+    <string name="settings_widget_tonal">Widgettien teematausta</string>
 </resources>

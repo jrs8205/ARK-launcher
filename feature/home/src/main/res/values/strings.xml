@@ -64,7 +64,6 @@
     <string name="widget_restore_tap">Napauta ottaaksesi käyttöön</string>
     <string name="widget_resize">Muuta kokoa</string>
     <string name="widget_reconfigure">Widgetin asetukset</string>
-    <string name="widget_full_width">Koko leveys</string>
     <string name="widget_move_prev_page">Siirrä edelliselle sivulle</string>
     <string name="widget_move_next_page">Siirrä seuraavalle sivulle</string>
     <string name="widget_picker_title">Valitse widget</string>
@@ -90,4 +89,15 @@
     <string name="lock_service_label">ARK-launcher: näytön lukitus</string>
     <string name="lock_service_description">Käytetään ainoastaan näytön lukitsemiseen, kun kotinäytön tyhjää aluetta kaksoisnapautetaan. Palvelu ei lue näytön sisältöä eikä vastaanota esteettömyystapahtumia.</string>
     <string name="double_tap_lock_needs_service">Näytön lukitus vaatii esteettömyysluvan — myönnä se kohdasta Asetukset ▸ Eleet</string>
+    <string name="widget_picker_close">Sulje widgettivalitsin</string>
+    <string name="widget_picker_hint">Vedä esikatselu kotinäytölle tai napauta Lisää.</string>
+    <string name="widget_picker_load_failed">Widgettiluetteloa ei voitu ladata. Sulje valitsin ja yritä uudelleen.</string>
+    <string name="widget_add">Lisää</string>
+    <string name="widget_size">%1$d × %2$d</string>
+    <string name="widget_no_space">Ei tilaa tässä</string>
+    <string name="widget_add_failed">Widgettiä ei voitu lisätä valittuun paikkaan. Yritä uudelleen.</string>
+    <string name="battery_widget_charging">Ladataan</string>
+    <string name="battery_widget_on_battery">Akku käytössä</string>
+    <string name="widget_resize_width">Muuta leveyttä</string>
+    <string name="widget_resize_height">Muuta korkeutta</string>
 </resources>

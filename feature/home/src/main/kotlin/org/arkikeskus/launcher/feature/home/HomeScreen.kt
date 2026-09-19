@@ -95,6 +95,10 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
@@ -205,6 +209,13 @@ fun HomeScreen(
     val widgetConfigLauncher = LocalWidgetConfigLauncher.current
     val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
     var showWidgetPicker by remember { mutableStateOf(false) }
+    val widgetDrag = remember(dragController) { WidgetDragController(dragController) }
+    val widgetScope = rememberCoroutineScope()
+    var liveBindId by remember { mutableStateOf<Int?>(null) }
+    fun widgetMessage(message: Int) {
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+    }
+
     // Pending widget across the bind/configure result steps. [restoreRowId] non-null → this is a
     // RESTORE (re-bind an existing placeholder row) rather than adding a brand-new widget.
     // Saveable: while the system bind dialog or the widget's own config activity is in front, the
@@ -278,14 +289,25 @@ fun HomeScreen(
     }
 
     fun finishWidget(bind: PendingWidgetBind) {
-        if (bind.restoreRowId != null) {
-            // Restore: the placeholder row already has the provider + spans from the backup; just bind it.
-            viewModel.bindRestoredWidget(bind.restoreRowId, bind.appWidgetId)
-        } else {
-            val (sx, sy) = defaultWidgetSpans(bind.provider, context)
-            viewModel.addWidget(bind.appWidgetId, bind.provider.provider.flattenToString(), sx, sy)
+        widgetScope.launch {
+            // The allocated id and the layout row must reach a consistent state even if the Activity
+            // is destroyed while Room is writing. Process death is recovered by the saved bind state.
+            withContext(NonCancellable) {
+                val saved = runCatching {
+                    if (bind.restoreRowId != null) {
+                        viewModel.bindRestoredWidget(bind.restoreRowId, bind.appWidgetId)
+                    } else {
+                        val target = bind.placement ?: return@runCatching false
+                        viewModel.addWidgetAt(bind.appWidgetId, bind.provider.provider.flattenToString(), null, target)
+                    }
+                }.getOrDefault(false)
+                if (!saved) {
+                    runCatching { widgetHost?.deleteAppWidgetId(bind.appWidgetId) }
+                    widgetMessage(R.string.widget_add_failed)
+                }
+                if (pendingWidget?.appWidgetId == bind.appWidgetId) pendingWidget = null
+            }
         }
-        pendingWidget = null
     }
 
     val reconfigureLauncher = rememberLauncherForActivityResult(
@@ -324,11 +346,19 @@ fun HomeScreen(
 
     // Allocate an id and bind [provider] (silently if allowed, else via the system bind dialog), then
     // configure. [restoreRowId] != null re-binds an existing placeholder row instead of adding a new one.
-    fun startBind(provider: AppWidgetProviderInfo, restoreRowId: Long?) {
+    fun startBind(provider: AppWidgetProviderInfo, restoreRowId: Long?, placement: WidgetPlacement? = null) {
+        // Guards a double tap. Only a bind started by THIS process blocks: [pendingWidget] is saveable,
+        // so one whose result never arrives would otherwise refuse every later add, silently, forever.
+        if (pendingWidget != null && pendingWidget?.appWidgetId == liveBindId) return
         val host = widgetHost ?: return
-        val id = host.allocateAppWidgetId()
-        val bind = PendingWidgetBind(id, provider, restoreRowId)
-        val bound = runCatching { appWidgetManager.bindAppWidgetIdIfAllowed(id, provider.provider) }.getOrDefault(false)
+        val id = runCatching { host.allocateAppWidgetId() }.getOrElse {
+            widgetMessage(R.string.widget_add_failed)
+            return
+        }
+        val bind = PendingWidgetBind(id, provider, restoreRowId, placement)
+        liveBindId = id
+        pendingWidget = bind
+        val bound = runCatching { appWidgetManager.bindAppWidgetIdIfAllowed(id, provider.profile, provider.provider, null) }.getOrDefault(false)
         if (bound) {
             configureOrFinish(bind)
         } else {
@@ -336,13 +366,23 @@ fun HomeScreen(
             val intent = android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider.provider)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, provider.profile)
             }
             runCatching { bindLauncher.launch(intent) }
                 .onFailure { host.deleteAppWidgetId(id); pendingWidget = null }
         }
     }
 
-    fun startAddWidget(provider: AppWidgetProviderInfo) = startBind(provider, restoreRowId = null)
+    fun addWidget(choice: WidgetChoice, placement: WidgetPlacement) {
+        showWidgetPicker = false
+        when (choice) {
+            is WidgetChoice.App -> startBind(choice.provider, restoreRowId = null, placement = placement)
+            is WidgetChoice.Builtin -> widgetScope.launch {
+                val ok = runCatching { viewModel.addWidgetAt(null, null, choice.type, placement) }.getOrDefault(false)
+                if (!ok) widgetMessage(R.string.widget_add_failed)
+            }
+        }
+    }
 
     // Re-bind a restored placeholder: resolve its provider info, then run the same bind/configure flow
     // targeting its existing row. If the provider's app is gone (uninstalled after restore), no-op.
@@ -393,6 +433,7 @@ fun HomeScreen(
             renameTarget = null
             openFolderId = null
             showWidgetPicker = false
+            widgetDrag.cancel()
         }
     }
 
@@ -404,6 +445,7 @@ fun HomeScreen(
     // All app icons on home (workspace, dock, folders) honour the themed-icons setting and the
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
+        LocalTonalWidgets provides settings.widgetTonalBackground,
         LocalThemedIcons provides settings.useThemedIcons,
         LocalIconPack provides settings.iconPackPackage,
         LocalAppLabelScale provides settings.appLabelTextScale,
@@ -497,6 +539,8 @@ fun HomeScreen(
                 locked = settings.desktopLocked,
                 homeSignals = homeSignals,
                 dragController = dragController,
+                widgetDragController = widgetDrag,
+                onAddWidget = ::addWidget,
                 onAppClick = viewModel::launch,
                 onAppMenu = { app, anchor, above -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home, above) },
                 onMove = viewModel::moveItem,
@@ -720,26 +764,19 @@ fun HomeScreen(
     }
 
     if (showWidgetPicker) {
+        CompositionLocalProvider(LocalTonalWidgets provides settings.widgetTonalBackground) {
         WidgetPickerScreen(
-            onPick = { provider ->
-                showWidgetPicker = false
-                startAddWidget(provider)
+            dragController = widgetDrag,
+            columns = settings.homeColumns,
+            rows = settings.homeRows,
+            onPick = { choice, sx, sy ->
+                val target = widgetDrag.findSpace?.invoke(sx, sy)
+                if (target == null) widgetMessage(R.string.widget_no_space) else addWidget(choice, target)
             },
-            onPickBuiltin = {
-                showWidgetPicker = false
-                viewModel.addSmartspace()
-            },
-            onPickBuiltinNotifications = {
-                showWidgetPicker = false
-                viewModel.addNotificationsWidget()
-            },
-            onPickBuiltinBattery = {
-                showWidgetPicker = false
-                viewModel.addBatteryWidget()
-            },
-            onDismiss = { showWidgetPicker = false },
+            onDismiss = { widgetDrag.cancel(); showWidgetPicker = false },
             modifier = Modifier.fillMaxSize(),
         )
+        }
     }
 
     renameTarget?.let { app ->
@@ -981,6 +1018,7 @@ private data class PendingWidgetBind(
     val appWidgetId: Int,
     val provider: AppWidgetProviderInfo,
     val restoreRowId: Long?,
+    val placement: WidgetPlacement? = null,
 )
 
 /** Bundles [PendingWidgetBind] into saved instance state so an in-flight bind survives process death
@@ -992,6 +1030,9 @@ private val PendingWidgetBindSaver = Saver<PendingWidgetBind?, android.os.Bundle
                 putInt("id", it.appWidgetId)
                 putParcelable("provider", it.provider)
                 putLong("row", it.restoreRowId ?: -1L)
+                it.placement?.let { p ->
+                    putIntArray("placement", intArrayOf(p.page, p.cellX, p.cellY, p.spanX, p.spanY))
+                }
             }
         }
     },
@@ -999,7 +1040,10 @@ private val PendingWidgetBindSaver = Saver<PendingWidgetBind?, android.os.Bundle
         @Suppress("DEPRECATION")
         val provider = b.getParcelable<AppWidgetProviderInfo>("provider")
         provider?.let {
-            PendingWidgetBind(b.getInt("id"), it, b.getLong("row").takeIf { row -> row >= 0 })
+            PendingWidgetBind(b.getInt("id"), it, b.getLong("row").takeIf { row -> row >= 0 },
+                b.getIntArray("placement")?.takeIf { p -> p.size == 5 }?.let { p ->
+                    WidgetPlacement(p[0], p[1], p[2], p[3], p[4])
+                })
         }
     },
 )

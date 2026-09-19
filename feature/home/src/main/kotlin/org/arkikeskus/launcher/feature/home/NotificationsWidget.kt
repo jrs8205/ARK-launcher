@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -177,18 +178,18 @@ fun NotificationsWidget(
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
         // Icons scale with the footprint HEIGHT (a 1-row widget stays compact, taller spans grow);
         // the width decides how many icons fit.
-        val scale = (maxHeight / 96.dp).coerceIn(0.8f, 1.6f)
+        val scale = if (maxHeight >= 160.dp) 1.2f else (maxHeight / 96.dp).coerceIn(0.75f, 1f)
         val iconSize = (40 * scale).dp
         val spacing = (10 * scale).dp
         when {
             !hasAccess -> Text(
                 text = stringResource(R.string.notifications_widget_allow_access),
-                color = Color.White.copy(alpha = 0.85f),
+                color = widgetContentColor().copy(alpha = 0.85f),
                 style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.30f), RoundedCornerShape((18 * scale).dp))
+                    .background(widgetSurfaceColor(), RoundedCornerShape(24.dp))
                     .clickable(interactionSource = noIndication, indication = null) {
                         openNotificationListenerSettings(context)
                     }
@@ -197,13 +198,16 @@ fun NotificationsWidget(
             slots.isEmpty() -> Unit // No notifications → nothing renders (user choice).
             else -> {
                 // Slots the width fits after the card's own padding; the chip shares the last slot.
-                val maxSlots = maxOf(1, ((maxWidth - (24 * scale).dp + spacing) / (iconSize + spacing)).toInt())
+                val perRow = maxOf(1, ((maxWidth - (24 * scale).dp + spacing) / (iconSize + spacing)).toInt())
+                val visibleRows = maxOf(1, ((maxHeight - (16 * scale).dp + spacing) / (iconSize + spacing)).toInt())
+                val maxSlots = perRow * visibleRows
                 val (shown, overflow) = NotificationWidgetLayout.select(slots, maxSlots)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(spacing),
-                    verticalAlignment = Alignment.CenterVertically,
+                FlowRow(
+                    maxItemsInEachRow = perRow,
+                    horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(spacing),
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.30f), RoundedCornerShape((18 * scale).dp))
+                        .background(widgetSurfaceColor(), RoundedCornerShape(24.dp))
                         .padding(horizontal = (12 * scale).dp, vertical = (8 * scale).dp),
                 ) {
                     shown.forEach { slot ->
@@ -214,7 +218,7 @@ fun NotificationsWidget(
                     if (overflow > 0) {
                         Text(
                             text = "+$overflow",
-                            color = Color.White,
+                            color = widgetContentColor(),
                             style = TextStyle(
                                 fontSize = (14 * scale).sp,
                                 fontWeight = FontWeight.Medium,

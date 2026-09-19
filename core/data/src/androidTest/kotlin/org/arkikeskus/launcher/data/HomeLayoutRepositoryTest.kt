@@ -49,6 +49,36 @@ class HomeLayoutRepositoryTest {
     private fun HomeItemEntity.cell() = Triple(page, cellX, cellY)
 
     @Test
+    fun widgetDropKeepsChosenPageAndPushesAnOccupantAtomically() = runTest {
+        repo.addToHome(app("a"), columns = 4, rows = 6)
+        val target = org.arkikeskus.launcher.model.WidgetPlacement(0, 0, 0, 2, 2)
+        assertThat(repo.addWidgetAt(42, "pkg/Widget", null, target, 4, 6)).isTrue()
+        val all = dao.getContainer(HomeItemEntity.HOME)
+        val widget = all.single { it.appWidgetId == 42 }
+        val icon = all.single { it.appWidgetId == null }
+        assertThat(widget.cell()).isEqualTo(Triple(0, 0, 0))
+        assertThat(icon.cellX >= 2 || icon.cellY >= 2).isTrue()
+    }
+
+    @Test
+    fun rejectedDropAfterConfigurationLeavesExistingLayoutUntouched() = runTest {
+        val full = org.arkikeskus.launcher.model.WidgetPlacement(0, 0, 0, 4, 6)
+        assertThat(repo.addWidgetAt(41, "pkg/Full", null, full, 4, 6)).isTrue()
+        val before = dao.getAll()
+        assertThat(repo.addWidgetAt(42, "pkg/New", null, full.copy(spanX = 2, spanY = 2), 4, 6)).isFalse()
+        assertThat(dao.getAll()).isEqualTo(before)
+    }
+
+    @Test
+    fun redeliveredWidgetConfigurationDoesNotDuplicateItsHostId() = runTest {
+        val p = org.arkikeskus.launcher.model.WidgetPlacement(2, 1, 1, 2, 2)
+        assertThat(repo.addWidgetAt(42, "pkg/Widget", null, p, 4, 6)).isTrue()
+        assertThat(repo.addWidgetAt(42, "pkg/Widget", null, p, 4, 6)).isTrue()
+        assertThat(dao.getAll().count { it.appWidgetId == 42 }).isEqualTo(1)
+        assertThat(dao.getAll().single().cell()).isEqualTo(Triple(2, 1, 1))
+    }
+
+    @Test
     fun removeStaleAppRows_compactsFolderChildren_soAddToFolderCannotCollide() = runTest {
         repo.addToHome(app("a"), columns = 4, rows = 6)
         repo.addToHome(app("b"), columns = 4, rows = 6)

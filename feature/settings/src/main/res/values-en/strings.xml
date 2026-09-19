@@ -80,4 +80,5 @@
     <string name="settings_feedback_telegram_desc">Chat with other users — t.me/ARKlauncher</string>
     <string name="settings_step_decrease">Decrease</string>
     <string name="settings_step_increase">Increase</string>
+    <string name="settings_widget_tonal">Themed backgrounds for built-in widgets</string>
 </resources>

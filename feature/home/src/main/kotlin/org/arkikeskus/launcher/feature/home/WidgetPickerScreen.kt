@@ -2,269 +2,139 @@ package org.arkikeskus.launcher.feature.home
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.os.Build
+import android.os.Process
+import android.view.MotionEvent
+import android.view.View
+import android.widget.FrameLayout
+import android.widget.RemoteViews
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.view.drawToBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.ui.LauncherIcons
 
-/** A widget app group: the package, the app label, its providers, and each provider's pre-resolved
- *  widget label (resolved once so the search filter doesn't hit the PackageManager on every keystroke). */
-private data class WidgetGroup(
-    val packageName: String,
-    val appLabel: String,
-    val providers: List<AppWidgetProviderInfo>,
-    val widgetLabels: List<String>,
-)
+private data class WidgetGroup(val packageName: String, val label: String, val widgets: List<WidgetOption>)
+private data class WidgetOption(val choice: WidgetChoice, val label: String)
+private data class WidgetPreviewData(val remote: RemoteViews? = null, val bitmap: Bitmap? = null)
 
-/** Full-screen picker: installed widget providers grouped by app, with a search box; tap one to add.
- *  The launcher's own built-in widget leads the list under an "ARK-launcher" section. */
+/** Searchable preview gallery. Keep the source composed (transparent) until its pointer is released. */
 @Composable
 fun WidgetPickerScreen(
-    onPick: (AppWidgetProviderInfo) -> Unit,
-    onPickBuiltin: () -> Unit = {},
-    onPickBuiltinNotifications: () -> Unit = {},
-    onPickBuiltinBattery: () -> Unit = {},
+    dragController: WidgetDragController,
+    columns: Int,
+    rows: Int,
+    onPick: (WidgetChoice, Int, Int) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onDismiss)
     val context = LocalContext.current
-    val pm = context.packageManager
-    // Enumerating every widget provider + loading each label is Binder/PackageManager work — done
-    // off the main thread so opening the picker doesn't stall composition on widget-heavy devices
-    // (it ran synchronously inside remember{} before). The grid fills in when the scan lands.
-    val groups by produceState(initialValue = emptyList<WidgetGroup>(), context) {
-        value = withContext(Dispatchers.IO) {
-            AppWidgetManager.getInstance(context).installedProviders
-                .groupBy { it.provider.packageName }
-                .map { (pkg, providers) ->
-                    val sorted = providers.sortedBy { it.loadLabel(pm) }
-                    // The APP's label, not the first widget's: the header names the app, and a
-                    // widget-label header also collided across packages (duplicate lazy keys).
-                    val appLabel = runCatching {
-                        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-                    }.getOrNull()?.takeIf { it.isNotBlank() } ?: sorted.first().loadLabel(pm)
-                    WidgetGroup(
-                        packageName = pkg,
-                        appLabel = appLabel,
-                        providers = sorted,
-                        widgetLabels = sorted.map { it.loadLabel(pm) },
-                    )
-                }
-                .sortedBy { it.appLabel.lowercase() }
-        }
-    }
     var query by remember { mutableStateOf("") }
-    // Filter by app label OR widget label (case-insensitive). A whole-app match keeps all its widgets;
-    // otherwise only the matching widgets are shown under that app.
-    val filtered = remember(query, groups) {
-        val q = query.trim().lowercase()
-        if (q.isEmpty()) {
-            groups
-        } else {
-            groups.mapNotNull { g ->
-                if (g.appLabel.lowercase().contains(q)) {
-                    g
-                } else {
-                    val idx = g.widgetLabels.indices.filter { g.widgetLabels[it].lowercase().contains(q) }
-                    if (idx.isEmpty()) null
-                    else g.copy(providers = idx.map { g.providers[it] }, widgetLabels = idx.map { g.widgetLabels[it] })
-                }
-            }
+    var failed by remember { mutableStateOf(false) }
+    val groups by produceState<List<WidgetGroup>?>(null, context) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val pm = context.packageManager
+                AppWidgetManager.getInstance(context).installedProviders
+                    .filter { it.widgetCategory and AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN != 0 }
+                    .groupBy { it.provider.packageName }
+                    .map { (pkg, providers) ->
+                        val label = runCatching {
+                            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                        }.getOrDefault(pkg)
+                        WidgetGroup(pkg, label, providers.map { provider ->
+                            WidgetOption(WidgetChoice.App(provider), runCatching { provider.loadLabel(pm) }.getOrDefault(label))
+                        }.sortedBy { it.label.lowercase() })
+                    }.sortedBy { it.label.lowercase() }
+            }.getOrElse { failed = true; emptyList() }
         }
     }
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-        Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
-            Text(
-                text = stringResource(R.string.widget_picker_title),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp),
-            )
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.widget_search)) },
-                leadingIcon = {
-                    Icon(painter = painterResource(R.drawable.ic_search), contentDescription = null)
-                },
-                trailingIcon = if (query.isNotEmpty()) {
-                    {
-                        Icon(
-                            painter = painterResource(LauncherIcons.Close),
-                            contentDescription = stringResource(R.string.widget_search_clear),
-                            modifier = Modifier.clickable { query = "" },
-                        )
-                    }
-                } else {
-                    null
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 4.dp),
-            )
-            // The built-in widgets: shown at the top, each filtered by the same query.
-            val builtinSection = stringResource(R.string.widget_builtin_section)
-            val builtinName = stringResource(R.string.smartspace_widget_name)
-            val notifName = stringResource(R.string.notifications_widget_name)
-            val batteryName = stringResource(R.string.battery_widget_name)
-            val builtinVisible = remember(query, builtinSection, builtinName) {
-                val q = query.trim().lowercase()
-                q.isEmpty() || builtinSection.lowercase().contains(q) || builtinName.lowercase().contains(q)
-            }
-            val notifVisible = remember(query, builtinSection, notifName) {
-                val q = query.trim().lowercase()
-                q.isEmpty() || builtinSection.lowercase().contains(q) || notifName.lowercase().contains(q)
-            }
-            val batteryVisible = remember(query, builtinSection, batteryName) {
-                val q = query.trim().lowercase()
-                q.isEmpty() || builtinSection.lowercase().contains(q) || batteryName.lowercase().contains(q)
-            }
-            if (filtered.isEmpty() && !builtinVisible && !notifVisible && !batteryVisible) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    Text(
-                        text = stringResource(R.string.widget_search_none),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 40.dp),
-                    )
+    val builtinTitle = stringResource(R.string.widget_builtin_section)
+    val builtins = listOf(
+        WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_SMARTSPACE), stringResource(R.string.smartspace_widget_name)),
+        WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_BATTERY), stringResource(R.string.battery_widget_name)),
+        WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_NOTIFICATIONS), stringResource(R.string.notifications_widget_name)),
+    )
+    val all = listOf(WidgetGroup("builtin", builtinTitle, builtins)) + groups.orEmpty()
+    val visible = all.mapNotNull { group ->
+        val widgets = if (group.label.contains(query.trim(), true)) group.widgets
+            else group.widgets.filter { it.label.contains(query.trim(), true) }
+        group.copy(widgets = widgets).takeIf { widgets.isNotEmpty() }
+    }
+    val dragging = dragController.moving
+    Surface(
+        modifier.graphicsLayer { alpha = if (dragging) 0f else 1f },
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.widget_picker_title), style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f).padding(8.dp))
+                IconButton(onClick = onDismiss) {
+                    Icon(painterResource(LauncherIcons.Close), stringResource(R.string.widget_picker_close))
                 }
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    if (builtinVisible || notifVisible || batteryVisible) {
-                        item(key = "h-builtin") {
-                            Text(
-                                text = builtinSection,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
-                            )
-                        }
+            }
+            OutlinedTextField(
+                value = query, onValueChange = { query = it }, singleLine = true,
+                placeholder = { Text(stringResource(R.string.widget_search)) },
+                leadingIcon = { Icon(painterResource(R.drawable.ic_search), null) },
+                trailingIcon = if (query.isEmpty()) null else ({
+                    IconButton(onClick = { query = "" }) {
+                        Icon(painterResource(LauncherIcons.Close), stringResource(R.string.widget_search_clear))
                     }
-                    if (builtinVisible) {
-                        item(key = "builtin-smartspace") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(onClick = onPickBuiltin)
-                                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_widgets),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(40.dp),
-                                )
-                                Column(modifier = Modifier.padding(start = 16.dp)) {
-                                    Text(builtinName, color = MaterialTheme.colorScheme.onSurface)
-                                    Text(
-                                        text = stringResource(R.string.smartspace_size_full),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                            }
-                        }
+                }),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+            Text(stringResource(R.string.widget_picker_hint), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                userScrollEnabled = !dragging,
+            ) {
+                if (groups == null) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                if (failed) item { Text(stringResource(R.string.widget_picker_load_failed)) }
+                if (visible.isEmpty() && groups != null) item { Text(stringResource(R.string.widget_search_none)) }
+                visible.forEach { group ->
+                    item(key = "header:" + group.packageName) {
+                        Text(group.label, style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
                     }
-                    if (batteryVisible) {
-                        item(key = "builtin-battery") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(onClick = onPickBuiltinBattery)
-                                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_widgets),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(40.dp),
-                                )
-                                Column(modifier = Modifier.padding(start = 16.dp)) {
-                                    Text(batteryName, color = MaterialTheme.colorScheme.onSurface)
-                                    Text(
-                                        text = stringResource(R.string.battery_widget_desc),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                            }
+                    items(group.widgets, key = {
+                        when (val choice = it.choice) {
+                            is WidgetChoice.App -> choice.provider.provider.flattenToString()
+                            is WidgetChoice.Builtin -> "builtin:" + choice.type
                         }
-                    }
-                    if (notifVisible) {
-                        item(key = "builtin-notifications") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(onClick = onPickBuiltinNotifications)
-                                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_widgets),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(40.dp),
-                                )
-                                Column(modifier = Modifier.padding(start = 16.dp)) {
-                                    Text(notifName, color = MaterialTheme.colorScheme.onSurface)
-                                    Text(
-                                        text = stringResource(R.string.notifications_widget_desc),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    filtered.forEach { group ->
-                        item(key = "h-${group.packageName}") {
-                            Text(
-                                text = group.appLabel,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 4.dp),
-                            )
-                        }
-                        items(group.providers.size) { i ->
-                            WidgetRow(provider = group.providers[i], onClick = { onPick(group.providers[i]) })
-                        }
+                    }) { option ->
+                        WidgetCard(option, dragController, columns, rows, onPick)
                     }
                 }
             }
@@ -273,54 +143,214 @@ fun WidgetPickerScreen(
 }
 
 @Composable
-private fun WidgetRow(provider: AppWidgetProviderInfo, onClick: () -> Unit) {
+private fun WidgetCard(
+    option: WidgetOption, controller: WidgetDragController, columns: Int, rows: Int,
+    onPick: (WidgetChoice, Int, Int) -> Unit,
+) {
     val context = LocalContext.current
-    val pm = context.packageManager
-    val (sx, sy) = remember(provider) { defaultWidgetSpans(provider, context) }
-    // Preview decode is Binder + bitmap work — off the main thread, and bounded: some third-party
-    // previews are wallpaper-sized but land in a 56 dp box.
-    val preview by produceState<ImageBitmap?>(initialValue = null, provider) {
-        value = withContext(Dispatchers.IO) {
-            val d = runCatching { provider.loadPreviewImage(context, 0) }.getOrNull()
-                ?: runCatching { provider.loadIcon(context, 0) }.getOrNull()
-            d?.let {
-                runCatching {
-                    val raw = it.toBitmap()
-                    val max = 512
-                    val bmp = if (raw.width > max || raw.height > max) {
-                        val s = max.toFloat() / maxOf(raw.width, raw.height)
-                        android.graphics.Bitmap.createScaledBitmap(
-                            raw,
-                            (raw.width * s).toInt().coerceAtLeast(1),
-                            (raw.height * s).toInt().coerceAtLeast(1),
-                            true,
-                        )
-                    } else {
-                        raw
-                    }
-                    bmp.asImageBitmap()
-                }.getOrNull()
+    val (defaultX, defaultY) = when (val choice = option.choice) {
+        is WidgetChoice.App -> defaultWidgetSpans(choice.provider, context, controller.cellWidthDp, controller.cellHeightDp)
+        is WidgetChoice.Builtin -> when (choice.type) {
+            HomeItemEntity.BUILTIN_BATTERY -> 1 to 1
+            HomeItemEntity.BUILTIN_NOTIFICATIONS -> columns to 1
+            else -> columns to 2
+        }
+    }
+    // A default larger than the grid shrinks to it, as the old add path and Launcher3 do
+    // (min(span, numColumns)) — refusing it made such widgets impossible to add at all.
+    val sx = defaultX.coerceIn(1, columns.coerceAtLeast(1))
+    val sy = defaultY.coerceIn(1, rows.coerceAtLeast(1))
+    var snapshot by remember(option.choice) { mutableStateOf<(() -> Bitmap?)?>(null) }
+    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Box(
+                // The ratio alone bounds the height. A heightIn() in front of aspectRatio() does not: a
+                // tall footprint (1×1, 3×4) measured past its slot and drew over the title row below.
+                Modifier.fillMaxWidth()
+                    .aspectRatio((sx * controller.cellWidthDp / (sy * controller.cellHeightDp)).coerceIn(1.5f, 3f))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .widgetDragGesture(option.choice, true, controller) { root, fraction, owner ->
+                        controller.start(WidgetDrag(null, option.choice, sx, sy, fraction, snapshot?.invoke()), root, owner)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                WidgetPreview(option.choice, Modifier.fillMaxSize().padding(12.dp),
+                    sx * controller.cellWidthDp, sy * controller.cellHeightDp, onSnapshot = { snapshot = it })
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(option.label, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        stringResource(R.string.widget_size, sx, sy),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                FilledTonalButton(onClick = { onPick(option.choice, sx, sy) }) {
+                    Text(stringResource(R.string.widget_add))
+                }
             }
         }
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val previewBitmap = preview
-        if (previewBitmap != null) {
-            Image(bitmap = previewBitmap, contentDescription = null, modifier = Modifier.size(56.dp))
+}
+
+@Composable
+internal fun WidgetPreview(
+    choice: WidgetChoice, modifier: Modifier, widthDp: Float, heightDp: Float,
+    onSnapshot: (() -> Bitmap?) -> Unit,
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current.density
+    val provider = (choice as? WidgetChoice.App)?.provider
+    val preview by produceState(WidgetPreviewData(), provider) {
+        if (provider == null) return@produceState
+        value = withContext(Dispatchers.IO) {
+            val generated = if (Build.VERSION.SDK_INT >= 35) runCatching {
+                AppWidgetManager.getInstance(context).getWidgetPreview(
+                    provider.provider, provider.profile, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+                )
+            }.getOrNull() else null
+            // RemoteViews(pkg, layout) resolves the package in THIS profile and throws when it is absent:
+            // a provider uninstalled since the list loaded, or any work-profile widget. Fall back to the
+            // preview image instead of taking the HOME process down.
+            val remote = generated ?: if (Build.VERSION.SDK_INT >= 31 && provider.previewLayout != 0 &&
+                provider.profile == Process.myUserHandle()
+            ) runCatching { RemoteViews(provider.provider.packageName, provider.previewLayout) }.getOrNull() else null
+            val bitmap = runCatching {
+                val d = provider.loadPreviewImage(context, 0) ?: provider.loadIcon(context, 0)
+                val w = d.intrinsicWidth.coerceAtLeast(1)
+                val h = d.intrinsicHeight.coerceAtLeast(1)
+                val scale = minOf(1f, 640f / maxOf(w, h))
+                d.toBitmap((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
+            }.getOrNull()
+            WidgetPreviewData(remote, bitmap)
         }
-        Column(modifier = Modifier.padding(start = 16.dp)) {
-            Text(provider.loadLabel(pm), color = MaterialTheme.colorScheme.onSurface)
-            Text(
-                text = "${sx}×${sy}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
+    }
+    var failedRemote by remember(provider, preview.remote) { mutableStateOf(false) }
+    when {
+        choice is WidgetChoice.Builtin -> {
+            BuiltinWidgetPreview(choice.type, modifier)
+            SideEffect { onSnapshot { null } }
+        }
+        preview.remote != null && !failedRemote -> AndroidView(
+            factory = { c ->
+                WidgetPreviewContainer(c).apply {
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                }
+            },
+            update = { view ->
+                view.onRenderFailed = { failedRemote = true }
+                val w = (widthDp * density).toInt().coerceAtLeast(1)
+                val h = (heightDp * density).toInt().coerceAtLeast(1)
+                if (view.widgetWidth != w || view.widgetHeight != h) {
+                    view.widgetWidth = w
+                    view.widgetHeight = h
+                    view.requestLayout()
+                }
+                if (view.tag !== preview.remote) {
+                    view.removeAllViews()
+                    view.resetRenderFailure()
+                    val child = runCatching { preview.remote!!.apply(context, view) }.getOrNull()
+                    if (child == null) failedRemote = true else {
+                        view.addView(child, FrameLayout.LayoutParams(-1, -1))
+                        view.tag = preview.remote
+                    }
+                }
+                onSnapshot { runCatching { view.drawToBitmap() }.getOrNull() }
+            },
+            modifier = modifier.clearAndSetSemantics {},
+        )
+        preview.bitmap != null -> {
+            Image(preview.bitmap!!.asImageBitmap(), null, modifier)
+            SideEffect { onSnapshot { preview.bitmap } }
+        }
+        else -> Icon(painterResource(R.drawable.ic_widgets), null, modifier.padding(24.dp),
+            tint = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** Static samples share the real widget surface; previewing never starts data collectors or actions. */
+@Composable
+private fun BuiltinWidgetPreview(type: String, modifier: Modifier) {
+    WidgetSurface(modifier) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center) {
+            when (type) {
+                HomeItemEntity.BUILTIN_BATTERY -> {
+                    Text("75%", style = MaterialTheme.typography.displaySmall)
+                    Text(stringResource(R.string.battery_widget_name), style = MaterialTheme.typography.labelMedium)
+                }
+                HomeItemEntity.BUILTIN_NOTIFICATIONS -> {
+                    Icon(painterResource(R.drawable.ic_widgets), null, Modifier.size(32.dp))
+                    Text(stringResource(R.string.notifications_widget_name), style = MaterialTheme.typography.labelMedium)
+                }
+                else -> {
+                    Text("9.41", style = MaterialTheme.typography.displayMedium)
+                    Text(stringResource(R.string.smartspace_widget_name), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Measure at the real home footprint, then scale into the card without clipping its text.
+ *
+ * The child is a provider's preview layout — foreign code rendered inside the HOME process. Guarding
+ * `RemoteViews.apply` is not enough: a layout that inflates fine can still throw while measuring
+ * (circular RelativeLayout rules), laying out or drawing (a hardware bitmap on a software canvas).
+ * Any such failure stops rendering the child and reports [onRenderFailed] so the card falls back to
+ * the preview image; it must never reach the launcher's crash handler.
+ */
+internal class WidgetPreviewContainer(context: android.content.Context) : FrameLayout(context) {
+    var onRenderFailed: (() -> Unit)? = null
+    var widgetWidth = 1
+    var widgetHeight = 1
+    private var renderFailed = false
+
+    fun resetRenderFailure() { renderFailed = false }
+
+    private inline fun guarded(render: () -> Unit) {
+        if (renderFailed) return
+        try {
+            render()
+        } catch (e: Exception) {
+            renderFailed = true
+            onRenderFailed?.invoke()
+        }
+    }
+
+    override fun onInterceptTouchEvent(ev: MotionEvent?) = true
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
+        guarded {
+            for (index in 0 until childCount) getChildAt(index).measure(
+                MeasureSpec.makeMeasureSpec(widgetWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(widgetHeight, MeasureSpec.EXACTLY),
             )
         }
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        val scale = minOf(width.toFloat() / widgetWidth, height.toFloat() / widgetHeight)
+        guarded {
+            for (index in 0 until childCount) getChildAt(index).apply {
+                layout(0, 0, widgetWidth, widgetHeight)
+                pivotX = 0f
+                pivotY = 0f
+                scaleX = scale
+                scaleY = scale
+                translationX = (this@WidgetPreviewContainer.width - widgetWidth * scale) / 2f
+                translationY = (this@WidgetPreviewContainer.height - widgetHeight * scale) / 2f
+            }
+        }
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        val checkpoint = canvas.save()
+        guarded { super.dispatchDraw(canvas) }
+        // A child that threw mid-draw leaves its own save()s open on the shared canvas.
+        canvas.restoreToCount(checkpoint)
     }
 }

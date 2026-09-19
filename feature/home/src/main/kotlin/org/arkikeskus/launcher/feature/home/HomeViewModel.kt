@@ -417,6 +417,16 @@ class HomeViewModel @Inject constructor(
         homeLayoutRepository.addWidget(appWidgetId, provider, spanX, spanY, s.homeColumns, s.homeRows)
     }
 
+    suspend fun addWidgetAt(
+        appWidgetId: Int?, provider: String?, builtinType: String?,
+        placement: org.arkikeskus.launcher.model.WidgetPlacement,
+    ): Boolean {
+        val s = settingsRepository.settings.first()
+        return homeLayoutRepository.addWidgetAt(
+            appWidgetId, provider, builtinType, placement, s.homeColumns, s.homeRows,
+        )
+    }
+
     /** Removes a placed widget row (caller frees the host id). */
     fun removeWidget(rowId: Long) = viewModelScope.launch { homeLayoutRepository.removeWidget(rowId) }
 
@@ -455,8 +465,8 @@ class HomeViewModel @Inject constructor(
 
     /** Binds a restored placeholder widget to its freshly allocated [appWidgetId] (the caller did the
      *  allocate + system bind/configure); the row turns back into a live widget. */
-    fun bindRestoredWidget(rowId: Long, appWidgetId: Int) =
-        viewModelScope.launch { homeLayoutRepository.bindRestoredWidget(rowId, appWidgetId) }
+    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int): Boolean =
+        homeLayoutRepository.bindRestoredWidget(rowId, appWidgetId)
 
     /** Device-local ids of all bound widgets (for the startup AppWidgetHost id reconcile). */
     suspend fun boundWidgetIds(): Set<Int> = homeLayoutRepository.boundWidgetIds()

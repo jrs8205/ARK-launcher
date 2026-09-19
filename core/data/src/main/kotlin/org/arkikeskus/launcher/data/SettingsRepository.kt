@@ -63,6 +63,7 @@ class SettingsRepository @Inject constructor(
             showWeather = p[Keys.SHOW_WEATHER] ?: true,
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: 0.6f).coerceIn(0f, 1f),
+            widgetTonalBackground = p[Keys.WIDGET_TONAL_BACKGROUND] ?: false,
             notificationWidgetCountStyle = (p[Keys.NOTIF_WIDGET_COUNT_STYLE] ?: LauncherSettings.COUNT_NUMBER)
                 .let { if (it == LauncherSettings.COUNT_DOT || it == LauncherSettings.COUNT_NONE) it else LauncherSettings.COUNT_NUMBER },
             doubleTapToLock = p[Keys.DOUBLE_TAP_LOCK] ?: false,
@@ -182,6 +183,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setIconPackPackage(pkg: String) = edit { it[Keys.ICON_PACK] = pkg.trim() }
 
     /** Count indicator style of the built-in notifications widget (see LauncherSettings.COUNT_*). */
+    suspend fun setWidgetTonalBackground(value: Boolean) = edit { it[Keys.WIDGET_TONAL_BACKGROUND] = value }
     suspend fun setNotificationWidgetCountStyle(style: String) = edit { it[Keys.NOTIF_WIDGET_COUNT_STYLE] = style }
     suspend fun setSearchContacts(value: Boolean) = edit { it[Keys.SEARCH_CONTACTS] = value }
 
@@ -362,6 +364,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_NOTIF_DOTS = booleanPreferencesKey("show_notif_dots")
         val NOTIF_DOT_COUNT = booleanPreferencesKey("notif_dot_count")
         val NOTIF_DOT_SCALE = floatPreferencesKey("notif_dot_scale")
+        val WIDGET_TONAL_BACKGROUND = booleanPreferencesKey("widget_tonal_background")
         val NOTIF_WIDGET_COUNT_STYLE = stringPreferencesKey("notif_widget_count_style")
         val USE_THEMED_ICONS = booleanPreferencesKey("use_themed_icons")
         val ICON_PACK = stringPreferencesKey("icon_pack_package")
@@ -412,7 +415,7 @@ class SettingsRepository @Inject constructor(
             "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
-            "show_weather", "hide_system_status_bar", "double_tap_lock",
+            "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
