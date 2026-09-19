@@ -6,6 +6,7 @@ import android.content.pm.LauncherApps
 import android.net.Uri
 import android.os.Process
 import android.provider.Settings
+import android.widget.Toast
 import org.arkikeskus.launcher.model.AppItem
 
 /**
@@ -21,18 +22,23 @@ object AppActions {
     /** Opens the OS app-details screen for [appItem] in its own profile. */
     fun openAppInfo(context: Context, appItem: AppItem) {
         val launcherApps = context.getSystemService(LauncherApps::class.java)
-        val opened = runCatching {
-            launcherApps?.startAppDetailsActivity(appItem.componentName, appItem.user, null, null)
+        var opened = launcherApps != null && runCatching {
+            launcherApps.startAppDetailsActivity(appItem.componentName, appItem.user, null, null)
         }.isSuccess
-        // Fallback for the personal profile if the LauncherApps route is unavailable.
-        if (!opened) {
-            runCatching {
+        // Fallback for the personal profile ONLY: a bare package intent always resolves in the
+        // launcher's own profile, so for a work / Private Space app it would open (and offer to
+        // uninstall) the personal copy of the same package instead.
+        if (!opened && appItem.user == Process.myUserHandle()) {
+            opened = runCatching {
                 context.startActivity(
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                         .setData(Uri.fromParts("package", appItem.packageName, null))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
-            }
+            }.isSuccess
+        }
+        if (!opened) {
+            runCatching { Toast.makeText(context, R.string.app_info_unavailable, Toast.LENGTH_SHORT).show() }
         }
     }
 

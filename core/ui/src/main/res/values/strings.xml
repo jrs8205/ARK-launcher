@@ -6,4 +6,5 @@
     <string name="rename_cancel">Peruuta</string>
     <string name="rename_reset">Palauta oletus</string>
     <string name="shortcut_pin">Kiinnitä aloitusnäyttöön</string>
+    <string name="app_info_unavailable">Sovelluksen tietoja ei voitu avata</string>
 </resources>
