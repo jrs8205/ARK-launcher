@@ -16,9 +16,11 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.min
 import coil3.compose.AsyncImage
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.IconEpochs
@@ -90,34 +92,77 @@ fun AppIcon(
             )
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
-        if (showLabel) {
-            val scale = LocalAppLabelScale.current
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = appItem.label,
-                color = labelColor,
-                fontSize = (11f * scale).sp,
-                lineHeight = (13f * scale).sp,
-                maxLines = maxLabelLines,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                // #19b: cap the label to its line-height × maxLines in dp (fontScale-independent) so a
-                // large system font size clips the text within the cell instead of growing the row and
-                // overlapping neighbours on the fixed-cell home/dock surfaces. The user's own label
-                // slider ([scale]) still applies; only the accessibility font-scale is bounded.
-                modifier = Modifier
-                    .heightIn(max = (13f * scale * maxLabelLines).dp)
-                    .clipToBounds(),
-            )
-        }
+        if (showLabel) AppLabel(appItem.label, labelColor, maxLabelLines)
     }
 }
 
 /**
  * Icon size that fits one grid cell: the surface's [preferred] size when the cell is roomy, shrunk
  * (an 8dp margin keeps the badge overhang and neighbours clear) when the user picks 6–7 columns on
- * a narrow screen — a fixed size bled into the neighbouring cells there. The floor keeps icons
- * recognisable and tappable on the most extreme combinations.
+ * a narrow screen — a fixed size bled into the neighbouring cells there. A fixed-height cell passes
+ * [cellHeight] and its [labelBlock] too: 7–8 rows on an enlarged display size leave so little
+ * height that a width-sized icon squeezed the label to a few dp and cut it off.
+ *
+ * Two floors: 32dp against a narrow cell, but only 24dp against a short one. The largest settings
+ * the launcher allows (label slider 160 %, system font at its 130 % cap) need 31dp of label in a
+ * 60dp cell, so a rigid 32dp icon cut the text again. The whole cell stays the touch target, so the
+ * smaller icon costs nothing in tappability; below 24dp the icon stops being recognisable and the
+ * label gives way instead.
  */
-fun iconSizeForCell(cellWidth: Dp, preferred: Dp): Dp =
-    (cellWidth - 8.dp).coerceIn(32.dp, preferred)
+fun iconSizeForCell(
+    cellWidth: Dp,
+    preferred: Dp,
+    cellHeight: Dp = Dp.Unspecified,
+    labelBlock: Dp = 0.dp,
+): Dp {
+    val byWidth = (cellWidth - 8.dp).coerceAtLeast(32.dp)
+    val byHeight = if (cellHeight.isSpecified) (cellHeight - labelBlock - 4.dp).coerceAtLeast(24.dp) else byWidth
+    return min(byWidth, byHeight).coerceAtMost(preferred)
+}
+
+/** The most the system font size may grow a grid label (see [labelFontFactor]). */
+const val MAX_LABEL_FONT_SCALE = 1.3f
+
+/**
+ * The system font scale as applied to grid labels: honoured up to [MAX_LABEL_FONT_SCALE]. Home and
+ * dock cells are fixed-size, so an unbounded accessibility scale either grew the row over its
+ * neighbours or (with the old dp height cap) sliced the glyphs in half; a bounded one keeps a whole
+ * line readable. The user's own label-size slider is separate and applies in full.
+ */
+fun labelFontFactor(fontScale: Float): Float = fontScale.coerceAtMost(MAX_LABEL_FONT_SCALE)
+
+/** Gap between an icon and its label. */
+private val LABEL_GAP = 4.dp
+
+/** Height of one label line in dp — the text's line height and its clip box agree on this. */
+private fun labelLineHeight(labelScale: Float, fontFactor: Float): Dp = (13f * labelScale * fontFactor).dp
+
+/** Vertical room [AppLabel] takes under an icon (gap + [lines] lines); zero when labels are off. */
+fun labelBlockHeight(showLabel: Boolean, labelScale: Float, fontFactor: Float, lines: Int = 1): Dp =
+    if (showLabel) LABEL_GAP + labelLineHeight(labelScale, fontFactor) * lines else 0.dp
+
+/**
+ * The label under an app / folder / shortcut icon (emits the gap and the text into the caller's
+ * Column). Sized in dp-derived sp so the rendered line is exactly [labelLineHeight] whatever the
+ * system font scale — the text and the box that bounds it can no longer disagree.
+ */
+@Composable
+fun AppLabel(text: String, color: Color, maxLines: Int = 1) {
+    val scale = LocalAppLabelScale.current
+    val density = LocalDensity.current
+    val factor = labelFontFactor(density.fontScale)
+    val line = labelLineHeight(scale, factor)
+    Spacer(Modifier.height(LABEL_GAP))
+    Text(
+        text = text,
+        color = color,
+        fontSize = with(density) { (11f * scale * factor).dp.toSp() },
+        lineHeight = with(density) { line.toSp() },
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .heightIn(max = line * maxLines)
+            .clipToBounds(),
+    )
+}

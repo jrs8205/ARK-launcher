@@ -6,23 +6,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.component.AppIcon
-import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
+import org.arkikeskus.launcher.ui.component.AppLabel
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 
 /**
@@ -62,19 +57,7 @@ fun FolderIcon(
             }
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
-        if (showLabel) {
-            val scale = LocalAppLabelScale.current
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = name,
-                color = labelColor,
-                fontSize = (11f * scale).sp,
-                lineHeight = (13f * scale).sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-            )
-        }
+        if (showLabel) AppLabel(name, labelColor)
     }
 }
 

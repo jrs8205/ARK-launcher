@@ -13,4 +13,8 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.coil.compose)
+
+    // JVM unit tests (pure icon/label sizing).
+    testImplementation(libs.junit)
+    testImplementation(libs.google.truth)
 }
