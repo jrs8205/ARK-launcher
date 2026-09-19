@@ -33,6 +33,15 @@ import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
 
+/** Pure decision behind [LauncherAppsSource.isAppInstalled]; [profile] is the profile lookup's outcome. */
+internal fun <U : Any> installVerdict(profile: Result<U?>, appInfo: (U) -> Result<*>): Boolean {
+    // A lookup that THREW is not a removed profile: only a successful null answer is definitive.
+    if (profile.isFailure) return true
+    val user = profile.getOrNull() ?: return false // the whole profile is gone → its rows are stale
+    val result = appInfo(user)
+    return result.isSuccess || result.exceptionOrNull() !is PackageManager.NameNotFoundException
+}
+
 /**
  * Wraps [LauncherApps]: streams the installed launchable apps (reacting to install/remove/change),
  * launches apps, and resolves their icons.
@@ -68,10 +77,10 @@ class LauncherAppsSource @Inject constructor(
      *  removed profile) answers false — any other failure keeps the row (a locked work profile or
      *  a transient Binder error must never wipe real items). */
     fun isAppInstalled(packageName: String, userSerial: Long): Boolean {
-        val user = runCatching { userManager?.getUserForSerialNumber(userSerial) }.getOrNull()
-            ?: return false // the whole profile is gone → its rows are stale
-        val result = runCatching { launcherApps.getApplicationInfo(packageName, 0, user) }
-        return result.isSuccess || result.exceptionOrNull() !is PackageManager.NameNotFoundException
+        val um = userManager ?: return true
+        return installVerdict(runCatching { um.getUserForSerialNumber(userSerial) }) { user ->
+            runCatching { launcherApps.getApplicationInfo(packageName, 0, user) }
+        }
     }
 
     fun appsFlow(): Flow<List<AppItem>> = callbackFlow {
