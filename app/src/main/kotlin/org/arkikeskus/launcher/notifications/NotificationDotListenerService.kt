@@ -322,6 +322,8 @@ class NotificationDotListenerService : NotificationListenerService() {
         val extras = n.extras ?: return null
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        var subject: String? = null
         val ranked = ranking?.getRanking(sbn.key, tmp) == true
         val conversation = ranked && tmp.isConversation
         val shortcutLabel = if (ranked) tmp.conversationShortcutInfo?.shortLabel?.toString() else null
@@ -370,6 +372,10 @@ class NotificationDotListenerService : NotificationListenerService() {
                 // or are ongoing; a real mail has both.
                 if (title.isEmpty() || text == null) return null
                 name = title
+                // Mail clients put the subject in the text and the body's first lines in the
+                // expanded (big) text; show the subject as a title line and the body under it.
+                subject = text
+                preview = bigText?.removePrefix(text)?.trim()?.takeIf { it.isNotEmpty() } ?: text
                 kind = PersonEventKind.EMAIL
             }
             else -> return null
@@ -390,6 +396,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         return PersonEntry(
             key = sbn.key,
             name = name,
+            title = subject,
             text = preview,
             postTime = sbn.postTime,
             packageName = sbn.packageName,
@@ -410,7 +417,8 @@ class NotificationDotListenerService : NotificationListenerService() {
         val n = sbn.notification ?: return null
         val extras = n.extras
         val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
-        val text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        val text = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+            ?: extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         if (title == null && text == null) return null
         val label = appLabels.getOrPut(sbn.packageName) {
             runCatching {

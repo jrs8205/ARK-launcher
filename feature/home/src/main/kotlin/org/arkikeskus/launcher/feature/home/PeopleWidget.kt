@@ -581,7 +581,13 @@ private fun PersonTile(
                     NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
                 }
                 Spacer(Modifier.height(4.dp))
-                val appTitle = tile.live?.newest?.title?.takeIf { tile.isApp && privacy != LauncherSettings.PRIVACY_COUNT }
+                // App tiles show their title line unless everything is hidden; a mail's subject is
+                // part of the message, so it shows only when message text is allowed.
+                val newest = tile.live?.newest
+                val appTitle = newest?.title?.takeIf {
+                    (tile.isApp && privacy != LauncherSettings.PRIVACY_COUNT) ||
+                        (newest.kind == PersonEventKind.EMAIL && privacy == LauncherSettings.PRIVACY_ALL)
+                }
                 Column(Modifier.weight(1f)) {
                     if (appTitle != null) {
                         Text(
