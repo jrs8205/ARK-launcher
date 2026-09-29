@@ -19,11 +19,11 @@ class PeopleLayoutTest {
 
     @Test
     fun `overflow chip takes the free tail of the last row`() {
-        val r = pack(listOf(2, 1, 2, 1, 1), columns = 4, rows = 2)
-        // Row 0: 2+1 (a 2 doesn't fit in the remaining 1) → row 1: 2+1, then the last 1 has no row.
-        assertThat(r.placed).hasSize(4)
+        val r = pack(listOf(2, 1, 2, 2), columns = 3, rows = 2)
+        // Row 0: 2+1 → row 1: 2, then the last 2 doesn't fit in the remaining 1 and has no row.
+        assertThat(r.placed).hasSize(3)
         assertThat(r.overflow).isEqualTo(1)
-        assertThat(r.chipRow to r.chipCol).isEqualTo(1 to 3)
+        assertThat(r.chipRow to r.chipCol).isEqualTo(1 to 2)
     }
 
     @Test
