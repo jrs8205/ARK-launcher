@@ -76,4 +76,20 @@ class PeopleGroupingTest {
         assertThat(tiles).hasSize(1)
         assertThat(tiles[0].personKey).isEqualTo("mikko mäkelä")
     }
+
+    @Test
+    fun `a held message stays behind a delivered one on the same tile`() {
+        val tile = PeopleGrouping.group(
+            listOf(entry("Anna", 100, key = "signal").copy(text = "waiting", heldUntil = 5_000L), entry("Anna", 50, key = "mail").copy(text = "read me", count = 2)),
+        ).single()
+        assertThat(tile.held).isFalse()
+        assertThat(tile.newest.text).isEqualTo("read me")
+        assertThat(tile.count).isEqualTo(2)
+        assertThat(tile.postTime).isEqualTo(50L)
+        assertThat(tile.keys).containsExactly("signal", "mail").inOrder()
+
+        val allHeld = PeopleGrouping.group(listOf(entry("Anna", 100).copy(text = "waiting", heldUntil = 5_000L))).single()
+        assertThat(allHeld.held).isTrue()
+        assertThat(allHeld.newest.text).isEqualTo("waiting")
+    }
 }

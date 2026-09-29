@@ -108,13 +108,8 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setPeopleBatchEnabled(value: Boolean) = edit { it[Keys.PEOPLE_BATCH_ENABLED] = value }
-    /** The page HOME returns to. */
-    suspend fun setHomePage(page: Int) = edit { it[Keys.HOME_PAGE] = page.coerceIn(0, HomeLayoutRepository.MAX_PAGES) }
-
-    /** The explicit page count (see LauncherSettings.homePageCount). */
-    suspend fun setHomePageCount(count: Int) = edit { it[Keys.HOME_PAGE_COUNT] = count.coerceIn(0, HomeLayoutRepository.MAX_PAGES) }
-
-    /** Publish both page counters in one settings snapshot. */
+    /** The page HOME returns to and the explicit page count, in one settings snapshot (the page
+     *  menu's operations own both; see WorkspacePageOperations). */
     suspend fun setHomePages(home: Int, count: Int) = edit {
         it[Keys.HOME_PAGE] = home.coerceIn(0, HomeLayoutRepository.MAX_PAGES - 1)
         it[Keys.HOME_PAGE_COUNT] = count.coerceIn(0, HomeLayoutRepository.MAX_PAGES)

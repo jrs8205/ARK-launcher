@@ -28,6 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -119,7 +120,9 @@ class NotificationDotListenerService : NotificationListenerService() {
         }
     }
     private val timeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) = refreshWithRetries()
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (heldUntil.isNotEmpty()) refreshWithRetries()
+        }
     }
 
     private companion object {
@@ -162,7 +165,7 @@ class NotificationDotListenerService : NotificationListenerService() {
             }, ContextCompat.RECEIVER_NOT_EXPORTED)
             receiverRegistered = true
         }
-        refreshMailPackages()
+        mailPackages = queryMailPackages()
         settingsJob?.cancel()
         settingsJob = scope.launch {
             if (!heldLoaded) {
@@ -175,7 +178,7 @@ class NotificationDotListenerService : NotificationListenerService() {
             ) { s, pinned, aliases ->
                 val pins = pinned.map { it.key }.toSet()
                 Triple(s.peopleBatchEnabled, BatchSchedule.parse(s.peopleBatchTimes), pins + aliases.filterValues { it in pins }.keys)
-            }.onEach { (enabled, times, vips) ->
+            }.distinctUntilChanged().onEach { (enabled, times, vips) ->
                 batchEnabled = enabled
                 batchTimes = times
                 vipKeys = vips
@@ -244,7 +247,7 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     private fun refresh() {
-        if (!connected) return
+        if (!connected || !heldLoaded) return
         val active = runCatching { activeNotifications }.getOrNull()
         if (active == null) {
             // A transient Binder failure: keep the last good snapshot (a stale removal self-heals on

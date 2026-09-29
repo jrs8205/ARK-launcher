@@ -70,8 +70,12 @@ data class PersonTileState(
     val name: String,
     val entries: List<PersonEntry>,
 ) {
-    val newest: PersonEntry get() = entries.first()
-    val count: Int get() = entries.sumOf { it.count }
+    /** What the tile shows and acts on: the delivered entries, or all of them while every one is
+     *  still waiting. Holds are per notification, so a person who also has a delivered message
+     *  must not surface the waiting one through the tile before its delivery time. */
+    val delivered: List<PersonEntry> get() = entries.filter { it.heldUntil == 0L }.ifEmpty { entries }
+    val newest: PersonEntry get() = delivered.first()
+    val count: Int get() = delivered.sumOf { it.count }
     val keys: List<String> get() = entries.map { it.key }
     val postTime: Long get() = newest.postTime
 

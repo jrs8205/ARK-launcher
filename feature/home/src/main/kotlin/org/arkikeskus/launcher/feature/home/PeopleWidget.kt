@@ -164,8 +164,8 @@ class PeopleWidgetViewModel @Inject constructor(
         val photoUri: String? get() = contact?.photoUri ?: pinned?.photoUri?.takeIf { it.isNotEmpty() }
         val number: String? get() = contact?.number ?: pinned?.number?.takeIf { it.isNotEmpty() }
         val lookupUri: String? get() = contact?.lookupUri ?: pinned?.lookupUri?.takeIf { it.isNotEmpty() }
-        val canReply: Boolean get() = live?.entries?.any { it.reply != null } == true
-        val canCall: Boolean get() = number != null || live?.entries?.any { it.callBack != null } == true
+        val canReply: Boolean get() = live?.delivered?.any { it.reply != null } == true
+        val canCall: Boolean get() = number != null || live?.delivered?.any { it.callBack != null } == true
 
         /** "Count only" hides who wrote, except for people the user pinned themselves and app tiles. */
         fun hidesName(privacy: String): Boolean =
@@ -253,7 +253,7 @@ class PeopleWidgetViewModel @Inject constructor(
     fun open(tile: Tile) {
         val live = tile.live
         if (live != null) {
-            val target = live.entries.firstOrNull { it.contentIntent != null }
+            val target = live.delivered.firstOrNull { it.contentIntent != null }
             val intent = target?.contentIntent
             if (target != null && intent != null && sendNotificationIntent(context, intent)) {
                 if (target.autoCancel) badgeRepository.cancelNotification(target.key)
@@ -274,7 +274,7 @@ class PeopleWidgetViewModel @Inject constructor(
 
     /** The dialer's own "call back" action when a missed call offered one, else dial the number. */
     fun call(tile: Tile) {
-        val callBack = tile.live?.entries?.firstNotNullOfOrNull { it.callBack }
+        val callBack = tile.live?.delivered?.firstNotNullOfOrNull { it.callBack }
         if (callBack != null && sendNotificationIntent(context, callBack)) return
         val number = tile.number ?: return
         start(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
@@ -288,7 +288,7 @@ class PeopleWidgetViewModel @Inject constructor(
 
     /** Inline reply through the newest notification that offers one; false when the send failed. */
     fun reply(tile: Tile, text: String): Boolean {
-        val action = tile.live?.entries?.firstNotNullOfOrNull { it.reply } ?: return false
+        val action = tile.live?.delivered?.firstNotNullOfOrNull { it.reply } ?: return false
         val intent = Intent()
         val results = Bundle().apply { putCharSequence(action.remoteInput.resultKey, text) }
         RemoteInput.addResultsToIntent(arrayOf(action.remoteInput), intent, results)

@@ -73,6 +73,7 @@ class NotificationDotListenerServiceTest {
 
     private fun enableBatch() {
         ReflectionHelpers.setField(service, "connected", true)
+        ReflectionHelpers.setField(service, "heldLoaded", true)
         ReflectionHelpers.setField(service, "settingsReady", true)
         ReflectionHelpers.setField(service, "batchEnabled", true)
         val time = java.time.LocalTime.now()
