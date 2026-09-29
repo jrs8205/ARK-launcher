@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -262,9 +263,11 @@ class PeopleWidgetViewModel @Inject constructor(
         start(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
     }
 
-    /** Swipe: dismisses every live notification behind the tile; the tile goes quiet (or away). */
+    /** Swipe: dismisses every live notification behind the tile; the tile goes quiet (or away).
+     *  A notification waiting for the batch is snoozed, and the listener API cannot cancel a snoozed
+     *  one (the system only looks among the active ones), so those are left to their delivery. */
     fun dismiss(tile: Tile) {
-        tile.live?.keys?.forEach { badgeRepository.cancelNotification(it) }
+        tile.live?.entries?.filter { it.heldUntil == 0L }?.forEach { badgeRepository.cancelNotification(it.key) }
     }
 
     /** Inline reply through the newest notification that offers one; false when the send failed. */
@@ -287,18 +290,27 @@ class PeopleWidgetViewModel @Inject constructor(
 
     fun unpin(tile: Tile) = viewModelScope.launch { settingsRepository.unpinPerson(tile.key) }
 
-    /** Merges [tile] into [target] from now on. A pinned alias loses its own pin (the target's tile
-     *  is where it lives now); its contact match carries over to the target's pin if that one had none. */
+    /** Merges [tile] into [target] from now on. The target's tile is where the person lives now, so
+     *  a pin on the source moves to the target (creating one there if needed) and the source's
+     *  contact match fills in whatever the target's pin lacked. */
     fun link(tile: Tile, target: Tile) = viewModelScope.launch {
         if (tile.key == target.key) return@launch
         settingsRepository.linkPerson(tile.key, target.key)
-        if (tile.pinned != null) settingsRepository.unpinPerson(tile.key)
+        val sourcePin = tile.pinned
         val targetPin = target.pinned
-        if (targetPin != null && targetPin.lookupUri.isEmpty() && tile.lookupUri != null) {
-            settingsRepository.pinPerson(
-                targetPin.copy(lookupUri = tile.lookupUri.orEmpty(), number = tile.number.orEmpty(), photoUri = tile.photoUri.orEmpty()),
+        val mergedPin = when {
+            sourcePin != null -> (targetPin ?: PinnedPerson(key = target.key, name = target.name))
+            targetPin != null && targetPin.lookupUri.isEmpty() && tile.lookupUri != null -> targetPin
+            else -> null
+        }?.let { pin ->
+            pin.copy(
+                lookupUri = pin.lookupUri.ifEmpty { tile.lookupUri.orEmpty() },
+                number = pin.number.ifEmpty { tile.number.orEmpty() },
+                photoUri = pin.photoUri.ifEmpty { tile.photoUri.orEmpty() },
             )
         }
+        if (mergedPin != null) settingsRepository.pinPerson(mergedPin)
+        if (sourcePin != null) settingsRepository.unpinPerson(tile.key)
     }
 
     /** Splits every alias merged into [tile] back into its own tile. */
@@ -353,7 +365,10 @@ fun PeopleWidget(
                 val gap = 8.dp
                 val columns = ((maxWidth + gap) / (MIN_TILE + gap)).toInt().coerceIn(2, 6)
                 val tile = (maxWidth - gap * (columns - 1)) / columns
-                val maxRows = ((maxHeight + gap) / (tile + gap)).toInt().coerceAtLeast(1)
+                // Rows are as tall as a tile with content needs (name, title, text, time), never
+                // squeezed to the column width like a square would be.
+                val rowHeight = maxOf(tile, MIN_ROW_HEIGHT)
+                val maxRows = ((maxHeight + gap) / (rowHeight + gap)).toInt().coerceAtLeast(1)
                 val layout = remember(tiles, columns, maxRows) {
                     PeopleLayout.pack(tiles, { if (it.hasContent) 2 else 1 }, columns, maxRows)
                 }
@@ -370,16 +385,16 @@ fun PeopleWidget(
                                 onLongPress = { anchor -> menuFor = p.item to anchor },
                                 interaction = noIndication,
                                 modifier = Modifier
-                                    .offset(x = (tile + gap) * p.col, y = (tile + gap) * p.row)
-                                    .size(width = tile * p.span + gap * (p.span - 1), height = tile),
+                                    .offset(x = (tile + gap) * p.col, y = (rowHeight + gap) * p.row)
+                                    .size(width = tile * p.span + gap * (p.span - 1), height = rowHeight),
                             )
                         }
                     }
                     if (layout.overflow > 0) {
                         Box(
                             modifier = Modifier
-                                .offset(x = (tile + gap) * layout.chipCol, y = (tile + gap) * layout.chipRow)
-                                .size(tile)
+                                .offset(x = (tile + gap) * layout.chipCol, y = (rowHeight + gap) * layout.chipRow)
+                                .size(width = tile, height = rowHeight)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(widgetSurfaceColor())
                                 // The hidden people are one tap away in the shade, not unreachable.
@@ -407,7 +422,7 @@ fun PeopleWidget(
             if (tile.hasContent) add(IconMenuItem(LauncherIcons.ChevronRight, stringResource(R.string.people_action_open)) { viewModel.open(tile) })
             if (tile.canReply) add(IconMenuItem(LauncherIcons.Message, stringResource(R.string.people_action_reply)) { replyFor = tile })
             if (tile.canCall) add(IconMenuItem(LauncherIcons.Call, stringResource(R.string.people_action_call)) { viewModel.call(tile) })
-            if (tile.hasContent) add(IconMenuItem(LauncherIcons.Remove, stringResource(R.string.people_action_dismiss)) { viewModel.dismiss(tile) })
+            if (tile.hasContent && !tile.held) add(IconMenuItem(LauncherIcons.Remove, stringResource(R.string.people_action_dismiss)) { viewModel.dismiss(tile) })
             if (tile.lookupUri != null) add(IconMenuItem(LauncherIcons.Info, stringResource(R.string.people_action_contact)) { viewModel.openContact(tile) })
             if (!tile.isApp) {
                 if (tile.pinned == null) add(IconMenuItem(LauncherIcons.Add, stringResource(R.string.people_action_pin)) { viewModel.pin(tile) })
@@ -451,6 +466,9 @@ fun PeopleWidget(
 
 /** The narrowest a tile gets; the widget width decides how many columns that makes. */
 private val MIN_TILE = 84.dp
+
+/** Room for a wide tile's four lines at the sizes below, plus padding. */
+private val MIN_ROW_HEIGHT = 108.dp
 
 @Composable
 private fun HintCard(text: String, interaction: MutableInteractionSource, onClick: (() -> Unit)?) {
@@ -505,6 +523,10 @@ private fun PersonTile(
 
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    // The drag detector is keyed on the person, not on the notifications behind the tile, so it
+    // must read the latest dismiss action rather than the one captured when the gesture started.
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val swipeable = tile.hasContent && !tile.held
     var center by remember { mutableStateOf(IntOffset.Zero) }
     var widthPx by remember { mutableStateOf(1f) }
 
@@ -520,14 +542,14 @@ private fun PersonTile(
                 alpha = 1f - (abs(offsetX.value) / widthPx).coerceIn(0f, 0.6f)
             }
             .then(
-                if (tile.hasContent) Modifier.pointerInput(tile.key) {
+                if (swipeable) Modifier.pointerInput(tile.key) {
                     // Sideways = dismiss; the page swipe still works from quiet tiles and the gaps.
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             scope.launch {
                                 if (abs(offsetX.value) > widthPx * 0.45f) {
                                     offsetX.animateTo(if (offsetX.value > 0) widthPx else -widthPx)
-                                    onDismiss()
+                                    currentOnDismiss()
                                     offsetX.snapTo(0f)
                                 } else {
                                     offsetX.animateTo(0f)
@@ -575,31 +597,28 @@ private fun PersonTile(
                     Avatar(tile, hideName, 26.dp)
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = shownName, color = fg, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        text = shownName, color = fg, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                     )
                     NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
                 }
                 Spacer(Modifier.height(4.dp))
-                // App tiles show their title line unless everything is hidden; a mail's subject is
-                // part of the message, so it shows only when message text is allowed.
+                // A notification's title (an app tile's headline, a mail's subject) is content, not
+                // the sender: it shows only when message text is allowed at all.
                 val newest = tile.live?.newest
-                val appTitle = newest?.title?.takeIf {
-                    (tile.isApp && privacy != LauncherSettings.PRIVACY_COUNT) ||
-                        (newest.kind == PersonEventKind.EMAIL && privacy == LauncherSettings.PRIVACY_ALL)
-                }
+                val appTitle = newest?.title?.takeIf { privacy == LauncherSettings.PRIVACY_ALL }
                 Column(Modifier.weight(1f)) {
                     if (appTitle != null) {
                         Text(
-                            text = appTitle, color = fg, fontSize = 12.sp, lineHeight = 15.sp,
+                            text = appTitle, color = fg, fontSize = 13.sp, lineHeight = 17.sp,
                             fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
                     }
                     Text(
                         text = previewText(tile, privacy),
                         color = fg.copy(alpha = 0.9f),
-                        fontSize = 12.sp,
-                        lineHeight = 15.sp,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
                         maxLines = if (appTitle != null) 1 else 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -616,7 +635,7 @@ private fun PersonTile(
                         ).toString()
                     },
                     color = fg.copy(alpha = 0.7f),
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     maxLines = 1,
                 )
             }
@@ -660,8 +679,7 @@ private fun previewText(tile: PeopleWidgetViewModel.Tile, privacy: String): Stri
     )
     if (newest.kind == PersonEventKind.APP) {
         // The title line already shows in "sender only"; the text is the private part.
-        return if (privacy == LauncherSettings.PRIVACY_ALL) newest.text?.takeIf { it.isNotBlank() } ?: kindLabel
-        else if (privacy == LauncherSettings.PRIVACY_SENDER) "" else kindLabel
+        return if (privacy == LauncherSettings.PRIVACY_ALL) newest.text?.takeIf { it.isNotBlank() } ?: kindLabel else kindLabel
     }
     if (privacy != LauncherSettings.PRIVACY_ALL) return kindLabel
     if (newest.kind == PersonEventKind.MISSED_CALL) return kindLabel

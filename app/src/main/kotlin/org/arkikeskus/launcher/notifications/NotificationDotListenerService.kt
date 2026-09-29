@@ -291,15 +291,18 @@ class NotificationDotListenerService : NotificationListenerService() {
             }.sortedByDescending { it.postTime },
         )
         // Snoozed-for-the-batch notifications are out of the shade but still someone's message:
-        // they feed the tiles as "waiting", never the dots or the status bar.
-        if (batchEnabled) {
+        // they feed the tiles as "waiting", never the dots or the status bar. Read even when the
+        // batch has since been switched off: a listener can neither cancel nor un-snooze a snoozed
+        // notification (the public API has no call for it), so the system delivers it at its time
+        // regardless, and hiding it from the tiles in between would make it vanish for the user.
+        run {
             val now = System.currentTimeMillis()
             val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty()
             for (sbn in snoozed) {
                 if (sbn == null) continue
                 val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
                 val entry = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull() ?: continue
-                val until = heldUntil[sbn.key] ?: BatchSchedule.nextDelivery(now, batchTimes) ?: continue
+                val until = heldUntil[sbn.key] ?: BatchSchedule.nextDelivery(now, batchTimes) ?: now
                 people.add(entry.copy(heldUntil = until))
             }
         }
@@ -417,8 +420,10 @@ class NotificationDotListenerService : NotificationListenerService() {
         val n = sbn.notification ?: return null
         val extras = n.extras
         val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
-        val text = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        val body = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
             ?: extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        // Some apps repeat the title at the start of the text; the tile already shows the title.
+        val text = if (title != null && body != null) body.removePrefix(title).trim().ifEmpty { body } else body
         if (title == null && text == null) return null
         val label = appLabels.getOrPut(sbn.packageName) {
             runCatching {

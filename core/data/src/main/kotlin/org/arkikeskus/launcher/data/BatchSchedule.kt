@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data
 
 import java.time.Instant
+import java.time.LocalTime
 import java.time.ZoneId
 
 /** The people widget's batch delivery times: parsing, formatting and "when is the next one". */
@@ -26,9 +27,12 @@ object BatchSchedule {
         if (times.isEmpty()) return null
         val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
         for (day in 0L..1L) {
-            val start = today.plusDays(day).atStartOfDay(zone)
+            val date = today.plusDays(day)
             for (t in times.sorted()) {
-                val at = start.plusMinutes(t.toLong()).toInstant().toEpochMilli()
+                // A wall-clock time, not "minutes after midnight": on a DST day the two differ by an
+                // hour. A time inside the spring gap moves forward past it; an autumn repeat takes
+                // the first occurrence (java.time's ZonedDateTime rules).
+                val at = date.atTime(LocalTime.of(t / 60, t % 60)).atZone(zone).toInstant().toEpochMilli()
                 if (at > nowMs) return at
             }
         }
