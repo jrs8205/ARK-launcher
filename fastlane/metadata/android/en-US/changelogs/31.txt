@@ -1,0 +1,6 @@
+New
+- Two-line icon labels. Settings > Home screen and Settings > App drawer each get a "Two-line labels" switch: long app, folder and shortcut names wrap onto a second line instead of being cut off. Off by default on the home screen, on in the app drawer. The dock stays single-line.
+
+Fixed
+- App-drawer names were cut to one line with an ellipsis even though they were meant to wrap; they now wrap onto two lines.
+- With two-line labels on, icons in the same home-screen row stay level whether or not their names wrap.
