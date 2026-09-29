@@ -339,6 +339,26 @@ class HomeLayoutRepository @Inject constructor(
         dao.deleteById(rowId)
     }
 
+    /**
+     * Opens an empty page at index [at] by moving every home item on pages ≥ [at] one page to the
+     * right. Done in two hops through a far-away page range: a single "+1" update would trip the
+     * unique (container, page, cell) index while rows overtake the not-yet-moved ones.
+     */
+    suspend fun insertPage(at: Int) {
+        db.withTransaction {
+            dao.offsetPages(HOME, at, PAGE_SHIFT_HOP)
+            dao.offsetPages(HOME, at + PAGE_SHIFT_HOP, 1 - PAGE_SHIFT_HOP)
+        }
+    }
+
+    /** Removes page [page] and closes the gap; false (and no change) when the page holds anything. */
+    suspend fun removeEmptyPage(page: Int): Boolean = db.withTransaction {
+        if (dao.countOnPage(HOME, page) > 0) return@withTransaction false
+        dao.offsetPages(HOME, page + 1, PAGE_SHIFT_HOP)
+        dao.offsetPages(HOME, page + 1 + PAGE_SHIFT_HOP, -1 - PAGE_SHIFT_HOP)
+        true
+    }
+
     /** Places a built-in widget (e.g. [HomeItemEntity.BUILTIN_SMARTSPACE]) at the first rectangle,
      *  pushing overlapping icons aside before spilling onto a fresh page (see [firstRectWithPush]). */
     suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int, rows: Int) {
@@ -462,6 +482,9 @@ class HomeLayoutRepository @Inject constructor(
         /** Hard cap on home pages. The pager offers one trailing page past the cap, so the highest
          *  legal item page INDEX is MAX_PAGES itself; restore accepts 0..MAX_PAGES inclusive. */
         const val MAX_PAGES = 50
+
+        /** Temporary page offset for the two-hop page shifts (well past any real page). */
+        private const val PAGE_SHIFT_HOP = 100_000
 
         /**
          * Plans a repack of the given HOME rows into a [columns]-wide grid, in reading order.

@@ -144,6 +144,8 @@ data class HomeUiState(
     val dockApps: List<AppItem> = emptyList(),
     val entries: List<HomeEntry> = emptyList(),
     val pageCount: Int = 1,
+    /** The page HOME returns to, clamped to the pages that exist. */
+    val homePage: Int = 0,
     val badges: Map<String, Int> = emptyMap(),
 )
 
@@ -358,15 +360,17 @@ class HomeViewModel @Inject constructor(
                 }
             }
         val maxPage = entries.maxOfOrNull { it.page } ?: 0
-        // Only as many pages as actually have icons (min 1). A new trailing page is offered
-        // transiently by the workspace while dragging, and becomes permanent once an icon lands.
-        // Capped: a corrupt page value in the DB must never reach PageDots' non-lazy repeat().
-        val pageCount = (maxPage + 1).coerceIn(1, HomeLayoutRepository.MAX_PAGES)
+        // As many pages as have icons (min 1), or as many as the user added explicitly (the page
+        // menu), whichever is more. A new trailing page is offered transiently by the workspace
+        // while dragging, and becomes permanent once an icon lands. Capped: a corrupt page value in
+        // the DB must never reach PageDots' non-lazy repeat().
+        val pageCount = maxOf(maxPage + 1, settings.homePageCount).coerceIn(1, HomeLayoutRepository.MAX_PAGES)
         HomeUiState(
             settings = settings,
             dockApps = dockApps,
             entries = entries,
             pageCount = pageCount,
+            homePage = settings.homePage.coerceIn(0, pageCount - 1),
             badges = badges,
         )
     }.stateIn(
@@ -431,6 +435,37 @@ class HomeViewModel @Inject constructor(
         return homeLayoutRepository.addWidgetAt(
             appWidgetId, provider, builtinType, placement, s.homeColumns, s.homeRows,
         )
+    }
+
+    // --- Pages (the empty-area menu) -----------------------------------------------------------
+
+    /** Opens an empty page at [at] (0..pageCount); what was there and after moves right. */
+    suspend fun insertPage(at: Int): Int {
+        val state = uiState.value
+        if (state.pageCount >= HomeLayoutRepository.MAX_PAGES) return -1
+        val index = at.coerceIn(0, state.pageCount)
+        homeLayoutRepository.insertPage(index)
+        settingsRepository.setHomePageCount(state.pageCount + 1)
+        // The home page keeps pointing at the same content.
+        if (state.homePage >= index) settingsRepository.setHomePage(state.homePage + 1)
+        return index
+    }
+
+    /** HOME returns to [page] from now on. */
+    fun setHomePage(page: Int) = viewModelScope.launch { settingsRepository.setHomePage(page) }
+
+    /** True when nothing is placed on [page]. */
+    fun isPageEmpty(page: Int): Boolean = uiState.value.entries.none { it.page == page }
+
+    /** Removes an empty page and closes the gap; false when it wasn't empty or is the only page. */
+    suspend fun removeEmptyPage(page: Int): Boolean {
+        val state = uiState.value
+        if (state.pageCount <= 1 || page !in 0 until state.pageCount) return false
+        if (!homeLayoutRepository.removeEmptyPage(page)) return false
+        if (state.settings.homePageCount > 0) settingsRepository.setHomePageCount(state.pageCount - 1)
+        if (state.homePage > page) settingsRepository.setHomePage(state.homePage - 1)
+        else if (state.homePage == page) settingsRepository.setHomePage(page.coerceAtMost(state.pageCount - 2))
+        return true
     }
 
     /** Removes a placed widget row (caller frees the host id). */

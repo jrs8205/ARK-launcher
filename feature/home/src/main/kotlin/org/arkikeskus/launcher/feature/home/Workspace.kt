@@ -78,6 +78,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.model.AppItem
@@ -126,6 +127,10 @@ fun Workspace(
     showPageIndicator: Boolean,
     locked: Boolean,
     homeSignals: Flow<Boolean>,
+    /** The page HOME returns to and the launcher opens on. */
+    homePage: Int = 0,
+    /** Pages the host wants shown (after adding/removing a page from the menu). */
+    pageRequests: Flow<Int> = emptyFlow(),
     dragController: HomeDragController,
     widgetDragController: WidgetDragController,
     onAddWidget: (WidgetChoice, WidgetPlacement) -> Unit,
@@ -191,7 +196,20 @@ fun Workspace(
     // forced a pager relayout exactly as the drag began, making pickup stutter and miss moves. The
     // trailing page is hidden from the dots and the workspace snaps back off it when not dragging,
     // so it reads as a single page until an icon actually lands there.
-    val pagerState = rememberPagerState(pageCount = { pageCount + 1 })
+    val pagerState = rememberPagerState(initialPage = homePage.coerceIn(0, pageCount), pageCount = { pageCount + 1 })
+    // Settings arrive a beat after the first frame: jump to the home page once when it becomes
+    // known (a no-op when it is 0 or the user is already there — setting a new home page happens
+    // from that page, so this never yanks them elsewhere).
+    var jumpedHome by remember { mutableStateOf(false) }
+    LaunchedEffect(homePage) {
+        if (!jumpedHome && homePage > 0) {
+            jumpedHome = true
+            if (pagerState.currentPage != homePage) pagerState.scrollToPage(homePage.coerceIn(0, pageCount))
+        }
+    }
+    LaunchedEffect(pageRequests) {
+        pageRequests.collect { page -> pagerState.animateScrollToPage(page.coerceIn(0, pageCount)) }
+    }
     // The cell the dragged icon would drop into — shown as a placeholder while dragging.
     var targetCell by remember { mutableStateOf<IntOffset?>(null) }
 
@@ -543,11 +561,11 @@ fun Workspace(
     // HOME button / home gesture: always leave widget edit mode, but snap to the first page only
     // when HOME was pressed while the launcher was already foreground (alreadyOnHome). Coming home
     // from an app keeps the page the app was launched from — the Pixel Launcher convention.
-    LaunchedEffect(homeSignals, pageCount) {
+    LaunchedEffect(homeSignals, pageCount, homePage) {
         homeSignals.collect { alreadyOnHome ->
             widgetDragController.cancel()
             editingWidget = null
-            if (alreadyOnHome && pagerState.currentPage != 0) pagerState.animateScrollToPage(0)
+            if (alreadyOnHome && pagerState.currentPage != homePage) pagerState.animateScrollToPage(homePage)
         }
     }
 
@@ -1354,6 +1372,7 @@ fun Workspace(
                 PageDots(
                     count = pageCount,
                     current = pagerState.currentPage,
+                    home = homePage,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
@@ -1722,20 +1741,20 @@ internal fun android.view.View.containsScrollableCollection(): Boolean = when (t
 }
 
 @Composable
-private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
+private fun PageDots(count: Int, current: Int, home: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { index ->
+            // The home page's dot wears a ring, so the page HOME returns to is visible at a glance.
+            val color = if (index == current) Color.White else Color.White.copy(alpha = 0.4f)
             Box(
                 modifier = Modifier
-                    .size(7.dp)
-                    .background(
-                        color = if (index == current) Color.White else Color.White.copy(alpha = 0.4f),
-                        shape = CircleShape,
-                    ),
+                    .size(if (index == home) 9.dp else 7.dp)
+                    .then(if (index == home) Modifier.border(1.5.dp, color, CircleShape).padding(2.dp) else Modifier)
+                    .background(color = color, shape = CircleShape),
             )
         }
     }

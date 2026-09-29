@@ -100,6 +100,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
@@ -204,6 +205,8 @@ fun HomeScreen(
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     // Empty-area long-press options popup (anchor + whether it flips above the press point).
     var homeOptions by remember { mutableStateOf<Pair<IntOffset, Boolean>?>(null) }
+    // Page the workspace should show after a page was added or removed from the empty-area menu.
+    val pageRequests = remember { MutableSharedFlow<Int>(extraBufferCapacity = 1) }
     val defaultFolderName = stringResource(R.string.folder_default_name)
 
     val widgetHost = LocalAppWidgetHost.current
@@ -540,6 +543,8 @@ fun HomeScreen(
                 showPageIndicator = settings.showPageIndicator,
                 locked = settings.desktopLocked,
                 homeSignals = homeSignals,
+                homePage = uiState.homePage,
+                pageRequests = pageRequests,
                 dragController = dragController,
                 widgetDragController = widgetDrag,
                 onAddWidget = ::addWidget,
@@ -760,6 +765,34 @@ fun HomeScreen(
                         )
                     }
                 })
+                // Pages: the menu was opened on the page the pager is showing.
+                val page = dragController.currentPage.coerceIn(0, uiState.pageCount - 1)
+                if (!settings.desktopLocked) {
+                    add(IconMenuItem(R.drawable.ic_page_add_left, stringResource(R.string.home_options_page_left)) {
+                        widgetScope.launch {
+                            val at = viewModel.insertPage(page)
+                            if (at >= 0) pageRequests.tryEmit(at) else widgetMessage(R.string.home_options_page_limit)
+                        }
+                    })
+                    add(IconMenuItem(R.drawable.ic_page_add_right, stringResource(R.string.home_options_page_right)) {
+                        widgetScope.launch {
+                            val at = viewModel.insertPage(page + 1)
+                            if (at >= 0) pageRequests.tryEmit(at) else widgetMessage(R.string.home_options_page_limit)
+                        }
+                    })
+                }
+                if (page != uiState.homePage) {
+                    add(IconMenuItem(R.drawable.ic_home_page, stringResource(R.string.home_options_set_home)) {
+                        viewModel.setHomePage(page)
+                    })
+                }
+                if (!settings.desktopLocked && uiState.pageCount > 1 && viewModel.isPageEmpty(page)) {
+                    add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.home_options_page_remove)) {
+                        widgetScope.launch {
+                            if (viewModel.removeEmptyPage(page)) pageRequests.tryEmit(page.coerceAtMost(uiState.pageCount - 2))
+                        }
+                    })
+                }
             },
             onDismiss = { homeOptions = null },
         )

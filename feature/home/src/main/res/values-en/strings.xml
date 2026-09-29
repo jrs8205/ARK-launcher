@@ -86,6 +86,11 @@
     <string name="home_options_widgets">Widgets</string>
     <string name="home_options_settings">Launcher</string>
     <string name="home_options_wallpaper">Wallpaper</string>
+    <string name="home_options_page_left">Add page to the left</string>
+    <string name="home_options_page_right">Add page to the right</string>
+    <string name="home_options_set_home">Set as home page</string>
+    <string name="home_options_page_remove">Remove empty page</string>
+    <string name="home_options_page_limit">Already at the page limit</string>
     <string name="widget_remove">Remove widget</string>
     <string name="widget_unavailable">Widget unavailable</string>
     <string name="widget_restore_tap">Tap to set up</string>

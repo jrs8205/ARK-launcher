@@ -67,6 +67,13 @@ interface HomeItemDao {
     )
     suspend fun moveById(id: Long, containerId: Long, page: Int, cellX: Int, cellY: Int)
 
+    /** Shifts the page of every row in [containerId] at or after [from] by [offset]. */
+    @Query("UPDATE home_items SET page = page + :offset WHERE containerId = :containerId AND page >= :from")
+    suspend fun offsetPages(containerId: Long, from: Int, offset: Int)
+
+    @Query("SELECT COUNT(*) FROM home_items WHERE containerId = :containerId AND page = :page")
+    suspend fun countOnPage(containerId: Long, page: Int): Int
+
     @Query("UPDATE home_items SET folderName = :name WHERE id = :id")
     suspend fun renameFolder(id: Long, name: String)
 

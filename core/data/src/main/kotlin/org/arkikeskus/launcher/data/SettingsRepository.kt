@@ -86,6 +86,8 @@ class SettingsRepository @Inject constructor(
             },
             peopleBatchEnabled = p[Keys.PEOPLE_BATCH_ENABLED] ?: false,
             peopleShowApps = p[Keys.PEOPLE_SHOW_APPS] ?: true,
+            homePage = (p[Keys.HOME_PAGE] ?: 0).coerceIn(0, HomeLayoutRepository.MAX_PAGES),
+            homePageCount = (p[Keys.HOME_PAGE_COUNT] ?: 0).coerceIn(0, HomeLayoutRepository.MAX_PAGES),
             peopleBatchTimes = (p[Keys.PEOPLE_BATCH_TIMES] ?: LauncherSettings.DEFAULT_BATCH_TIMES)
                 .let { BatchSchedule.parse(it) }
                 .let { if (it.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(it) },
@@ -93,6 +95,12 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setPeopleBatchEnabled(value: Boolean) = edit { it[Keys.PEOPLE_BATCH_ENABLED] = value }
+    /** The page HOME returns to. */
+    suspend fun setHomePage(page: Int) = edit { it[Keys.HOME_PAGE] = page.coerceIn(0, HomeLayoutRepository.MAX_PAGES) }
+
+    /** The explicit page count (see LauncherSettings.homePageCount). */
+    suspend fun setHomePageCount(count: Int) = edit { it[Keys.HOME_PAGE_COUNT] = count.coerceIn(0, HomeLayoutRepository.MAX_PAGES) }
+
     suspend fun setPeopleShowApps(value: Boolean) = edit { it[Keys.PEOPLE_SHOW_APPS] = value }
 
     /** Batch delivery times; normalized through [BatchSchedule], falling back to the default when
@@ -522,6 +530,8 @@ class SettingsRepository @Inject constructor(
         val PEOPLE_BATCH_TIMES = stringPreferencesKey("people_batch_times")
         val PEOPLE_SHOW_APPS = booleanPreferencesKey("people_show_apps")
         val PEOPLE_HELD = stringPreferencesKey("people_held_notifications")
+        val HOME_PAGE = intPreferencesKey("home_page")
+        val HOME_PAGE_COUNT = intPreferencesKey("home_page_count")
     }
 
     companion object {
@@ -543,7 +553,10 @@ class SettingsRepository @Inject constructor(
 
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf("dock_opacity", "notif_dot_scale", "app_label_scale", "status_bar_scrim")
-        val INT_KEYS = setOf("dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color")
+        val INT_KEYS = setOf(
+            "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",
+            "home_page", "home_page_count",
+        )
 
         /** Known boolean/string preference keys. importRaw writes a known key ONLY with its
          *  registered type — a wrong-typed value in an edited/corrupted backup would otherwise be

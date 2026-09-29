@@ -76,6 +76,11 @@ data class LauncherSettings(
     val peopleBatchTimes: String = DEFAULT_BATCH_TIMES,
     /** Also show notifications that aren't from a person in the people widget, grouped by app. */
     val peopleShowApps: Boolean = true,
+    /** The page the launcher opens on and the HOME button returns to (0 = the leftmost). */
+    val homePage: Int = 0,
+    /** Pages the user added explicitly (0 = none): the home keeps at least this many pages even
+     *  when some are empty. Pages that hold an icon or widget exist regardless. */
+    val homePageCount: Int = 0,
 ) {
     companion object {
         const val COUNT_NUMBER = "number"
