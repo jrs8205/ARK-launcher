@@ -1,0 +1,6 @@
+New
+- People widget: messages, missed calls and mail grouped by person, as tiles. Tap opens, swipe dismisses, long-press replies, calls, pins or links names. Other apps' notifications show as tiles by app.
+- Page menu: add a page to the left or right, set the home page, remove an empty page.
+- Settings: a privacy level for the widget, and optional batch delivery that holds others' messages in the launcher until set times.
+
+The widget needs notification access.
