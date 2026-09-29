@@ -74,6 +74,8 @@ data class LauncherSettings(
     val peopleBatchEnabled: Boolean = false,
     /** Comma-separated "HH:mm" delivery times for the batch; see BatchSchedule. */
     val peopleBatchTimes: String = DEFAULT_BATCH_TIMES,
+    /** Also show notifications that aren't from a person in the people widget, grouped by app. */
+    val peopleShowApps: Boolean = true,
 ) {
     companion object {
         const val COUNT_NUMBER = "number"

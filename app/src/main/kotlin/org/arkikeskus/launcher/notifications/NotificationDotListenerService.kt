@@ -237,8 +237,14 @@ class NotificationDotListenerService : NotificationListenerService() {
             if (sbn == null) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
-            // People tiles: conversation-like notifications only, reduced to sender + text + actions.
-            runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull()?.let(people::add)
+            // People tiles: conversation-like notifications reduced to sender + text + actions; any
+            // other real (icon-worthy, not ongoing) notification becomes an app-grouped entry.
+            val person = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull()
+            when {
+                person != null -> people.add(person)
+                isIconWorthy(sbn) && (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0 ->
+                    runCatching { appEntry(sbn, serial) }.getOrNull()?.let(people::add)
+            }
             // Dots: strict badge-worthy filter (meaningful home-icon badges).
             if (isBadgeWorthy(sbn, ranking, tmp)) {
                 counts[key] = (counts[key] ?: 0) + 1
@@ -398,6 +404,41 @@ class NotificationDotListenerService : NotificationListenerService() {
             personUri = uri,
         )
     }
+
+    /** Any other notification as an entry under its app: label as the name, title + text shown. */
+    private fun appEntry(sbn: StatusBarNotification, serial: Long): PersonEntry? {
+        val n = sbn.notification ?: return null
+        val extras = n.extras
+        val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        val text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        if (title == null && text == null) return null
+        val label = appLabels.getOrPut(sbn.packageName) {
+            runCatching {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
+            }.getOrDefault(sbn.packageName)
+        }
+        val reply = n.actions?.firstNotNullOfOrNull { action ->
+            val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: return@firstNotNullOfOrNull null
+            action.actionIntent?.let { ReplyAction(it, input) }
+        }
+        return PersonEntry(
+            key = sbn.key,
+            name = label,
+            groupKey = "app:${sbn.packageName}/$serial",
+            title = title,
+            text = text,
+            postTime = sbn.postTime,
+            packageName = sbn.packageName,
+            userSerial = serial,
+            kind = PersonEventKind.APP,
+            contentIntent = n.contentIntent,
+            autoCancel = (n.flags and Notification.FLAG_AUTO_CANCEL) != 0,
+            reply = reply,
+        )
+    }
+
+    /** App labels by package, filled lazily; a label rarely changes while the listener lives. */
+    private val appLabels = HashMap<String, String>()
 
     /** The installed apps that offer to compose mail (handle mailto:), i.e. the mail clients. */
     private fun queryMailPackages(): Set<String> = runCatching {

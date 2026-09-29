@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -78,6 +79,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -85,7 +87,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.NotificationWidgetLayout
 import org.arkikeskus.launcher.data.PeopleGrouping
 import org.arkikeskus.launcher.data.PersonEventKind
 import org.arkikeskus.launcher.data.PersonTileState
@@ -94,10 +98,12 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.search.ContactDataSource
 import org.arkikeskus.launcher.data.search.PermissionChecker
 import org.arkikeskus.launcher.data.search.RawContact
+import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.IconMenuItem
 import org.arkikeskus.launcher.ui.IconMenuPopup
 import org.arkikeskus.launcher.ui.LauncherIcons
+import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 import javax.inject.Inject
@@ -118,6 +124,7 @@ class PeopleWidgetViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val badgeRepository: NotificationBadgeRepository,
     private val settingsRepository: SettingsRepository,
+    private val appRepository: AppRepository,
     private val contacts: ContactDataSource,
     private val permissions: PermissionChecker,
 ) : ViewModel() {
@@ -133,7 +140,11 @@ class PeopleWidgetViewModel @Inject constructor(
         val pinned: PinnedPerson?,
         val live: PersonTileState?,
         val contact: RawContact?,
+        /** The launcher app behind an app tile (null for people, or an app without a launcher entry). */
+        val app: AppItem? = null,
     ) {
+        /** An app-grouped tile (news, deliveries, system): no person behind it, so no pin/link/call. */
+        val isApp: Boolean get() = live?.newest?.kind == PersonEventKind.APP
         val hasContent: Boolean get() = live != null
         /** Everything behind the tile is waiting for the batch: shown quiet, with the delivery time. */
         val held: Boolean get() = live?.held == true
@@ -170,15 +181,33 @@ class PeopleWidgetViewModel @Inject constructor(
     private val contactCache = MutableStateFlow<Map<String, RawContact?>>(emptyMap())
     private val lookupsStarted = HashSet<String>()
 
-    /** Pinned people first (pin order), then everyone else with something new, newest first. */
+    /** One launcher entry per package+profile, for app tiles' icons and launch. */
+    private val appsByBadgeKey: Flow<Map<String, AppItem>> = appRepository.apps.map { apps ->
+        apps.groupBy { it.badgeKey }.mapValues { (_, entries) ->
+            NotificationWidgetLayout.representative(entries, { it.className }) {
+                val first = entries.first()
+                appRepository.launchClassName(first.packageName, first.user)
+            }
+        }
+    }
+
+    /** Live groups with the user's aliases applied, app groups dropped when the setting is off. */
+    private val liveGroups: Flow<List<PersonTileState>> = combine(
+        badgeRepository.people, settingsRepository.peopleAliases, settingsRepository.settings.map { it.peopleShowApps },
+    ) { grouped, aliases, showApps ->
+        PeopleGrouping.merge(grouped, aliases).filter { showApps || it.newest.kind != PersonEventKind.APP }
+    }
+
+    /** Pinned people first (pin order), then people with something new, then other apps' tiles. */
     val tiles: StateFlow<List<Tile>> = combine(
-        badgeRepository.people, settingsRepository.pinnedPeople, contactCache, settingsRepository.peopleAliases,
-    ) { grouped, pinned, found, aliases ->
-        val live = PeopleGrouping.merge(grouped, aliases)
+        liveGroups, settingsRepository.pinnedPeople, contactCache, appsByBadgeKey,
+    ) { live, pinned, found, apps ->
         val liveByKey = live.associateBy { it.personKey }
         val pinnedKeys = pinned.map { it.key }.toSet()
+        val (appGroups, peopleGroups) = live.partition { it.newest.kind == PersonEventKind.APP }
         val tiles = pinned.map { p -> Tile(p.key, p.name, p, liveByKey[p.key], found[p.key]) } +
-            live.filter { it.personKey !in pinnedKeys }.map { Tile(it.personKey, it.name, null, it, found[it.personKey]) }
+            peopleGroups.filter { it.personKey !in pinnedKeys }.map { Tile(it.personKey, it.name, null, it, found[it.personKey]) } +
+            appGroups.map { Tile(it.personKey, it.name, null, it, null, apps["${it.newest.packageName}/${it.newest.userSerial}"]) }
         lookUpContacts(tiles)
         tiles
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -187,7 +216,7 @@ class PeopleWidgetViewModel @Inject constructor(
     private fun lookUpContacts(tiles: List<Tile>) {
         if (!permissions.has(Manifest.permission.READ_CONTACTS)) return
         val pending = tiles.filter {
-            it.contact == null && it.pinned?.lookupUri.isNullOrEmpty() && lookupsStarted.add(it.key)
+            !it.isApp && it.contact == null && it.pinned?.lookupUri.isNullOrEmpty() && lookupsStarted.add(it.key)
         }
         if (pending.isEmpty()) return
         viewModelScope.launch {
@@ -209,6 +238,10 @@ class PeopleWidgetViewModel @Inject constructor(
                 if (target.autoCancel) badgeRepository.cancelNotification(target.key)
                 return
             }
+        }
+        if (tile.isApp) {
+            tile.app?.let { appRepository.launch(it) }
+            return
         }
         openContact(tile)
     }
@@ -376,10 +409,12 @@ fun PeopleWidget(
             if (tile.canCall) add(IconMenuItem(LauncherIcons.Call, stringResource(R.string.people_action_call)) { viewModel.call(tile) })
             if (tile.hasContent) add(IconMenuItem(LauncherIcons.Remove, stringResource(R.string.people_action_dismiss)) { viewModel.dismiss(tile) })
             if (tile.lookupUri != null) add(IconMenuItem(LauncherIcons.Info, stringResource(R.string.people_action_contact)) { viewModel.openContact(tile) })
-            if (tile.pinned == null) add(IconMenuItem(LauncherIcons.Add, stringResource(R.string.people_action_pin)) { viewModel.pin(tile) })
-            else add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.people_action_unpin)) { viewModel.unpin(tile) })
-            if (tiles.size > 1) add(IconMenuItem(LauncherIcons.Edit, stringResource(R.string.people_action_link)) { linkFor = tile })
-            if (aliases.containsValue(tile.key)) add(IconMenuItem(LauncherIcons.Close, stringResource(R.string.people_action_unlink)) { viewModel.unlink(tile) })
+            if (!tile.isApp) {
+                if (tile.pinned == null) add(IconMenuItem(LauncherIcons.Add, stringResource(R.string.people_action_pin)) { viewModel.pin(tile) })
+                else add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.people_action_unpin)) { viewModel.unpin(tile) })
+                if (tiles.any { !it.isApp && it.key != tile.key }) add(IconMenuItem(LauncherIcons.Edit, stringResource(R.string.people_action_link)) { linkFor = tile })
+                if (aliases.containsValue(tile.key)) add(IconMenuItem(LauncherIcons.Close, stringResource(R.string.people_action_unlink)) { viewModel.unlink(tile) })
+            }
         }
         IconMenuPopup(
             anchor = anchor,
@@ -392,7 +427,7 @@ fun PeopleWidget(
     linkFor?.let { tile ->
         LinkDialog(
             tile = tile,
-            candidates = tiles.filter { it.key != tile.key },
+            candidates = tiles.filter { !it.isApp && it.key != tile.key },
             onPick = { target ->
                 viewModel.link(tile, target)
                 linkFor = null
@@ -515,7 +550,7 @@ private fun PersonTile(
             )
             .padding(10.dp),
     ) {
-        val hideName = privacy == LauncherSettings.PRIVACY_COUNT && tile.pinned == null
+        val hideName = privacy == LauncherSettings.PRIVACY_COUNT && tile.pinned == null && !tile.isApp
         val shownName = if (hideName) stringResource(R.string.people_hidden_name) else tile.name
         if (!wide) {
             // Quiet (or squeezed) tile: avatar over the name, centered.
@@ -546,15 +581,23 @@ private fun PersonTile(
                     NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = previewText(tile, privacy),
-                    color = fg.copy(alpha = 0.9f),
-                    fontSize = 12.sp,
-                    lineHeight = 15.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
+                val appTitle = tile.live?.newest?.title?.takeIf { tile.isApp && privacy != LauncherSettings.PRIVACY_COUNT }
+                Column(Modifier.weight(1f)) {
+                    if (appTitle != null) {
+                        Text(
+                            text = appTitle, color = fg, fontSize = 12.sp, lineHeight = 15.sp,
+                            fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = previewText(tile, privacy),
+                        color = fg.copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        lineHeight = 15.sp,
+                        maxLines = if (appTitle != null) 1 else 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(
                     text = if (tile.held) {
                         stringResource(
@@ -577,7 +620,15 @@ private fun PersonTile(
 
 @Composable
 private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: Dp) {
-    if (anonymous) {
+    val app = tile.app
+    if (tile.isApp && app != null) {
+        AppIcon(appItem = app, labelColor = Color.White, showLabel = false, iconSize = size, badgeCount = 0, badgeShowCount = false)
+    } else if (tile.isApp) {
+        Icon(
+            painter = painterResource(R.drawable.ic_notification_generic), contentDescription = null,
+            tint = widgetContentColor(), modifier = Modifier.size(size),
+        )
+    } else if (anonymous) {
         Box(
             modifier = Modifier.size(size).clip(RoundedCornerShape(50)).background(widgetContentColor().copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center,
@@ -598,8 +649,14 @@ private fun previewText(tile: PeopleWidgetViewModel.Tile, privacy: String): Stri
             PersonEventKind.MISSED_CALL -> R.string.people_kind_missed_call
             PersonEventKind.EMAIL -> R.string.people_kind_email
             PersonEventKind.MESSAGE -> R.string.people_kind_message
+            PersonEventKind.APP -> R.string.people_kind_app
         },
     )
+    if (newest.kind == PersonEventKind.APP) {
+        // The title line already shows in "sender only"; the text is the private part.
+        return if (privacy == LauncherSettings.PRIVACY_ALL) newest.text?.takeIf { it.isNotBlank() } ?: kindLabel
+        else if (privacy == LauncherSettings.PRIVACY_SENDER) "" else kindLabel
+    }
     if (privacy != LauncherSettings.PRIVACY_ALL) return kindLabel
     if (newest.kind == PersonEventKind.MISSED_CALL) return kindLabel
     return newest.text?.takeIf { it.isNotBlank() } ?: kindLabel

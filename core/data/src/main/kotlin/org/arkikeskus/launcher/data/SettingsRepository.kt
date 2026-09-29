@@ -85,6 +85,7 @@ class SettingsRepository @Inject constructor(
                 else LauncherSettings.PRIVACY_ALL
             },
             peopleBatchEnabled = p[Keys.PEOPLE_BATCH_ENABLED] ?: false,
+            peopleShowApps = p[Keys.PEOPLE_SHOW_APPS] ?: true,
             peopleBatchTimes = (p[Keys.PEOPLE_BATCH_TIMES] ?: LauncherSettings.DEFAULT_BATCH_TIMES)
                 .let { BatchSchedule.parse(it) }
                 .let { if (it.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(it) },
@@ -92,6 +93,7 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setPeopleBatchEnabled(value: Boolean) = edit { it[Keys.PEOPLE_BATCH_ENABLED] = value }
+    suspend fun setPeopleShowApps(value: Boolean) = edit { it[Keys.PEOPLE_SHOW_APPS] = value }
 
     /** Batch delivery times; normalized through [BatchSchedule], falling back to the default when
      *  nothing parses so the batch can never silently hold messages forever. */
@@ -500,6 +502,7 @@ class SettingsRepository @Inject constructor(
         val PEOPLE_ALIASES = stringPreferencesKey("people_aliases")
         val PEOPLE_BATCH_ENABLED = booleanPreferencesKey("people_batch_enabled")
         val PEOPLE_BATCH_TIMES = stringPreferencesKey("people_batch_times")
+        val PEOPLE_SHOW_APPS = booleanPreferencesKey("people_show_apps")
     }
 
     companion object {
@@ -532,7 +535,7 @@ class SettingsRepository @Inject constructor(
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
-            "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled",
+            "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

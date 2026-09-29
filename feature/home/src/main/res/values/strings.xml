@@ -24,6 +24,7 @@
     <string name="people_kind_message">Viesti</string>
     <string name="people_kind_missed_call">Vastaamaton puhelu</string>
     <string name="people_kind_email">Sähköposti</string>
+    <string name="people_kind_app">Ilmoitus</string>
     <string name="people_action_open">Avaa</string>
     <string name="people_action_reply">Vastaa</string>
     <string name="people_action_call">Soita</string>

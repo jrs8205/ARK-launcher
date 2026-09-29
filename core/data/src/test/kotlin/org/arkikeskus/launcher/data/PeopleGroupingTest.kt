@@ -58,6 +58,19 @@ class PeopleGroupingTest {
     }
 
     @Test
+    fun `a group key overrides the name and ignores aliases`() {
+        val tiles = PeopleGrouping.group(
+            listOf(
+                entry("News", 1).copy(groupKey = "app:news/0", kind = PersonEventKind.APP),
+                entry("News", 2).copy(groupKey = "app:news/0", kind = PersonEventKind.APP),
+                entry("News", 3),
+            ),
+        ) { if (it == "news") "someone" else it }
+        assertThat(tiles.map { it.personKey }).containsExactly("someone", "app:news/0").inOrder()
+        assertThat(tiles[1].count).isEqualTo(2)
+    }
+
+    @Test
     fun `blank names are dropped and inner whitespace is collapsed`() {
         val tiles = PeopleGrouping.group(listOf(entry("  ", 1), entry("Mikko  Mäkelä", 2), entry("mikko mäkelä", 3)))
         assertThat(tiles).hasSize(1)

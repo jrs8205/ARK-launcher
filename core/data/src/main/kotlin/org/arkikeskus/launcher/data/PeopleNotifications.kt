@@ -4,8 +4,9 @@ import android.app.PendingIntent
 import android.app.RemoteInput
 import android.graphics.drawable.Icon
 
-/** What a person's notification is about; decides the tile's icon and its quick actions. */
-enum class PersonEventKind { MESSAGE, MISSED_CALL, EMAIL }
+/** What a tile's notification is about; decides the tile's icon and its quick actions. [APP] is
+ *  any other notification (news, deliveries, system), grouped by app instead of by person. */
+enum class PersonEventKind { MESSAGE, MISSED_CALL, EMAIL, APP }
 
 /** A notification's inline-reply action: the app's intent plus the RemoteInput it expects. */
 data class ReplyAction(
@@ -21,8 +22,12 @@ data class ReplyAction(
 data class PersonEntry(
     /** StatusBarNotification.key — what [NotificationBadgeRepository.cancelNotification] takes. */
     val key: String,
-    /** The sender or conversation display name as the app posted it. */
+    /** The sender or conversation display name as the app posted it (the app label for [APP]). */
     val name: String,
+    /** Groups this entry under a fixed key instead of the name (app tiles: "app:package/serial"). */
+    val groupKey: String? = null,
+    /** The notification title, for app tiles (a person's tile shows the name instead). */
+    val title: String? = null,
     /** The newest message text (null for a call, or when the app posted none). */
     val text: String?,
     val postTime: Long,
@@ -80,7 +85,7 @@ object PeopleGrouping {
     fun group(entries: List<PersonEntry>, alias: (String) -> String = { it }): List<PersonTileState> =
         entries
             .filter { it.name.isNotBlank() }
-            .groupBy { alias(personKey(it.name)) }
+            .groupBy { it.groupKey ?: alias(personKey(it.name)) }
             .map { (key, group) ->
                 val sorted = group.sortedByDescending { it.postTime }
                 val own = sorted.firstOrNull { personKey(it.name) == key } ?: sorted.first()

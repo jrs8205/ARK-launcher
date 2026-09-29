@@ -24,6 +24,7 @@
     <string name="people_kind_message">Message</string>
     <string name="people_kind_missed_call">Missed call</string>
     <string name="people_kind_email">Email</string>
+    <string name="people_kind_app">Notification</string>
     <string name="people_action_open">Open</string>
     <string name="people_action_reply">Reply</string>
     <string name="people_action_call">Call</string>

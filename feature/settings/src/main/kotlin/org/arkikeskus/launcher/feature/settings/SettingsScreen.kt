@@ -252,6 +252,11 @@ fun SettingsScreen(
                     ),
                 ) { showPeoplePrivacyPicker = true }
                 SwitchRow(
+                    stringResource(R.string.settings_people_show_apps),
+                    s.peopleShowApps,
+                    viewModel::setPeopleShowApps,
+                )
+                SwitchRow(
                     stringResource(R.string.settings_people_batch),
                     s.peopleBatchEnabled,
                     viewModel::setPeopleBatchEnabled,
