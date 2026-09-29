@@ -425,9 +425,9 @@ class SettingsRepository @Inject constructor(
      * into "number", so numeric values are coerced back by the registry; unknown keys fall back
      * to their JSON type.
      *
-     * The device-local bookkeeping keys in [DEVICE_LOCAL_KEYS] (the local file-backup time and the
-     * first-run/onboarding flags) are snapshotted before the clear and re-applied afterward, so
-     * restoring a backup never wipes this device's local state.
+     * Device-local state (the local file-backup time, first-run/onboarding flags, batch-held
+     * notification keys and usage stats) is snapshotted before the clear and re-applied afterward,
+     * so restoring a backup never wipes this device's local state.
      */
     suspend fun importRaw(values: Map<String, Any>) {
         dataStore.edit { prefs ->
@@ -436,6 +436,7 @@ class SettingsRepository @Inject constructor(
             val layoutSeeded = prefs[Keys.DEFAULT_LAYOUT_SEEDED]
             val onboardingDone = prefs[Keys.ONBOARDING_DONE]
             val firstRunFresh = prefs[Keys.FIRST_RUN_FRESH]
+            val heldNotifications = prefs[Keys.PEOPLE_HELD]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             prefs.clear()
@@ -462,6 +463,7 @@ class SettingsRepository @Inject constructor(
             if (layoutSeeded != null) prefs[Keys.DEFAULT_LAYOUT_SEEDED] = layoutSeeded
             if (onboardingDone != null) prefs[Keys.ONBOARDING_DONE] = onboardingDone
             if (firstRunFresh != null) prefs[Keys.FIRST_RUN_FRESH] = firstRunFresh
+            if (heldNotifications != null) prefs[Keys.PEOPLE_HELD] = heldNotifications
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
         }
     }

@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.UserManager
@@ -360,8 +361,12 @@ class NotificationDotListenerService : NotificationListenerService() {
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         var subject: String? = null
         val ranked = ranking?.getRanking(sbn.key, tmp) == true
-        val conversation = ranked && tmp.isConversation
-        val shortcutLabel = if (ranked) tmp.conversationShortcutInfo?.shortLabel?.toString() else null
+        // Ranking's conversation APIs are public from Android 12. Android 11 still uses the
+        // MessagingStyle, category and title fallbacks below to identify people and batch messages.
+        val conversation = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ranked && tmp.isConversation
+        val shortcutLabel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ranked) {
+            tmp.conversationShortcutInfo?.shortLabel?.toString()
+        } else null
 
         var name: String
         var preview: String? = text

@@ -188,6 +188,57 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `held notifications survive restoring a backup and recreating the repository`() = runTest {
+        val store = InMemoryDataStore()
+        val repo = SettingsRepository(store)
+        val held = mapOf(
+            "0|example.mail|42|message|10001" to 1_790_752_800_000L,
+            "0|example.chat|7|conversation|10002" to 1_790_770_800_000L,
+        )
+        repo.setHeldNotifications(held)
+        repo.setHomeColumns(5)
+        val backup = repo.exportRaw()
+        assertThat(backup).doesNotContainKey("people_held_notifications")
+
+        repo.setHomeColumns(4)
+        repo.importRaw(backup)
+
+        // A new listener must be able to identify its snoozes from the persisted state after restore.
+        val reopened = SettingsRepository(store)
+        assertThat(reopened.heldNotifications.first()).containsExactlyEntriesIn(held)
+        assertThat(reopened.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test
+    fun `restoring foreign held notifications preserves this devices own registry`() = runTest {
+        val store = InMemoryDataStore()
+        val repo = SettingsRepository(store)
+        val held = mapOf("local-notification" to 1_790_752_800_000L)
+        repo.setHeldNotifications(held)
+
+        repo.importRaw(
+            mapOf(
+                "people_held_notifications" to "foreign-notification\t1790770800000",
+                "home_columns" to 5,
+            ),
+        )
+
+        val reopened = SettingsRepository(store)
+        assertThat(reopened.heldNotifications.first()).containsExactlyEntriesIn(held)
+        assertThat(reopened.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test
+    fun `restoring a foreign registry never creates held notifications on this device`() = runTest {
+        val repo = newRepository()
+
+        repo.importRaw(mapOf("people_held_notifications" to "foreign-notification\t1790770800000"))
+
+        assertThat(repo.heldNotifications.first()).isEmpty()
+        assertThat(repo.exportRaw()).doesNotContainKey("people_held_notifications")
+    }
+
+    @Test
     fun `importRaw tolerates a legacy Drive-era backup without importing its keys`() = runTest {
         val repo = newRepository()
         // A ≤0.7.11 backup may contain Drive/updater bookkeeping (both features were removed in
