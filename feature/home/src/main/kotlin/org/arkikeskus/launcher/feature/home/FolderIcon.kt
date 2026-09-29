@@ -57,7 +57,8 @@ fun FolderIcon(
             }
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
-        if (showLabel) AppLabel(name, labelColor)
+        // Home-only tile in a fixed centred cell: reserve the full label block (see AppLabel).
+        if (showLabel) AppLabel(name, labelColor, reserveLines = true)
     }
 }
 

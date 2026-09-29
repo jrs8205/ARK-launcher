@@ -1008,6 +1008,9 @@ fun Workspace(
                                     labelColor = labelColor,
                                     showLabel = showLabels,
                                     iconSize = cellIconSize,
+                                    // Fixed centred cell: reserve the full label block so a name that
+                                    // wraps does not lift its icon above its neighbours'.
+                                    reserveLabelLines = true,
                                     badgeCount = badges[placed.app.badgeKey] ?: 0,
                                     badgeShowCount = badgeShowCount,
                                     badgeScale = badgeScale,
@@ -1669,7 +1672,7 @@ private fun ShortcutIconContent(
         } else {
             Box(Modifier.size(iconSize))
         }
-        if (showLabel) AppLabel(shortcut.label, labelColor)
+        if (showLabel) AppLabel(shortcut.label, labelColor, reserveLines = true)
     }
 }
 

@@ -66,7 +66,8 @@ val LocalAppLabelLines = compositionLocalOf { 1 }
  * An app icon plus optional label. The icon is loaded via Coil (see AppIconFetcher), so it is
  * cached and loaded off the main thread. Caller supplies [labelColor] (white on wallpaper, the
  * theme on-surface color inside the drawer). When [badgeCount] > 0 a notification badge is drawn at
- * the icon's top-right corner ([badgeShowCount] picks number vs plain dot).
+ * the icon's top-right corner ([badgeShowCount] picks number vs plain dot). [reserveLabelLines] is
+ * for fixed, centred cells (the home grid): see [AppLabel].
  */
 @Composable
 fun AppIcon(
@@ -76,6 +77,7 @@ fun AppIcon(
     iconSize: Dp = 56.dp,
     showLabel: Boolean = true,
     maxLabelLines: Int = LocalAppLabelLines.current,
+    reserveLabelLines: Boolean = false,
     badgeCount: Int = 0,
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
@@ -98,7 +100,7 @@ fun AppIcon(
             )
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
-        if (showLabel) AppLabel(appItem.label, labelColor, maxLabelLines)
+        if (showLabel) AppLabel(appItem.label, labelColor, maxLabelLines, reserveLabelLines)
     }
 }
 
@@ -156,9 +158,19 @@ fun labelBlockHeight(showLabel: Boolean, labelScale: Float, fontFactor: Float, l
  * budget, but Android rounds each text line to whole pixels, so two lines came out a pixel taller
  * than the fractional cap and Compose ellipsized the label to ONE line — the drawer's two-line
  * labels never wrapped. The at-most-one-pixel-per-line overshoot is invisible in a centred cell.
+ *
+ * [reserveLines] makes the label always [maxLines] tall (`minLines`), whether or not the text wraps.
+ * The home grid centres icon + label in a fixed cell, so without it a name that wraps lifted its
+ * icon half a line above a neighbour whose name did not. Surfaces that top-align their cells (the
+ * drawer's grids, the folder sheets) leave it off and let a row grow only when a name wraps.
  */
 @Composable
-fun AppLabel(text: String, color: Color, maxLines: Int = LocalAppLabelLines.current) {
+fun AppLabel(
+    text: String,
+    color: Color,
+    maxLines: Int = LocalAppLabelLines.current,
+    reserveLines: Boolean = false,
+) {
     val scale = LocalAppLabelScale.current
     val density = LocalDensity.current
     val factor = labelFontFactor(density.fontScale)
@@ -169,6 +181,7 @@ fun AppLabel(text: String, color: Color, maxLines: Int = LocalAppLabelLines.curr
         color = color,
         fontSize = with(density) { (11f * scale * factor).dp.toSp() },
         lineHeight = with(density) { line.toSp() },
+        minLines = if (reserveLines) maxLines else 1,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
