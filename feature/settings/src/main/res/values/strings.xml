@@ -35,9 +35,9 @@
     <string name="settings_people_privacy_sender">Vain lähettäjä</string>
     <string name="settings_people_privacy_count">Vain määrä</string>
     <string name="settings_people_show_apps">Ihmiset-widget näyttää myös muiden sovellusten ilmoitukset</string>
-    <string name="settings_people_batch">Eräposti: muiden viestit kootaan, kiinnitetyt tulevat heti</string>
+    <string name="settings_people_batch">Eräposti launcherissa: muiden viestit kootaan, kiinnitetyt tulevat heti</string>
     <string name="settings_people_batch_times">Eräpostin jakoajat</string>
-    <string name="settings_people_batch_times_hint">Kellonajat pilkulla eroteltuna, esim. 08:00, 12:00, 17:00. Vastaamattomat puhelut ja kertakäyttökoodit tulevat aina heti. Eräpostin sammuttaminen tai henkilön kiinnittäminen ei vapauta jo odottavia viestejä; ne saapuvat jakoaikana.</string>
+    <string name="settings_people_batch_times_hint">Kellonajat pilkulla eroteltuna, esim. 08:00, 12:00, 17:00. Eräposti vaikuttaa vain launcherin widgetteihin, ilmoitusmerkkeihin ja omaan tilapalkkiin. Androidin ilmoitusverho, äänet ja ponnahdusilmoitukset toimivat normaalisti. Kiinnitettyjen henkilöiden uudet viestit, vastaamattomat puhelut ja tunnistetut kertakäyttökoodit näkyvät heti. Henkilön kiinnittäminen ei yksin vapauta odottavia viestejä. Eräpostin sammuttaminen vapauttaa ne launcherissa. Aiemman version jo torkuttamat ilmoitukset saapuvat silti alkuperäisenä jakoaikana.</string>
     <string name="settings_people_batch_times_save">Tallenna</string>
     <string name="settings_permissions">Luvat</string>
     <string name="settings_permission_granted">Myönnetty</string>

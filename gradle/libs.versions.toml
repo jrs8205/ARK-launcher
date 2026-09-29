@@ -21,8 +21,10 @@ androidxTestRunner = "1.6.2"
 androidxTestCore = "1.6.1"
 truth = "1.4.4"
 orgJson = "20240303"
+robolectric = "4.16.1"
 
 [libraries]
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 # --- build-logic plugin classpath (compileOnly in convention project) ---
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
 kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }

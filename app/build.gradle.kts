@@ -16,6 +16,7 @@ val keystoreProps = Properties().apply {
 
 android {
     namespace = "org.arkikeskus.launcher"
+    testOptions.unitTests.isIncludeAndroidResources = true
 
     defaultConfig {
         applicationId = "org.arkikeskus.launcher"
@@ -90,4 +91,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.coroutines.android)
+    testImplementation(libs.junit)
+    testImplementation(libs.google.truth)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.datastore.preferences)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

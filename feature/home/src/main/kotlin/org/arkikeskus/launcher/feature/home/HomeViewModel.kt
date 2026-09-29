@@ -446,36 +446,28 @@ class HomeViewModel @Inject constructor(
 
     // --- Pages (the empty-area menu) -----------------------------------------------------------
 
+    private val pageOperations = WorkspacePageOperations(
+        settings = { settingsRepository.settings.first() },
+        occupiedPages = {
+            homeLayoutRepository.homeItems.first().filter { it.containerId == HomeItemEntity.HOME }
+                .map { it.page }.toSet()
+        },
+        insertRows = homeLayoutRepository::insertPage,
+        removeRows = homeLayoutRepository::removeEmptyPage,
+        save = settingsRepository::setHomePages,
+    )
+
     /** Opens an empty page at [at] (0..pageCount); what was there and after moves right. */
-    suspend fun insertPage(at: Int): Int {
-        val state = uiState.value
-        if (state.pageCount >= HomeLayoutRepository.MAX_PAGES) return -1
-        val index = at.coerceIn(0, state.pageCount)
-        homeLayoutRepository.insertPage(index)
-        settingsRepository.setHomePageCount(explicitPageCountAfterInsert(state.settings.homePageCount, index))
-        // The home page keeps pointing at the same content.
-        if (state.homePage >= index) settingsRepository.setHomePage(state.homePage + 1)
-        return index
-    }
+    suspend fun insertPage(at: Int): Int = pageOperations.insert(at)
 
     /** HOME returns to [page] from now on. */
-    fun setHomePage(page: Int) = viewModelScope.launch { settingsRepository.setHomePage(page) }
+    fun setHomePage(page: Int) = viewModelScope.launch { pageOperations.setHome(page) }
 
     /** True when no row at all is stored on [page]. */
     fun isPageEmpty(page: Int): Boolean = page !in uiState.value.occupiedPages
 
-    /** Removes an empty page and closes the gap; false when it wasn't empty or is the only page. */
-    suspend fun removeEmptyPage(page: Int): Boolean {
-        val state = uiState.value
-        if (state.pageCount <= 1 || page !in 0 until state.pageCount) return false
-        if (!homeLayoutRepository.removeEmptyPage(page)) return false
-        val explicit = state.settings.homePageCount
-        val remaining = explicitPageCountAfterRemove(explicit, page)
-        if (remaining != explicit) settingsRepository.setHomePageCount(remaining)
-        if (state.homePage > page) settingsRepository.setHomePage(state.homePage - 1)
-        else if (state.homePage == page) settingsRepository.setHomePage(page.coerceAtMost(state.pageCount - 2))
-        return true
-    }
+    /** Removes an empty page, returning its navigation destination, or null when rejected. */
+    suspend fun removeEmptyPage(page: Int): Int? = pageOperations.remove(page)
 
     /** Removes a placed widget row (caller frees the host id). */
     fun removeWidget(rowId: Long) = viewModelScope.launch { homeLayoutRepository.removeWidget(rowId) }

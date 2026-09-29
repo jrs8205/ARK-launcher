@@ -260,11 +260,8 @@ class PeopleWidgetViewModel @Inject constructor(
                 return
             }
         }
-        if (tile.isApp) {
-            tile.app?.let { appRepository.launch(it) }
-            return
-        }
-        openContact(tile)
+        if (!tile.isApp && openContact(tile)) return
+        tile.app?.let { appRepository.launch(it) }
     }
 
     /** Opens the contact card when known, else the dialer with the number; false when neither. */
@@ -283,9 +280,8 @@ class PeopleWidgetViewModel @Inject constructor(
         start(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
     }
 
-    /** Swipe: dismisses every live notification behind the tile; the tile goes quiet (or away).
-     *  A notification waiting for the batch is snoozed, and the listener API cannot cancel a snoozed
-     *  one (the system only looks among the active ones), so those are left to their delivery. */
+    /** Swipe dismisses delivered notifications; waiting entries stay until delivery. This also
+     *  preserves legacy Android snoozes, which a listener cannot cancel through the public API. */
     fun dismiss(tile: Tile) {
         tile.live?.entries?.filter { it.heldUntil == 0L }?.forEach { badgeRepository.cancelNotification(it.key) }
     }
@@ -493,6 +489,7 @@ fun PeopleWidget(
     linkFor?.let { tile ->
         LinkDialog(
             tile = tile,
+            privacy = privacy,
             candidates = tiles.filter { !it.isApp && it.key != tile.key },
             onPick = { target ->
                 viewModel.link(tile, target)
@@ -504,7 +501,8 @@ fun PeopleWidget(
 
     replyFor?.let { tile ->
         ReplyDialog(
-            name = tile.name,
+            tile = tile,
+            privacy = privacy,
             onSend = { text ->
                 val ok = viewModel.reply(tile, text)
                 if (!ok) Toast.makeText(context, R.string.people_reply_failed, Toast.LENGTH_SHORT).show()
@@ -624,7 +622,7 @@ private fun PersonTile(
             .padding(10.dp),
     ) {
         val hideName = tile.hidesName(privacy)
-        val shownName = if (hideName) stringResource(R.string.people_hidden_name) else tile.name
+        val shownName = tile.shownName(privacy)
         if (!wide) {
             // Quiet (or squeezed) tile: avatar over the name, centered.
             Column(
@@ -811,7 +809,7 @@ private fun AllTilesDialog(
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
-                                text = if (hideName) stringResource(R.string.people_hidden_name) else tile.name,
+                                text = tile.shownName(privacy),
                                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             if (tile.hasContent) {
@@ -837,15 +835,16 @@ private fun AllTilesDialog(
 
 /** Picks the tile this one should merge into from now on. */
 @Composable
-private fun LinkDialog(
+internal fun LinkDialog(
     tile: PeopleWidgetViewModel.Tile,
+    privacy: String,
     candidates: List<PeopleWidgetViewModel.Tile>,
     onPick: (PeopleWidgetViewModel.Tile) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.people_link_title, tile.name)) },
+        title = { Text(stringResource(R.string.people_link_title, tile.shownName(privacy))) },
         text = {
             Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.people_link_hint), fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
@@ -854,9 +853,9 @@ private fun LinkDialog(
                         modifier = Modifier.fillMaxWidth().clickable { onPick(c) }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ContactAvatar(name = c.name, photoUri = c.photoUri, size = 28.dp)
+                        Avatar(c, c.hidesName(privacy), 28.dp)
                         Spacer(Modifier.width(12.dp))
-                        Text(c.name, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(c.shownName(privacy), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -868,11 +867,20 @@ private fun LinkDialog(
 }
 
 @Composable
-private fun ReplyDialog(name: String, onSend: (String) -> Unit, onDismiss: () -> Unit) {
+private fun PeopleWidgetViewModel.Tile.shownName(privacy: String): String =
+    if (hidesName(privacy)) stringResource(R.string.people_hidden_name) else name
+
+@Composable
+internal fun ReplyDialog(
+    tile: PeopleWidgetViewModel.Tile,
+    privacy: String,
+    onSend: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var text by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.people_reply_title, name)) },
+        title = { Text(stringResource(R.string.people_reply_title, tile.shownName(privacy))) },
         text = {
             OutlinedTextField(
                 value = text,

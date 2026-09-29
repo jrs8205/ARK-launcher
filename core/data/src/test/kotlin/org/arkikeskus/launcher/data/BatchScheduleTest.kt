@@ -4,8 +4,22 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.Locale
 
 class BatchScheduleTest {
+
+    @Test
+    fun `storage format stays ASCII under Arabic locale`() {
+        val original = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("ar-EG"))
+            val formatted = BatchSchedule.format(listOf(485, 1020))
+            assertThat(formatted).isEqualTo("08:05,17:00")
+            assertThat(BatchSchedule.parse(formatted)).containsExactly(485, 1020).inOrder()
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
 
     private val zone = ZoneId.of("Europe/Helsinki")
     private fun at(y: Int, mo: Int, d: Int, h: Int, m: Int) =

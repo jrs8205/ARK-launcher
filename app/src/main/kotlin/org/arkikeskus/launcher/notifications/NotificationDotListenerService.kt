@@ -3,8 +3,11 @@ package org.arkikeskus.launcher.notifications
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -16,16 +19,19 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.BatchDelivery
 import org.arkikeskus.launcher.data.BatchSchedule
 import org.arkikeskus.launcher.data.MessageHeuristics
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -53,9 +59,9 @@ import javax.inject.Inject
  * - **People tiles** take only conversation-like notifications (messages, calls, mail — see
  *   [personEntry]) and reduce each to its sender, newest text and quick actions; the repository
  *   groups them by person across apps.
- * - **Batch delivery** (opt-in): a fresh message from someone who isn't pinned is snoozed until the
- *   next delivery time, so the shade and the home stay quiet in between; the snoozed ones still feed
- *   the people tiles as "waiting". Pinned people, missed calls and one-time codes are never held.
+ * - **Batch delivery** (opt-in) keeps the launcher's dots and status icons quiet until delivery;
+ *   people tiles show "waiting". Android notifications stay active, so updates to the same key
+ *   still arrive here and can bypass the batch for pinned people, missed calls and one-time codes.
  *
  * Requires the user to grant notification access (Settings → Notifications → Device & app
  * notifications); until then the system never binds this service.
@@ -80,15 +86,13 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     /** Packages that handle mailto: links — the mail clients. Their notifications carry the sender
      *  as the title and the subject as the text, but almost none set CATEGORY_EMAIL (Gmail doesn't),
-     *  so the app being a mail client is the signal. Re-read on every connect. */
+     *  so the app being a mail client is the signal. Re-read on connect and package changes. */
     @Volatile private var mailPackages: Set<String> = emptySet()
 
-    /** Delivery time per key THIS launcher snoozed for the batch: labels the tile with the right
-     *  time, releases (doesn't re-hold) the system's repost, and tells our snoozes apart from ones
-     *  the user made in the shade. Persisted so a process restart keeps the distinction; the
-     *  postTime age check in [holdForBatch] still covers a lost entry. */
+    /** Local delivery deadlines, including legacy snoozes made by earlier beta versions. */
     private val heldUntil = HashMap<String, Long>()
     private var heldLoaded = false
+    private var settingsReady = false
 
     private fun persistHeld() {
         val snapshot = HashMap(heldUntil)
@@ -104,19 +108,26 @@ class NotificationDotListenerService : NotificationListenerService() {
     private val handler = Handler(Looper.getMainLooper())
     private var snapshotRetriesLeft = 0
     private val retryRefresh = Runnable { refresh() }
+    private val deliverBatch = Runnable { refreshWithRetries() }
+    private var connected = false
+    private var packageRefreshJob: Job? = null
+    private var receiverRegistered = false
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            appLabels.clear()
+            refreshMailPackages()
+        }
+    }
+    private val timeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = refreshWithRetries()
+    }
 
     private companion object {
         const val TAG = "NotifDots"
         const val MAX_SNAPSHOT_RETRIES = 2
         const val SNAPSHOT_RETRY_DELAY_MS = 500L
 
-        /** A post older than this is a batch repost or an update, never a new message to hold. */
-        const val HOLD_FRESH_MS = 90_000L
-
-        /** Don't bother snoozing when the delivery is (nearly) now. */
-        const val MIN_HOLD_MS = 60_000L
-
-        /** A repost slightly before the recorded delivery time still counts as delivered. */
+        /** Grace period for legacy snoozes to reappear before deleting stale bookkeeping. */
         const val RELEASE_SLACK_MS = 60_000L
     }
 
@@ -132,33 +143,55 @@ class NotificationDotListenerService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "listener connected")
+        connected = true
+        settingsReady = false
         badgeRepository.registerCanceller { key -> runCatching { cancelNotification(key) } }
-        mailPackages = queryMailPackages()
+        if (!receiverRegistered) {
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_CHANGED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addDataScheme("package")
+            }
+            ContextCompat.registerReceiver(this, packageReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, timeReceiver, IntentFilter().apply {
+                addAction(Intent.ACTION_TIME_CHANGED)
+                addAction(Intent.ACTION_TIMEZONE_CHANGED)
+                addAction(Intent.ACTION_SCREEN_ON)
+            }, ContextCompat.RECEIVER_NOT_EXPORTED)
+            receiverRegistered = true
+        }
+        refreshMailPackages()
         settingsJob?.cancel()
-        settingsJob = combine(
-            settingsRepository.settings, settingsRepository.pinnedPeople, settingsRepository.peopleAliases,
-        ) { s, pinned, aliases ->
-            val pins = pinned.map { it.key }.toSet()
-            Triple(s.peopleBatchEnabled, BatchSchedule.parse(s.peopleBatchTimes), pins + aliases.filterValues { it in pins }.keys)
-        }.onEach { (enabled, times, vips) ->
-            batchEnabled = enabled
-            batchTimes = times
-            vipKeys = vips
-        }.launchIn(scope)
-        if (!heldLoaded) {
-            scope.launch {
+        settingsJob = scope.launch {
+            if (!heldLoaded) {
                 val saved = runCatching { settingsRepository.heldNotifications.first() }.getOrDefault(emptyMap())
                 for ((k, v) in saved) heldUntil.putIfAbsent(k, v)
                 heldLoaded = true
-                refreshWithRetries()
             }
+            combine(
+                settingsRepository.settings, settingsRepository.pinnedPeople, settingsRepository.peopleAliases,
+            ) { s, pinned, aliases ->
+                val pins = pinned.map { it.key }.toSet()
+                Triple(s.peopleBatchEnabled, BatchSchedule.parse(s.peopleBatchTimes), pins + aliases.filterValues { it in pins }.keys)
+            }.onEach { (enabled, times, vips) ->
+                batchEnabled = enabled
+                batchTimes = times
+                vipKeys = vips
+                settingsReady = true
+                refreshWithRetries()
+            }.collect {}
         }
         refreshWithRetries()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        connected = false
         handler.removeCallbacks(retryRefresh)
+        handler.removeCallbacks(deliverBatch)
+        stopPackageRefresh()
         settingsJob?.cancel()
         settingsJob = null
         badgeRepository.clearCanceller()
@@ -176,51 +209,27 @@ class NotificationDotListenerService : NotificationListenerService() {
         // A heads-up post makes the system transiently show ITS status bar over our content; tell the
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).
-        if (sbn != null && holdForBatch(sbn)) {
-            // Snoozed: it leaves the shade now and comes back at the delivery time as a fresh post.
-            refreshWithRetries()
-            return
-        }
         if (sbn != null && isHeadsUpWorthy(sbn) && shouldAlert(sbn)) badgeRepository.notifyHeadsUp()
+        if (sbn != null && settingsReady) holdForBatch(sbn)
         refreshWithRetries()
     }
 
-    /**
-     * Snoozes a just-posted message from a non-pinned person until the next batch time. Returns
-     * true when it did. Only a FRESH post is held: the system reposts a snoozed notification with
-     * its original postTime once the snooze ends, so an old postTime means "delivered by the
-     * batch" (or an app update to a held one) and it is left alone.
-     */
-    private fun holdForBatch(sbn: StatusBarNotification): Boolean {
-        if (!batchEnabled) return false
+    /** Keep the notification active in Android so every new message can be checked for exceptions. */
+    private fun holdForBatch(sbn: StatusBarNotification) {
         val now = System.currentTimeMillis()
-        val until = heldUntil[sbn.key]
-        if (until != null && now >= until - RELEASE_SLACK_MS) {
-            heldUntil.remove(sbn.key)
-            persistHeld()
-            return false
-        }
-        if (now - sbn.postTime > HOLD_FRESH_MS) return false
-        val entry = runCatching { personEntry(sbn, 0L, currentRanking, Ranking()) }.getOrNull() ?: return false
-        if (entry.kind == PersonEventKind.MISSED_CALL) return false
-        // A verification code is worthless by the delivery time; the login would have timed out.
-        if (MessageHeuristics.looksLikeOneTimeCode(entry.text)) return false
-        if (PeopleGrouping.personKey(entry.name) in vipKeys) return false
-        val deliverAt = BatchSchedule.nextDelivery(now, batchTimes) ?: return false
-        val delay = deliverAt - now
-        if (delay < MIN_HOLD_MS) return false
-        val snoozed = runCatching { snoozeNotification(sbn.key, delay) }.isSuccess
-        if (snoozed) {
-            heldUntil[sbn.key] = deliverAt
-            persistHeld()
-        }
-        return snoozed
+        val previous = heldUntil[sbn.key]
+        val entry = runCatching { personEntry(sbn, 0L, currentRanking, Ranking()) }.getOrNull()
+        val until = BatchDelivery.holdUntil(
+            entry, previous, now, batchEnabled, vipKeys, BatchSchedule.nextDelivery(now, batchTimes),
+        )
+        if (until == null) heldUntil.remove(sbn.key) else heldUntil[sbn.key] = until
+        if (until != previous) persistHeld()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
         if (sbn != null) alertedKeys.remove(sbn.key)
-        // Our own snooze also arrives here; keep its delivery time. Only a real removal (dismissed,
-        // cancelled by the app) forgets it.
+        // A user snoozing an already-held notification leaves its deadline intact. Only a real
+        // removal (dismissed or cancelled by the app) forgets it.
         if (sbn != null && reason != REASON_SNOOZED && heldUntil.remove(sbn.key) != null) persistHeld()
         refreshWithRetries()
     }
@@ -235,6 +244,7 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     private fun refresh() {
+        if (!connected) return
         val active = runCatching { activeNotifications }.getOrNull()
         if (active == null) {
             // A transient Binder failure: keep the last good snapshot (a stale removal self-heals on
@@ -253,6 +263,15 @@ class NotificationDotListenerService : NotificationListenerService() {
         val visual = LinkedHashMap<String, StatusNotification>()
         val openable = HashMap<String, StatusNotification>()
         val people = ArrayList<PersonEntry>()
+        val now = System.currentTimeMillis()
+        val activeKeys = active.filterNotNull().map { it.key }.toSet()
+        val released = heldUntil.filter { (key, until) ->
+            settingsReady && key in activeKeys && (!batchEnabled || now >= until)
+        }
+        if (released.isNotEmpty()) {
+            released.keys.forEach(heldUntil::remove)
+            persistHeld()
+        }
         for (sbn in active) {
             if (sbn == null) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
@@ -261,10 +280,12 @@ class NotificationDotListenerService : NotificationListenerService() {
             // other real (icon-worthy, not ongoing) notification becomes an app-grouped entry.
             val person = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull()
             when {
-                person != null -> people.add(person)
+                person != null -> people.add(person.copy(heldUntil = heldUntil[sbn.key] ?: 0L))
                 isIconWorthy(sbn) && (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0 ->
                     runCatching { appEntry(sbn, serial) }.getOrNull()?.let(people::add)
             }
+            // Only launcher surfaces wait. Android's shade, sound and heads-up remain unchanged.
+            if (sbn.key in heldUntil) continue
             // Dots: strict badge-worthy filter (meaningful home-icon badges).
             if (isBadgeWorthy(sbn, ranking, tmp)) {
                 counts[key] = (counts[key] ?: 0) + 1
@@ -310,17 +331,13 @@ class NotificationDotListenerService : NotificationListenerService() {
                 )
             }.sortedByDescending { it.postTime },
         )
-        // Notifications THIS launcher snoozed for the batch are out of the shade but still
-        // someone's message: they feed the tiles as "waiting", never the dots or the status bar.
-        // Read even when the batch has since been switched off: a listener can neither cancel nor
-        // un-snooze a snoozed notification (the public API has no call for it), so the system
-        // delivers it at its time regardless, and hiding it in between would make it vanish for
-        // the user. A notification the user snoozed in the shade is not ours and stays out.
+        // Migration: earlier betas snoozed in Android. Those existing snoozes cannot be released
+        // through the public listener API; keep showing them until Android delivers them.
         if (heldUntil.isNotEmpty()) {
-            val now = System.currentTimeMillis()
             val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty().filterNotNull()
             val snoozedKeys = snoozed.map { it.key }.toSet()
             for (sbn in snoozed) {
+                if (sbn.key in activeKeys) continue
                 val until = heldUntil[sbn.key] ?: continue
                 val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
                 val entry = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull() ?: continue
@@ -328,13 +345,19 @@ class NotificationDotListenerService : NotificationListenerService() {
             }
             // Forget entries whose notification is gone for good (delivered and then dismissed, or
             // cancelled by its app while snoozed), so the persisted map doesn't grow forever.
-            val stale = heldUntil.filter { (k, until) -> k !in snoozedKeys && now > until + RELEASE_SLACK_MS }
+            val stale = heldUntil.filter { (k, until) -> k !in activeKeys && k !in snoozedKeys && now > until + RELEASE_SLACK_MS }
             if (stale.isNotEmpty()) {
                 stale.keys.forEach { heldUntil.remove(it) }
                 persistHeld()
             }
         }
         badgeRepository.setPeople(PeopleGrouping.group(people))
+        handler.removeCallbacks(deliverBatch)
+        if (settingsReady) {
+            heldUntil.filterKeys { it in activeKeys }.values.minOrNull()?.let { until ->
+                handler.postDelayed(deliverBatch, (until - now).coerceAtLeast(1L))
+            }
+        }
     }
 
     /**
@@ -378,18 +401,19 @@ class NotificationDotListenerService : NotificationListenerService() {
                 // The style also carries the user's own replies: they must not count, name the tile
                 // or be its preview.
                 val messages = style.messages.filter { !it.text.isNullOrBlank() && !isOwnMessage(it.person, style.user) }
-                val last = messages.lastOrNull()
+                if (messages.isEmpty()) return null
+                val last = messages.last()
                 val groupTitle = style.conversationTitle?.toString()?.trim()
                     ?.takeIf { style.isGroupConversation && it.isNotEmpty() }
-                val lastSender = last?.person?.name?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                val lastSender = last.person?.name?.toString()?.trim()?.takeIf { it.isNotEmpty() }
                 name = groupTitle ?: lastSender.orEmpty().ifEmpty { shortcutLabel ?: title }
-                preview = last?.text?.toString()?.trim() ?: text
-                count = messages.size.coerceAtLeast(1)
+                preview = last.text?.toString()?.trim()
+                count = messages.size
                 // The tile is the group when there is one, so its picture beats the sender's.
-                val personIcon = last?.person?.icon?.toIcon(this)
+                val personIcon = last.person?.icon?.toIcon(this)
                 icon = if (groupTitle != null) largeIcon ?: personIcon else personIcon ?: largeIcon
                 if (groupTitle != null) sender = lastSender
-                uri = last?.person?.uri
+                uri = last.person?.uri
                 kind = PersonEventKind.MESSAGE
             }
             n.category == Notification.CATEGORY_MISSED_CALL || n.category == Notification.CATEGORY_CALL -> {
@@ -456,6 +480,8 @@ class NotificationDotListenerService : NotificationListenerService() {
     /** Any other notification as an entry under its app: label as the name, title + text shown. */
     private fun appEntry(sbn: StatusBarNotification, serial: Long): PersonEntry? {
         val n = sbn.notification ?: return null
+        // An empty incoming MessagingStyle is deliberately absent, not an ordinary app notice.
+        if (NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n) != null) return null
         val extras = n.extras
         val title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         val body = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
@@ -487,6 +513,34 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     /** App labels by package, filled lazily; a label rarely changes while the listener lives. */
     private val appLabels = HashMap<String, String>()
+
+    private fun refreshMailPackages() {
+        packageRefreshJob?.cancel()
+        packageRefreshJob = scope.launch {
+            val packages = withContext(Dispatchers.IO) { queryMailPackages() }
+            if (!connected) return@launch
+            mailPackages = packages
+            refreshWithRetries()
+        }
+    }
+
+    private fun stopPackageRefresh() {
+        packageRefreshJob?.cancel()
+        packageRefreshJob = null
+        if (receiverRegistered) {
+            unregisterReceiver(packageReceiver)
+            unregisterReceiver(timeReceiver)
+            receiverRegistered = false
+        }
+    }
+
+    override fun onDestroy() {
+        connected = false
+        handler.removeCallbacksAndMessages(null)
+        stopPackageRefresh()
+        scope.cancel()
+        super.onDestroy()
+    }
 
     /** The installed apps that offer to compose mail (handle mailto:), i.e. the mail clients. */
     private fun queryMailPackages(): Set<String> = runCatching {

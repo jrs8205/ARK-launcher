@@ -4,6 +4,7 @@ plugins {
 
 android {
     namespace = "org.arkikeskus.launcher.feature.home"
+    testOptions.unitTests.isIncludeAndroidResources = true
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -17,6 +18,9 @@ dependencies {
     implementation(project(":core:launcher"))
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

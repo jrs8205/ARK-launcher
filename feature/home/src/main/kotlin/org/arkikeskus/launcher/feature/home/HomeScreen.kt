@@ -789,7 +789,8 @@ fun HomeScreen(
                 if (!settings.desktopLocked && uiState.pageCount > 1 && viewModel.isPageEmpty(page)) {
                     add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.home_options_page_remove)) {
                         widgetScope.launch {
-                            if (viewModel.removeEmptyPage(page)) pageRequests.tryEmit(page.coerceAtMost(uiState.pageCount - 2))
+                            val target = viewModel.removeEmptyPage(page)
+                            if (target != null) pageRequests.tryEmit(target)
                             else widgetMessage(R.string.home_options_page_not_empty)
                         }
                     })

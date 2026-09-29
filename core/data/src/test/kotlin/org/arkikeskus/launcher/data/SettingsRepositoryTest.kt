@@ -1,5 +1,8 @@
 package org.arkikeskus.launcher.data
 
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -11,6 +14,33 @@ import org.junit.Test
  * file I/O), so the tests are fast, deterministic, and platform-independent.
  */
 class SettingsRepositoryTest {
+
+    @Test
+    fun `upgrade repairs page counters restored as Long by an older version before reading`() = runTest {
+        val store = InMemoryDataStore()
+        store.edit {
+            it[longPreferencesKey("home_page")] = 2L
+            it[longPreferencesKey("home_page_count")] = 4L
+        }
+        val repo = SettingsRepository(store)
+        assertThat(repo.settings.first().homePage).isEqualTo(2)
+        assertThat(repo.settings.first().homePageCount).isEqualTo(4)
+        assertThat(store.data.first()[intPreferencesKey("home_page")]).isEqualTo(2)
+        assertThat(store.data.first()[intPreferencesKey("home_page_count")]).isEqualTo(4)
+        assertThat(SettingsRepository(store).settings.first().homePage).isEqualTo(2)
+    }
+
+    @Test
+    fun `legacy page counters clamp before conversion so large Longs cannot wrap`() = runTest {
+        val store = InMemoryDataStore()
+        store.edit {
+            it[longPreferencesKey("home_page")] = Long.MIN_VALUE
+            it[longPreferencesKey("home_page_count")] = Long.MAX_VALUE
+        }
+        val settings = SettingsRepository(store).settings.first()
+        assertThat(settings.homePage).isEqualTo(0)
+        assertThat(settings.homePageCount).isEqualTo(HomeLayoutRepository.MAX_PAGES)
+    }
 
     private fun newRepository() = SettingsRepository(InMemoryDataStore())
 

@@ -48,7 +48,7 @@ data class PersonEntry(
     val sender: String? = null,
     /** The sender's Person.uri (a `tel:` or contact URI) when the app attached one. */
     val personUri: String? = null,
-    /** Epoch ms the batch releases this (snoozed) notification; 0 = shown normally. */
+    /** Epoch ms the launcher batch releases this notification; 0 = shown normally. */
     val heldUntil: Long = 0L,
 ) {
     // Icon, PendingIntent and RemoteInput compare by identity and are unparcelled afresh on every

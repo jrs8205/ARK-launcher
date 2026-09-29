@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
+import java.util.Locale
 
 /** The people widget's batch delivery times: parsing, formatting and "when is the next one". */
 object BatchSchedule {
@@ -20,7 +21,7 @@ object BatchSchedule {
         }.distinct().sorted()
 
     fun format(minutes: List<Int>): String =
-        minutes.sorted().joinToString(",") { "%02d:%02d".format(it / 60, it % 60) }
+        minutes.sorted().joinToString(",") { String.format(Locale.ROOT, "%02d:%02d", it / 60, it % 60) }
 
     /** Epoch ms of the first delivery strictly after [nowMs] (today or tomorrow); null without times. */
     fun nextDelivery(nowMs: Long, times: List<Int>, zone: ZoneId = ZoneId.systemDefault()): Long? {

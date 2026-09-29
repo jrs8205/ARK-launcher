@@ -70,7 +70,8 @@ data class LauncherSettings(
      *  tile colors and counts but shows no text at all (pinned people keep their user-chosen name). */
     val peoplePrivacy: String = PRIVACY_ALL,
     /** Hold messages from people who aren't pinned and deliver them in batches at [peopleBatchTimes]
-     *  (the notification listener snoozes them). Pinned people and missed calls always come through. */
+     *  in launcher surfaces only. Android notifications remain active so new messages from pinned
+     *  people and one-time codes can bypass the batch. Missed calls always come through. */
     val peopleBatchEnabled: Boolean = false,
     /** Comma-separated "HH:mm" delivery times for the batch; see BatchSchedule. */
     val peopleBatchTimes: String = DEFAULT_BATCH_TIMES,

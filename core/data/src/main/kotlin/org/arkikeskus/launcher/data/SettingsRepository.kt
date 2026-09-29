@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,7 +41,19 @@ class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
 ) {
 
-    val settings: Flow<LauncherSettings> = dataStore.data.map { p ->
+    val settings: Flow<LauncherSettings> = dataStore.data.onStart {
+        // 0.7 imports unknown numeric backup keys as Long. Repair them before the first typed
+        // read when a newer backup was restored in 0.7 and the installation then upgraded.
+        dataStore.edit { p ->
+            for (key in listOf(Keys.HOME_PAGE, Keys.HOME_PAGE_COUNT)) {
+                val raw = p.asMap()[key] ?: continue
+                if (raw !is Int) {
+                    p[key] = (raw as? Number)?.toLong()
+                        ?.coerceIn(0L, HomeLayoutRepository.MAX_PAGES.toLong())?.toInt() ?: 0
+                }
+            }
+        }
+    }.map { p ->
         // Clamp the numeric values on read as well as on write: a stale/garbage value left in the
         // store during development (e.g. homeColumns = 0) must never reach the layout math, where a
         // zero column count would spin firstFreeCell() in an infinite loop.
@@ -101,6 +114,12 @@ class SettingsRepository @Inject constructor(
     /** The explicit page count (see LauncherSettings.homePageCount). */
     suspend fun setHomePageCount(count: Int) = edit { it[Keys.HOME_PAGE_COUNT] = count.coerceIn(0, HomeLayoutRepository.MAX_PAGES) }
 
+    /** Publish both page counters in one settings snapshot. */
+    suspend fun setHomePages(home: Int, count: Int) = edit {
+        it[Keys.HOME_PAGE] = home.coerceIn(0, HomeLayoutRepository.MAX_PAGES - 1)
+        it[Keys.HOME_PAGE_COUNT] = count.coerceIn(0, HomeLayoutRepository.MAX_PAGES)
+    }
+
     suspend fun setPeopleShowApps(value: Boolean) = edit { it[Keys.PEOPLE_SHOW_APPS] = value }
 
     /** Batch delivery times; normalized through [BatchSchedule], falling back to the default when
@@ -110,10 +129,10 @@ class SettingsRepository @Inject constructor(
         p[Keys.PEOPLE_BATCH_TIMES] = if (parsed.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(parsed)
     }
 
-    // --- People widget: notifications the listener snoozed for the batch -----------------------
+    // --- People widget: local batch deadlines (also reads legacy Android snoozes) -------------
     // "key\tdeliverAtEpochMs" per line. Device-local: a notification key means nothing elsewhere.
 
-    /** Notification key → delivery time of what this launcher itself snoozed for the batch. */
+    /** Notification key → local delivery time. Notification text is never persisted. */
     val heldNotifications: Flow<Map<String, Long>> = dataStore.data.map { p ->
         p[Keys.PEOPLE_HELD]?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
             val i = line.indexOf('\t')
