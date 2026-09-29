@@ -40,6 +40,8 @@ data class PersonEntry(
     val personIcon: Icon? = null,
     /** The sender's Person.uri (a `tel:` or contact URI) when the app attached one. */
     val personUri: String? = null,
+    /** Epoch ms the batch releases this (snoozed) notification; 0 = shown normally. */
+    val heldUntil: Long = 0L,
 )
 
 /** Every live notification of one person, across apps; [entries] newest first. */
@@ -52,6 +54,10 @@ data class PersonTileState(
     val count: Int get() = entries.sumOf { it.count }
     val keys: List<String> get() = entries.map { it.key }
     val postTime: Long get() = newest.postTime
+
+    /** True when everything behind the tile is waiting for the next batch delivery. */
+    val held: Boolean get() = entries.all { it.heldUntil > 0L }
+    val heldUntil: Long get() = entries.maxOf { it.heldUntil }
 }
 
 /** Pure grouping of notifications into per-person tiles (JVM-testable). */
@@ -65,16 +71,26 @@ object PeopleGrouping {
      */
     fun personKey(name: String): String = name.trim().lowercase().replace(WHITESPACE, " ")
 
-    /** Groups [entries] by [personKey]; tiles and their entries are newest first. */
-    fun group(entries: List<PersonEntry>): List<PersonTileState> =
+    /**
+     * Groups [entries] by [personKey], sent through [alias] (the user's manual "this is the same
+     * person" links: alias key → target key); tiles and their entries are newest first. A merged
+     * tile is named after an entry that carries the target's own name when there is one, so a link
+     * from "M. Mäkelä" to "Mikko" reads "Mikko".
+     */
+    fun group(entries: List<PersonEntry>, alias: (String) -> String = { it }): List<PersonTileState> =
         entries
             .filter { it.name.isNotBlank() }
-            .groupBy { personKey(it.name) }
+            .groupBy { alias(personKey(it.name)) }
             .map { (key, group) ->
                 val sorted = group.sortedByDescending { it.postTime }
-                PersonTileState(personKey = key, name = sorted.first().name.trim(), entries = sorted)
+                val own = sorted.firstOrNull { personKey(it.name) == key } ?: sorted.first()
+                PersonTileState(personKey = key, name = own.name.trim(), entries = sorted)
             }
             .sortedByDescending { it.postTime }
+
+    /** Re-groups already grouped [tiles] with the user's [aliases] (alias key → target key). */
+    fun merge(tiles: List<PersonTileState>, aliases: Map<String, String>): List<PersonTileState> =
+        if (aliases.isEmpty()) tiles else group(tiles.flatMap { it.entries }) { aliases[it] ?: it }
 
     private val WHITESPACE = Regex("\\s+")
 }

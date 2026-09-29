@@ -38,6 +38,26 @@ class PeopleGroupingTest {
     }
 
     @Test
+    fun `aliases merge tiles and the target keeps its own name`() {
+        val tiles = PeopleGrouping.group(listOf(entry("Mikko", 1), entry("M. Mäkelä", 5)))
+        assertThat(tiles).hasSize(2)
+        val merged = PeopleGrouping.merge(tiles, mapOf("m. mäkelä" to "mikko"))
+        assertThat(merged).hasSize(1)
+        assertThat(merged[0].personKey).isEqualTo("mikko")
+        assertThat(merged[0].name).isEqualTo("Mikko")
+        assertThat(merged[0].entries.map { it.postTime }).containsExactly(5L, 1L).inOrder()
+    }
+
+    @Test
+    fun `held state needs every entry to be waiting`() {
+        val waiting = PeopleGrouping.group(listOf(entry("Anna", 1).copy(heldUntil = 99), entry("Anna", 2).copy(heldUntil = 120)))
+        assertThat(waiting.single().held).isTrue()
+        assertThat(waiting.single().heldUntil).isEqualTo(120)
+        val mixed = PeopleGrouping.group(listOf(entry("Anna", 1).copy(heldUntil = 99), entry("Anna", 2)))
+        assertThat(mixed.single().held).isFalse()
+    }
+
+    @Test
     fun `blank names are dropped and inner whitespace is collapsed`() {
         val tiles = PeopleGrouping.group(listOf(entry("  ", 1), entry("Mikko  Mäkelä", 2), entry("mikko mäkelä", 3)))
         assertThat(tiles).hasSize(1)

@@ -106,6 +106,7 @@ fun SettingsScreen(
     var showIconPackPicker by remember { mutableStateOf(false) }
     var showCountStylePicker by remember { mutableStateOf(false) }
     var showPeoplePrivacyPicker by remember { mutableStateOf(false) }
+    var showBatchTimesEditor by remember { mutableStateOf(false) }
     var showBackup by remember { mutableStateOf(false) }
     // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
     // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
@@ -250,6 +251,17 @@ fun SettingsScreen(
                         },
                     ),
                 ) { showPeoplePrivacyPicker = true }
+                SwitchRow(
+                    stringResource(R.string.settings_people_batch),
+                    s.peopleBatchEnabled,
+                    viewModel::setPeopleBatchEnabled,
+                )
+                if (s.peopleBatchEnabled) {
+                    ExpressiveActionRow(
+                        label = stringResource(R.string.settings_people_batch_times),
+                        description = s.peopleBatchTimes.replace(",", ", "),
+                    ) { showBatchTimesEditor = true }
+                }
                 StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
                 if (s.showStatusBar) {
                     SliderRow(
@@ -397,6 +409,16 @@ fun SettingsScreen(
                 onDismiss = { showCountStylePicker = false },
             )
         }
+        if (showBatchTimesEditor) {
+            BatchTimesEditor(
+                initial = s.peopleBatchTimes.replace(",", ", "),
+                onSave = {
+                    viewModel.setPeopleBatchTimes(it)
+                    showBatchTimesEditor = false
+                },
+                onDismiss = { showBatchTimesEditor = false },
+            )
+        }
         if (showPeoplePrivacyPicker) {
             ChoicePicker(
                 title = R.string.settings_people_privacy,
@@ -414,6 +436,35 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+/** Free-text "HH:mm, HH:mm" editor for the people batch delivery times. */
+@Composable
+private fun BatchTimesEditor(initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    val p = LocalExpressivePalette.current
+    var text by remember(initial) { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = p.surfaceHi,
+        title = { Text(stringResource(R.string.settings_people_batch_times), color = p.text) },
+        text = {
+            Column {
+                Text(stringResource(R.string.settings_people_batch_times_hint), color = p.text, fontSize = 13.sp)
+                androidx.compose.material3.OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.settings_people_batch_times_save), color = Accent) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+        },
+    )
 }
 
 /** Single-select picker over string-valued settings (widget count style, people privacy). */

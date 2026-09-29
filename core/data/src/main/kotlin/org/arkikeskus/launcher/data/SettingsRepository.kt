@@ -84,8 +84,53 @@ class SettingsRepository @Inject constructor(
                 if (it == LauncherSettings.PRIVACY_SENDER || it == LauncherSettings.PRIVACY_COUNT) it
                 else LauncherSettings.PRIVACY_ALL
             },
+            peopleBatchEnabled = p[Keys.PEOPLE_BATCH_ENABLED] ?: false,
+            peopleBatchTimes = (p[Keys.PEOPLE_BATCH_TIMES] ?: LauncherSettings.DEFAULT_BATCH_TIMES)
+                .let { BatchSchedule.parse(it) }
+                .let { if (it.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(it) },
         )
     }
+
+    suspend fun setPeopleBatchEnabled(value: Boolean) = edit { it[Keys.PEOPLE_BATCH_ENABLED] = value }
+
+    /** Batch delivery times; normalized through [BatchSchedule], falling back to the default when
+     *  nothing parses so the batch can never silently hold messages forever. */
+    suspend fun setPeopleBatchTimes(raw: String) = edit { p ->
+        val parsed = BatchSchedule.parse(raw)
+        p[Keys.PEOPLE_BATCH_TIMES] = if (parsed.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(parsed)
+    }
+
+    // --- People widget aliases ("this notification name is the same person") --------------------
+    // One link per line: "aliasKey\ttargetKey" (both PeopleGrouping.personKey values).
+
+    /** alias key → target key. Single-hop: a target is never itself an alias (see [linkPerson]). */
+    val peopleAliases: Flow<Map<String, String>> = dataStore.data.map { p -> parseAliases(p[Keys.PEOPLE_ALIASES]) }
+
+    /** Links [alias] to [target]: an existing link on [alias] is replaced, links that pointed at
+     *  [alias] follow it to the new target, and a target that is itself an alias resolves first. */
+    suspend fun linkPerson(alias: String, target: String) = edit { p ->
+        val current = parseAliases(p[Keys.PEOPLE_ALIASES])
+        val resolved = current[target] ?: target
+        if (resolved == alias) return@edit
+        val next = current
+            .mapValues { (_, t) -> if (t == alias) resolved else t }
+            .filterKeys { it != alias && it != resolved } + (alias to resolved)
+        p[Keys.PEOPLE_ALIASES] = serializeAliases(next.filter { (a, t) -> a != t })
+    }
+
+    /** Removes every link that merges into [target]. */
+    suspend fun unlinkPerson(target: String) = edit { p ->
+        p[Keys.PEOPLE_ALIASES] = serializeAliases(parseAliases(p[Keys.PEOPLE_ALIASES]).filterValues { it != target })
+    }
+
+    private fun parseAliases(raw: String?): Map<String, String> =
+        raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
+            val i = line.indexOf('\t')
+            if (i <= 0 || i == line.length - 1) null else line.substring(0, i) to line.substring(i + 1)
+        }?.toMap() ?: emptyMap()
+
+    private fun serializeAliases(aliases: Map<String, String>): String =
+        aliases.entries.joinToString("\n") { (a, t) -> a.replace(SEPARATORS, " ") + "\t" + t.replace(SEPARATORS, " ") }
 
     /** What the people widget shows of a notification (see LauncherSettings.PRIVACY_*). */
     suspend fun setPeoplePrivacy(value: String) = edit { it[Keys.PEOPLE_PRIVACY] = value }
@@ -452,6 +497,9 @@ class SettingsRepository @Inject constructor(
         val FIRST_RUN_FRESH = stringPreferencesKey("first_run_fresh")
         val PEOPLE_PRIVACY = stringPreferencesKey("people_privacy")
         val PINNED_PEOPLE = stringPreferencesKey("pinned_people")
+        val PEOPLE_ALIASES = stringPreferencesKey("people_aliases")
+        val PEOPLE_BATCH_ENABLED = booleanPreferencesKey("people_batch_enabled")
+        val PEOPLE_BATCH_TIMES = stringPreferencesKey("people_batch_times")
     }
 
     companion object {
@@ -484,12 +532,12 @@ class SettingsRepository @Inject constructor(
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
-            "two_line_home_labels", "two_line_drawer_labels",
+            "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key",
-            "people_privacy", "pinned_people",
+            "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
         )
 
         /** Device-local bookkeeping keys excluded from an exported backup and never imported.

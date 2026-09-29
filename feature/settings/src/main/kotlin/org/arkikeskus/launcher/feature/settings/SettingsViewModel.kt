@@ -104,6 +104,8 @@ class SettingsViewModel @Inject constructor(
     fun setWidgetTonalBackground(value: Boolean) = update { repository.setWidgetTonalBackground(value) }
     fun setNotificationWidgetCountStyle(value: String) = update { repository.setNotificationWidgetCountStyle(value) }
     fun setPeoplePrivacy(value: String) = update { repository.setPeoplePrivacy(value) }
+    fun setPeopleBatchEnabled(value: Boolean) = update { repository.setPeopleBatchEnabled(value) }
+    fun setPeopleBatchTimes(value: String) = update { repository.setPeopleBatchTimes(value) }
     fun setHideSystemStatusBar(value: Boolean) = update { repository.setHideSystemStatusBar(value) }
     fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }
 

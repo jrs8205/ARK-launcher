@@ -34,6 +34,10 @@
     <string name="settings_people_privacy_all">Sender and message</string>
     <string name="settings_people_privacy_sender">Sender only</string>
     <string name="settings_people_privacy_count">Count only</string>
+    <string name="settings_people_batch">Batch delivery: hold others\' messages, pinned people come through</string>
+    <string name="settings_people_batch_times">Batch delivery times</string>
+    <string name="settings_people_batch_times_hint">Times separated by commas, e.g. 08:00, 12:00, 17:00. Missed calls always come through.</string>
+    <string name="settings_people_batch_times_save">Save</string>
     <string name="settings_permissions">Permissions</string>
     <string name="settings_permission_granted">Granted</string>
     <string name="settings_permission_not_granted">Not granted – tap to grant</string>

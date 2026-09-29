@@ -12,11 +12,20 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import org.arkikeskus.launcher.data.BatchSchedule
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PeopleGrouping
 import org.arkikeskus.launcher.data.PersonEntry
 import org.arkikeskus.launcher.data.PersonEventKind
 import org.arkikeskus.launcher.data.ReplyAction
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.StatusNotification
 import javax.inject.Inject
 
@@ -36,6 +45,9 @@ import javax.inject.Inject
  * - **People tiles** take only conversation-like notifications (messages, calls, mail — see
  *   [personEntry]) and reduce each to its sender, newest text and quick actions; the repository
  *   groups them by person across apps.
+ * - **Batch delivery** (opt-in): a fresh message from someone who isn't pinned is snoozed until the
+ *   next delivery time, so the shade and the home stay quiet in between; the snoozed ones still feed
+ *   the people tiles as "waiting". Pinned people and missed calls are never held.
  *
  * Requires the user to grant notification access (Settings → Notifications → Device & app
  * notifications); until then the system never binds this service.
@@ -45,6 +57,23 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     @Inject
     lateinit var badgeRepository: NotificationBadgeRepository
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    /** Lives while the listener is connected; carries the batch settings + pins into [holdForBatch]. */
+    private var settingsJob: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    @Volatile private var batchEnabled = false
+    @Volatile private var batchTimes: List<Int> = emptyList()
+    /** Person keys that always come through: pinned people and the aliases that merge into them. */
+    @Volatile private var vipKeys: Set<String> = emptySet()
+
+    /** Delivery time per snoozed key, so a snoozed notification is labeled with the right time and
+     *  released (not re-held) when the system reposts it. Lost with the process; the postTime age
+     *  check in [holdForBatch] covers that case. */
+    private val heldUntil = HashMap<String, Long>()
 
     private val userManager by lazy { getSystemService(UserManager::class.java) }
 
@@ -60,6 +89,15 @@ class NotificationDotListenerService : NotificationListenerService() {
         const val TAG = "NotifDots"
         const val MAX_SNAPSHOT_RETRIES = 2
         const val SNAPSHOT_RETRY_DELAY_MS = 500L
+
+        /** A post older than this is a batch repost or an update, never a new message to hold. */
+        const val HOLD_FRESH_MS = 90_000L
+
+        /** Don't bother snoozing when the delivery is (nearly) now. */
+        const val MIN_HOLD_MS = 60_000L
+
+        /** A repost slightly before the recorded delivery time still counts as delivered. */
+        const val RELEASE_SLACK_MS = 60_000L
 
         /** The generic "missed call" label in the languages a dialer here is likely to use. */
         val CALL_WORDS = listOf("call", "puhelu", "soitto", "samtal", "anruf", "appel", "llamada")
@@ -78,12 +116,25 @@ class NotificationDotListenerService : NotificationListenerService() {
         super.onListenerConnected()
         Log.d(TAG, "listener connected")
         badgeRepository.registerCanceller { key -> runCatching { cancelNotification(key) } }
+        settingsJob?.cancel()
+        settingsJob = combine(
+            settingsRepository.settings, settingsRepository.pinnedPeople, settingsRepository.peopleAliases,
+        ) { s, pinned, aliases ->
+            val pins = pinned.map { it.key }.toSet()
+            Triple(s.peopleBatchEnabled, BatchSchedule.parse(s.peopleBatchTimes), pins + aliases.filterValues { it in pins }.keys)
+        }.onEach { (enabled, times, vips) ->
+            batchEnabled = enabled
+            batchTimes = times
+            vipKeys = vips
+        }.launchIn(scope)
         refreshWithRetries()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         handler.removeCallbacks(retryRefresh)
+        settingsJob?.cancel()
+        settingsJob = null
         badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
@@ -99,12 +150,49 @@ class NotificationDotListenerService : NotificationListenerService() {
         // A heads-up post makes the system transiently show ITS status bar over our content; tell the
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).
+        if (sbn != null && holdForBatch(sbn)) {
+            // Snoozed: it leaves the shade now and comes back at the delivery time as a fresh post.
+            refreshWithRetries()
+            return
+        }
         if (sbn != null && isHeadsUpWorthy(sbn) && shouldAlert(sbn)) badgeRepository.notifyHeadsUp()
         refreshWithRetries()
     }
 
+    /**
+     * Snoozes a just-posted message from a non-pinned person until the next batch time. Returns
+     * true when it did. Only a FRESH post is held: the system reposts a snoozed notification with
+     * its original postTime once the snooze ends, so an old postTime means "delivered by the
+     * batch" (or an app update to a held one) and it is left alone.
+     */
+    private fun holdForBatch(sbn: StatusBarNotification): Boolean {
+        if (!batchEnabled) return false
+        val now = System.currentTimeMillis()
+        val until = heldUntil[sbn.key]
+        if (until != null && now >= until - RELEASE_SLACK_MS) {
+            heldUntil.remove(sbn.key)
+            return false
+        }
+        if (now - sbn.postTime > HOLD_FRESH_MS) return false
+        val entry = runCatching { personEntry(sbn, 0L, currentRanking, Ranking()) }.getOrNull() ?: return false
+        if (entry.kind == PersonEventKind.MISSED_CALL) return false
+        if (PeopleGrouping.personKey(entry.name) in vipKeys) return false
+        val deliverAt = BatchSchedule.nextDelivery(now, batchTimes) ?: return false
+        val delay = deliverAt - now
+        if (delay < MIN_HOLD_MS) return false
+        val snoozed = runCatching { snoozeNotification(sbn.key, delay) }.isSuccess
+        if (snoozed) heldUntil[sbn.key] = deliverAt
+        return snoozed
+    }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         if (sbn != null) alertedKeys.remove(sbn.key)
+        // A snooze also arrives here (REASON_SNOOZED); keep its delivery time. Only a real removal
+        // (dismissed, cancelled by the app) forgets it.
+        if (sbn != null && sbn.key in heldUntil) {
+            val stillSnoozed = runCatching { snoozedNotifications?.any { it.key == sbn.key } }.getOrNull() == true
+            if (!stillSnoozed) heldUntil.remove(sbn.key)
+        }
         refreshWithRetries()
     }
 
@@ -187,6 +275,19 @@ class NotificationDotListenerService : NotificationListenerService() {
                 )
             }.sortedByDescending { it.postTime },
         )
+        // Snoozed-for-the-batch notifications are out of the shade but still someone's message:
+        // they feed the tiles as "waiting", never the dots or the status bar.
+        if (batchEnabled) {
+            val now = System.currentTimeMillis()
+            val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty()
+            for (sbn in snoozed) {
+                if (sbn == null) continue
+                val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
+                val entry = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull() ?: continue
+                val until = heldUntil[sbn.key] ?: BatchSchedule.nextDelivery(now, batchTimes) ?: continue
+                people.add(entry.copy(heldUntil = until))
+            }
+        }
         badgeRepository.setPeople(PeopleGrouping.group(people))
     }
 

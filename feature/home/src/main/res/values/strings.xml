@@ -36,6 +36,11 @@
     <string name="people_reply_send">Lähetä</string>
     <string name="people_reply_cancel">Peruuta</string>
     <string name="people_reply_failed">Vastaaminen ei onnistunut</string>
+    <string name="people_action_link">Liitä henkilöön…</string>
+    <string name="people_action_unlink">Erota liitetyt</string>
+    <string name="people_link_title">Liitä %1$s henkilöön</string>
+    <string name="people_link_hint">Tämän nimen viestit näytetään jatkossa valitun henkilön laatassa.</string>
+    <string name="people_held_until">Eräposti klo %1$s</string>
     <string name="onboarding_skip">Ohita</string>
     <string name="onboarding_back">Takaisin</string>
     <string name="onboarding_next">Seuraava</string>

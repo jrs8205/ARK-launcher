@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
@@ -30,6 +31,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -82,6 +86,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.PeopleGrouping
 import org.arkikeskus.launcher.data.PersonEventKind
 import org.arkikeskus.launcher.data.PersonTileState
 import org.arkikeskus.launcher.data.PinnedPerson
@@ -96,6 +101,7 @@ import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 import javax.inject.Inject
+import java.util.Date
 import kotlin.math.abs
 
 /** How long a fresh tile takes to fade from full color to its pale "still unread" tint. */
@@ -129,6 +135,9 @@ class PeopleWidgetViewModel @Inject constructor(
         val contact: RawContact?,
     ) {
         val hasContent: Boolean get() = live != null
+        /** Everything behind the tile is waiting for the batch: shown quiet, with the delivery time. */
+        val held: Boolean get() = live?.held == true
+        val heldUntil: Long get() = live?.heldUntil ?: 0L
         val count: Int get() = live?.count ?: 0
         val postTime: Long get() = live?.postTime ?: 0L
         val photoUri: String? get() = contact?.photoUri ?: pinned?.photoUri?.takeIf { it.isNotEmpty() }
@@ -153,14 +162,19 @@ class PeopleWidgetViewModel @Inject constructor(
         .map { it.peoplePrivacy }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LauncherSettings.PRIVACY_ALL)
 
+    /** The user's "same person" links (alias key → target key); tiles with links can be split again. */
+    val aliases: StateFlow<Map<String, String>> = settingsRepository.peopleAliases
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     /** Contacts matches by person key; a null value records a miss so it isn't retried. */
     private val contactCache = MutableStateFlow<Map<String, RawContact?>>(emptyMap())
     private val lookupsStarted = HashSet<String>()
 
     /** Pinned people first (pin order), then everyone else with something new, newest first. */
     val tiles: StateFlow<List<Tile>> = combine(
-        badgeRepository.people, settingsRepository.pinnedPeople, contactCache,
-    ) { live, pinned, found ->
+        badgeRepository.people, settingsRepository.pinnedPeople, contactCache, settingsRepository.peopleAliases,
+    ) { grouped, pinned, found, aliases ->
+        val live = PeopleGrouping.merge(grouped, aliases)
         val liveByKey = live.associateBy { it.personKey }
         val pinnedKeys = pinned.map { it.key }.toSet()
         val tiles = pinned.map { p -> Tile(p.key, p.name, p, liveByKey[p.key], found[p.key]) } +
@@ -240,6 +254,23 @@ class PeopleWidgetViewModel @Inject constructor(
 
     fun unpin(tile: Tile) = viewModelScope.launch { settingsRepository.unpinPerson(tile.key) }
 
+    /** Merges [tile] into [target] from now on. A pinned alias loses its own pin (the target's tile
+     *  is where it lives now); its contact match carries over to the target's pin if that one had none. */
+    fun link(tile: Tile, target: Tile) = viewModelScope.launch {
+        if (tile.key == target.key) return@launch
+        settingsRepository.linkPerson(tile.key, target.key)
+        if (tile.pinned != null) settingsRepository.unpinPerson(tile.key)
+        val targetPin = target.pinned
+        if (targetPin != null && targetPin.lookupUri.isEmpty() && tile.lookupUri != null) {
+            settingsRepository.pinPerson(
+                targetPin.copy(lookupUri = tile.lookupUri.orEmpty(), number = tile.number.orEmpty(), photoUri = tile.photoUri.orEmpty()),
+            )
+        }
+    }
+
+    /** Splits every alias merged into [tile] back into its own tile. */
+    fun unlink(tile: Tile) = viewModelScope.launch { settingsRepository.unlinkPerson(tile.key) }
+
     private fun start(intent: Intent): Boolean =
         runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
 }
@@ -273,8 +304,10 @@ fun PeopleWidget(
         onPauseOrDispose { }
     }
 
+    val aliases by viewModel.aliases.collectAsStateWithLifecycle()
     var menuFor by remember { mutableStateOf<Pair<PeopleWidgetViewModel.Tile, IntOffset>?>(null) }
     var replyFor by remember { mutableStateOf<PeopleWidgetViewModel.Tile?>(null) }
+    var linkFor by remember { mutableStateOf<PeopleWidgetViewModel.Tile?>(null) }
     val noIndication = remember { MutableInteractionSource() }
 
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -345,12 +378,26 @@ fun PeopleWidget(
             if (tile.lookupUri != null) add(IconMenuItem(LauncherIcons.Info, stringResource(R.string.people_action_contact)) { viewModel.openContact(tile) })
             if (tile.pinned == null) add(IconMenuItem(LauncherIcons.Add, stringResource(R.string.people_action_pin)) { viewModel.pin(tile) })
             else add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.people_action_unpin)) { viewModel.unpin(tile) })
+            if (tiles.size > 1) add(IconMenuItem(LauncherIcons.Edit, stringResource(R.string.people_action_link)) { linkFor = tile })
+            if (aliases.containsValue(tile.key)) add(IconMenuItem(LauncherIcons.Close, stringResource(R.string.people_action_unlink)) { viewModel.unlink(tile) })
         }
         IconMenuPopup(
             anchor = anchor,
             preferAbove = anchor.y > windowHeight / 2,
             items = items,
             onDismiss = { menuFor = null },
+        )
+    }
+
+    linkFor?.let { tile ->
+        LinkDialog(
+            tile = tile,
+            candidates = tiles.filter { it.key != tile.key },
+            onPick = { target ->
+                viewModel.link(tile, target)
+                linkFor = null
+            },
+            onDismiss = { linkFor = null },
         )
     }
 
@@ -413,7 +460,8 @@ private fun PersonTile(
     val quietFg = widgetContentColor()
     val liveBg = MaterialTheme.colorScheme.primaryContainer
     val liveFg = MaterialTheme.colorScheme.onPrimaryContainer
-    val strength = if (tile.hasContent) freshness(now - tile.postTime) else 0f
+    // A tile whose messages wait for the batch stays quiet-colored: nothing is asking for you yet.
+    val strength = if (tile.hasContent && !tile.held) freshness(now - tile.postTime) else 0f
     val bg by animateColorAsState(lerp(quietBg, liveBg, strength), label = "tileBg")
     val fg by animateColorAsState(lerp(quietFg, liveFg, strength), label = "tileFg")
     val shape = RoundedCornerShape(20.dp)
@@ -508,9 +556,16 @@ private fun PersonTile(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    text = DateUtils.getRelativeTimeSpanString(
-                        tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
-                    ).toString(),
+                    text = if (tile.held) {
+                        stringResource(
+                            R.string.people_held_until,
+                            DateFormat.getTimeFormat(LocalContext.current).format(Date(tile.heldUntil)),
+                        )
+                    } else {
+                        DateUtils.getRelativeTimeSpanString(
+                            tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
+                        ).toString()
+                    },
                     color = fg.copy(alpha = 0.7f),
                     fontSize = 11.sp,
                     maxLines = 1,
@@ -548,6 +603,38 @@ private fun previewText(tile: PeopleWidgetViewModel.Tile, privacy: String): Stri
     if (privacy != LauncherSettings.PRIVACY_ALL) return kindLabel
     if (newest.kind == PersonEventKind.MISSED_CALL) return kindLabel
     return newest.text?.takeIf { it.isNotBlank() } ?: kindLabel
+}
+
+/** Picks the tile this one should merge into from now on. */
+@Composable
+private fun LinkDialog(
+    tile: PeopleWidgetViewModel.Tile,
+    candidates: List<PeopleWidgetViewModel.Tile>,
+    onPick: (PeopleWidgetViewModel.Tile) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.people_link_title, tile.name)) },
+        text = {
+            Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.people_link_hint), fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
+                candidates.forEach { c ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { onPick(c) }.padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ContactAvatar(name = c.name, photoUri = c.photoUri, size = 28.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(c.name, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.people_reply_cancel)) }
+        },
+    )
 }
 
 @Composable

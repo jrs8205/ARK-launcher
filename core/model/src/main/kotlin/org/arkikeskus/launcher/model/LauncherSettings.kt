@@ -69,6 +69,11 @@ data class LauncherSettings(
      *  [PRIVACY_ALL] = sender + message text, [PRIVACY_SENDER] = sender only, [PRIVACY_COUNT] = the
      *  tile colors and counts but shows no text at all (pinned people keep their user-chosen name). */
     val peoplePrivacy: String = PRIVACY_ALL,
+    /** Hold messages from people who aren't pinned and deliver them in batches at [peopleBatchTimes]
+     *  (the notification listener snoozes them). Pinned people and missed calls always come through. */
+    val peopleBatchEnabled: Boolean = false,
+    /** Comma-separated "HH:mm" delivery times for the batch; see BatchSchedule. */
+    val peopleBatchTimes: String = DEFAULT_BATCH_TIMES,
 ) {
     companion object {
         const val COUNT_NUMBER = "number"
@@ -78,5 +83,7 @@ data class LauncherSettings(
         const val PRIVACY_ALL = "all"
         const val PRIVACY_SENDER = "sender"
         const val PRIVACY_COUNT = "count"
+
+        const val DEFAULT_BATCH_TIMES = "08:00,12:00,17:00"
     }
 }
