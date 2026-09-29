@@ -141,7 +141,7 @@ class PeopleWidgetViewModel @Inject constructor(
         val pinned: PinnedPerson?,
         val live: PersonTileState?,
         val contact: RawContact?,
-        /** The launcher app behind an app tile (null for people, or an app without a launcher entry). */
+        /** The launcher app behind the newest notification (null when quiet, or no launcher entry). */
         val app: AppItem? = null,
     ) {
         /** An app-grouped tile (news, deliveries, system): no person behind it, so no pin/link/call. */
@@ -206,9 +206,11 @@ class PeopleWidgetViewModel @Inject constructor(
         val liveByKey = live.associateBy { it.personKey }
         val pinnedKeys = pinned.map { it.key }.toSet()
         val (appGroups, peopleGroups) = live.partition { it.newest.kind == PersonEventKind.APP }
-        val tiles = pinned.map { p -> Tile(p.key, p.name, p, liveByKey[p.key], found[p.key]) } +
-            peopleGroups.filter { it.personKey !in pinnedKeys }.map { Tile(it.personKey, it.name, null, it, found[it.personKey]) } +
-            appGroups.map { Tile(it.personKey, it.name, null, it, null, apps["${it.newest.packageName}/${it.newest.userSerial}"]) }
+        fun appOf(group: PersonTileState?): AppItem? =
+            group?.newest?.let { apps["${it.packageName}/${it.userSerial}"] }
+        val tiles = pinned.map { p -> Tile(p.key, p.name, p, liveByKey[p.key], found[p.key], appOf(liveByKey[p.key])) } +
+            peopleGroups.filter { it.personKey !in pinnedKeys }.map { Tile(it.personKey, it.name, null, it, found[it.personKey], appOf(it)) } +
+            appGroups.map { Tile(it.personKey, it.name, null, it, null, appOf(it)) }
         lookUpContacts(tiles)
         tiles
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -646,6 +648,7 @@ private fun PersonTile(
 @Composable
 private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: Dp) {
     val app = tile.app
+    val isMail = tile.live?.newest?.kind == PersonEventKind.EMAIL
     if (tile.isApp && app != null) {
         AppIcon(appItem = app, labelColor = Color.White, showLabel = false, iconSize = size, badgeCount = 0, badgeShowCount = false)
     } else if (tile.isApp) {
@@ -653,6 +656,9 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
             painter = painterResource(R.drawable.ic_notification_generic), contentDescription = null,
             tint = widgetContentColor(), modifier = Modifier.size(size),
         )
+    } else if (isMail && app != null && tile.photoUri == null) {
+        // A mail sender is rarely a contact with a photo; the mail app's icon says more than an initial.
+        AppIcon(appItem = app, labelColor = Color.White, showLabel = false, iconSize = size, badgeCount = 0, badgeShowCount = false)
     } else if (anonymous) {
         Box(
             modifier = Modifier.size(size).clip(RoundedCornerShape(50)).background(widgetContentColor().copy(alpha = 0.2f)),
@@ -661,7 +667,18 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
             Icon(painterResource(LauncherIcons.Message), null, Modifier.size(size * 0.55f), tint = widgetContentColor())
         }
     } else {
-        ContactAvatar(name = tile.name, photoUri = tile.photoUri, size = size)
+        // The person's avatar, with the app the newest message came from in the corner.
+        Box(Modifier.size(size)) {
+            ContactAvatar(name = tile.name, photoUri = tile.photoUri, size = size)
+            if (app != null && tile.hasContent) {
+                Box(Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 3.dp)) {
+                    AppIcon(
+                        appItem = app, labelColor = Color.White, showLabel = false,
+                        iconSize = size * 0.5f, badgeCount = 0, badgeShowCount = false,
+                    )
+                }
+            }
+        }
     }
 }
 
