@@ -78,8 +78,8 @@ the app: **Settings ▸ Feedback**.
 - **Material You themed icons** (monochrome, on supported Android versions).
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, and a configurable
   **left-edge swipe** that launches an app of your choice.
-- **Customizable look** — adjustable app-label **text size** and **colour**, dock opacity, grid
-  columns, page indicator, and more.
+- **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
+  labels** (per surface), dock opacity, grid columns, page indicator, and more.
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
