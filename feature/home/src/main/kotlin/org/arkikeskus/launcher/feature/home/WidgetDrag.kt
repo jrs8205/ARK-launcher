@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -54,6 +55,14 @@ class WidgetDragController(private val home: HomeDragController) {
 
     /** The gesture that started the active drag; see [owns]. */
     private var owner: Any? = null
+
+    /** Pointers a widget's own child claimed for its long-press (a people tile's menu), so the
+     *  widget pickup underneath yields to it; see [claimsWidgetLongPress]. */
+    private val claimedPointers = HashSet<PointerId>()
+
+    internal fun claim(pointer: PointerId) { claimedPointers.add(pointer) }
+    internal fun release(pointer: PointerId) { claimedPointers.remove(pointer) }
+    internal fun isClaimed(pointer: PointerId): Boolean = pointer in claimedPointers
 
     /**
      * Every widget has its own detector but they share this controller, so two fingers on two widgets
@@ -143,7 +152,7 @@ internal fun Modifier.widgetDragGesture(
                             ) return@withTimeoutOrNull true
                         }
                     }
-                    if (releasedOrMoved != null || !currentEnabled) return@awaitEachGesture
+                    if (releasedOrMoved != null || !currentEnabled || controller.isClaimed(down.id)) return@awaitEachGesture
                 }
                 val token = Any()
                 currentLift(origin, fraction, token)
@@ -174,3 +183,30 @@ internal fun Modifier.widgetDragGesture(
             }
         }
 }
+
+/** The widget drag controller of the workspace hosting this built-in widget, for [claimsWidgetLongPress]. */
+internal val LocalWidgetDragController = staticCompositionLocalOf<WidgetDragController?> { null }
+
+/**
+ * Marks a built-in widget's child as owning the long-press on it: the widget pickup underneath
+ * observes in the Initial pass and would otherwise lift the whole widget on the same timeout the
+ * child's own long-press fires on (and open the edit frame under the child's menu on release).
+ * The claim is made on the down, long before either timeout, so it is never a race. Taps and
+ * drags are unaffected: the pickup already yields to a release or a move before the timeout.
+ */
+internal fun Modifier.claimsWidgetLongPress(controller: WidgetDragController?): Modifier =
+    if (controller == null) this else pointerInput(controller) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            controller.claim(down.id)
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Final)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
+                }
+            } finally {
+                controller.release(down.id)
+            }
+        }
+    }

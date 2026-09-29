@@ -15,6 +15,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.Person
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.BatchSchedule
+import org.arkikeskus.launcher.data.MessageHeuristics
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PeopleGrouping
 import org.arkikeskus.launcher.data.PersonEntry
@@ -53,7 +55,7 @@ import javax.inject.Inject
  *   groups them by person across apps.
  * - **Batch delivery** (opt-in): a fresh message from someone who isn't pinned is snoozed until the
  *   next delivery time, so the shade and the home stay quiet in between; the snoozed ones still feed
- *   the people tiles as "waiting". Pinned people and missed calls are never held.
+ *   the people tiles as "waiting". Pinned people, missed calls and one-time codes are never held.
  *
  * Requires the user to grant notification access (Settings → Notifications → Device & app
  * notifications); until then the system never binds this service.
@@ -116,9 +118,6 @@ class NotificationDotListenerService : NotificationListenerService() {
 
         /** A repost slightly before the recorded delivery time still counts as delivered. */
         const val RELEASE_SLACK_MS = 60_000L
-
-        /** The generic "missed call" label in the languages a dialer here is likely to use. */
-        val CALL_WORDS = listOf("call", "puhelu", "soitto", "samtal", "anruf", "appel", "llamada")
     }
 
     /** Refresh now, allowing a bounded number of delayed retries if the snapshot read fails —
@@ -204,6 +203,8 @@ class NotificationDotListenerService : NotificationListenerService() {
         if (now - sbn.postTime > HOLD_FRESH_MS) return false
         val entry = runCatching { personEntry(sbn, 0L, currentRanking, Ranking()) }.getOrNull() ?: return false
         if (entry.kind == PersonEventKind.MISSED_CALL) return false
+        // A verification code is worthless by the delivery time; the login would have timed out.
+        if (MessageHeuristics.looksLikeOneTimeCode(entry.text)) return false
         if (PeopleGrouping.personKey(entry.name) in vipKeys) return false
         val deliverAt = BatchSchedule.nextDelivery(now, batchTimes) ?: return false
         val delay = deliverAt - now
@@ -216,17 +217,11 @@ class NotificationDotListenerService : NotificationListenerService() {
         return snoozed
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+    override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
         if (sbn != null) alertedKeys.remove(sbn.key)
-        // A snooze also arrives here (REASON_SNOOZED); keep its delivery time. Only a real removal
-        // (dismissed, cancelled by the app) forgets it.
-        if (sbn != null && sbn.key in heldUntil) {
-            val stillSnoozed = runCatching { snoozedNotifications?.any { it.key == sbn.key } }.getOrNull() == true
-            if (!stillSnoozed) {
-                heldUntil.remove(sbn.key)
-                persistHeld()
-            }
-        }
+        // Our own snooze also arrives here; keep its delivery time. Only a real removal (dismissed,
+        // cancelled by the app) forgets it.
+        if (sbn != null && reason != REASON_SNOOZED && heldUntil.remove(sbn.key) != null) persistHeld()
         refreshWithRetries()
     }
 
@@ -380,7 +375,9 @@ class NotificationDotListenerService : NotificationListenerService() {
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n)
         when {
             style != null -> {
-                val messages = style.messages.filter { !it.text.isNullOrBlank() }
+                // The style also carries the user's own replies: they must not count, name the tile
+                // or be its preview.
+                val messages = style.messages.filter { !it.text.isNullOrBlank() && !isOwnMessage(it.person, style.user) }
                 val last = messages.lastOrNull()
                 val groupTitle = style.conversationTitle?.toString()?.trim()
                     ?.takeIf { style.isGroupConversation && it.isNotEmpty() }
@@ -403,7 +400,8 @@ class NotificationDotListenerService : NotificationListenerService() {
                     @Suppress("DEPRECATION")
                     extras.getParcelableArrayList<android.app.Person>(Notification.EXTRA_PEOPLE_LIST)?.firstOrNull()
                 }.getOrNull()
-                val swap = looksLikeCallLabel(title) && !text.isNullOrEmpty() && !looksLikeCallLabel(text)
+                val swap = MessageHeuristics.looksLikeCallLabel(title) && !text.isNullOrEmpty() &&
+                    !MessageHeuristics.looksLikeCallLabel(text)
                 name = person?.name?.toString()?.trim().orEmpty().ifEmpty { if (swap) text.orEmpty() else title }
                 preview = if (swap) title else text
                 icon = person?.icon ?: largeIcon
@@ -415,9 +413,10 @@ class NotificationDotListenerService : NotificationListenerService() {
                 icon = largeIcon
                 kind = PersonEventKind.MESSAGE
             }
-            n.category == Notification.CATEGORY_EMAIL || sbn.packageName in mailPackages -> {
+            n.category == Notification.CATEGORY_EMAIL || (sbn.packageName in mailPackages && n.category == null) -> {
                 // A mail client's other notices ("Syncing…", "Sending…") carry no sender/subject pair
-                // or are ongoing; a real mail has both.
+                // or are ongoing, and its calendar reminders declare their own category; a real mail
+                // has a sender and a subject and, Gmail included, usually no category at all.
                 if (title.isEmpty() || text == null) return null
                 name = title
                 // Mail clients put the subject in the text and the body's first lines in the
@@ -430,14 +429,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         }
         if (name.isBlank()) return null
 
-        val reply = n.actions?.firstNotNullOfOrNull { action ->
-            val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: return@firstNotNullOfOrNull null
-            val semantic = action.semanticAction
-            if (semantic != Notification.Action.SEMANTIC_ACTION_REPLY &&
-                semantic != Notification.Action.SEMANTIC_ACTION_NONE
-            ) return@firstNotNullOfOrNull null
-            action.actionIntent?.let { ReplyAction(it, input) }
-        }
+        val reply = replyAction(n, conversationOnly = true)
         val callBack = n.actions
             ?.firstOrNull { it.semanticAction == Notification.Action.SEMANTIC_ACTION_CALL }
             ?.actionIntent
@@ -476,10 +468,7 @@ class NotificationDotListenerService : NotificationListenerService() {
                 packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString()
             }.getOrDefault(sbn.packageName)
         }
-        val reply = n.actions?.firstNotNullOfOrNull { action ->
-            val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: return@firstNotNullOfOrNull null
-            action.actionIntent?.let { ReplyAction(it, input) }
-        }
+        val reply = replyAction(n, conversationOnly = false)
         return PersonEntry(
             key = sbn.key,
             name = label,
@@ -508,10 +497,28 @@ class NotificationDotListenerService : NotificationListenerService() {
             .toSet()
     }.getOrDefault(emptySet())
 
-    /** True for the generic "Missed call"-style label a dialer puts in whichever field isn't the name. */
-    private fun looksLikeCallLabel(s: String): Boolean {
-        val l = s.lowercase()
-        return CALL_WORDS.any { it in l }
+    /**
+     * The first free-text RemoteInput action, as a [ReplyAction]. For a person's notification only
+     * a reply (or an unlabelled) semantic counts — a chat app's "mark as read" with a text field
+     * must not become the tile's reply; an app tile takes any text input it offers.
+     */
+    private fun replyAction(n: Notification, conversationOnly: Boolean): ReplyAction? =
+        n.actions?.firstNotNullOfOrNull { action ->
+            val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: return@firstNotNullOfOrNull null
+            val semantic = action.semanticAction
+            if (conversationOnly && semantic != Notification.Action.SEMANTIC_ACTION_REPLY &&
+                semantic != Notification.Action.SEMANTIC_ACTION_NONE
+            ) return@firstNotNullOfOrNull null
+            action.actionIntent?.let { ReplyAction(it, input) }
+        }
+
+    /** A message without a sender (legacy style) or from the style's own user is the user's. The
+     *  persons come from separate bundles, so they are matched by key, else uri, else name. */
+    private fun isOwnMessage(person: Person?, user: Person): Boolean {
+        if (person == null) return true
+        person.key?.let { return it == user.key }
+        person.uri?.let { return it == user.uri }
+        return person.name?.toString() == user.name?.toString()
     }
 
 

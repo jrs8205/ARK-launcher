@@ -37,7 +37,7 @@
     <string name="settings_people_show_apps">People widget also shows other apps\' notifications</string>
     <string name="settings_people_batch">Batch delivery: hold others\' messages, pinned people come through</string>
     <string name="settings_people_batch_times">Batch delivery times</string>
-    <string name="settings_people_batch_times_hint">Times separated by commas, e.g. 08:00, 12:00, 17:00. Missed calls always come through. Turning the batch off or pinning a person does not release messages already waiting; they arrive at the delivery time.</string>
+    <string name="settings_people_batch_times_hint">Times separated by commas, e.g. 08:00, 12:00, 17:00. Missed calls and one-time codes always come through. Turning the batch off or pinning a person does not release messages already waiting; they arrive at the delivery time.</string>
     <string name="settings_people_batch_times_save">Save</string>
     <string name="settings_permissions">Permissions</string>
     <string name="settings_permission_granted">Granted</string>

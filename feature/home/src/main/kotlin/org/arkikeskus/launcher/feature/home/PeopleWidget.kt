@@ -95,6 +95,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.NotificationWidgetLayout
@@ -164,6 +166,15 @@ class PeopleWidgetViewModel @Inject constructor(
         val lookupUri: String? get() = contact?.lookupUri ?: pinned?.lookupUri?.takeIf { it.isNotEmpty() }
         val canReply: Boolean get() = live?.entries?.any { it.reply != null } == true
         val canCall: Boolean get() = number != null || live?.entries?.any { it.callBack != null } == true
+
+        /** "Count only" hides who wrote, except for people the user pinned themselves and app tiles. */
+        fun hidesName(privacy: String): Boolean =
+            privacy == LauncherSettings.PRIVACY_COUNT && pinned == null && !isApp
+
+        /** A notification's title (an app tile's headline, a mail's subject) is content, not the
+         *  sender: it shows only when message text is allowed at all. */
+        fun shownTitle(privacy: String): String? =
+            live?.newest?.title?.takeIf { privacy == LauncherSettings.PRIVACY_ALL }
     }
 
     /** Whether our notification listener is enabled — re-checked on home resume. */
@@ -267,7 +278,7 @@ class PeopleWidgetViewModel @Inject constructor(
     /** The dialer's own "call back" action when a missed call offered one, else dial the number. */
     fun call(tile: Tile) {
         val callBack = tile.live?.entries?.firstNotNullOfOrNull { it.callBack }
-        if (callBack != null && runCatching { callBack.send() }.isSuccess) return
+        if (callBack != null && sendNotificationIntent(context, callBack)) return
         val number = tile.number ?: return
         start(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
     }
@@ -364,8 +375,18 @@ fun PeopleWidget(
     var linkFor by remember { mutableStateOf<PeopleWidgetViewModel.Tile?>(null) }
     var showAll by remember { mutableStateOf(false) }
     val noIndication = remember { MutableInteractionSource() }
+    val widgetDrag = LocalWidgetDragController.current
+    // Where a menu opened from the "all" list anchors: the list is a dialog, so the tile's own
+    // position is not on screen.
+    var widgetCenter by remember { mutableStateOf(IntOffset.Zero) }
 
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+    BoxWithConstraints(
+        modifier = modifier.onGloballyPositioned { c ->
+            val pos = c.positionInRoot()
+            widgetCenter = IntOffset((pos.x + c.size.width / 2f).toInt(), (pos.y + c.size.height / 2f).toInt())
+        },
+        contentAlignment = Alignment.Center,
+    ) {
         when {
             !hasAccess -> HintCard(stringResource(R.string.notifications_widget_allow_access), noIndication) {
                 openNotificationListenerSettings(context)
@@ -396,7 +417,8 @@ fun PeopleWidget(
                                 interaction = noIndication,
                                 modifier = Modifier
                                     .offset(x = (tile + gap) * p.col, y = (rowHeight + gap) * p.row)
-                                    .size(width = tile * p.span + gap * (p.span - 1), height = rowHeight),
+                                    .size(width = tile * p.span + gap * (p.span - 1), height = rowHeight)
+                                    .claimsWidgetLongPress(widgetDrag),
                             )
                         }
                     }
@@ -460,7 +482,7 @@ fun PeopleWidget(
             },
             onLongPress = { tile ->
                 showAll = false
-                menuFor = tile to IntOffset(0, 0)
+                menuFor = tile to widgetCenter
             },
             onDismiss = { showAll = false },
         )
@@ -599,7 +621,7 @@ private fun PersonTile(
             )
             .padding(10.dp),
     ) {
-        val hideName = privacy == LauncherSettings.PRIVACY_COUNT && tile.pinned == null && !tile.isApp
+        val hideName = tile.hidesName(privacy)
         val shownName = if (hideName) stringResource(R.string.people_hidden_name) else tile.name
         if (!wide) {
             // Quiet (or squeezed) tile: avatar over the name, centered.
@@ -630,10 +652,7 @@ private fun PersonTile(
                     NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
                 }
                 Spacer(Modifier.height(4.dp))
-                // A notification's title (an app tile's headline, a mail's subject) is content, not
-                // the sender: it shows only when message text is allowed at all.
-                val newest = tile.live?.newest
-                val appTitle = newest?.title?.takeIf { privacy == LauncherSettings.PRIVACY_ALL }
+                val appTitle = tile.shownTitle(privacy)
                 Column(Modifier.weight(1f)) {
                     if (appTitle != null) {
                         Text(
@@ -651,16 +670,7 @@ private fun PersonTile(
                     )
                 }
                 Text(
-                    text = if (tile.held) {
-                        stringResource(
-                            R.string.people_held_until,
-                            DateFormat.getTimeFormat(LocalContext.current).format(Date(tile.heldUntil)),
-                        )
-                    } else {
-                        DateUtils.getRelativeTimeSpanString(
-                            tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
-                        ).toString()
-                    },
+                    text = tileTimeLabel(tile, now),
                     color = fg.copy(alpha = 0.7f),
                     fontSize = 12.sp,
                     maxLines = 1,
@@ -718,15 +728,33 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
     }
 }
 
-/** Rasterises the notification's avatar icon at [size]; null on any failure (initial shown). */
+/** Rasterises the notification's avatar icon at [size]; null until decoded or on any failure
+ *  (the initial shows). Decoded off the main thread: a URI or resource icon reads from a content
+ *  provider or an APK, and each listener refresh may bring a new one for every tile. */
 @Composable
 private fun rememberAvatarBitmap(entry: org.arkikeskus.launcher.data.PersonEntry, size: Dp): ImageBitmap? {
     val context = LocalContext.current
     val px = with(LocalDensity.current) { size.roundToPx() }
-    return remember(entry.key, entry.postTime, px) {
-        runCatching { entry.personIcon?.loadDrawable(context)?.toBitmap(width = px, height = px)?.asImageBitmap() }.getOrNull()
+    var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(entry.key, entry.postTime, px) {
+        val icon = entry.personIcon
+        bitmap = withContext(Dispatchers.IO) {
+            runCatching { icon?.loadDrawable(context)?.toBitmap(width = px, height = px)?.asImageBitmap() }.getOrNull()
+        }
     }
+    return bitmap
 }
+
+/** "Batch at 17:00" while held, else how long ago the newest notification arrived. */
+@Composable
+private fun tileTimeLabel(tile: PeopleWidgetViewModel.Tile, now: Long): String =
+    if (tile.held) {
+        stringResource(R.string.people_held_until, DateFormat.getTimeFormat(LocalContext.current).format(Date(tile.heldUntil)))
+    } else {
+        DateUtils.getRelativeTimeSpanString(
+            tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
+        ).toString()
+    }
 
 /** What the wide tile says under the name, honoring the privacy setting. */
 @Composable
@@ -763,14 +791,13 @@ private fun AllTilesDialog(
     onLongPress: (PeopleWidgetViewModel.Tile) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.people_all_title)) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
                 tiles.forEach { tile ->
-                    val hideName = privacy == LauncherSettings.PRIVACY_COUNT && tile.pinned == null && !tile.isApp
+                    val hideName = tile.hidesName(privacy)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -786,21 +813,13 @@ private fun AllTilesDialog(
                                 fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                             )
                             if (tile.hasContent) {
+                                // One line here where the tile has two: the list is narrow.
                                 val line = listOfNotNull(
-                                    tile.live?.newest?.title?.takeIf { privacy == LauncherSettings.PRIVACY_ALL },
+                                    tile.shownTitle(privacy),
                                     previewText(tile, privacy).takeIf { it.isNotBlank() },
                                 ).joinToString(" · ")
                                 if (line.isNotEmpty()) Text(line, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text(
-                                    text = if (tile.held) {
-                                        stringResource(R.string.people_held_until, DateFormat.getTimeFormat(context).format(Date(tile.heldUntil)))
-                                    } else {
-                                        DateUtils.getRelativeTimeSpanString(
-                                            tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
-                                        ).toString()
-                                    },
-                                    fontSize = 12.sp, maxLines = 1,
-                                )
+                                Text(text = tileTimeLabel(tile, now), fontSize = 12.sp, maxLines = 1)
                             }
                         }
                         NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)

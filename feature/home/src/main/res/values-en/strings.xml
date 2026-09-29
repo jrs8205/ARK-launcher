@@ -91,6 +91,7 @@
     <string name="home_options_set_home">Set as home page</string>
     <string name="home_options_page_remove">Remove empty page</string>
     <string name="home_options_page_limit">Already at the page limit</string>
+    <string name="home_options_page_not_empty">The page is not empty</string>
     <string name="widget_remove">Remove widget</string>
     <string name="widget_unavailable">Widget unavailable</string>
     <string name="widget_restore_tap">Tap to set up</string>

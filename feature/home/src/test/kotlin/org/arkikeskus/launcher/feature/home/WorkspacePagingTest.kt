@@ -44,3 +44,31 @@ class WorkspacePagingTest {
         assertThat(emptyPageReturnTarget(1, 1, hasContent = false)).isEqualTo(0)
     }
 }
+
+class ExplicitPageCountTest {
+    @Test
+    fun insertingInsideTheExplicitPagesGrowsTheFloorByOne() {
+        assertThat(explicitPageCountAfterInsert(explicit = 3, at = 1)).isEqualTo(4)
+        assertThat(explicitPageCountAfterInsert(explicit = 3, at = 3)).isEqualTo(4)
+    }
+
+    @Test
+    fun insertingBeyondTheExplicitPagesMakesTheNewPageTheFloor() {
+        // Content on pages 0..5, nothing explicit; a page added at 6 must persist while empty.
+        assertThat(explicitPageCountAfterInsert(explicit = 0, at = 6)).isEqualTo(7)
+        assertThat(explicitPageCountAfterInsert(explicit = 2, at = 4)).isEqualTo(5)
+    }
+
+    @Test
+    fun removingAnExplicitPageShrinksTheFloorByOne() {
+        assertThat(explicitPageCountAfterRemove(explicit = 3, page = 0)).isEqualTo(2)
+        assertThat(explicitPageCountAfterRemove(explicit = 3, page = 2)).isEqualTo(2)
+    }
+
+    @Test
+    fun removingAContentOnlyPageLeavesTheFloorAlone() {
+        // Explicit 2, icons out to page 5: removing empty page 3 must not make pages 0..4 permanent.
+        assertThat(explicitPageCountAfterRemove(explicit = 2, page = 3)).isEqualTo(2)
+        assertThat(explicitPageCountAfterRemove(explicit = 0, page = 1)).isEqualTo(0)
+    }
+}

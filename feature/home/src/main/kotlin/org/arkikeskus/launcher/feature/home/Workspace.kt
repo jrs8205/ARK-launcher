@@ -31,12 +31,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -127,8 +129,8 @@ fun Workspace(
     showPageIndicator: Boolean,
     locked: Boolean,
     homeSignals: Flow<Boolean>,
-    /** The page HOME returns to and the launcher opens on. */
-    homePage: Int = 0,
+    /** The page HOME returns to and the launcher opens on; null until settings have been read. */
+    homePage: Int? = null,
     /** Pages the host wants shown (after adding/removing a page from the menu). */
     pageRequests: Flow<Int> = emptyFlow(),
     dragController: HomeDragController,
@@ -196,19 +198,22 @@ fun Workspace(
     // forced a pager relayout exactly as the drag began, making pickup stutter and miss moves. The
     // trailing page is hidden from the dots and the workspace snaps back off it when not dragging,
     // so it reads as a single page until an icon actually lands there.
-    val pagerState = rememberPagerState(initialPage = homePage.coerceIn(0, pageCount), pageCount = { pageCount + 1 })
-    // Settings arrive a beat after the first frame: jump to the home page once when it becomes
-    // known (a no-op when it is 0 or the user is already there — setting a new home page happens
-    // from that page, so this never yanks them elsewhere).
-    var jumpedHome by remember { mutableStateOf(false) }
-    LaunchedEffect(homePage) {
-        if (!jumpedHome && homePage > 0) {
-            jumpedHome = true
-            if (pagerState.currentPage != homePage) pagerState.scrollToPage(homePage.coerceIn(0, pageCount))
-        }
+    val pagerState = rememberPagerState(initialPage = (homePage ?: 0).coerceIn(0, pageCount), pageCount = { pageCount + 1 })
+    // Settings arrive a beat after the first frame: open on the home page once they are known.
+    // Saved across recreation so a restored pager (rotation, locale change, process death) keeps
+    // the page the user was on. Later home-page changes never move the pager — the page menu's
+    // insert/remove rewrite the stored index while the user is on another page on purpose.
+    var openedOnHome by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(homePage != null) {
+        val target = homePage ?: return@LaunchedEffect
+        if (openedOnHome) return@LaunchedEffect
+        openedOnHome = true
+        if (pagerState.currentPage != target) pagerState.scrollToPage(target.coerceIn(0, pageCount))
     }
+    // The pager's own count is the live bound: this collector never restarts, so the pageCount
+    // parameter it closed over would be the first composition's.
     LaunchedEffect(pageRequests) {
-        pageRequests.collect { page -> pagerState.animateScrollToPage(page.coerceIn(0, pageCount)) }
+        pageRequests.collect { page -> pagerState.animateScrollToPage(page.coerceIn(0, pagerState.pageCount - 1)) }
     }
     // The cell the dragged icon would drop into — shown as a placeholder while dragging.
     var targetCell by remember { mutableStateOf<IntOffset?>(null) }
@@ -561,11 +566,12 @@ fun Workspace(
     // HOME button / home gesture: always leave widget edit mode, but snap to the first page only
     // when HOME was pressed while the launcher was already foreground (alreadyOnHome). Coming home
     // from an app keeps the page the app was launched from — the Pixel Launcher convention.
-    LaunchedEffect(homeSignals, pageCount, homePage) {
+    val homeIndex = homePage ?: 0
+    LaunchedEffect(homeSignals, pageCount, homeIndex) {
         homeSignals.collect { alreadyOnHome ->
             widgetDragController.cancel()
             editingWidget = null
-            if (alreadyOnHome && pagerState.currentPage != homePage) pagerState.animateScrollToPage(homePage)
+            if (alreadyOnHome && pagerState.currentPage != homeIndex) pagerState.animateScrollToPage(homeIndex)
         }
     }
 
@@ -1249,14 +1255,16 @@ fun Workspace(
                                                 space.cellX, space.cellY, space.spanX, space.spanY), root, fraction, owner)
                                         },
                                 ) {
-                                    when (space.type) {
-                                        HomeItemEntity.BUILTIN_NOTIFICATIONS ->
-                                            NotificationsWidget(modifier = Modifier.fillMaxSize())
-                                        HomeItemEntity.BUILTIN_BATTERY ->
-                                            BatteryWidget(modifier = Modifier.fillMaxSize())
-                                        HomeItemEntity.BUILTIN_PEOPLE ->
-                                            PeopleWidget(modifier = Modifier.fillMaxSize())
-                                        else -> SmartspaceWidget(modifier = Modifier.fillMaxSize())
+                                    CompositionLocalProvider(LocalWidgetDragController provides widgetDragController) {
+                                        when (space.type) {
+                                            HomeItemEntity.BUILTIN_NOTIFICATIONS ->
+                                                NotificationsWidget(modifier = Modifier.fillMaxSize())
+                                            HomeItemEntity.BUILTIN_BATTERY ->
+                                                BatteryWidget(modifier = Modifier.fillMaxSize())
+                                            HomeItemEntity.BUILTIN_PEOPLE ->
+                                                PeopleWidget(modifier = Modifier.fillMaxSize())
+                                            else -> SmartspaceWidget(modifier = Modifier.fillMaxSize())
+                                        }
                                     }
                                 }
                             }
@@ -1375,7 +1383,7 @@ fun Workspace(
                 PageDots(
                     count = pageCount,
                     current = pagerState.currentPage,
-                    home = homePage,
+                    home = homeIndex,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),

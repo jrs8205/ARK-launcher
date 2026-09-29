@@ -50,7 +50,19 @@ data class PersonEntry(
     val personUri: String? = null,
     /** Epoch ms the batch releases this (snoozed) notification; 0 = shown normally. */
     val heldUntil: Long = 0L,
-)
+) {
+    // Icon, PendingIntent and RemoteInput compare by identity and are unparcelled afresh on every
+    // listener snapshot, so a generated equals would never match and each refresh would repaint the
+    // whole widget. key + postTime already identify the notification version the handles belong to.
+    private val fingerprint: List<Any?>
+        get() = listOf(
+            key, name, groupKey, title, text, postTime, packageName, userSerial, kind, count, autoCancel,
+            contentIntent != null, reply != null, callBack != null, personIcon != null, sender, personUri, heldUntil,
+        )
+
+    override fun equals(other: Any?): Boolean = other is PersonEntry && fingerprint == other.fingerprint
+    override fun hashCode(): Int = fingerprint.hashCode()
+}
 
 /** Every live notification of one person, across apps; [entries] newest first. */
 data class PersonTileState(

@@ -543,7 +543,7 @@ fun HomeScreen(
                 showPageIndicator = settings.showPageIndicator,
                 locked = settings.desktopLocked,
                 homeSignals = homeSignals,
-                homePage = uiState.homePage,
+                homePage = if (uiState.loaded) uiState.homePage else null,
                 pageRequests = pageRequests,
                 dragController = dragController,
                 widgetDragController = widgetDrag,
@@ -790,6 +790,7 @@ fun HomeScreen(
                     add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.home_options_page_remove)) {
                         widgetScope.launch {
                             if (viewModel.removeEmptyPage(page)) pageRequests.tryEmit(page.coerceAtMost(uiState.pageCount - 2))
+                            else widgetMessage(R.string.home_options_page_not_empty)
                         }
                     })
                 }
