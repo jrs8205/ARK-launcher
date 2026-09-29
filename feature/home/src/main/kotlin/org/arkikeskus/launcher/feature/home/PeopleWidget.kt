@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -55,7 +57,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -72,6 +78,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -685,9 +692,20 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
             Icon(painterResource(LauncherIcons.Message), null, Modifier.size(size * 0.55f), tint = widgetContentColor())
         }
     } else {
-        // The person's avatar, with the app the newest message came from in the corner.
+        // The person's avatar — the contact photo, else the picture the notification carried
+        // (a chat's contact or group picture), else an initial — with the app the newest message
+        // came from in the corner.
+        val newest = tile.live?.newest
+        val carried = if (tile.photoUri == null && newest?.personIcon != null) rememberAvatarBitmap(newest, size) else null
         Box(Modifier.size(size)) {
-            ContactAvatar(name = tile.name, photoUri = tile.photoUri, size = size)
+            if (carried != null) {
+                Image(
+                    bitmap = carried, contentDescription = null, contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(size).clip(CircleShape),
+                )
+            } else {
+                ContactAvatar(name = tile.name, photoUri = tile.photoUri, size = size)
+            }
             if (app != null && tile.hasContent) {
                 Box(Modifier.align(Alignment.BottomEnd).offset(x = 3.dp, y = 3.dp)) {
                     AppIcon(
@@ -697,6 +715,16 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
                 }
             }
         }
+    }
+}
+
+/** Rasterises the notification's avatar icon at [size]; null on any failure (initial shown). */
+@Composable
+private fun rememberAvatarBitmap(entry: org.arkikeskus.launcher.data.PersonEntry, size: Dp): ImageBitmap? {
+    val context = LocalContext.current
+    val px = with(LocalDensity.current) { size.roundToPx() }
+    return remember(entry.key, entry.postTime, px) {
+        runCatching { entry.personIcon?.loadDrawable(context)?.toBitmap(width = px, height = px)?.asImageBitmap() }.getOrNull()
     }
 }
 
@@ -716,9 +744,12 @@ private fun previewText(tile: PeopleWidgetViewModel.Tile, privacy: String): Stri
         // The title line already shows in "sender only"; the text is the private part.
         return if (privacy == LauncherSettings.PRIVACY_ALL) newest.text?.takeIf { it.isNotBlank() } ?: kindLabel else kindLabel
     }
-    if (privacy != LauncherSettings.PRIVACY_ALL) return kindLabel
+    // In a group the tile is the group; the sender goes in front of the text ("Mikko: Oletko…").
+    val sender = newest.sender?.takeIf { it.isNotBlank() }
+    if (privacy != LauncherSettings.PRIVACY_ALL) return if (privacy == LauncherSettings.PRIVACY_SENDER && sender != null) sender else kindLabel
     if (newest.kind == PersonEventKind.MISSED_CALL) return kindLabel
-    return newest.text?.takeIf { it.isNotBlank() } ?: kindLabel
+    val body = newest.text?.takeIf { it.isNotBlank() } ?: kindLabel
+    return if (sender != null) "$sender: $body" else body
 }
 
 /** Every tile as a list, for what the widget's footprint couldn't fit. */

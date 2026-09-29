@@ -373,6 +373,9 @@ class NotificationDotListenerService : NotificationListenerService() {
         var count = 1
         var icon: android.graphics.drawable.Icon? = null
         var uri: String? = null
+        var sender: String? = null
+        // A chat app's large icon is the contact's or group's picture; a dialer's, the caller's.
+        val largeIcon = runCatching { n.getLargeIcon() }.getOrNull()
         val kind: PersonEventKind
         val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n)
         when {
@@ -381,10 +384,14 @@ class NotificationDotListenerService : NotificationListenerService() {
                 val last = messages.lastOrNull()
                 val groupTitle = style.conversationTitle?.toString()?.trim()
                     ?.takeIf { style.isGroupConversation && it.isNotEmpty() }
-                name = groupTitle ?: last?.person?.name?.toString()?.trim().orEmpty().ifEmpty { shortcutLabel ?: title }
+                val lastSender = last?.person?.name?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+                name = groupTitle ?: lastSender.orEmpty().ifEmpty { shortcutLabel ?: title }
                 preview = last?.text?.toString()?.trim() ?: text
                 count = messages.size.coerceAtLeast(1)
-                icon = last?.person?.icon?.toIcon(this)
+                // The tile is the group when there is one, so its picture beats the sender's.
+                val personIcon = last?.person?.icon?.toIcon(this)
+                icon = if (groupTitle != null) largeIcon ?: personIcon else personIcon ?: largeIcon
+                if (groupTitle != null) sender = lastSender
                 uri = last?.person?.uri
                 kind = PersonEventKind.MESSAGE
             }
@@ -399,12 +406,13 @@ class NotificationDotListenerService : NotificationListenerService() {
                 val swap = looksLikeCallLabel(title) && !text.isNullOrEmpty() && !looksLikeCallLabel(text)
                 name = person?.name?.toString()?.trim().orEmpty().ifEmpty { if (swap) text.orEmpty() else title }
                 preview = if (swap) title else text
-                icon = person?.icon
+                icon = person?.icon ?: largeIcon
                 uri = person?.uri
                 kind = PersonEventKind.MISSED_CALL
             }
             conversation || n.category == Notification.CATEGORY_MESSAGE -> {
                 name = shortcutLabel ?: title
+                icon = largeIcon
                 kind = PersonEventKind.MESSAGE
             }
             n.category == Notification.CATEGORY_EMAIL || sbn.packageName in mailPackages -> {
@@ -448,6 +456,7 @@ class NotificationDotListenerService : NotificationListenerService() {
             reply = reply,
             callBack = callBack,
             personIcon = icon,
+            sender = sender,
             personUri = uri,
         )
     }

@@ -41,8 +41,11 @@ data class PersonEntry(
     val reply: ReplyAction? = null,
     /** A dialer's "call back" action on a missed call, when it provided one. */
     val callBack: PendingIntent? = null,
-    /** The sender's avatar when the app attached a Person icon. */
+    /** The best avatar the notification carries: the sender's Person icon, or the notification's
+     *  large icon (a chat app's contact or group picture). Null when it carries none. */
     val personIcon: Icon? = null,
+    /** In a group conversation: who wrote the newest message (the tile itself is the group). */
+    val sender: String? = null,
     /** The sender's Person.uri (a `tel:` or contact URI) when the app attached one. */
     val personUri: String? = null,
     /** Epoch ms the batch releases this (snoozed) notification; 0 = shown normally. */
