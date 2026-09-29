@@ -88,6 +88,7 @@ import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.AppLabel
+import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.labelBlockHeight
@@ -300,7 +301,12 @@ fun Workspace(
     // Icon/folder/shortcut size derived from the cell so 6–7 columns fit a narrow screen (a fixed
     // 52dp icon bled into neighbouring cells there) AND so a whole label line fits under it in a
     // short cell (7–8 rows on an enlarged display size). 52dp until the grid reports its real size.
-    val labelBlock = labelBlockHeight(showLabels, LocalAppLabelScale.current, labelFontFactor(density.fontScale))
+    val labelBlock = labelBlockHeight(
+        showLabel = showLabels,
+        labelScale = LocalAppLabelScale.current,
+        fontFactor = labelFontFactor(density.fontScale),
+        lines = LocalAppLabelLines.current,
+    )
     val cellIconSize = if (gridSize.width > 0 && gridSize.height > 0) {
         iconSizeForCell(with(density) { cellW.toDp() }, 52.dp, with(density) { cellH.toDp() }, labelBlock)
     } else {
@@ -1002,7 +1008,6 @@ fun Workspace(
                                     labelColor = labelColor,
                                     showLabel = showLabels,
                                     iconSize = cellIconSize,
-                                    maxLabelLines = 1,
                                     badgeCount = badges[placed.app.badgeKey] ?: 0,
                                     badgeShowCount = badgeShowCount,
                                     badgeScale = badgeScale,

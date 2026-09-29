@@ -100,6 +100,7 @@ import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
+import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
@@ -170,6 +171,7 @@ fun AppDrawerScreen(
         LocalThemedIcons provides uiState.useThemedIcons,
         LocalIconPack provides uiState.iconPackPackage,
         LocalAppLabelScale provides uiState.appLabelTextScale,
+        LocalAppLabelLines provides if (uiState.twoLineLabels) 2 else 1,
     ) {
     ExpressiveTheme {
     AppDrawerContent(
@@ -614,7 +616,7 @@ private fun DrawerFolderTile(
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
-                maxLines = 2,
+                maxLines = LocalAppLabelLines.current,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
@@ -682,7 +684,6 @@ private fun DrawerFolderSheet(
                             appItem = app,
                             labelColor = MaterialTheme.colorScheme.onSurface,
                             showLabel = true,
-                            maxLabelLines = 2,
                             badgeCount = badges[app.badgeKey] ?: 0,
                             badgeShowCount = badgeShowCount,
                             badgeScale = badgeScale,
@@ -802,7 +803,6 @@ private fun FrequentAppsCard(
                         labelColor = MaterialTheme.colorScheme.onSurface,
                         showLabel = showLabels,
                         iconSize = iconSize,
-                        maxLabelLines = 2,
                         badgeCount = badges[app.badgeKey] ?: 0,
                         badgeShowCount = badgeShowCount,
                         badgeScale = badgeScale,
@@ -849,7 +849,6 @@ private fun LazyGridScope.appCells(
             labelColor = MaterialTheme.colorScheme.onSurface,
             showLabel = showLabels,
             iconSize = iconSize,
-            maxLabelLines = 2,
             badgeCount = badges[app.badgeKey] ?: 0,
             badgeShowCount = badgeShowCount,
             badgeScale = badgeScale,

@@ -5,14 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +55,14 @@ val LocalIconEpochs = compositionLocalOf { IconEpochs() }
 val LocalAppLabelScale = compositionLocalOf { 1f }
 
 /**
+ * How many lines an [AppIcon] / [AppLabel] label may wrap onto under this subtree (1 or 2). Provided
+ * per surface from the user's two-line switches — home (apps, folders, shortcuts) and drawer have
+ * their own — so every label on a surface follows one setting. Default 1 keeps standalone callers
+ * (settings previews, pickers) unchanged; the dock passes 1 explicitly to stay a compact bar.
+ */
+val LocalAppLabelLines = compositionLocalOf { 1 }
+
+/**
  * An app icon plus optional label. The icon is loaded via Coil (see AppIconFetcher), so it is
  * cached and loaded off the main thread. Caller supplies [labelColor] (white on wallpaper, the
  * theme on-surface color inside the drawer). When [badgeCount] > 0 a notification badge is drawn at
@@ -69,7 +75,7 @@ fun AppIcon(
     modifier: Modifier = Modifier,
     iconSize: Dp = 56.dp,
     showLabel: Boolean = true,
-    maxLabelLines: Int = 1,
+    maxLabelLines: Int = LocalAppLabelLines.current,
     badgeCount: Int = 0,
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
@@ -143,11 +149,16 @@ fun labelBlockHeight(showLabel: Boolean, labelScale: Float, fontFactor: Float, l
 
 /**
  * The label under an app / folder / shortcut icon (emits the gap and the text into the caller's
- * Column). Sized in dp-derived sp so the rendered line is exactly [labelLineHeight] whatever the
- * system font scale — the text and the box that bounds it can no longer disagree.
+ * Column). Sized in dp-derived sp so the rendered line is [labelLineHeight] whatever the system
+ * font scale, which is what [labelBlockHeight] budgets for; [maxLines] alone bounds the height.
+ *
+ * No dp height cap on the text: the old `heightIn(max = line × maxLines)` was meant to match the
+ * budget, but Android rounds each text line to whole pixels, so two lines came out a pixel taller
+ * than the fractional cap and Compose ellipsized the label to ONE line — the drawer's two-line
+ * labels never wrapped. The at-most-one-pixel-per-line overshoot is invisible in a centred cell.
  */
 @Composable
-fun AppLabel(text: String, color: Color, maxLines: Int = 1) {
+fun AppLabel(text: String, color: Color, maxLines: Int = LocalAppLabelLines.current) {
     val scale = LocalAppLabelScale.current
     val density = LocalDensity.current
     val factor = labelFontFactor(density.fontScale)
@@ -161,8 +172,5 @@ fun AppLabel(text: String, color: Color, maxLines: Int = 1) {
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
-        modifier = Modifier
-            .heightIn(max = line * maxLines)
-            .clipToBounds(),
     )
 }

@@ -244,6 +244,8 @@ fun Dock(
                         labelColor = labelColor,
                         showLabel = showLabels,
                         iconSize = dockIconSize,
+                        // The dock stays a compact bar: one label line even when home labels wrap.
+                        maxLabelLines = 1,
                         badgeCount = badges[app.badgeKey] ?: 0,
                         badgeShowCount = badgeShowCount,
                         badgeScale = badgeScale,

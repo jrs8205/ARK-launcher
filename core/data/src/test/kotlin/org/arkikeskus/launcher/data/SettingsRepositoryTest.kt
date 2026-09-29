@@ -273,4 +273,49 @@ class SettingsRepositoryTest {
         assertThat(folder.name).isEqualTo("Fun stuff row2")
         assertThat(folder.appKeys).containsExactly("com.a/A/0", "com.b/B/0").inOrder()
     }
+
+    @Test
+    fun `twoLineHomeLabels defaults to false and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().twoLineHomeLabels).isFalse()
+
+        repo.setTwoLineHomeLabels(true)
+        assertThat(repo.settings.first().twoLineHomeLabels).isTrue()
+
+        repo.setTwoLineHomeLabels(false)
+        assertThat(repo.settings.first().twoLineHomeLabels).isFalse()
+    }
+
+    @Test
+    fun `twoLineDrawerLabels defaults to true and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().twoLineDrawerLabels).isTrue()
+
+        repo.setTwoLineDrawerLabels(false)
+        assertThat(repo.settings.first().twoLineDrawerLabels).isFalse()
+
+        repo.setTwoLineDrawerLabels(true)
+        assertThat(repo.settings.first().twoLineDrawerLabels).isTrue()
+    }
+
+    @Test
+    fun `the two-line label switches survive a backup round-trip and reject a wrong type`() = runTest {
+        val repo = newRepository()
+        repo.setTwoLineHomeLabels(true)
+        repo.setTwoLineDrawerLabels(false)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("two_line_home_labels", true)
+        assertThat(exported).containsEntry("two_line_drawer_labels", false)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().twoLineHomeLabels).isTrue()
+        assertThat(restored.settings.first().twoLineDrawerLabels).isFalse()
+
+        // Registered as boolean keys: a wrong-typed value is dropped instead of poisoning the store.
+        restored.importRaw(mapOf("two_line_home_labels" to "yes", "two_line_drawer_labels" to 1))
+        val s = restored.settings.first() // must not throw ClassCastException
+        assertThat(s.twoLineHomeLabels).isFalse()
+        assertThat(s.twoLineDrawerLabels).isTrue()
+    }
 }

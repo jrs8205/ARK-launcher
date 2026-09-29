@@ -16,6 +16,7 @@
     <string name="settings_columns">Columns</string>
     <string name="settings_rows">Rows</string>
     <string name="settings_show_labels">Show labels</string>
+    <string name="settings_two_line_labels">Two-line labels</string>
     <string name="settings_dock_bg">Dock background opacity</string>
     <string name="settings_page_indicator">Page dots</string>
     <string name="settings_notifications">Notifications</string>

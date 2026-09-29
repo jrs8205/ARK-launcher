@@ -116,6 +116,7 @@ import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
@@ -449,6 +450,7 @@ fun HomeScreen(
         LocalThemedIcons provides settings.useThemedIcons,
         LocalIconPack provides settings.iconPackPackage,
         LocalAppLabelScale provides settings.appLabelTextScale,
+        LocalAppLabelLines provides if (settings.twoLineHomeLabels) 2 else 1,
         // Force the workspace left-to-right even in RTL locales (ar/he/fa/ur). The grid renders with
         // RTL-aware Modifier.offset {} but the drag/drop, drop-ring and popup-anchor math is all
         // absolute left-origin, so under RTL they disagree and a drop lands in the mirrored cell.

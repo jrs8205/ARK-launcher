@@ -58,6 +58,8 @@ class SettingsRepository @Inject constructor(
             showFrequentApps = p[Keys.SHOW_FREQUENT_APPS] ?: false,
             drawerOpensAtTop = p[Keys.DRAWER_OPENS_AT_TOP] ?: true,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
+            twoLineHomeLabels = p[Keys.TWO_LINE_HOME_LABELS] ?: false,
+            twoLineDrawerLabels = p[Keys.TWO_LINE_DRAWER_LABELS] ?: true,
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
             showWeather = p[Keys.SHOW_WEATHER] ?: true,
@@ -205,6 +207,12 @@ class SettingsRepository @Inject constructor(
 
     /** ARGB color for the home-surface app icon labels. */
     suspend fun setAppLabelColor(argb: Int) = edit { it[Keys.APP_LABEL_COLOR] = argb }
+
+    /** Lets home-screen labels wrap onto a second line (apps, folders, shortcuts; not the dock). */
+    suspend fun setTwoLineHomeLabels(value: Boolean) = edit { it[Keys.TWO_LINE_HOME_LABELS] = value }
+
+    /** Lets app-drawer labels wrap onto a second line. */
+    suspend fun setTwoLineDrawerLabels(value: Boolean) = edit { it[Keys.TWO_LINE_DRAWER_LABELS] = value }
 
     /** Shows/hides the home status bar (clock + battery + signal). */
     suspend fun setShowStatusBar(value: Boolean) = edit { it[Keys.SHOW_STATUS_BAR] = value }
@@ -377,6 +385,8 @@ class SettingsRepository @Inject constructor(
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
+        val TWO_LINE_HOME_LABELS = booleanPreferencesKey("two_line_home_labels")
+        val TWO_LINE_DRAWER_LABELS = booleanPreferencesKey("two_line_drawer_labels")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
         val SHOW_WEATHER = booleanPreferencesKey("show_weather")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
@@ -416,6 +426,7 @@ class SettingsRepository @Inject constructor(
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
+            "two_line_home_labels", "two_line_drawer_labels",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
