@@ -102,6 +102,22 @@ class SettingsRepository @Inject constructor(
         p[Keys.PEOPLE_BATCH_TIMES] = if (parsed.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(parsed)
     }
 
+    // --- People widget: notifications the listener snoozed for the batch -----------------------
+    // "key\tdeliverAtEpochMs" per line. Device-local: a notification key means nothing elsewhere.
+
+    /** Notification key → delivery time of what this launcher itself snoozed for the batch. */
+    val heldNotifications: Flow<Map<String, Long>> = dataStore.data.map { p ->
+        p[Keys.PEOPLE_HELD]?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
+            val i = line.indexOf('\t')
+            val until = if (i > 0) line.substring(i + 1).toLongOrNull() else null
+            if (until == null) null else line.substring(0, i) to until
+        }?.toMap() ?: emptyMap()
+    }
+
+    suspend fun setHeldNotifications(held: Map<String, Long>) = edit { p ->
+        p[Keys.PEOPLE_HELD] = held.entries.joinToString("\n") { (k, v) -> k.replace(SEPARATORS, " ") + "\t" + v }
+    }
+
     // --- People widget aliases ("this notification name is the same person") --------------------
     // One link per line: "aliasKey\ttargetKey" (both PeopleGrouping.personKey values).
 
@@ -503,6 +519,7 @@ class SettingsRepository @Inject constructor(
         val PEOPLE_BATCH_ENABLED = booleanPreferencesKey("people_batch_enabled")
         val PEOPLE_BATCH_TIMES = stringPreferencesKey("people_batch_times")
         val PEOPLE_SHOW_APPS = booleanPreferencesKey("people_show_apps")
+        val PEOPLE_HELD = stringPreferencesKey("people_held_notifications")
     }
 
     companion object {
@@ -552,7 +569,7 @@ class SettingsRepository @Inject constructor(
             "drive_failure_count", "local_last_backup_time",
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
-            "default_layout_seeded", "onboarding_done", "first_run_fresh",
+            "default_layout_seeded", "onboarding_done", "first_run_fresh", "people_held_notifications",
         )
     }
 }

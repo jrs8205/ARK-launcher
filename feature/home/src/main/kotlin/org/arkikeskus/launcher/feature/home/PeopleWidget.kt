@@ -355,6 +355,7 @@ fun PeopleWidget(
     var menuFor by remember { mutableStateOf<Pair<PeopleWidgetViewModel.Tile, IntOffset>?>(null) }
     var replyFor by remember { mutableStateOf<PeopleWidgetViewModel.Tile?>(null) }
     var linkFor by remember { mutableStateOf<PeopleWidgetViewModel.Tile?>(null) }
+    var showAll by remember { mutableStateOf(false) }
     val noIndication = remember { MutableInteractionSource() }
 
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -399,10 +400,10 @@ fun PeopleWidget(
                                 .size(width = tile, height = rowHeight)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(widgetSurfaceColor())
-                                // The hidden people are one tap away in the shade, not unreachable.
-                                .clickable(interactionSource = noIndication, indication = null) {
-                                    NotificationShade.expand(context)
-                                },
+                                // The hidden tiles are one tap away in the widget's own list — the
+                                // shade wouldn't do: batch-held messages and quiet pinned people
+                                // aren't in it.
+                                .clickable(interactionSource = noIndication, indication = null) { showAll = true },
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -438,6 +439,23 @@ fun PeopleWidget(
             preferAbove = anchor.y > windowHeight / 2,
             items = items,
             onDismiss = { menuFor = null },
+        )
+    }
+
+    if (showAll) {
+        AllTilesDialog(
+            tiles = tiles,
+            privacy = privacy,
+            now = now,
+            onOpen = { tile ->
+                showAll = false
+                viewModel.open(tile)
+            },
+            onLongPress = { tile ->
+                showAll = false
+                menuFor = tile to IntOffset(0, 0)
+            },
+            onDismiss = { showAll = false },
         )
     }
 
@@ -701,6 +719,68 @@ private fun previewText(tile: PeopleWidgetViewModel.Tile, privacy: String): Stri
     if (privacy != LauncherSettings.PRIVACY_ALL) return kindLabel
     if (newest.kind == PersonEventKind.MISSED_CALL) return kindLabel
     return newest.text?.takeIf { it.isNotBlank() } ?: kindLabel
+}
+
+/** Every tile as a list, for what the widget's footprint couldn't fit. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AllTilesDialog(
+    tiles: List<PeopleWidgetViewModel.Tile>,
+    privacy: String,
+    now: Long,
+    onOpen: (PeopleWidgetViewModel.Tile) -> Unit,
+    onLongPress: (PeopleWidgetViewModel.Tile) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.people_all_title)) },
+        text = {
+            Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                tiles.forEach { tile ->
+                    val hideName = privacy == LauncherSettings.PRIVACY_COUNT && tile.pinned == null && !tile.isApp
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(onClick = { onOpen(tile) }, onLongClick = { onLongPress(tile) })
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Avatar(tile, hideName, 32.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = if (hideName) stringResource(R.string.people_hidden_name) else tile.name,
+                                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                            if (tile.hasContent) {
+                                val line = listOfNotNull(
+                                    tile.live?.newest?.title?.takeIf { privacy == LauncherSettings.PRIVACY_ALL },
+                                    previewText(tile, privacy).takeIf { it.isNotBlank() },
+                                ).joinToString(" · ")
+                                if (line.isNotEmpty()) Text(line, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    text = if (tile.held) {
+                                        stringResource(R.string.people_held_until, DateFormat.getTimeFormat(context).format(Date(tile.heldUntil)))
+                                    } else {
+                                        DateUtils.getRelativeTimeSpanString(
+                                            tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
+                                        ).toString()
+                                    },
+                                    fontSize = 12.sp, maxLines = 1,
+                                )
+                            }
+                        }
+                        NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.people_reply_cancel)) }
+        },
+    )
 }
 
 /** Picks the tile this one should merge into from now on. */

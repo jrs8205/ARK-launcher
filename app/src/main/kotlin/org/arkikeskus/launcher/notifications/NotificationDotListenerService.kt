@@ -20,8 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.BatchSchedule
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PeopleGrouping
@@ -78,10 +80,17 @@ class NotificationDotListenerService : NotificationListenerService() {
      *  so the app being a mail client is the signal. Re-read on every connect. */
     @Volatile private var mailPackages: Set<String> = emptySet()
 
-    /** Delivery time per snoozed key, so a snoozed notification is labeled with the right time and
-     *  released (not re-held) when the system reposts it. Lost with the process; the postTime age
-     *  check in [holdForBatch] covers that case. */
+    /** Delivery time per key THIS launcher snoozed for the batch: labels the tile with the right
+     *  time, releases (doesn't re-hold) the system's repost, and tells our snoozes apart from ones
+     *  the user made in the shade. Persisted so a process restart keeps the distinction; the
+     *  postTime age check in [holdForBatch] still covers a lost entry. */
     private val heldUntil = HashMap<String, Long>()
+    private var heldLoaded = false
+
+    private fun persistHeld() {
+        val snapshot = HashMap(heldUntil)
+        scope.launch { runCatching { settingsRepository.setHeldNotifications(snapshot) } }
+    }
 
     private val userManager by lazy { getSystemService(UserManager::class.java) }
 
@@ -136,6 +145,14 @@ class NotificationDotListenerService : NotificationListenerService() {
             batchTimes = times
             vipKeys = vips
         }.launchIn(scope)
+        if (!heldLoaded) {
+            scope.launch {
+                val saved = runCatching { settingsRepository.heldNotifications.first() }.getOrDefault(emptyMap())
+                for ((k, v) in saved) heldUntil.putIfAbsent(k, v)
+                heldLoaded = true
+                refreshWithRetries()
+            }
+        }
         refreshWithRetries()
     }
 
@@ -180,6 +197,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         val until = heldUntil[sbn.key]
         if (until != null && now >= until - RELEASE_SLACK_MS) {
             heldUntil.remove(sbn.key)
+            persistHeld()
             return false
         }
         if (now - sbn.postTime > HOLD_FRESH_MS) return false
@@ -190,7 +208,10 @@ class NotificationDotListenerService : NotificationListenerService() {
         val delay = deliverAt - now
         if (delay < MIN_HOLD_MS) return false
         val snoozed = runCatching { snoozeNotification(sbn.key, delay) }.isSuccess
-        if (snoozed) heldUntil[sbn.key] = deliverAt
+        if (snoozed) {
+            heldUntil[sbn.key] = deliverAt
+            persistHeld()
+        }
         return snoozed
     }
 
@@ -200,7 +221,10 @@ class NotificationDotListenerService : NotificationListenerService() {
         // (dismissed, cancelled by the app) forgets it.
         if (sbn != null && sbn.key in heldUntil) {
             val stillSnoozed = runCatching { snoozedNotifications?.any { it.key == sbn.key } }.getOrNull() == true
-            if (!stillSnoozed) heldUntil.remove(sbn.key)
+            if (!stillSnoozed) {
+                heldUntil.remove(sbn.key)
+                persistHeld()
+            }
         }
         refreshWithRetries()
     }
@@ -290,20 +314,28 @@ class NotificationDotListenerService : NotificationListenerService() {
                 )
             }.sortedByDescending { it.postTime },
         )
-        // Snoozed-for-the-batch notifications are out of the shade but still someone's message:
-        // they feed the tiles as "waiting", never the dots or the status bar. Read even when the
-        // batch has since been switched off: a listener can neither cancel nor un-snooze a snoozed
-        // notification (the public API has no call for it), so the system delivers it at its time
-        // regardless, and hiding it from the tiles in between would make it vanish for the user.
-        run {
+        // Notifications THIS launcher snoozed for the batch are out of the shade but still
+        // someone's message: they feed the tiles as "waiting", never the dots or the status bar.
+        // Read even when the batch has since been switched off: a listener can neither cancel nor
+        // un-snooze a snoozed notification (the public API has no call for it), so the system
+        // delivers it at its time regardless, and hiding it in between would make it vanish for
+        // the user. A notification the user snoozed in the shade is not ours and stays out.
+        if (heldUntil.isNotEmpty()) {
             val now = System.currentTimeMillis()
-            val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty()
+            val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty().filterNotNull()
+            val snoozedKeys = snoozed.map { it.key }.toSet()
             for (sbn in snoozed) {
-                if (sbn == null) continue
+                val until = heldUntil[sbn.key] ?: continue
                 val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
                 val entry = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull() ?: continue
-                val until = heldUntil[sbn.key] ?: BatchSchedule.nextDelivery(now, batchTimes) ?: now
                 people.add(entry.copy(heldUntil = until))
+            }
+            // Forget entries whose notification is gone for good (delivered and then dismissed, or
+            // cancelled by its app while snoozed), so the persisted map doesn't grow forever.
+            val stale = heldUntil.filter { (k, until) -> k !in snoozedKeys && now > until + RELEASE_SLACK_MS }
+            if (stale.isNotEmpty()) {
+                stale.keys.forEach { heldUntil.remove(it) }
+                persistHeld()
             }
         }
         badgeRepository.setPeople(PeopleGrouping.group(people))

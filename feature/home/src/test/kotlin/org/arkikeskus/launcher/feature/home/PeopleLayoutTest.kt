@@ -19,11 +19,21 @@ class PeopleLayoutTest {
 
     @Test
     fun `overflow chip takes the free tail of the last row`() {
+        val r = pack(listOf(2, 1, 2, 1, 1), columns = 4, rows = 2)
+        // Row 0: 2+1 (a 2 doesn't fit in the remaining 1) → row 1: 2+1, then the last 1 has no row.
+        assertThat(r.placed).hasSize(4)
+        assertThat(r.overflow).isEqualTo(1)
+        assertThat(r.chipRow to r.chipCol).isEqualTo(1 to 3)
+    }
+
+    @Test
+    fun `a full last row shrinks its wide tile to make room for the chip`() {
         val r = pack(listOf(2, 1, 2, 2, 1, 1), columns = 4, rows = 2)
-        // Row 0: 2+1 (a 2 doesn't fit in the remaining 1) → row 1: 2, then 2 doesn't fit → stop.
-        assertThat(r.placed).hasSize(3)
-        assertThat(r.overflow).isEqualTo(3)
-        assertThat(r.chipRow to r.chipCol).isEqualTo(1 to 2)
+        // Row 0: 2+1 → row 1: 2+2 fills it; two items left. The last 2 becomes a 1, the chip takes its cell.
+        assertThat(r.placed).hasSize(4)
+        assertThat(r.placed.last().span).isEqualTo(1)
+        assertThat(r.overflow).isEqualTo(2)
+        assertThat(r.chipRow to r.chipCol).isEqualTo(1 to 3)
     }
 
     @Test
@@ -32,6 +42,15 @@ class PeopleLayoutTest {
         assertThat(r.placed).hasSize(3)
         assertThat(r.overflow).isEqualTo(2)
         assertThat(r.chipRow to r.chipCol).isEqualTo(1 to 1)
+    }
+
+    @Test
+    fun `overflow chip shrinks a wide last tile instead of evicting it`() {
+        val r = pack(listOf(2, 2), columns = 2, rows = 1)
+        assertThat(r.placed).hasSize(1)
+        assertThat(r.placed[0].span).isEqualTo(1)
+        assertThat(r.overflow).isEqualTo(1)
+        assertThat(r.chipRow to r.chipCol).isEqualTo(0 to 1)
     }
 
     @Test

@@ -42,6 +42,7 @@
     <string name="people_link_title">Link %1$s to a person</string>
     <string name="people_link_hint">Messages under this name will show in the chosen person\'s tile from now on.</string>
     <string name="people_held_until">Batch at %1$s</string>
+    <string name="people_all_title">Everyone</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_back">Back</string>
     <string name="onboarding_next">Next</string>

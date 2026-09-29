@@ -37,7 +37,7 @@
     <string name="settings_people_show_apps">Ihmiset-widget näyttää myös muiden sovellusten ilmoitukset</string>
     <string name="settings_people_batch">Eräposti: muiden viestit kootaan, kiinnitetyt tulevat heti</string>
     <string name="settings_people_batch_times">Eräpostin jakoajat</string>
-    <string name="settings_people_batch_times_hint">Kellonajat pilkulla eroteltuna, esim. 08:00, 12:00, 17:00. Vastaamattomat puhelut tulevat aina heti.</string>
+    <string name="settings_people_batch_times_hint">Kellonajat pilkulla eroteltuna, esim. 08:00, 12:00, 17:00. Vastaamattomat puhelut tulevat aina heti. Eräpostin sammuttaminen tai henkilön kiinnittäminen ei vapauta jo odottavia viestejä; ne saapuvat jakoaikana.</string>
     <string name="settings_people_batch_times_save">Tallenna</string>
     <string name="settings_permissions">Luvat</string>
     <string name="settings_permission_granted">Myönnetty</string>

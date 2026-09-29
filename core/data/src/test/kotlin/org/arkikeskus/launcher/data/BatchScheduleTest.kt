@@ -31,6 +31,9 @@ class BatchScheduleTest {
         // A time inside the spring gap lands after the gap instead of an hour off.
         assertThat(BatchSchedule.nextDelivery(at(2026, 3, 29, 1, 0), BatchSchedule.parse("03:30"), zone))
             .isEqualTo(at(2026, 3, 29, 4, 30))
+        // …and a later HH:mm can then be the earlier instant; the earliest instant wins.
+        assertThat(BatchSchedule.nextDelivery(at(2026, 3, 29, 1, 0), BatchSchedule.parse("03:30,04:00"), zone))
+            .isEqualTo(at(2026, 3, 29, 4, 0))
     }
 
     @Test

@@ -26,17 +26,14 @@ object BatchSchedule {
     fun nextDelivery(nowMs: Long, times: List<Int>, zone: ZoneId = ZoneId.systemDefault()): Long? {
         if (times.isEmpty()) return null
         val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
-        for (day in 0L..1L) {
+        // Wall-clock times, not "minutes after midnight": on a DST day the two differ by an hour. A
+        // time inside the spring gap moves forward past it and an autumn repeat takes the first
+        // occurrence (java.time's rules), so the order of the HH:mm values is not the order of the
+        // instants — resolve every candidate and take the earliest one ahead.
+        return (0L..1L).flatMap { day ->
             val date = today.plusDays(day)
-            for (t in times.sorted()) {
-                // A wall-clock time, not "minutes after midnight": on a DST day the two differ by an
-                // hour. A time inside the spring gap moves forward past it; an autumn repeat takes
-                // the first occurrence (java.time's ZonedDateTime rules).
-                val at = date.atTime(LocalTime.of(t / 60, t % 60)).atZone(zone).toInstant().toEpochMilli()
-                if (at > nowMs) return at
-            }
-        }
-        return null
+            times.map { t -> date.atTime(LocalTime.of(t / 60, t % 60)).atZone(zone).toInstant().toEpochMilli() }
+        }.filter { it > nowMs }.minOrNull()
     }
 
     private val TIME = Regex("(\\d{1,2})[.:](\\d{2})")

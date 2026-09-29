@@ -34,9 +34,15 @@ internal object PeopleLayout {
         val overflow = items.size - i
         if (overflow == 0) return Result(placed, 0, row, col)
         if (col < columns) return Result(placed, overflow, row, col)
-        // The last row is full: the newest-but-last tile gives its cell to the chip, so the chip
-        // is never pushed off the grid and the hidden count stays reachable.
+        // The last row is full: the chip must still get a cell, so the last tile shrinks by one
+        // column if it can (a squeezed tile keeps its avatar, name and count), else gives up its
+        // cell. Either way the hidden count stays reachable.
         val last = placed.removeAt(placed.size - 1)
-        return Result(placed, overflow + 1, last.row, last.col)
+        return if (last.span > 1) {
+            placed.add(last.copy(span = last.span - 1))
+            Result(placed, overflow, last.row, last.col + last.span - 1)
+        } else {
+            Result(placed, overflow + 1, last.row, last.col)
+        }
     }
 }
