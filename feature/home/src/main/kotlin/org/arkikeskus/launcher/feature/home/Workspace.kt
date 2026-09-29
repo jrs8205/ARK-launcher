@@ -569,8 +569,8 @@ fun Workspace(
         }
     }
 
-    // Snap back off the always-present trailing page if it settles there empty (so the extra page
-    // never feels like a real second page until an icon is dropped onto it).
+    // Only retreat from the temporary trailing page. Pages explicitly added from the menu are
+    // permanent even when empty, including pages beyond the last icon or widget.
     val settledPage = pagerState.settledPage
     // A drawer/dock→home drag flips to an empty page ON PURPOSE so the app can be dropped there; the
     // retreat must yield to it (otherwise the page snaps back to the front under the finger — the
@@ -578,16 +578,19 @@ fun Workspace(
     // dragging/draggingLocal.
     val crossSurfaceDrag = dragController.moving &&
         (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock)
-    LaunchedEffect(settledPage, dragging, draggingLocal, crossSurfaceDrag, widgetDragController.active) {
-        if (dragging != null || draggingLocal != null || crossSurfaceDrag || widgetDragController.active != null || settledPage <= 0) return@LaunchedEffect
+    LaunchedEffect(settledPage, pageCount, dragging, draggingLocal, crossSurfaceDrag, widgetDragController.active) {
+        if (dragging != null || draggingLocal != null || crossSurfaceDrag || widgetDragController.active != null || settledPage < pageCount) return@LaunchedEffect
         // After a cross-surface drag ends, the dropped app reaches this page via the DB flow a beat
         // later — wait briefly before deciding the page is empty, so a valid drop isn't undone.
+        // A page-count change cancels this wait: the trailing page may have become permanent.
         if (latestEntries.none { it.page == settledPage }) kotlinx.coroutines.delay(180)
-        if (dragging == null && draggingLocal == null && settledPage > 0 &&
-            latestEntries.none { it.page == settledPage }
-        ) {
-            val lastContent = latestEntries.maxOfOrNull { it.page } ?: 0
-            if (settledPage > lastContent) pagerState.animateScrollToPage(lastContent)
+        if (dragging == null && draggingLocal == null && widgetDragController.active == null) {
+            val target = emptyPageReturnTarget(
+                settledPage = settledPage,
+                permanentPageCount = pageCount,
+                hasContent = latestEntries.any { it.page == settledPage },
+            )
+            if (target != null) pagerState.animateScrollToPage(target)
         }
     }
 
