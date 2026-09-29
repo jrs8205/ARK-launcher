@@ -10,8 +10,13 @@ import android.os.UserManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.PeopleGrouping
+import org.arkikeskus.launcher.data.PersonEntry
+import org.arkikeskus.launcher.data.PersonEventKind
+import org.arkikeskus.launcher.data.ReplyAction
 import org.arkikeskus.launcher.data.StatusNotification
 import javax.inject.Inject
 
@@ -28,6 +33,9 @@ import javax.inject.Inject
  * - **Status-bar icons** use a looser "icon-worthy" filter (not a group summary + has a title or text),
  *   like the real system status bar — so low-priority/silent notifications whose channel sets
  *   `canShowBadge = false` (e.g. Google News) still show their glyph in the bar.
+ * - **People tiles** take only conversation-like notifications (messages, calls, mail — see
+ *   [personEntry]) and reduce each to its sender, newest text and quick actions; the repository
+ *   groups them by person across apps.
  *
  * Requires the user to grant notification access (Settings → Notifications → Device & app
  * notifications); until then the system never binds this service.
@@ -52,6 +60,9 @@ class NotificationDotListenerService : NotificationListenerService() {
         const val TAG = "NotifDots"
         const val MAX_SNAPSHOT_RETRIES = 2
         const val SNAPSHOT_RETRY_DELAY_MS = 500L
+
+        /** The generic "missed call" label in the languages a dialer here is likely to use. */
+        val CALL_WORDS = listOf("call", "puhelu", "soitto", "samtal", "anruf", "appel", "llamada")
     }
 
     /** Refresh now, allowing a bounded number of delayed retries if the snapshot read fails —
@@ -76,6 +87,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
+        badgeRepository.setPeople(emptyList())
         alertedKeys.clear()
         // Aggressive OEM battery managers (Samsung, Xiaomi, …) can unbind the listener; ask the system
         // to rebind so dots + status-bar icons come back on their own instead of the user having to
@@ -123,10 +135,13 @@ class NotificationDotListenerService : NotificationListenerService() {
         val iconCounts = HashMap<String, Int>()
         val visual = LinkedHashMap<String, StatusNotification>()
         val openable = HashMap<String, StatusNotification>()
+        val people = ArrayList<PersonEntry>()
         for (sbn in active) {
             if (sbn == null) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
+            // People tiles: conversation-like notifications only, reduced to sender + text + actions.
+            runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull()?.let(people::add)
             // Dots: strict badge-worthy filter (meaningful home-icon badges).
             if (isBadgeWorthy(sbn, ranking, tmp)) {
                 counts[key] = (counts[key] ?: 0) + 1
@@ -172,7 +187,110 @@ class NotificationDotListenerService : NotificationListenerService() {
                 )
             }.sortedByDescending { it.postTime },
         )
+        badgeRepository.setPeople(PeopleGrouping.group(people))
     }
+
+    /**
+     * Reduces a notification to a [PersonEntry] when it is about a person, else null. Recognized, in
+     * order: a MessagingStyle (any chat app; newest message + its sender), a call / missed call, a
+     * system-flagged conversation or CATEGORY_MESSAGE (sender = title), and CATEGORY_EMAIL (sender =
+     * title). Group summaries and ongoing notifications (an active call, "now playing") are skipped.
+     */
+    private fun personEntry(
+        sbn: StatusBarNotification, serial: Long, ranking: RankingMap?, tmp: Ranking,
+    ): PersonEntry? {
+        val n = sbn.notification ?: return null
+        if ((n.flags and Notification.FLAG_GROUP_SUMMARY) != 0) return null
+        if ((n.flags and Notification.FLAG_ONGOING_EVENT) != 0) return null
+        val extras = n.extras ?: return null
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+        val ranked = ranking?.getRanking(sbn.key, tmp) == true
+        val conversation = ranked && tmp.isConversation
+        val shortcutLabel = if (ranked) tmp.conversationShortcutInfo?.shortLabel?.toString() else null
+
+        var name: String
+        var preview: String? = text
+        var count = 1
+        var icon: android.graphics.drawable.Icon? = null
+        var uri: String? = null
+        val kind: PersonEventKind
+        val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(n)
+        when {
+            style != null -> {
+                val messages = style.messages.filter { !it.text.isNullOrBlank() }
+                val last = messages.lastOrNull()
+                val groupTitle = style.conversationTitle?.toString()?.trim()
+                    ?.takeIf { style.isGroupConversation && it.isNotEmpty() }
+                name = groupTitle ?: last?.person?.name?.toString()?.trim().orEmpty().ifEmpty { shortcutLabel ?: title }
+                preview = last?.text?.toString()?.trim() ?: text
+                count = messages.size.coerceAtLeast(1)
+                icon = last?.person?.icon?.toIcon(this)
+                uri = last?.person?.uri
+                kind = PersonEventKind.MESSAGE
+            }
+            n.category == Notification.CATEGORY_MISSED_CALL || n.category == Notification.CATEGORY_CALL -> {
+                // Dialers disagree on which field carries the caller: Google's "Missed call" / "Mikko"
+                // vs. Samsung's "Mikko" / "Missed call". The people list settles it when present;
+                // otherwise the field that reads like the generic label is the label.
+                val person = runCatching {
+                    @Suppress("DEPRECATION")
+                    extras.getParcelableArrayList<android.app.Person>(Notification.EXTRA_PEOPLE_LIST)?.firstOrNull()
+                }.getOrNull()
+                val swap = looksLikeCallLabel(title) && !text.isNullOrEmpty() && !looksLikeCallLabel(text)
+                name = person?.name?.toString()?.trim().orEmpty().ifEmpty { if (swap) text.orEmpty() else title }
+                preview = if (swap) title else text
+                icon = person?.icon
+                uri = person?.uri
+                kind = PersonEventKind.MISSED_CALL
+            }
+            conversation || n.category == Notification.CATEGORY_MESSAGE -> {
+                name = shortcutLabel ?: title
+                kind = PersonEventKind.MESSAGE
+            }
+            n.category == Notification.CATEGORY_EMAIL -> {
+                name = title
+                kind = PersonEventKind.EMAIL
+            }
+            else -> return null
+        }
+        if (name.isBlank()) return null
+
+        val reply = n.actions?.firstNotNullOfOrNull { action ->
+            val input = action.remoteInputs?.firstOrNull { it.allowFreeFormInput } ?: return@firstNotNullOfOrNull null
+            val semantic = action.semanticAction
+            if (semantic != Notification.Action.SEMANTIC_ACTION_REPLY &&
+                semantic != Notification.Action.SEMANTIC_ACTION_NONE
+            ) return@firstNotNullOfOrNull null
+            action.actionIntent?.let { ReplyAction(it, input) }
+        }
+        val callBack = n.actions
+            ?.firstOrNull { it.semanticAction == Notification.Action.SEMANTIC_ACTION_CALL }
+            ?.actionIntent
+        return PersonEntry(
+            key = sbn.key,
+            name = name,
+            text = preview,
+            postTime = sbn.postTime,
+            packageName = sbn.packageName,
+            userSerial = serial,
+            kind = kind,
+            count = count,
+            contentIntent = n.contentIntent,
+            autoCancel = (n.flags and Notification.FLAG_AUTO_CANCEL) != 0,
+            reply = reply,
+            callBack = callBack,
+            personIcon = icon,
+            personUri = uri,
+        )
+    }
+
+    /** True for the generic "Missed call"-style label a dialer puts in whichever field isn't the name. */
+    private fun looksLikeCallLabel(s: String): Boolean {
+        val l = s.lowercase()
+        return CALL_WORDS.any { it in l }
+    }
+
 
     /**
      * Approximates SystemUI's heads-up decision (NotificationInterruptStateProvider.shouldHeadsUp): a

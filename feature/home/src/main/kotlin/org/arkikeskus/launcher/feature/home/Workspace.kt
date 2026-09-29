@@ -1233,6 +1233,8 @@ fun Workspace(
                                             NotificationsWidget(modifier = Modifier.fillMaxSize())
                                         HomeItemEntity.BUILTIN_BATTERY ->
                                             BatteryWidget(modifier = Modifier.fillMaxSize())
+                                        HomeItemEntity.BUILTIN_PEOPLE ->
+                                            PeopleWidget(modifier = Modifier.fillMaxSize())
                                         else -> SmartspaceWidget(modifier = Modifier.fillMaxSize())
                                     }
                                 }
@@ -1257,6 +1259,7 @@ fun Workspace(
                                 val minSpanX = when (builtinType) {
                                     HomeItemEntity.BUILTIN_NOTIFICATIONS -> NOTIFICATIONS_MIN_SPAN_X
                                     HomeItemEntity.BUILTIN_BATTERY -> BATTERY_SPAN
+                                    HomeItemEntity.BUILTIN_PEOPLE -> PEOPLE_MIN_SPAN_X
                                     else -> SMARTSPACE_MIN_SPAN_X
                                 }
                                 WidgetResizeRange(

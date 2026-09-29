@@ -30,6 +30,10 @@
     <string name="settings_notif_widget_count_number">Numerona</string>
     <string name="settings_notif_widget_count_dot">Pisteenä</string>
     <string name="settings_notif_widget_count_none">Ei ilmaisinta</string>
+    <string name="settings_people_privacy">Ihmiset-widgetin yksityisyys</string>
+    <string name="settings_people_privacy_all">Lähettäjä ja viesti</string>
+    <string name="settings_people_privacy_sender">Vain lähettäjä</string>
+    <string name="settings_people_privacy_count">Vain määrä</string>
     <string name="settings_permissions">Luvat</string>
     <string name="settings_permission_granted">Myönnetty</string>
     <string name="settings_permission_not_granted">Ei myönnetty – myönnä napauttamalla</string>

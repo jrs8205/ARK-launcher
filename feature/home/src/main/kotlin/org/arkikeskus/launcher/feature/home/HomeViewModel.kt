@@ -57,6 +57,12 @@ const val NOTIFICATIONS_MIN_SPAN_X = 2
 /** Default AND minimum footprint of the built-in battery widget — app-icon sized. */
 const val BATTERY_SPAN = 1
 
+/** The people widget defaults to a few rows of tiles; the user stretches it to the whole grid. */
+const val PEOPLE_DEFAULT_SPAN_Y = 3
+
+/** Narrowest people widget: two quiet tiles, or one tile with content. */
+const val PEOPLE_MIN_SPAN_X = 2
+
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
     val page: Int

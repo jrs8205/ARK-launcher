@@ -1,11 +1,9 @@
 package org.arkikeskus.launcher.feature.home
 
-import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -118,17 +116,7 @@ class NotificationsWidgetViewModel @Inject constructor(
      *  something predictable, even for a system notification with no action and no launcher activity. */
     fun open(slot: Slot) {
         val pi = slot.notification.contentIntent
-        val sent = pi != null && runCatching {
-            val options = ActivityOptions.makeBasic()
-            if (Build.VERSION.SDK_INT >= 34) {
-                // Android 14+ no longer grants the sender's foreground privileges implicitly; the
-                // launcher is in the foreground on tap, so the grant is ours to give.
-                options.setPendingIntentBackgroundActivityStartMode(
-                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
-                )
-            }
-            pi.send(context, 0, null, null, null, null, options.toBundle())
-        }.isSuccess
+        val sent = pi != null && sendNotificationIntent(context, pi)
         if (sent) {
             if (slot.notification.autoCancel) badgeRepository.cancelNotification(slot.notification.key)
             return

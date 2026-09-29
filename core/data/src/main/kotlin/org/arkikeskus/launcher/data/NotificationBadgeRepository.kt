@@ -55,6 +55,16 @@ class NotificationBadgeRepository @Inject constructor() {
     private val _headsUp = MutableStateFlow(0L)
     val headsUp: StateFlow<Long> = _headsUp.asStateFlow()
 
+    /** Conversation-like notifications grouped by person (newest first), for the people widget.
+     *  Like [icons], rebuilt from scratch on every listener snapshot and never persisted. */
+    private val _people = MutableStateFlow<List<PersonTileState>>(emptyList())
+    val people: StateFlow<List<PersonTileState>> = _people.asStateFlow()
+
+    /** Replaces the per-person snapshot with a fresh one from the listener. */
+    fun setPeople(people: List<PersonTileState>) {
+        _people.value = people
+    }
+
     /** Called by the listener when a heads-up-worthy notification is posted. */
     fun notifyHeadsUp() {
         _headsUp.value = SystemClock.elapsedRealtime()

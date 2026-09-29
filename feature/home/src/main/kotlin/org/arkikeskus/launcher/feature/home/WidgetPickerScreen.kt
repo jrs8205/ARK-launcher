@@ -79,6 +79,7 @@ fun WidgetPickerScreen(
         WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_SMARTSPACE), stringResource(R.string.smartspace_widget_name)),
         WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_BATTERY), stringResource(R.string.battery_widget_name)),
         WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_NOTIFICATIONS), stringResource(R.string.notifications_widget_name)),
+        WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_PEOPLE), stringResource(R.string.people_widget_name)),
     )
     val all = listOf(WidgetGroup("builtin", builtinTitle, builtins)) + groups.orEmpty()
     val visible = all.mapNotNull { group ->
@@ -153,6 +154,7 @@ private fun WidgetCard(
         is WidgetChoice.Builtin -> when (choice.type) {
             HomeItemEntity.BUILTIN_BATTERY -> 1 to 1
             HomeItemEntity.BUILTIN_NOTIFICATIONS -> columns to 1
+            HomeItemEntity.BUILTIN_PEOPLE -> columns to PEOPLE_DEFAULT_SPAN_Y
             else -> columns to 2
         }
     }
@@ -283,6 +285,11 @@ private fun BuiltinWidgetPreview(type: String, modifier: Modifier) {
                 HomeItemEntity.BUILTIN_NOTIFICATIONS -> {
                     Icon(painterResource(R.drawable.ic_widgets), null, Modifier.size(32.dp))
                     Text(stringResource(R.string.notifications_widget_name), style = MaterialTheme.typography.labelMedium)
+                }
+                HomeItemEntity.BUILTIN_PEOPLE -> {
+                    Icon(painterResource(LauncherIcons.Message), null, Modifier.size(32.dp))
+                    Text(stringResource(R.string.people_widget_name), style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.people_widget_desc), style = MaterialTheme.typography.bodySmall)
                 }
                 else -> {
                     Text("9.41", style = MaterialTheme.typography.displayMedium)

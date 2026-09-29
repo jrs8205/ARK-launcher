@@ -65,10 +65,18 @@ data class LauncherSettings(
     val notificationWidgetCountStyle: String = COUNT_NUMBER,
     /** Double-tap on empty home-screen space locks the screen (needs the lock accessibility service). */
     val doubleTapToLock: Boolean = false,
+    /** What the built-in people widget shows of a notification on the (shared) home screen:
+     *  [PRIVACY_ALL] = sender + message text, [PRIVACY_SENDER] = sender only, [PRIVACY_COUNT] = the
+     *  tile colors and counts but shows no text at all (pinned people keep their user-chosen name). */
+    val peoplePrivacy: String = PRIVACY_ALL,
 ) {
     companion object {
         const val COUNT_NUMBER = "number"
         const val COUNT_DOT = "dot"
         const val COUNT_NONE = "none"
+
+        const val PRIVACY_ALL = "all"
+        const val PRIVACY_SENDER = "sender"
+        const val PRIVACY_COUNT = "count"
     }
 }

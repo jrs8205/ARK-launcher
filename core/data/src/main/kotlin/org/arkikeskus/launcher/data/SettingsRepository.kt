@@ -16,6 +16,17 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** A person the user pinned to the people widget: a quiet tile that stays put between messages.
+ *  [key] is [PeopleGrouping.personKey] of [name]; the contact fields are what a lookup found when
+ *  the pin was made (blank when the person isn't in the contacts, or contacts aren't allowed). */
+data class PinnedPerson(
+    val key: String,
+    val name: String,
+    val lookupUri: String = "",
+    val number: String = "",
+    val photoUri: String = "",
+)
+
 /** A folder shown in the app drawer: a stable [id], a [name], and the keys of its member apps. */
 data class DrawerFolder(val id: Long, val name: String, val appKeys: List<String>)
 
@@ -69,8 +80,53 @@ class SettingsRepository @Inject constructor(
             notificationWidgetCountStyle = (p[Keys.NOTIF_WIDGET_COUNT_STYLE] ?: LauncherSettings.COUNT_NUMBER)
                 .let { if (it == LauncherSettings.COUNT_DOT || it == LauncherSettings.COUNT_NONE) it else LauncherSettings.COUNT_NUMBER },
             doubleTapToLock = p[Keys.DOUBLE_TAP_LOCK] ?: false,
+            peoplePrivacy = (p[Keys.PEOPLE_PRIVACY] ?: LauncherSettings.PRIVACY_ALL).let {
+                if (it == LauncherSettings.PRIVACY_SENDER || it == LauncherSettings.PRIVACY_COUNT) it
+                else LauncherSettings.PRIVACY_ALL
+            },
         )
     }
+
+    /** What the people widget shows of a notification (see LauncherSettings.PRIVACY_*). */
+    suspend fun setPeoplePrivacy(value: String) = edit { it[Keys.PEOPLE_PRIVACY] = value }
+
+    // --- People widget pins ---------------------------------------------------------------------
+    // One person per line, tab-separated: "key\tname\tlookupUri\tnumber\tphotoUri". Names are
+    // normalized at the write point like folder names, so a plain split round-trips.
+
+    /** People pinned to the people widget, in pin order. */
+    val pinnedPeople: Flow<List<PinnedPerson>> = dataStore.data.map { p -> parsePinned(p[Keys.PINNED_PEOPLE]) }
+
+    /** Pins [person] (replacing an earlier pin with the same key, keeping its position). */
+    suspend fun pinPerson(person: PinnedPerson) = edit { p ->
+        val current = parsePinned(p[Keys.PINNED_PEOPLE])
+        val next = if (current.any { it.key == person.key }) current.map { if (it.key == person.key) person else it }
+            else current + person
+        p[Keys.PINNED_PEOPLE] = serializePinned(next)
+    }
+
+    suspend fun unpinPerson(key: String) = edit { p ->
+        p[Keys.PINNED_PEOPLE] = serializePinned(parsePinned(p[Keys.PINNED_PEOPLE]).filterNot { it.key == key })
+    }
+
+    private fun parsePinned(raw: String?): List<PinnedPerson> =
+        raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
+            val parts = line.split('\t')
+            val key = parts.getOrNull(0)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            PinnedPerson(
+                key = key,
+                name = parts.getOrNull(1).orEmpty().ifBlank { key },
+                lookupUri = parts.getOrNull(2).orEmpty(),
+                number = parts.getOrNull(3).orEmpty(),
+                photoUri = parts.getOrNull(4).orEmpty(),
+            )
+        } ?: emptyList()
+
+    private fun serializePinned(people: List<PinnedPerson>): String =
+        people.joinToString("\n") { person ->
+            listOf(person.key, person.name, person.lookupUri, person.number, person.photoUri)
+                .joinToString("\t") { it.replace(SEPARATORS, " ") }
+        }
 
     suspend fun setDoubleTapToLock(value: Boolean) = edit { it[Keys.DOUBLE_TAP_LOCK] = value }
 
@@ -394,6 +450,8 @@ class SettingsRepository @Inject constructor(
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         val FIRST_RUN_FRESH = stringPreferencesKey("first_run_fresh")
+        val PEOPLE_PRIVACY = stringPreferencesKey("people_privacy")
+        val PINNED_PEOPLE = stringPreferencesKey("pinned_people")
     }
 
     companion object {
@@ -431,6 +489,7 @@ class SettingsRepository @Inject constructor(
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key",
+            "people_privacy", "pinned_people",
         )
 
         /** Device-local bookkeeping keys excluded from an exported backup and never imported.

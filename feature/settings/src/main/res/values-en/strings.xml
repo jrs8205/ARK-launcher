@@ -30,6 +30,10 @@
     <string name="settings_notif_widget_count_number">As a number</string>
     <string name="settings_notif_widget_count_dot">As a dot</string>
     <string name="settings_notif_widget_count_none">No indicator</string>
+    <string name="settings_people_privacy">People widget privacy</string>
+    <string name="settings_people_privacy_all">Sender and message</string>
+    <string name="settings_people_privacy_sender">Sender only</string>
+    <string name="settings_people_privacy_count">Count only</string>
     <string name="settings_permissions">Permissions</string>
     <string name="settings_permission_granted">Granted</string>
     <string name="settings_permission_not_granted">Not granted – tap to grant</string>

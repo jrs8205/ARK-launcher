@@ -105,6 +105,7 @@ fun SettingsScreen(
     var showLeftSwipePicker by remember { mutableStateOf(false) }
     var showIconPackPicker by remember { mutableStateOf(false) }
     var showCountStylePicker by remember { mutableStateOf(false) }
+    var showPeoplePrivacyPicker by remember { mutableStateOf(false) }
     var showBackup by remember { mutableStateOf(false) }
     // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
     // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
@@ -239,6 +240,16 @@ fun SettingsScreen(
                         },
                     ),
                 ) { showCountStylePicker = true }
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_people_privacy),
+                    description = stringResource(
+                        when (s.peoplePrivacy) {
+                            LauncherSettings.PRIVACY_SENDER -> R.string.settings_people_privacy_sender
+                            LauncherSettings.PRIVACY_COUNT -> R.string.settings_people_privacy_count
+                            else -> R.string.settings_people_privacy_all
+                        },
+                    ),
+                ) { showPeoplePrivacyPicker = true }
                 StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
                 if (s.showStatusBar) {
                     SliderRow(
@@ -371,7 +382,13 @@ fun SettingsScreen(
             )
         }
         if (showCountStylePicker) {
-            CountStylePicker(
+            ChoicePicker(
+                title = R.string.settings_notif_widget_count,
+                options = listOf(
+                    LauncherSettings.COUNT_NUMBER to R.string.settings_notif_widget_count_number,
+                    LauncherSettings.COUNT_DOT to R.string.settings_notif_widget_count_dot,
+                    LauncherSettings.COUNT_NONE to R.string.settings_notif_widget_count_none,
+                ),
                 selected = s.notificationWidgetCountStyle,
                 onPick = {
                     viewModel.setNotificationWidgetCountStyle(it)
@@ -380,22 +397,39 @@ fun SettingsScreen(
                 onDismiss = { showCountStylePicker = false },
             )
         }
+        if (showPeoplePrivacyPicker) {
+            ChoicePicker(
+                title = R.string.settings_people_privacy,
+                options = listOf(
+                    LauncherSettings.PRIVACY_ALL to R.string.settings_people_privacy_all,
+                    LauncherSettings.PRIVACY_SENDER to R.string.settings_people_privacy_sender,
+                    LauncherSettings.PRIVACY_COUNT to R.string.settings_people_privacy_count,
+                ),
+                selected = s.peoplePrivacy,
+                onPick = {
+                    viewModel.setPeoplePrivacy(it)
+                    showPeoplePrivacyPicker = false
+                },
+                onDismiss = { showPeoplePrivacyPicker = false },
+            )
+        }
     }
 }
 
-/** Single-select picker for the notifications widget's count indicator. */
+/** Single-select picker over string-valued settings (widget count style, people privacy). */
 @Composable
-private fun CountStylePicker(selected: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+private fun ChoicePicker(
+    @androidx.annotation.StringRes title: Int,
+    options: List<Pair<String, Int>>,
+    selected: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val p = LocalExpressivePalette.current
-    val options = listOf(
-        LauncherSettings.COUNT_NUMBER to R.string.settings_notif_widget_count_number,
-        LauncherSettings.COUNT_DOT to R.string.settings_notif_widget_count_dot,
-        LauncherSettings.COUNT_NONE to R.string.settings_notif_widget_count_none,
-    )
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = p.surfaceHi,
-        title = { Text(stringResource(R.string.settings_notif_widget_count), color = p.text) },
+        title = { Text(stringResource(title), color = p.text) },
         text = {
             Column {
                 options.forEach { (value, labelRes) ->
