@@ -1,0 +1,2 @@
+Fixed
+- A page that looks empty could not be removed when it still held an item the home screen cannot show, such as an app you disabled. "Remove empty page" now appears for every page that shows nothing and clears such leftovers.
