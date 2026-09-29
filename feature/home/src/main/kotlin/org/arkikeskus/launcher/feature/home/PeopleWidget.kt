@@ -368,6 +368,8 @@ fun PeopleWidget(
         viewModel.refresh()
         onPauseOrDispose { }
     }
+    // A tile that just arrived must not read as older (or newer) than the last minute tick.
+    LaunchedEffect(tiles) { now = System.currentTimeMillis() }
 
     val aliases by viewModel.aliases.collectAsStateWithLifecycle()
     var menuFor by remember { mutableStateOf<Pair<PeopleWidgetViewModel.Tile, IntOffset>?>(null) }
@@ -745,16 +747,16 @@ private fun rememberAvatarBitmap(entry: org.arkikeskus.launcher.data.PersonEntry
     return bitmap
 }
 
-/** "Batch at 17:00" while held, else how long ago the newest notification arrived. */
+/** "Batch at 17:00" while held, "now" within the first minute, else how long ago it arrived. */
 @Composable
-private fun tileTimeLabel(tile: PeopleWidgetViewModel.Tile, now: Long): String =
-    if (tile.held) {
+private fun tileTimeLabel(tile: PeopleWidgetViewModel.Tile, now: Long): String = when {
+    tile.held ->
         stringResource(R.string.people_held_until, DateFormat.getTimeFormat(LocalContext.current).format(Date(tile.heldUntil)))
-    } else {
-        DateUtils.getRelativeTimeSpanString(
-            tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
-        ).toString()
-    }
+    now - tile.postTime < DateUtils.MINUTE_IN_MILLIS -> stringResource(R.string.people_time_now)
+    else -> DateUtils.getRelativeTimeSpanString(
+        tile.postTime, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
+    ).toString()
+}
 
 /** What the wide tile says under the name, honoring the privacy setting. */
 @Composable
