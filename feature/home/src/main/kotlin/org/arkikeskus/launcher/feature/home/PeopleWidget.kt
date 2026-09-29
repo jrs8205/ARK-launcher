@@ -422,16 +422,16 @@ fun PeopleWidget(
     menuFor?.let { (tile, anchor) ->
         val windowHeight = LocalWindowInfo.current.containerSize.height
         val items = buildList {
-            if (tile.hasContent) add(IconMenuItem(LauncherIcons.ChevronRight, stringResource(R.string.people_action_open)) { viewModel.open(tile) })
-            if (tile.canReply) add(IconMenuItem(LauncherIcons.Message, stringResource(R.string.people_action_reply)) { replyFor = tile })
+            if (tile.hasContent) add(IconMenuItem(LauncherIcons.OpenInNew, stringResource(R.string.people_action_open)) { viewModel.open(tile) })
+            if (tile.canReply) add(IconMenuItem(LauncherIcons.Reply, stringResource(R.string.people_action_reply)) { replyFor = tile })
             if (tile.canCall) add(IconMenuItem(LauncherIcons.Call, stringResource(R.string.people_action_call)) { viewModel.call(tile) })
-            if (tile.hasContent && !tile.held) add(IconMenuItem(LauncherIcons.Remove, stringResource(R.string.people_action_dismiss)) { viewModel.dismiss(tile) })
-            if (tile.lookupUri != null) add(IconMenuItem(LauncherIcons.Info, stringResource(R.string.people_action_contact)) { viewModel.openContact(tile) })
+            if (tile.hasContent && !tile.held) add(IconMenuItem(LauncherIcons.DoneAll, stringResource(R.string.people_action_dismiss)) { viewModel.dismiss(tile) })
+            if (tile.lookupUri != null) add(IconMenuItem(LauncherIcons.Person, stringResource(R.string.people_action_contact)) { viewModel.openContact(tile) })
             if (!tile.isApp) {
-                if (tile.pinned == null) add(IconMenuItem(LauncherIcons.Add, stringResource(R.string.people_action_pin)) { viewModel.pin(tile) })
-                else add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.people_action_unpin)) { viewModel.unpin(tile) })
-                if (tiles.any { !it.isApp && it.key != tile.key }) add(IconMenuItem(LauncherIcons.Edit, stringResource(R.string.people_action_link)) { linkFor = tile })
-                if (aliases.containsValue(tile.key)) add(IconMenuItem(LauncherIcons.Close, stringResource(R.string.people_action_unlink)) { viewModel.unlink(tile) })
+                if (tile.pinned == null) add(IconMenuItem(LauncherIcons.Pin, stringResource(R.string.people_action_pin)) { viewModel.pin(tile) })
+                else add(IconMenuItem(LauncherIcons.Unpin, stringResource(R.string.people_action_unpin)) { viewModel.unpin(tile) })
+                if (tiles.any { !it.isApp && it.key != tile.key }) add(IconMenuItem(LauncherIcons.Link, stringResource(R.string.people_action_link)) { linkFor = tile })
+                if (aliases.containsValue(tile.key)) add(IconMenuItem(LauncherIcons.LinkOff, stringResource(R.string.people_action_unlink)) { viewModel.unlink(tile) })
             }
         }
         IconMenuPopup(

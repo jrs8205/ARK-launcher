@@ -17,4 +17,12 @@ object LauncherIcons {
     @DrawableRes val Message: Int = R.drawable.ic_message
     @DrawableRes val ChevronRight: Int = R.drawable.ic_chevron_right
     @DrawableRes val Remove: Int = R.drawable.ic_remove
+    @DrawableRes val OpenInNew: Int = R.drawable.ic_open_in_new
+    @DrawableRes val Reply: Int = R.drawable.ic_reply
+    @DrawableRes val DoneAll: Int = R.drawable.ic_done_all
+    @DrawableRes val Person: Int = R.drawable.ic_person
+    @DrawableRes val Pin: Int = R.drawable.ic_push_pin
+    @DrawableRes val Unpin: Int = R.drawable.ic_push_pin_off
+    @DrawableRes val Link: Int = R.drawable.ic_link
+    @DrawableRes val LinkOff: Int = R.drawable.ic_link_off
 }
