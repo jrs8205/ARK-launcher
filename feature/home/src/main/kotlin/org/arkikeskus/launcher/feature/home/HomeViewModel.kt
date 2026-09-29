@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
@@ -62,6 +63,9 @@ const val PEOPLE_DEFAULT_SPAN_Y = 3
 
 /** Narrowest people widget: two quiet tiles, or one tile with content. */
 const val PEOPLE_MIN_SPAN_X = 2
+
+/** A page-menu operation's result when storage refused it (the layout is left as it was). */
+internal const val PAGE_FAILED = -2
 
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
@@ -364,19 +368,17 @@ class HomeViewModel @Inject constructor(
                     }
                 }
             }
-        val maxPage = entries.maxOfOrNull { it.page } ?: 0
-        // As many pages as have icons (min 1), or as many as the user added explicitly (the page
-        // menu), whichever is more. A new trailing page is offered transiently by the workspace
-        // while dragging, and becomes permanent once an icon lands. Capped: a corrupt page value in
-        // the DB must never reach PageDots' non-lazy repeat().
-        val pageCount = maxOf(maxPage + 1, settings.homePageCount).coerceIn(1, HomeLayoutRepository.MAX_PAGES)
+        val occupied = homeItems.filter { it.containerId == HomeItemEntity.HOME }.map { it.page }.toSet()
+        // A new trailing page is offered transiently by the workspace while dragging, and becomes
+        // permanent once an icon lands.
+        val pageCount = permanentPageCount(occupied, settings.homePageCount)
         HomeUiState(
             settings = settings,
             dockApps = dockApps,
             entries = entries,
             pageCount = pageCount,
             homePage = settings.homePage.coerceIn(0, pageCount - 1),
-            occupiedPages = homeItems.filter { it.containerId == HomeItemEntity.HOME }.map { it.page }.toSet(),
+            occupiedPages = occupied,
             badges = badges,
             loaded = true,
         )
@@ -457,8 +459,9 @@ class HomeViewModel @Inject constructor(
         save = settingsRepository::setHomePages,
     )
 
-    /** Opens an empty page at [at] (0..pageCount); what was there and after moves right. */
-    suspend fun insertPage(at: Int): Int = pageOperations.insert(at)
+    /** Opens an empty page at [at] (0..pageCount); what was there and after moves right. Returns the
+     *  new index, -1 at the page limit, or [PAGE_FAILED] when storage refused. */
+    suspend fun insertPage(at: Int): Int = pageOperation { pageOperations.insert(at) } ?: PAGE_FAILED
 
     /** HOME returns to [page] from now on. */
     fun setHomePage(page: Int) = viewModelScope.launch { pageOperations.setHome(page) }
@@ -466,8 +469,18 @@ class HomeViewModel @Inject constructor(
     /** True when no row at all is stored on [page]. */
     fun isPageEmpty(page: Int): Boolean = page !in uiState.value.occupiedPages
 
-    /** Removes an empty page, returning its navigation destination, or null when rejected. */
-    suspend fun removeEmptyPage(page: Int): Int? = pageOperations.remove(page)
+    /** Removes an empty page, returning its navigation destination, null when rejected (not empty,
+     *  the only page), or [PAGE_FAILED] when storage refused. */
+    suspend fun removeEmptyPage(page: Int): Int? = pageOperation { pageOperations.remove(page) ?: return null } ?: PAGE_FAILED
+
+    private suspend inline fun pageOperation(block: () -> Int): Int? = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w("HomeViewModel", "page operation failed", e)
+        null
+    }
 
     /** Removes a placed widget row (caller frees the host id). */
     fun removeWidget(rowId: Long) = viewModelScope.launch { homeLayoutRepository.removeWidget(rowId) }

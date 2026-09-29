@@ -1,5 +1,16 @@
 package org.arkikeskus.launcher.feature.home
 
+import org.arkikeskus.launcher.data.HomeLayoutRepository
+
+/**
+ * How many pages the workspace has: as many as hold a stored row (min 1), or as many as the user
+ * added explicitly, whichever is more, capped so a corrupt page value can never reach the dots.
+ * Counted from the stored rows, not the resolved entries, so the UI state and the page menu's
+ * operations (which read storage under their mutex) can never disagree about a page.
+ */
+internal fun permanentPageCount(occupiedPages: Set<Int>, explicit: Int): Int =
+    maxOf((occupiedPages.maxOrNull() ?: 0) + 1, explicit).coerceIn(1, HomeLayoutRepository.MAX_PAGES)
+
 /**
  * A null result keeps the settled page. Only an empty temporary page beyond the permanent pages
  * returns to the last permanent page; explicitly added empty pages remain usable.

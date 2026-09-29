@@ -767,18 +767,17 @@ fun HomeScreen(
                 })
                 // Pages: the menu was opened on the page the pager is showing.
                 val page = dragController.currentPage.coerceIn(0, uiState.pageCount - 1)
+                fun showInsertedPage(at: Int) = when {
+                    at >= 0 -> { pageRequests.tryEmit(at); Unit }
+                    at == PAGE_FAILED -> widgetMessage(R.string.home_options_page_failed)
+                    else -> widgetMessage(R.string.home_options_page_limit)
+                }
                 if (!settings.desktopLocked) {
                     add(IconMenuItem(R.drawable.ic_page_add_left, stringResource(R.string.home_options_page_left)) {
-                        widgetScope.launch {
-                            val at = viewModel.insertPage(page)
-                            if (at >= 0) pageRequests.tryEmit(at) else widgetMessage(R.string.home_options_page_limit)
-                        }
+                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page)) }
                     })
                     add(IconMenuItem(R.drawable.ic_page_add_right, stringResource(R.string.home_options_page_right)) {
-                        widgetScope.launch {
-                            val at = viewModel.insertPage(page + 1)
-                            if (at >= 0) pageRequests.tryEmit(at) else widgetMessage(R.string.home_options_page_limit)
-                        }
+                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page + 1)) }
                     })
                 }
                 if (page != uiState.homePage) {
@@ -789,9 +788,11 @@ fun HomeScreen(
                 if (!settings.desktopLocked && uiState.pageCount > 1 && viewModel.isPageEmpty(page)) {
                     add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.home_options_page_remove)) {
                         widgetScope.launch {
-                            val target = viewModel.removeEmptyPage(page)
-                            if (target != null) pageRequests.tryEmit(target)
-                            else widgetMessage(R.string.home_options_page_not_empty)
+                            when (val target = viewModel.removeEmptyPage(page)) {
+                                null -> widgetMessage(R.string.home_options_page_not_empty)
+                                PAGE_FAILED -> widgetMessage(R.string.home_options_page_failed)
+                                else -> pageRequests.tryEmit(target)
+                            }
                         }
                     })
                 }

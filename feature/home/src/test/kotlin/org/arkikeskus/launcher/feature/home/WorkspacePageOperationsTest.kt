@@ -80,4 +80,32 @@ class WorkspacePageOperationsTest {
         assertThat(occupied.operations.remove(1)).isNull()
         assertThat(occupied.settings.homePageCount).isEqualTo(2)
     }
+
+    @Test fun `a failed counter write closes the page that was just opened`() = runTest {
+        val store = Store(home = 1, count = 2, pages = setOf(0, 1))
+        store.beforeSave = { throw java.io.IOException("disk full") }
+        try {
+            store.operations.insert(0)
+            throw AssertionError("expected the failure to propagate")
+        } catch (e: java.io.IOException) {
+            assertThat(e.message).isEqualTo("disk full")
+        }
+        assertThat(store.occupied).containsExactly(0, 1)
+        assertThat(store.settings.homePage).isEqualTo(1)
+        assertThat(store.settings.homePageCount).isEqualTo(2)
+    }
+
+    @Test fun `a failed counter write reopens the page that was just removed`() = runTest {
+        val store = Store(home = 2, count = 3, pages = setOf(0, 2))
+        store.beforeSave = { throw java.io.IOException("disk full") }
+        try {
+            store.operations.remove(1)
+            throw AssertionError("expected the failure to propagate")
+        } catch (e: java.io.IOException) {
+            assertThat(e.message).isEqualTo("disk full")
+        }
+        assertThat(store.occupied).containsExactly(0, 2)
+        assertThat(store.settings.homePage).isEqualTo(2)
+        assertThat(store.settings.homePageCount).isEqualTo(3)
+    }
 }

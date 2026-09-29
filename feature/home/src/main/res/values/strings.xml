@@ -93,6 +93,7 @@
     <string name="home_options_page_remove">Poista tyhjä sivu</string>
     <string name="home_options_page_limit">Sivuja on jo enimmäismäärä</string>
     <string name="home_options_page_not_empty">Sivu ei ole tyhjä</string>
+    <string name="home_options_page_failed">Sivun muuttaminen ei onnistunut</string>
     <string name="widget_remove">Poista widget</string>
     <string name="widget_unavailable">Widget ei käytettävissä</string>
     <string name="widget_restore_tap">Napauta ottaaksesi käyttöön</string>

@@ -72,3 +72,13 @@ class ExplicitPageCountTest {
         assertThat(explicitPageCountAfterRemove(explicit = 0, page = 1)).isEqualTo(0)
     }
 }
+
+class PermanentPageCountTest {
+    @Test
+    fun countsFromTheStoredRowsAndTheExplicitFloor() {
+        assertThat(permanentPageCount(emptySet(), 0)).isEqualTo(1)
+        assertThat(permanentPageCount(setOf(0, 3), 0)).isEqualTo(4)
+        assertThat(permanentPageCount(setOf(0), 6)).isEqualTo(6)
+        assertThat(permanentPageCount(setOf(0, 99), 0)).isEqualTo(50)
+    }
+}
