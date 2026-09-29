@@ -12,7 +12,7 @@ internal class WorkspacePageOperations(
     private val settings: suspend () -> LauncherSettings,
     private val occupiedPages: suspend () -> Set<Int>,
     private val insertRows: suspend (Int) -> Unit,
-    private val removeRows: suspend (Int) -> Boolean,
+    private val removeRows: suspend (page: Int, purge: Boolean) -> Boolean,
     private val save: suspend (home: Int, count: Int) -> Unit,
 ) {
     private val mutex = Mutex()
@@ -32,22 +32,23 @@ internal class WorkspacePageOperations(
             try {
                 save(if (home >= index) home + 1 else home, explicitPageCountAfterInsert(s.homePageCount, index))
             } catch (e: Exception) {
-                runCatching { removeRows(index) }
+                runCatching { removeRows(index, false) }
                 throw e
             }
         }
         index
     }
 
-    /** Returns the destination calculated from this operation's snapshot, or null on rejection. */
-    suspend fun remove(page: Int): Int? = mutex.withLock {
+    /** Returns the destination calculated from this operation's snapshot, or null on rejection.
+     *  [purge] deletes rows the caller knows the home screen cannot show; see removeEmptyPage. */
+    suspend fun remove(page: Int, purge: Boolean = false): Int? = mutex.withLock {
         val s = settings()
         val count = pageCount(s)
         if (count <= 1 || page !in 0 until count) return@withLock null
         val target = page.coerceAtMost(count - 2)
         val home = s.homePage.coerceIn(0, count - 1)
         withContext(NonCancellable) {
-            if (!removeRows(page)) return@withContext null
+            if (!removeRows(page, purge)) return@withContext null
             try {
                 save(
                     when {

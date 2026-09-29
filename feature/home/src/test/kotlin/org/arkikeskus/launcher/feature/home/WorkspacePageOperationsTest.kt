@@ -16,9 +16,9 @@ class WorkspacePageOperationsTest {
         val operations = WorkspacePageOperations(
             settings = { settings }, occupiedPages = { occupied },
             insertRows = { at -> beforeInsert(); occupied = occupied.map { if (it >= at) it + 1 else it }.toSet() },
-            removeRows = { at ->
-                if (at in occupied) false else {
-                    occupied = occupied.map { if (it > at) it - 1 else it }.toSet()
+            removeRows = { at, purge ->
+                if (at in occupied && !purge) false else {
+                    occupied = occupied.filter { it != at }.map { if (it > at) it - 1 else it }.toSet()
                     true
                 }
             },
@@ -107,5 +107,14 @@ class WorkspacePageOperationsTest {
         assertThat(store.occupied).containsExactly(0, 2)
         assertThat(store.settings.homePage).isEqualTo(2)
         assertThat(store.settings.homePageCount).isEqualTo(3)
+    }
+
+    @Test fun `purging removes a page whose only rows the home screen cannot show`() = runTest {
+        // A disabled app's row keeps page 2 stored while the user sees nothing there.
+        val store = Store(home = 0, count = 0, pages = setOf(0, 1, 2))
+        assertThat(store.operations.remove(2)).isNull()
+        assertThat(store.operations.remove(2, purge = true)).isEqualTo(1)
+        assertThat(store.occupied).containsExactly(0, 1)
+        assertThat(store.settings.homePageCount).isEqualTo(0)
     }
 }

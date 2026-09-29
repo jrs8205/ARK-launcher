@@ -466,12 +466,15 @@ class HomeViewModel @Inject constructor(
     /** HOME returns to [page] from now on. */
     fun setHomePage(page: Int) = viewModelScope.launch { pageOperations.setHome(page) }
 
-    /** True when no row at all is stored on [page]. */
-    fun isPageEmpty(page: Int): Boolean = page !in uiState.value.occupiedPages
+    /** True when the home screen shows nothing on [page]. A row can still be stored there (a
+     *  disabled app, a shortcut its app dropped, a widget without a provider); such leftovers are
+     *  purged when the user removes the page, or the page could never be removed. */
+    fun isPageEmpty(page: Int): Boolean = uiState.value.entries.none { it.page == page }
 
     /** Removes an empty page, returning its navigation destination, null when rejected (not empty,
      *  the only page), or [PAGE_FAILED] when storage refused. */
-    suspend fun removeEmptyPage(page: Int): Int? = pageOperation { pageOperations.remove(page) ?: return null } ?: PAGE_FAILED
+    suspend fun removeEmptyPage(page: Int): Int? =
+        pageOperation { pageOperations.remove(page, purge = isPageEmpty(page)) ?: return null } ?: PAGE_FAILED
 
     private suspend inline fun pageOperation(block: () -> Int): Int? = try {
         block()

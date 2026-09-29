@@ -351,9 +351,20 @@ class HomeLayoutRepository @Inject constructor(
         }
     }
 
-    /** Removes page [page] and closes the gap; false (and no change) when the page holds anything. */
-    suspend fun removeEmptyPage(page: Int): Boolean = db.withTransaction {
-        if (dao.countOnPage(HOME, page) > 0) return@withTransaction false
+    /**
+     * Removes page [page] and closes the gap. With [purge], rows still stored on the page are deleted
+     * first — the ones the home screen cannot show (an app the user disabled, a shortcut its app
+     * dropped, a widget whose provider is gone) and that would otherwise keep an empty-looking page
+     * alive forever. Without it, false (and no change) when the page holds anything.
+     */
+    suspend fun removeEmptyPage(page: Int, purge: Boolean = false): Boolean = db.withTransaction {
+        if (purge) {
+            val folders = dao.folderIdsOnPage(HOME, page)
+            if (folders.isNotEmpty()) dao.deleteByContainers(folders)
+            dao.deleteOnPage(HOME, page)
+        } else if (dao.countOnPage(HOME, page) > 0) {
+            return@withTransaction false
+        }
         dao.offsetPages(HOME, page + 1, PAGE_SHIFT_HOP)
         dao.offsetPages(HOME, page + 1 + PAGE_SHIFT_HOP, -1 - PAGE_SHIFT_HOP)
         true

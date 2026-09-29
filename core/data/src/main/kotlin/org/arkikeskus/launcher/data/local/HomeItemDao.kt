@@ -74,6 +74,16 @@ interface HomeItemDao {
     @Query("SELECT COUNT(*) FROM home_items WHERE containerId = :containerId AND page = :page")
     suspend fun countOnPage(containerId: Long, page: Int): Int
 
+    /** Ids of the folder rows on [page] of [containerId]; their children live under those ids. */
+    @Query("SELECT id FROM home_items WHERE containerId = :containerId AND page = :page AND folderName IS NOT NULL")
+    suspend fun folderIdsOnPage(containerId: Long, page: Int): List<Long>
+
+    @Query("DELETE FROM home_items WHERE containerId IN (:containerIds)")
+    suspend fun deleteByContainers(containerIds: List<Long>)
+
+    @Query("DELETE FROM home_items WHERE containerId = :containerId AND page = :page")
+    suspend fun deleteOnPage(containerId: Long, page: Int)
+
     @Query("UPDATE home_items SET folderName = :name WHERE id = :id")
     suspend fun renameFolder(id: Long, name: String)
 
