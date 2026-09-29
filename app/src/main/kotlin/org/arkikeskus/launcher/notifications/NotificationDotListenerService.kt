@@ -4,6 +4,9 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ComponentName
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.UserManager
@@ -70,6 +73,11 @@ class NotificationDotListenerService : NotificationListenerService() {
     /** Person keys that always come through: pinned people and the aliases that merge into them. */
     @Volatile private var vipKeys: Set<String> = emptySet()
 
+    /** Packages that handle mailto: links — the mail clients. Their notifications carry the sender
+     *  as the title and the subject as the text, but almost none set CATEGORY_EMAIL (Gmail doesn't),
+     *  so the app being a mail client is the signal. Re-read on every connect. */
+    @Volatile private var mailPackages: Set<String> = emptySet()
+
     /** Delivery time per snoozed key, so a snoozed notification is labeled with the right time and
      *  released (not re-held) when the system reposts it. Lost with the process; the postTime age
      *  check in [holdForBatch] covers that case. */
@@ -116,6 +124,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         super.onListenerConnected()
         Log.d(TAG, "listener connected")
         badgeRepository.registerCanceller { key -> runCatching { cancelNotification(key) } }
+        mailPackages = queryMailPackages()
         settingsJob?.cancel()
         settingsJob = combine(
             settingsRepository.settings, settingsRepository.pinnedPeople, settingsRepository.peopleAliases,
@@ -294,8 +303,9 @@ class NotificationDotListenerService : NotificationListenerService() {
     /**
      * Reduces a notification to a [PersonEntry] when it is about a person, else null. Recognized, in
      * order: a MessagingStyle (any chat app; newest message + its sender), a call / missed call, a
-     * system-flagged conversation or CATEGORY_MESSAGE (sender = title), and CATEGORY_EMAIL (sender =
-     * title). Group summaries and ongoing notifications (an active call, "now playing") are skipped.
+     * system-flagged conversation or CATEGORY_MESSAGE (sender = title), and mail — CATEGORY_EMAIL
+     * or any notification from a mail client (sender = title, subject = text). Group summaries and
+     * ongoing notifications (an active call, "now playing") are skipped.
      */
     private fun personEntry(
         sbn: StatusBarNotification, serial: Long, ranking: RankingMap?, tmp: Ranking,
@@ -349,7 +359,10 @@ class NotificationDotListenerService : NotificationListenerService() {
                 name = shortcutLabel ?: title
                 kind = PersonEventKind.MESSAGE
             }
-            n.category == Notification.CATEGORY_EMAIL -> {
+            n.category == Notification.CATEGORY_EMAIL || sbn.packageName in mailPackages -> {
+                // A mail client's other notices ("Syncing…", "Sending…") carry no sender/subject pair
+                // or are ongoing; a real mail has both.
+                if (title.isEmpty() || text == null) return null
                 name = title
                 kind = PersonEventKind.EMAIL
             }
@@ -385,6 +398,15 @@ class NotificationDotListenerService : NotificationListenerService() {
             personUri = uri,
         )
     }
+
+    /** The installed apps that offer to compose mail (handle mailto:), i.e. the mail clients. */
+    private fun queryMailPackages(): Set<String> = runCatching {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:someone@example.com"))
+        packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+            .map { it.activityInfo.packageName }
+            .filter { it != packageName }
+            .toSet()
+    }.getOrDefault(emptySet())
 
     /** True for the generic "Missed call"-style label a dialer puts in whichever field isn't the name. */
     private fun looksLikeCallLabel(s: String): Boolean {
