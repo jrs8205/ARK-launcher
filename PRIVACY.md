@@ -1,6 +1,6 @@
 # ARK-launcher Privacy Policy
 
-*Last updated: 2026-08-12 · applies to ARK-launcher v0.7.12 and later
+*Last updated: 2026-09-29 · applies to ARK-launcher v0.8.0 beta and later
 ([v0.7.11 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.7.11/PRIVACY.md))*
 
 *Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
@@ -31,9 +31,15 @@ public, so every claim here can be verified:
 - **Settings and preferences** — grid size, gestures, icon pack choice, hidden
   apps, custom app labels, most-used ordering and similar; stored locally.
 - **Notification data** — if you grant notification access, notifications are
-  read solely to show dots/badges, status-bar icons and the optional
-  notifications widget. Notification content is processed in memory on the
-  device and never stored persistently or transmitted anywhere.
+  read to show dots/badges, status-bar icons and the optional notification and
+  people widgets, including their open, reply and dismiss actions. Message text
+  is processed in memory and never stored persistently or transmitted by the
+  launcher; replies are sent through the originating app. People you pin and
+  identity links you create are saved in settings, including any matched contact
+  name, number, photo reference and contact URI, and included in local backups.
+  Optional batch delivery delays only launcher surfaces; Android notifications,
+  sounds and pop-ups remain active. Notification keys and delivery times are
+  saved locally to retain waiting state after a restart and excluded from backups.
 - **Backups** — a backup you export is written to the file location you choose.
   It contains your layout and settings, nothing else. The app opts out of
   Android's system backup (`allowBackup="false"`), so its data is never copied
@@ -69,10 +75,10 @@ to the server; the requests identify themselves with a generic
 | Permission | Used for |
 |---|---|
 | `QUERY_ALL_PACKAGES` | Listing and launching your installed apps — the launcher's core purpose |
-| Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Notification dots/badges, status-bar icons and the notifications widget |
+| Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Notification dots/badges, status-bar icons, notification and people widgets, and local batch delivery |
 | Accessibility service (`BIND_ACCESSIBILITY_SERVICE`, opt-in) | The double-tap-to-lock gesture only. The service receives no accessibility events and cannot read screen content; it exists solely to lock the screen, and only runs if you enable it yourself |
 | `READ_CALENDAR` | Showing your next event in the clock widget |
-| `READ_CONTACTS` | Contact results in app search (opt-in) |
+| `READ_CONTACTS` | Contact results in app search and matching people-widget contacts (opt-in) |
 | `READ_PHONE_STATE` | Signal-strength indicator in the status bar |
 | `ACCESS_COARSE_LOCATION` | Weather in the clock widget |
 | `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `BLUETOOTH` (≤ Android 11) | Connectivity indicators in the status bar |

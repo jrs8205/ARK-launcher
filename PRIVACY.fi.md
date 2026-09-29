@@ -1,6 +1,6 @@
 # ARK-launcherin tietosuojaseloste
 
-*Päivitetty: 12.8.2026 · koskee ARK-launcherin versiota 0.7.12 ja uudempia
+*Päivitetty: 29.9.2026 · koskee ARK-launcherin versiota 0.8.0 beta ja uudempia
 ([version 0.7.11 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.7.11/PRIVACY.fi.md))*
 
 *This policy in English: [PRIVACY.md](PRIVACY.md)*
@@ -34,9 +34,17 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
   omat sovellusnimet, käytetyimmät-järjestys ja vastaavat; tallennetaan
   paikallisesti.
 - **Ilmoitustiedot** — jos myönnät ilmoitusten käyttöoikeuden, ilmoituksia
-  luetaan ainoastaan pistemerkkien, tilarivin kuvakkeiden ja valinnaisen
-  ilmoituswidgetin näyttämiseen. Ilmoitusten sisältö käsitellään laitteen
-  muistissa, eikä sitä koskaan tallenneta pysyvästi tai lähetetä minnekään.
+  luetaan pistemerkkien, tilarivin kuvakkeiden sekä valinnaisten ilmoitus- ja
+  henkilöwidgettien näyttämiseen ja niiden avaus-, vastaus- ja poistotoimintoihin.
+  Viestitekstit käsitellään muistissa; launcher ei tallenna niitä pysyvästi eikä
+  lähetä niitä minnekään. Vastaukset välitetään alkuperäisen sovelluksen kautta.
+  Kiinnittämäsi henkilöt ja luomasi henkilöllisyyksien yhdistämiset tallennetaan
+  asetuksiin ja paikallisiin varmuuskopioihin. Näihin voi sisältyä yhteystiedosta
+  löytynyt nimi, numero, kuvaviite ja yhteystiedon URI. Valinnainen eräposti
+  viivästyttää vain launcherin näkymiä; Androidin ilmoitukset, äänet ja
+  ponnahdusilmoitukset toimivat normaalisti. Ilmoitusten tunnisteet ja jakoajat
+  tallennetaan laitteelle odotustilan säilyttämiseksi uudelleenkäynnistyksessä,
+  mutta niitä ei sisällytetä varmuuskopioihin.
 - **Varmuuskopiot** — viemäsi varmuuskopio kirjoitetaan valitsemaasi
   tiedostosijaintiin. Se sisältää asettelusi ja asetuksesi, ei mitään muuta.
   Sovellus on jättäytynyt Androidin järjestelmävarmuuskopioinnin ulkopuolelle
@@ -73,10 +81,10 @@ palvelimelle; pyynnöt tunnistautuvat yleisluontoisella
 | Lupa | Käyttötarkoitus |
 |---|---|
 | `QUERY_ALL_PACKAGES` | Asennettujen sovellusten listaus ja käynnistys — launcherin ydintehtävä |
-| Ilmoitusten käyttöoikeus (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Pistemerkit, tilarivin kuvakkeet ja ilmoituswidget |
+| Ilmoitusten käyttöoikeus (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Pistemerkit, tilarivin kuvakkeet, ilmoitus- ja henkilöwidgetit sekä paikallinen eräposti |
 | Esteettömyyspalvelu (`BIND_ACCESSIBILITY_SERVICE`, valinnainen) | Ainoastaan tuplanapautuslukitus. Palvelu ei vastaanota esteettömyystapahtumia eikä voi lukea näytön sisältöä; se on olemassa vain näytön lukitsemista varten ja käynnissä vain, jos itse otat sen käyttöön |
 | `READ_CALENDAR` | Seuraavan tapahtuman näyttäminen kellowidgetissä |
-| `READ_CONTACTS` | Yhteystulokset sovellushaussa (valinnainen) |
+| `READ_CONTACTS` | Yhteystulokset sovellushaussa ja henkilöwidgetin yhteystietojen yhdistäminen (valinnainen) |
 | `READ_PHONE_STATE` | Signaalinvoimakkuus tilarivillä |
 | `ACCESS_COARSE_LOCATION` | Sää kellowidgetissä |
 | `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `BLUETOOTH` (≤ Android 11) | Yhteysilmaisimet tilarivillä |

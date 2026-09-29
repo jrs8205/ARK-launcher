@@ -75,6 +75,11 @@ the app: **Settings ▸ Feedback**.
   themed backgrounds in Home screen settings.
 - **Folders** on the home screen and inside the drawer.
 - **Notification dots / badges** (via a notification-listener service; dot or Nova-style count).
+- **People widget** with optional batch delivery in launcher widgets, badges and the launcher status
+  bar. Android notifications, sounds and pop-ups remain active. New messages from pinned people,
+  missed calls and recognized one-time codes bypass the batch; pinning alone leaves old messages
+  waiting. Turning batching off releases local holds. Snoozes from earlier betas expire at their
+  original delivery times.
 - **Material You themed icons** (monochrome, on supported Android versions).
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, and a configurable
   **left-edge swipe** that launches an app of your choice.
