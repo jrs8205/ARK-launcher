@@ -4,7 +4,7 @@
     <string name="backup_file_section">File</string>
     <string name="backup_export">Export to file</string>
     <string name="backup_import">Import from file</string>
-    <string name="backup_default_name">arkikeskus-launcher-backup</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
     <string name="backup_exported">Backup saved</string>
     <string name="backup_restored">Backup restored</string>
     <plurals name="backup_restored_skipped">

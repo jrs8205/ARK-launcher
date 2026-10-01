@@ -35,6 +35,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.flowWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun BackupScreen(
@@ -102,7 +105,7 @@ fun BackupScreen(
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             val backupDefaultName = stringResource(R.string.backup_default_name)
             Button(
-                onClick = { createDoc.launch("$backupDefaultName.json") },
+                onClick = { createDoc.launch(backupFileName(backupDefaultName, LocalDateTime.now())) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_export)) }
             OutlinedButton(
@@ -141,3 +144,10 @@ fun BackupScreen(
 }
 
 private suspend fun SnackbarHostState.showMessage(msg: String) { showSnackbar(msg) }
+
+/** The suggested export name: [base] plus when the backup was made, so a new export never offers
+ *  the previous one's name. ASCII digits in every locale, and no characters a file system rejects. */
+internal fun backupFileName(base: String, now: LocalDateTime): String =
+    "$base-${now.format(BACKUP_NAME_TIME)}.json"
+
+private val BACKUP_NAME_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm", Locale.ROOT)

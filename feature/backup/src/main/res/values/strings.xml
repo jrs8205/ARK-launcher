@@ -4,7 +4,7 @@
     <string name="backup_file_section">Tiedosto</string>
     <string name="backup_export">Vie tiedostoon</string>
     <string name="backup_import">Tuo tiedostosta</string>
-    <string name="backup_default_name">arkikeskus-launcher-backup</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
     <string name="backup_exported">Varmuuskopio tallennettu</string>
     <string name="backup_restored">Varmuuskopio palautettu</string>
     <plurals name="backup_restored_skipped">
