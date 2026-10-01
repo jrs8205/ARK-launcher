@@ -173,6 +173,39 @@ class NotificationDotListenerServiceTest {
         assertThat(held).isEmpty()
     }
 
+    /** The shape a community post takes on Android 16+: a big picture offloaded to a content URI,
+     *  null picture / large-icon keys, two plain actions, no category. */
+    private fun bigPicture(title: String, text: String, id: Int): StatusBarNotification {
+        val open = PendingIntent.getActivity(context, id, Intent("test.open"), PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(context, "notifications")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title).setContentText(text).setAutoCancel(true).setContentIntent(open)
+            .addAction(0, "Go to community", open).addAction(0, "Turn off updates", open)
+            .setStyle(NotificationCompat.BigPictureStyle()
+                .bigPicture(android.graphics.drawable.Icon.createWithContentUri("content://com.android.bitmapoffload/bitmaps/$id")))
+            .build()
+        notification.extras.putParcelable(Notification.EXTRA_PICTURE, null)
+        notification.extras.putParcelable(Notification.EXTRA_LARGE_ICON, null)
+        return StatusBarNotification(
+            "news.app", "news.app", 0, "tag-$id", 1000, 0, 0, notification, Process.myUserHandle(), System.currentTimeMillis(),
+        )
+    }
+
+    @Test fun bigPictureAppNotificationsBecomeOneAppTile() {
+        ReflectionHelpers.setField(service, "connected", true)
+        ReflectionHelpers.setField(service, "heldLoaded", true)
+        ReflectionHelpers.setField(service, "settingsReady", true)
+        val first = bigPicture("Now in r/SEO", "Why does the favicon not show?", 1)
+        val second = bigPicture("Now in r/android_beta", "Crash when entering the pin code", 2)
+        assertThat(person(first)).isNull()
+        assertThat(app(first)!!.title).isEqualTo("Now in r/SEO")
+        post(first)
+        post(second)
+        val tile = service.badgeRepository.people.value.single()
+        assertThat(tile.personKey).isEqualTo("app:news.app/0")
+        assertThat(tile.count).isEqualTo(2)
+    }
+
     @Test fun packageChangeRefreshesMailClassificationWithoutReconnecting() = runTest {
         enableBatch()
         val notification = sbn(NotificationCompat.Builder(context, "mail")
