@@ -149,6 +149,7 @@ internal fun Workspace(
     onOpenFolder: (PlacedFolder) -> Unit,
     onLaunchShortcut: (PlacedShortcut) -> Unit,
     onRemoveShortcut: (Long) -> Unit,
+    onRemoveFolder: (Long) -> Unit = {},
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
@@ -842,10 +843,12 @@ internal fun Workspace(
                                         .localEntryDrag(
                                             entry = entry,
                                             rowId = entry.id,
-                                            removable = false,
+                                            // Only a folder that shows no apps (all disabled or gone)
+                                            // can be dragged to Remove; otherwise it could never go.
+                                            removable = entry.apps.isEmpty(),
                                             onTap = { onOpenFolder(entry) },
                                             onStillPress = { onOpenFolder(entry) },
-                                            onRemove = {},
+                                            onRemove = { onRemoveFolder(entry.id) },
                                         ),
                                     contentAlignment = Alignment.Center,
                                 ) {

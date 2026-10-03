@@ -579,6 +579,7 @@ fun HomeScreen(
                 onOpenFolder = { openFolderId = it.id },
                 onLaunchShortcut = { viewModel.launchShortcut(it) },
                 onRemoveShortcut = { viewModel.removeShortcut(it) },
+                onRemoveFolder = { viewModel.removeFolder(it) },
                 onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
                 onEmptyAreaMenu = { anchor, above -> homeOptions = anchor to above },

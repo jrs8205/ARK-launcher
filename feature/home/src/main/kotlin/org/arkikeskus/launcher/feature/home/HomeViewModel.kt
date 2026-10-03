@@ -236,6 +236,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             appRepository.apps.first { it.isNotEmpty() } // let the app providers settle on a cold start
             homeLayoutRepository.removeStaleAppRows(appRepository::isAppInstalled)
+            appRepository.followRenamedActivitiesInSettings()
         }
     }
 
@@ -422,6 +423,10 @@ class HomeViewModel @Inject constructor(
         homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
     }
 
+    /** Removes a folder together with its apps — offered only for a folder that shows no apps (all
+     *  of them disabled or gone), which could otherwise never leave its cell. */
+    fun removeFolder(folderId: Long) = viewModelScope.launch { homeLayoutRepository.removeFolder(folderId) }
+
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
     fun removeShortcut(rowId: Long) = viewModelScope.launch {
         homeLayoutRepository.removeShortcut(rowId)?.let { remaining ->
@@ -583,7 +588,8 @@ class HomeViewModel @Inject constructor(
     /** Cross-surface: a home icon dragged into the dock at [index] — add to dock and leave home. */
     fun moveToDock(appItem: AppItem, index: Int) = viewModelScope.launch {
         withContext(NonCancellable) {
-            settingsRepository.addToDockAt(appItem.key, index)
+            // [index] counts the dock as shown; favourites that don't resolve are skipped in it.
+            settingsRepository.addToDockAt(appItem.key, index, appRepository.apps.first().mapTo(HashSet()) { it.key })
             homeLayoutRepository.removeFromHome(appItem)
         }
     }
