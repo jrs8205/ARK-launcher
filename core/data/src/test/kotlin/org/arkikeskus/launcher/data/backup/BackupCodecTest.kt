@@ -80,4 +80,11 @@ class BackupCodecTest {
         val json = """{"appVersion":"x","createdAt":0,"settings":{},"homeItems":[]}"""
         assertThrows(BackupFormatException::class.java) { BackupCodec.decode(json) }
     }
+
+    @Test
+    fun round_trips_the_exporting_profile_serial_and_reads_files_without_it() {
+        val doc = sampleDoc().copy(mainUserSerial = 10L)
+        assertThat(BackupCodec.decode(BackupCodec.encode(doc)).mainUserSerial).isEqualTo(10L)
+        assertThat(BackupCodec.decode(BackupCodec.encode(sampleDoc())).mainUserSerial).isNull()
+    }
 }

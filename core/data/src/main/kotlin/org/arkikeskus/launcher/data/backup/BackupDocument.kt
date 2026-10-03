@@ -31,6 +31,9 @@ data class BackupDocument(
     val createdAt: Long,
     val settings: Map<String, Any>,
     val homeItems: List<BackupItem>,
+    /** User serial of the profile the exporting launcher ran as: the settings' app keys carry it.
+     *  Null in files written before it was recorded. */
+    val mainUserSerial: Long? = null,
 )
 
 class BackupFormatException(message: String) : Exception(message)

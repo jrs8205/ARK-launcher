@@ -86,12 +86,7 @@ class BackupViewModel @Inject constructor(
                 val json = context.contentResolver.openInputStream(uri)?.use { readBounded(it).decodeToString() }
                     ?: error("Could not open input stream")
                 val doc = BackupCodec.decode(json)
-                val apps = installedApps()
-                backupRepository.restoreDocument(
-                    doc = doc,
-                    installedAppKeys = apps.map { "${it.packageName}/${it.className}" }.toSet(),
-                    installedPackages = apps.map { it.packageName }.toSet(),
-                )
+                backupRepository.restoreDocument(doc = doc, installedApps = installedApps().map { it.key })
             }
         }.onSuccess { _events.emit(BackupEvent.Restored(it.restored, it.skipped)) }
             .onFailure {

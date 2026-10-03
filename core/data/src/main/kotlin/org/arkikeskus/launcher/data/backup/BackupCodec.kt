@@ -10,7 +10,9 @@ import org.json.JSONObject
  */
 object BackupCodec {
     /** Format 2 added widget rows (spanX/spanY/widgetProvider); format 3 adds built-in widgets
-     *  (builtinType). Decode still accepts every older format, absent fields defaulting. */
+     *  (builtinType). Decode still accepts every older format, absent fields defaulting. The
+     *  optional top-level mainUserSerial came later without a format bump: older readers ignore
+     *  it, and files without it still decode. */
     const val FORMAT = 3
 
     fun encode(doc: BackupDocument): String {
@@ -38,13 +40,14 @@ object BackupCodec {
             )
         }
 
-        return JSONObject()
+        val root = JSONObject()
             .put("format", doc.format)
             .put("appVersion", doc.appVersion)
             .put("createdAt", doc.createdAt)
             .put("settings", settings)
             .put("homeItems", items)
-            .toString()
+        doc.mainUserSerial?.let { root.put("mainUserSerial", it) }
+        return root.toString()
     }
 
     fun decode(json: String): BackupDocument {
@@ -84,7 +87,9 @@ object BackupCodec {
                 ),
             )
         }
-        return BackupDocument(format, root.getString("appVersion"), root.getLong("createdAt"), settings, items)
+        // A missing, null or garbled serial only disables the settings' profile remapping hint.
+        val mainUserSerial = root.optLong("mainUserSerial", -1L).takeIf { it >= 0 }
+        return BackupDocument(format, root.getString("appVersion"), root.getLong("createdAt"), settings, items, mainUserSerial)
     }
 
     private fun JSONObject.optStringOrNull(name: String): String? =

@@ -6,6 +6,9 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 
 data class RestoreMapping(val entities: List<HomeItemEntity>, val skipped: Int)
 
+/** The launchable apps of one profile: "package/class" keys and their packages. */
+data class ProfileApps(val appKeys: Set<String>, val packages: Set<String>)
+
 object BackupMapper {
 
     fun toBackupItems(entities: List<HomeItemEntity>, mainUserSerial: Long): List<BackupItem> =
@@ -176,6 +179,59 @@ object BackupMapper {
             }
         }
         return RestoreMapping(entities, skipped)
+    }
+
+    /** The apps of [installedApps] (AppItem keys, "package/class/userSerial") that live in the
+     *  profile [userSerial]. Restored rows become rows of that one profile, so an app installed only
+     *  in another profile (a work copy) must not count as installed. */
+    fun installedInProfile(installedApps: Collection<String>, userSerial: Long): ProfileApps {
+        val keys = installedApps.mapNotNull { key ->
+            val parts = key.split('/')
+            if (parts.size == 3 && parts[2].toLongOrNull() == userSerial) parts[0] to parts[1] else null
+        }
+        return ProfileApps(keys.map { "${it.first}/${it.second}" }.toSet(), keys.map { it.first }.toSet())
+    }
+
+    /**
+     * The backed-up settings with their app keys (dock, hidden apps, custom labels, drawer folders,
+     * the left-swipe app) moved to this device's profile [targetMainSerial] — the same remapping the
+     * home rows get: keys of the profile the exporting launcher ran as follow it, keys of any other
+     * profile are dropped (serials are device-local, and a stale one could name a different profile
+     * here). [sourceMainSerial] is null in older files; it is then inferred from the keys: serial 0
+     * is the device owner, whose launcher always lists its own apps, while a secondary user's
+     * launcher never sees serial 0 and mostly its own apps. Unparseable keys are left as they are.
+     */
+    fun remapSettingsProfiles(settings: Map<String, Any>, sourceMainSerial: Long?, targetMainSerial: Long): Map<String, Any> {
+        val appKeyValues = settings.filter { (name, value) -> name in SettingsRepository.APP_KEY_PREFS && value is String }
+        val source = sourceMainSerial ?: inferMainSerial(appKeyValues) ?: return settings
+        return settings.mapValues { (name, value) ->
+            if (name !in appKeyValues) {
+                value
+            } else {
+                SettingsRepository.rewriteAppKeys(name, value as String) { key ->
+                    val slash = key.lastIndexOf('/')
+                    when (if (slash > 0) key.substring(slash + 1).toLongOrNull() else null) {
+                        null -> key
+                        source -> key.substring(0, slash + 1) + targetMainSerial
+                        else -> null
+                    }
+                }
+            }
+        }
+    }
+
+    private fun inferMainSerial(appKeyValues: Map<String, Any>): Long? {
+        val serials = ArrayList<Long>()
+        for ((name, value) in appKeyValues) {
+            SettingsRepository.rewriteAppKeys(name, value as String) { key ->
+                key.substringAfterLast('/').toLongOrNull()?.let(serials::add)
+                key
+            }
+        }
+        if (serials.isEmpty()) return null
+        if (0L in serials) return 0L
+        return serials.groupingBy { it }.eachCount().entries
+            .maxWith(compareBy<Map.Entry<Long, Int>> { it.value }.thenByDescending { it.key }).key
     }
 
     private fun entity(it: BackupItem, mainUserSerial: Long, spanX: Int, spanY: Int) = HomeItemEntity(

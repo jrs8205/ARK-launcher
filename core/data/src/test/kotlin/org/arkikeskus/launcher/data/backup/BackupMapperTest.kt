@@ -431,4 +431,45 @@ class BackupMapperTest {
         assertThat(mapping.entities.single().packageName).isEqualTo("com.a")
         assertThat(mapping.skipped).isEqualTo(1)
     }
+
+    // --- Profiles ------------------------------------------------------------------------------
+
+    @Test
+    fun installedInProfile_keeps_only_that_profiles_apps() {
+        val main = BackupMapper.installedInProfile(listOf("com.a/A/0", "com.w/W/10", "com.b/B/0", "bad"), 0L)
+        assertThat(main.appKeys).containsExactly("com.a/A", "com.b/B")
+        assertThat(main.packages).containsExactly("com.a", "com.b")
+    }
+
+    @Test
+    fun remapSettingsProfiles_moves_the_exporting_profiles_keys_and_drops_the_rest() {
+        // Like the home rows: only the profile the launcher ran as restores, onto this device's own.
+        val settings = mapOf(
+            "dock_favorites" to "com.a/A/5\ncom.w/W/12",
+            "hidden_apps" to "com.w/W/12",
+            "custom_labels" to "com.a/A/5\tMail",
+            "drawer_folders" to "1\tF\tcom.a/A/5\tcom.w/W/12",
+            "left_swipe_app_key" to "com.w/W/12",
+            "home_columns" to 5,
+        )
+        val out = BackupMapper.remapSettingsProfiles(settings, sourceMainSerial = 5L, targetMainSerial = 0L)
+        assertThat(out).containsExactly(
+            "dock_favorites", "com.a/A/0",
+            "hidden_apps", "",
+            "custom_labels", "com.a/A/0\tMail",
+            "drawer_folders", "1\tF\tcom.a/A/0",
+            "left_swipe_app_key", "",
+            "home_columns", 5,
+        )
+    }
+
+    @Test
+    fun remapSettingsProfiles_infers_the_exporting_profile_of_an_older_file() {
+        // Older files don't record it: serial 0 is the device owner, whose launcher sees its own
+        // apps; a secondary user's launcher never sees serial 0, and its own apps dominate.
+        val owner = BackupMapper.remapSettingsProfiles(mapOf("dock_favorites" to "w/W/10\na/A/0\nb/B/0"), null, 11L)
+        assertThat(owner["dock_favorites"]).isEqualTo("a/A/11\nb/B/11")
+        val secondary = BackupMapper.remapSettingsProfiles(mapOf("dock_favorites" to "a/A/12\nb/B/12\nw/W/13"), null, 0L)
+        assertThat(secondary["dock_favorites"]).isEqualTo("a/A/0\nb/B/0")
+    }
 }
