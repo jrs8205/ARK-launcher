@@ -492,13 +492,18 @@ internal fun Workspace(
         onTap: () -> Unit,
         onStillPress: () -> Unit,
         onRemove: () -> Unit,
-    ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, locked) {
+    // [removable] is a key: a folder's removability changes with its visible apps, and a detector
+    // holding the old value could remove a folder that shows apps again.
+    ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, locked, removable) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             down.consume()
             val slop = viewConfiguration.touchSlop
             var tapped = false
             var swiped = false
+            // Where the finger is when the hold completes — the lift starts there, not at the down
+            // point: the hold tolerates a roll across the icon.
+            var holdPos = down.position
             withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                 while (true) {
                     val ev = awaitPointerEvent()
@@ -507,6 +512,7 @@ internal fun Workspace(
                     c.consume()
                     if (!c.pressed) { tapped = true; return@withTimeoutOrNull }
                     if (!IconPress.staysOnIcon(c.position, size, slop)) { swiped = true; return@withTimeoutOrNull }
+                    holdPos = c.position
                 }
             }
             if (tapped) { onTap(); return@awaitEachGesture }
@@ -521,7 +527,7 @@ internal fun Workspace(
             // Claim the gesture for this local entry so the root swipe-up detector (which runs in the
             // Initial pass, before us) won't steal the first movement after this long-press.
             dragController.localGestureActive = true
-            localDragPos = Offset(entry.cellX * cellW + down.position.x, entry.cellY * cellH + down.position.y)
+            localDragPos = Offset(entry.cellX * cellW + holdPos.x, entry.cellY * cellH + holdPos.y)
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             val dragStartPx = IconPress.DragStartThreshold.toPx()
             try {
@@ -531,7 +537,7 @@ internal fun Workspace(
                     if (!dragController.owns(token)) return@drag
                     localDragPos += delta
                     // Same drag-start threshold as an app icon: a wobbling hold opens the folder / menu.
-                    if (!localMoving && IconPress.startsDrag(change.position, down.position, dragStartPx)) {
+                    if (!localMoving && IconPress.startsDrag(change.position, holdPos, dragStartPx)) {
                         localMoving = true
                         if (removable) dragController.localDragging = true
                     }
@@ -908,6 +914,9 @@ internal fun Workspace(
                                             // long-press); still hold = pick up to drag.
                                             var tapped = false
                                             var swiped = false
+                                            // The lift starts where the finger is when the hold
+                                            // completes (the hold tolerates a roll across the icon).
+                                            var holdPos = down.position
                                             withTimeoutOrNull(
                                                 viewConfiguration.longPressTimeoutMillis,
                                             ) {
@@ -927,6 +936,7 @@ internal fun Workspace(
                                                         swiped = true
                                                         return@withTimeoutOrNull
                                                     }
+                                                    holdPos = c.position
                                                 }
                                             }
                                             if (tapped) {
@@ -940,8 +950,8 @@ internal fun Workspace(
                                             // "moving"); refused while another finger holds a lift.
                                             val token = Any()
                                             val pickup = Offset(
-                                                placed.cellX * cellW + down.position.x,
-                                                placed.cellY * cellH + down.position.y,
+                                                placed.cellX * cellW + holdPos.x,
+                                                placed.cellY * cellH + holdPos.y,
                                             )
                                             if (!dragController.start(
                                                     placed.app,
@@ -965,7 +975,7 @@ internal fun Workspace(
                                                     if (!dragController.owns(token)) return@drag
                                                     dragPos += delta
                                                     if (!dragController.moving &&
-                                                        IconPress.startsDrag(change.position, down.position, dragStartPx)
+                                                        IconPress.startsDrag(change.position, holdPos, dragStartPx)
                                                     ) {
                                                         dragController.beginMove()
                                                     }

@@ -430,7 +430,11 @@ class HomeViewModel @Inject constructor(
 
     /** Removes a folder together with its apps — offered only for a folder that shows no apps (all
      *  of them disabled or gone), which could otherwise never leave its cell. */
-    fun removeFolder(folderId: Long) = viewModelScope.launch { homeLayoutRepository.removeFolder(folderId) }
+    fun removeFolder(folderId: Long) = viewModelScope.launch {
+        // Re-checked against the current state: its apps may have come back since the drag began.
+        val folder = uiState.value.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == folderId }
+        if (folder != null && folder.apps.isEmpty()) homeLayoutRepository.removeFolder(folderId)
+    }
 
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
     fun removeShortcut(rowId: Long) = viewModelScope.launch {

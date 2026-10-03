@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -74,6 +75,9 @@ fun Dock(
     var rowWidthPx by remember { mutableIntStateOf(0) }
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    // The lift [draggingIndex]/[dragOffsetX] belong to. After HOME cancels a lift, a still-held old
+    // finger must neither move nor reset a newer lift's dock state.
+    var liftToken by remember { mutableStateOf<Any?>(null) }
     // Each item's top-left in root coords, so a drag can be reported to the controller in root space.
     val itemRoots = remember { mutableStateMapOf<Int, Offset>() }
     val haptics = LocalHapticFeedback.current
@@ -147,6 +151,8 @@ fun Dock(
                                 val slop = viewConfiguration.touchSlop
                                 var tapped = false
                                 var abandoned = false
+                                // The lift starts where the finger is when the hold completes.
+                                var holdPos = down.position
                                 withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                                     while (true) {
                                         val ev = awaitPointerEvent()
@@ -164,6 +170,7 @@ fun Dock(
                                             abandoned = true
                                             return@withTimeoutOrNull
                                         }
+                                        holdPos = c.position
                                     }
                                 }
                                 if (tapped) {
@@ -176,9 +183,10 @@ fun Dock(
                                 // LONG PRESS → lift (refused while another finger holds one)
                                 val token = Any()
                                 val itemRoot = itemRoots[index] ?: Offset.Zero
-                                if (!dragController.start(app, DragSource.Dock, itemRoot + down.position, token)) {
+                                if (!dragController.start(app, DragSource.Dock, itemRoot + holdPos, token)) {
                                     return@awaitEachGesture
                                 }
+                                liftToken = token
                                 draggingIndex = index
                                 dragOffsetX = 0f
                                 val dragStartPx = IconPress.DragStartThreshold.toPx()
@@ -189,16 +197,17 @@ fun Dock(
                                         // Offset.Zero once the change is consumed, which silently zeroed
                                         // dragOffsetX and broke in-dock reordering (the drag-out path still
                                         // worked because it uses the absolute change.position below).
-                                        dragOffsetX += change.positionChange().x
+                                        val dx = change.positionChange().x
                                         change.consume()
                                         if (!dragController.owns(token)) return@drag
+                                        dragOffsetX += dx
                                         // Only promote to a real move once the finger is pulled past the
                                         // drag-start threshold FROM WHERE IT WAS PICKED UP. A drift during a
                                         // static long-press must stay a long-press so the popup (app
                                         // shortcuts) opens instead of a no-op reorder + 2nd haptic. Summing
                                         // the travelled distance let plain finger jitter cross it.
                                         if (!dragController.moving &&
-                                            IconPress.startsDrag(change.position, down.position, dragStartPx)
+                                            IconPress.startsDrag(change.position, holdPos, dragStartPx)
                                         ) {
                                             dragController.beginMove()
                                         }
@@ -240,8 +249,11 @@ fun Dock(
                                     // mirroring the local-drag path in Workspace, so a dead gesture can't
                                     // leave the shared controller lifted.
                                     dragController.stop(token)
-                                    draggingIndex = -1
-                                    dragOffsetX = 0f
+                                    if (liftToken === token) {
+                                        draggingIndex = -1
+                                        dragOffsetX = 0f
+                                        liftToken = null
+                                    }
                                 }
                             }
                         },

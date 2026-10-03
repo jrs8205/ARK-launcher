@@ -866,6 +866,8 @@ private fun LazyGridScope.appCells(
                         val slop = viewConfiguration.touchSlop
                         // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
                         var outcome = 0
+                        // The lift starts where the finger is when the hold completes.
+                        var holdPos = down.position
                         withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
                             while (true) {
                                 val ev = awaitPointerEvent()
@@ -888,6 +890,7 @@ private fun LazyGridScope.appCells(
                                     outcome = 2
                                     return@withTimeoutOrNull
                                 }
+                                holdPos = c.position
                             }
                         }
                         when (outcome) {
@@ -906,7 +909,7 @@ private fun LazyGridScope.appCells(
                         // the drag, so its local coordinate space stays put and this stays
                         // accurate.
                         val token = Any()
-                        if (!dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position, token)) {
+                        if (!dragController.start(app, DragSource.Drawer, bounds.topLeft + holdPos, token)) {
                             return@awaitEachGesture
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -919,7 +922,7 @@ private fun LazyGridScope.appCells(
                                 // drag-start threshold — otherwise a still long-press (with finger
                                 // jitter) would collapse the drawer instead of just showing the menu.
                                 if (!dragController.moving &&
-                                    IconPress.startsDrag(change.position, down.position, dragStartPx)
+                                    IconPress.startsDrag(change.position, holdPos, dragStartPx)
                                 ) {
                                     dragController.beginMove()
                                     onDragOutStart()
