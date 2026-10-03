@@ -50,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -302,8 +303,6 @@ fun HomeScreen(
 
     // One-shot at startup: free any AppWidgetHost ids with no home_items row — e.g. the old bound ids
     // left over after a full backup restore replaced the layout — so the host doesn't leak widget ids.
-    // The host ids are snapshotted BEFORE the (suspending) DB query: an id allocated while the query
-    // runs is absent from the snapshot and can never be swept; an in-flight bind's id is excluded too.
     LaunchedEffect(widgetHost) {
         val host = widgetHost ?: return@LaunchedEffect
         val hostIds = sweepUnusedHostIds(host) ?: return@LaunchedEffect
@@ -660,8 +659,12 @@ fun HomeScreen(
         // Drop-to-remove zone: a "Poista" pill at the top during any removable home drag (an app, or a
         // pinned shortcut via [localDragging]); dropping an icon on it removes it from home. Turns red
         // while the dragged icon is over it. Publishes its bounds for the drag's hit-test.
+        // derivedStateOf: reading the finger position directly here recomposed the whole home screen
+        // (status bar, workspace, dock) on every pointer frame of every drag.
+        val overRemove by remember(dragController) {
+            derivedStateOf { dragController.isOverRemove(dragController.rootPosition) }
+        }
         if ((dragController.moving && (dragController.source == DragSource.Home || dragController.source == DragSource.Dock)) || dragController.localDragging) {
-            val overRemove = dragController.isOverRemove(dragController.rootPosition)
             Surface(
                 color = if (overRemove) Color(0xFFD32F2F) else Color.Black.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(24.dp),

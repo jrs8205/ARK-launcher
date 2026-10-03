@@ -84,6 +84,7 @@ import kotlinx.coroutines.flow.collectLatest
 import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.model.AppItem
@@ -470,10 +471,12 @@ internal fun Workspace(
         }.collectLatest { direction ->
             if (direction == 0) return@collectLatest
             while (widgetDragController.moving) {
-                delay(550)
+                delay(EDGE_FLIP_DWELL_MS)
                 val next = (pagerState.currentPage + direction).coerceIn(0, pageCount)
                 if (next == pagerState.currentPage) break
-                pagerState.animateScrollToPage(next)
+                // In [scope]: a drop mid-flip restarts this effect, which must not strand the pager.
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(next) }
+                snapshotFlow { pagerState.isScrollInProgress }.first { !it }
             }
         }
     }
@@ -488,7 +491,7 @@ internal fun Workspace(
         onTap: () -> Unit,
         onStillPress: () -> Unit,
         onRemove: () -> Unit,
-    ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, pageCount, locked) {
+    ): Modifier = this.pointerInput(rowId, entry.page, entry.cellX, entry.cellY, cellW, cellH, columns, rows, locked) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             down.consume()
@@ -534,13 +537,6 @@ internal fun Workspace(
                     if (!localMoving) return@drag
                     // Publish root coords so the remove zone can highlight + hit-test this local drag.
                     if (removable) dragController.update(dragController.gridBounds.topLeft + localDragPos)
-                    if (!pagerState.isScrollInProgress) {
-                        if (localDragPos.x > gridSize.width - edgePx && pagerState.currentPage < pageCount) {
-                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                        } else if (localDragPos.x < edgePx && pagerState.currentPage > 0) {
-                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
-                        }
-                    }
                     val cx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
                     val cy = (localDragPos.y / cellH).toInt().coerceIn(0, rows - 1)
                     val nc = IntOffset(cx, cy)
@@ -556,7 +552,9 @@ internal fun Workspace(
                 } else if (live && localMoving) {
                     val tx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
                     val ty = (localDragPos.y / cellH).toInt().coerceIn(0, rows - 1)
-                    val targetPage = pagerState.currentPage
+                    // targetPage, not currentPage: a release while an edge flip is still animating
+                    // lands on the page arriving under the finger, not the one leaving.
+                    val targetPage = pagerState.targetPage
                     if (targetPage != entry.page || tx != entry.cellX || ty != entry.cellY) {
                         localOptimistic = rowId to Triple(targetPage, tx, ty)
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -654,29 +652,37 @@ internal fun Workspace(
         // Allow the always-present trailing page (index == pageCount) so a drawer/dock drop can land on
         // a BRAND-NEW page. Clamping to pageCount-1 made cellAt() report the last existing page, so an
         // app dragged from the drawer onto a new page always saved to the front page instead.
-        snapshotFlow { pagerState.currentPage }
+        snapshotFlow { pagerState.targetPage }
             .collect { dragController.currentPage = it.coerceIn(0, pageCount) }
     }
-    // Cross-page flip for a drawer→home / dock→home drag. The in-home icon and folder/shortcut drags
-    // run their own edge-flip (they own grid-local coords); a drawer/dock drag is owned by another
-    // surface and only feeds the controller a root position, so Workspace watches it here and advances
-    // the pager at the screen edges — letting an app be dropped straight onto any page.
+    // Edge page-flip for every icon drag — a home icon, a folder or shortcut, and a drawer/dock→home
+    // drag — after the same dwell as a widget drag (Launcher3 also waits before scrolling). Flipping on
+    // the first frame at the edge made a finger resting there page on and on. The animation runs in
+    // [scope], not here, so ending the drag mid-flip can't leave the pager stranded between pages.
     LaunchedEffect(pagerState, pageCount) {
         snapshotFlow {
-            if (dragController.moving &&
-                (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock)
-            ) {
-                dragController.rootPosition
-            } else {
-                null
+            val p = when {
+                dragging != null && dragController.moving -> dragPos
+                draggingLocal != null && localMoving -> localDragPos
+                dragController.moving &&
+                    (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock) ->
+                    dragController.rootPosition - dragController.gridBounds.topLeft
+                else -> null
             }
-        }.collect { pos ->
-            if (pos == null || pagerState.isScrollInProgress) return@collect
-            val localX = pos.x - dragController.gridBounds.left
-            if (localX > gridSize.width - edgePx && pagerState.currentPage < pageCount) {
-                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-            } else if (localX < edgePx && pagerState.currentPage > 0) {
-                pagerState.animateScrollToPage(pagerState.currentPage - 1)
+            when {
+                p == null || p.y < 0 || p.y >= gridSize.height -> 0
+                p.x < edgePx -> -1
+                p.x > gridSize.width - edgePx -> 1
+                else -> 0
+            }
+        }.collectLatest { direction ->
+            if (direction == 0) return@collectLatest
+            while (true) {
+                delay(EDGE_FLIP_DWELL_MS)
+                val next = (pagerState.targetPage + direction).coerceIn(0, pageCount)
+                if (next == pagerState.targetPage) break
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(next) }
+                snapshotFlow { pagerState.isScrollInProgress }.first { !it }
             }
         }
     }
@@ -686,13 +692,13 @@ internal fun Workspace(
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = dragging == null && draggingLocal == null && editingWidget == null && widgetDragController.active == null,
-                // While dragging, keep every page composed so flipping to another page can't
-                // dispose the dragged item's node (which would cancel the in-progress drag). Also kept
-                // composed during a drawer/dock→home drag so its target page renders as pages flip.
+                // While an item is MOVING, keep every page composed so flipping to another page can't
+                // dispose the dragged item's node (which would cancel the in-progress drag); this also
+                // covers a drawer/dock→home drag, so its target page renders as pages flip. A still
+                // long-press only lifts — composing every page (widgets, calendar queries) at that
+                // moment made the menu open with a stutter, and no page can flip before a move.
                 beyondViewportPageCount = if (
-                    dragging != null || draggingLocal != null || widgetDragController.active != null ||
-                    (dragController.moving &&
-                        (dragController.source == DragSource.Drawer || dragController.source == DragSource.Dock))
+                    dragController.moving || localMoving || widgetDragController.moving
                 ) pageCount.coerceAtLeast(0) else 0,
                 modifier = Modifier
                     .weight(1f)
@@ -813,6 +819,10 @@ internal fun Workspace(
                     effectiveEntries.asSequence()
                         .filter { it.page == page }
                         .forEach { entry ->
+                            // Keyed by item: without it each slot was bound by position, so a drop
+                            // elsewhere on the page (or a page-count change) re-bound slots and
+                            // restarted their gesture detectors — cancelling a long-press in progress.
+                            key(homeEntryKey(entry)) {
                             when (entry) {
                             is PlacedFolder -> {
                                 val folderBadge = entry.apps.sumOf { badges[it.badgeKey] ?: 0 }
@@ -880,7 +890,7 @@ internal fun Workspace(
                                     }
                                     .pointerInput(
                                         placed.app.key, placed.page, placed.cellX, placed.cellY,
-                                        cellW, cellH, columns, rows, pageCount, locked,
+                                        cellW, cellH, columns, rows, locked,
                                     ) {
                                         awaitEachGesture {
                                             val down = awaitFirstDown(requireUnconsumed = false)
@@ -960,25 +970,6 @@ internal fun Workspace(
                                                     dragController.update(
                                                         dragController.gridBounds.topLeft + dragPos,
                                                     )
-                                                    if (!pagerState.isScrollInProgress) {
-                                                        if (dragPos.x > gridSize.width - edgePx &&
-                                                            pagerState.currentPage < pageCount
-                                                        ) {
-                                                            scope.launch {
-                                                                pagerState.animateScrollToPage(
-                                                                    pagerState.currentPage + 1,
-                                                                )
-                                                            }
-                                                        } else if (dragPos.x < edgePx &&
-                                                            pagerState.currentPage > 0
-                                                        ) {
-                                                            scope.launch {
-                                                                pagerState.animateScrollToPage(
-                                                                    pagerState.currentPage - 1,
-                                                                )
-                                                            }
-                                                        }
-                                                    }
                                                     // Track the cell the icon would land in.
                                                     val cx = (dragPos.x / cellW).toInt()
                                                         .coerceIn(0, columns - 1)
@@ -1041,7 +1032,9 @@ internal fun Workspace(
                                                                 .coerceIn(0, columns - 1)
                                                             val ty = (dragPos.y / cellH).toInt()
                                                                 .coerceIn(0, rows - 1)
-                                                            val targetPage = pagerState.currentPage
+                                                            // The page arriving under the finger, even
+                                                            // while an edge flip is still animating.
+                                                            val targetPage = pagerState.targetPage
                                                             val occupant = latestEntries.firstOrNull {
                                                                 it.page == targetPage && it.cellX == tx && it.cellY == ty &&
                                                                     !(it is PlacedApp && it.app.key == d.app.key)
@@ -1322,6 +1315,7 @@ internal fun Workspace(
                                         }
                                     }
                                 }
+                            }
                             }
                             }
                         }
