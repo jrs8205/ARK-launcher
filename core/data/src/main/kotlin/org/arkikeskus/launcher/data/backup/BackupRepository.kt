@@ -56,21 +56,26 @@ class BackupRepository @Inject constructor(
             missingShortcuts = missingShortcuts(doc.homeItems, installed.packages, ownSerial),
         )
         val restoredSettings = BackupMapper.remapSettingsProfiles(doc.settings, doc.mainUserSerial, ownSerial)
-        // NonCancellable: the caller's scope dies when the user leaves Settings mid-restore. A
-        // cancellation between the two writes would fail the settings write AND the rollback below
-        // (both suspend in an already-cancelled coroutine), leaving the new layout on the old grid.
+        // Settings first, then the layout. Room and DataStore share no transaction, so a process
+        // death between the two writes leaves half a restore whichever goes first; this order makes
+        // it the harmless half. Replacing the layout is the destructive step, so it comes last:
+        // until then the current layout is still stored intact (shown under the backup's settings),
+        // and restoring again finishes the job. Layout-first wiped the layout and could leave the
+        // restored one on the old grid, where items past its columns/rows are invisible rows that
+        // block cells. NonCancellable: the caller's scope dies when the user leaves Settings
+        // mid-restore, and a cancelled coroutine could neither write the layout nor roll back.
         withContext(NonCancellable) {
-            val previous = homeItemDao.getAllOnce()
-            homeItemDao.replaceLayout(mapping.entities)
+            val previousSettings = settings.snapshot()
+            val previousLayout = homeItemDao.getAllOnce()
+            settings.importRaw(restoredSettings)
             try {
-                settings.importRaw(restoredSettings)
+                homeItemDao.replaceLayout(mapping.entities)
             } catch (t: Throwable) {
-                // The layout was already replaced; put the old one back so a failed settings write
-                // never leaves a half-restored home screen (Room and DataStore share no transaction).
-                runCatching { homeItemDao.replaceLayout(previous) }
+                // Put the old settings back so a failed layout write never leaves half a restore.
+                runCatching { settings.restoreSnapshot(previousSettings) }
                 throw t
             }
-            repinShortcuts(previous, mapping.entities)
+            repinShortcuts(previousLayout, mapping.entities)
         }
         return RestoreResult(mapping.entities.size, mapping.skipped)
     }

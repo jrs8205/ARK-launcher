@@ -530,6 +530,14 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    /** Every stored preference exactly as it is, for [restoreSnapshot] (a failed restore's rollback;
+     *  [importRaw] can't put back keys it doesn't know with their original types). */
+    internal suspend fun snapshot(): Preferences = dataStore.data.first()
+
+    internal suspend fun restoreSnapshot(snapshot: Preferences) {
+        dataStore.updateData { snapshot }
+    }
+
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }

@@ -91,4 +91,48 @@ class BackupRepositoryTest {
         assertThat(result.skipped).isEqualTo(1)
         assertThat(resolver.pins).containsExactly("p" to 0L, listOf("kept"), "q" to 0L, emptyList<String>())
     }
+
+    // --- Write order ------------------------------------------------------------------------------
+
+    /** Runs [beforeReplace] right before the layout write, then writes (or, with [fail], throws). */
+    private class ObservedDao(
+        private val inner: HomeItemDao,
+        private val fail: Boolean = false,
+        private val beforeReplace: suspend () -> Unit = {},
+    ) : HomeItemDao by inner {
+        override suspend fun replaceLayout(items: List<org.arkikeskus.launcher.data.local.HomeItemEntity>) {
+            beforeReplace()
+            if (fail) throw IllegalStateException("disk full")
+            inner.replaceLayout(items)
+        }
+    }
+
+    @Test
+    fun restore_writesTheSettingsBeforeTheLayout() = runTest {
+        // A death between the two writes must leave the current layout intact: the destructive
+        // layout replacement is the last step.
+        var columnsWhenTheLayoutWasWritten = 0
+        val observed = ObservedDao(dao) { columnsWhenTheLayoutWasWritten = settings.settings.first().homeColumns }
+        val backup = doc(mapOf("home_columns" to 6), BackupItem(1, -1, null, "a", "A", true, null, 0, 5, 0))
+
+        repo(observed).restoreDocument(backup, installedApps = listOf("a/A/0"))
+
+        assertThat(columnsWhenTheLayoutWasWritten).isEqualTo(6)
+        assertThat(dao.getAll().map { it.key }).containsExactly("a/A/0")
+    }
+
+    @Test
+    fun restore_putsTheSettingsBackWhenTheLayoutWriteFails() = runTest {
+        settings.setHomeColumns(5)
+        settings.addToDock("x/X/0")
+        dao.insert(org.arkikeskus.launcher.data.local.HomeItemEntity(packageName = "x", className = "X", page = 0, cellX = 0, cellY = 0))
+        val backup = doc(mapOf("home_columns" to 6), BackupItem(1, -1, null, "a", "A", true, null, 0, 0, 0))
+
+        val failure = runCatching { repo(ObservedDao(dao, fail = true)).restoreDocument(backup, listOf("a/A/0")) }
+
+        assertThat(failure.isFailure).isTrue()
+        assertThat(settings.settings.first().homeColumns).isEqualTo(5)
+        assertThat(settings.dockFavorites.first()).containsExactly("x/X/0")
+        assertThat(dao.getAll().map { it.key }).containsExactly("x/X/0")
+    }
 }
