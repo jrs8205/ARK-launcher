@@ -44,4 +44,7 @@ interface AppRowResolver {
     /** True while an app is only hidden for now and will come back by itself: its profile is paused
      *  or locked, or the package lives on storage that is currently unmounted. */
     fun isTemporarilyUnavailable(packageName: String, userSerial: Long): Boolean
+
+    /** Serial of the profile the launcher runs in — the one its app widgets are bound in. */
+    fun ownUserSerial(): Long?
 }

@@ -18,4 +18,8 @@ class FakeAppRowResolver : AppRowResolver {
         missing[packageName].orEmpty().intersect(shortcutIds.toSet())
 
     override fun isTemporarilyUnavailable(packageName: String, userSerial: Long): Boolean = packageName in unavailable
+
+    var ownSerial: Long? = 0L
+
+    override fun ownUserSerial(): Long? = ownSerial
 }

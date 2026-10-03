@@ -44,6 +44,7 @@ class HomeLayoutRepositoryTest {
         override fun missingShortcuts(packageName: String, userSerial: Long, shortcutIds: Collection<String>) =
             emptySet<String>()
         override fun isTemporarilyUnavailable(packageName: String, userSerial: Long) = false
+        override fun ownUserSerial(): Long? = 0L
     }
 
     private fun app(pkg: String) = AppItem(

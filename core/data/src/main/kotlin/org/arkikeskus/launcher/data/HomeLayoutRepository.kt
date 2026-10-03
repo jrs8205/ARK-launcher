@@ -502,13 +502,21 @@ class HomeLayoutRepository @Inject constructor(
             plan.delete.size + plan.remap.size
         }
 
-    /** Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
-     *  [userSerial] (widgets, built-ins and folder rows are never touched). */
+    /**
+     * Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
+     * [userSerial], and — when that is the launcher's own profile, where its widgets are bound —
+     * every widget the package provided. Restored placeholders go as well: an uninstall is a
+     * deliberate removal, so the provider is no longer expected back, and a placeholder could never
+     * be set up again (its tap would silently do nothing). The host ids are freed by the caller.
+     * Built-ins and folder rows are never touched.
+     */
     suspend fun removeAppRowsForPackage(packageName: String, userSerial: Long): Int =
         db.withTransaction {
             val all = dao.getAll()
-            val doomed = staleAppRowIds(all) { pkg, serial -> !(pkg == packageName && serial == userSerial) }
-            deleteAndRepairFolders(all, doomed.toSet())
+            val doomed = staleAppRowIds(all) { pkg, serial -> !(pkg == packageName && serial == userSerial) }.toHashSet()
+            val widgets = all.filter { it.widgetProvider?.substringBefore('/') == packageName }
+            if (widgets.isNotEmpty() && userSerial == resolver.ownUserSerial()) widgets.mapTo(doomed) { it.id }
+            deleteAndRepairFolders(all, doomed)
         }
 
     /** Deletes [ids] (rows of [all]) and repairs the folders they left. */

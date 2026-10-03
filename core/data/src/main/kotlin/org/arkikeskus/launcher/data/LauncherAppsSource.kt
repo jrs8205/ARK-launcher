@@ -143,6 +143,9 @@ class LauncherAppsSource @Inject constructor(
         }
     }
 
+    override fun ownUserSerial(): Long? =
+        runCatching { userManager?.getSerialNumberForUser(Process.myUserHandle()) }.getOrNull()?.takeIf { it >= 0 }
+
     fun appsFlow(): Flow<List<AppItem>> = callbackFlow {
         val handler = Handler(Looper.getMainLooper())
 

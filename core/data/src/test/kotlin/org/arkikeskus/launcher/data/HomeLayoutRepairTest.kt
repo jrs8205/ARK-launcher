@@ -261,4 +261,36 @@ class HomeLayoutRepairTest {
 
         assertThat(homeKeys()).containsExactly("a")
     }
+
+    // --- Uninstalled widget providers -----------------------------------------------------------
+
+    private suspend fun widget(provider: String, x: Int, boundId: Int?) = dao.insert(
+        HomeItemEntity(page = 1, cellX = x, cellY = 0, appWidgetId = boundId, widgetProvider = provider),
+    )
+
+    @Test
+    fun packageRemoval_deletesTheProvidersBoundWidgetsAndPlaceholders() = runTest {
+        val bound = widget("w/w.Big", x = 0, boundId = 7)
+        val placeholder = widget("w/w.Small", x = 1, boundId = null)
+        val other = widget("x/x.Clock", x = 2, boundId = 8)
+        val app = homeApp("w", x = 0)
+
+        repo.removeAppRowsForPackage("w", userSerial = 0L)
+
+        assertThat(dao.getAll().map { it.id }).containsExactly(other)
+        assertThat(listOf(bound, placeholder, app).none { dao.getById(it) != null }).isTrue()
+    }
+
+    @Test
+    fun packageRemoval_inAnotherProfile_keepsTheLaunchersWidgets() = runTest {
+        // Widgets are bound in the launcher's own profile; a work copy of the app going away
+        // must not take them along.
+        val bound = widget("w/w.Big", x = 0, boundId = 7)
+
+        repo.removeAppRowsForPackage("w", userSerial = 10L)
+        resolver.ownSerial = null
+        repo.removeAppRowsForPackage("w", userSerial = 0L)
+
+        assertThat(dao.getById(bound)).isNotNull()
+    }
 }
