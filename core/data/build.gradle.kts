@@ -30,11 +30,13 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // JVM unit tests (SettingsRepository with a temp-file DataStore).
+    // JVM unit tests (SettingsRepository with a temp-file DataStore; the home layout and backup
+    // restore against an in-memory Room database under Robolectric).
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.google.truth)
     testImplementation(libs.json)
+    testImplementation(libs.robolectric)
 
     // Instrumented tests (HomeLayoutRepository against a real in-memory Room database).
     androidTestImplementation(libs.androidx.test.ext.junit)

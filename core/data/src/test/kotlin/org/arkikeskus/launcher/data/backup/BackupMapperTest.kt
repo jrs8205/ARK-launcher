@@ -315,19 +315,18 @@ class BackupMapperTest {
     }
 
     @Test
-    fun toEntities_dissolve_may_duplicate_an_app_already_on_home() {
-        // Like the live dissolveIfNeeded, promotion is unconditional: the same app already sitting
-        // on home does not block the folder's last child from taking the folder's cell.
+    fun toEntities_dissolve_drops_a_last_child_whose_app_is_already_on_home() {
+        // Like the live dissolveIfNeeded: a second HOME row of one app breaks drag and remove (the
+        // UI keys icons by app), so the folder's last child goes with the folder and its cell stays empty.
         val items = listOf(
             BackupItem(1, -1, null, "com.a", "A", true, null, 0, 0, 0),
             BackupItem(10, -1, "Tools", "", "", true, null, 0, 1, 0),
             BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(12, 10, null, "com.gone", "G", true, null, 0, 1, 0),
         )
         val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
-        assertThat(mapping.entities.map { it.id }).containsExactly(1L, 11L)
-        val promoted = mapping.entities.first { it.id == 11L }
-        assertThat(promoted.containerId).isEqualTo(HomeItemEntity.HOME)
-        assertThat(promoted.cellX).isEqualTo(1)
+        assertThat(mapping.entities.map { it.id }).containsExactly(1L)
+        assertThat(mapping.skipped).isEqualTo(3) // the uninstalled child, the folder, the duplicate
     }
 
     @Test

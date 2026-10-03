@@ -186,14 +186,20 @@ class HomeLayoutRepository @Inject constructor(
 
     /**
      * Moves [appItem] out of [folderId] back to a free home cell. Re-indexes the remaining children;
-     * if only one is left the folder is dissolved (the last app takes the folder's cell).
+     * if only one is left the folder is dissolved (the last app takes the folder's cell). An app that
+     * already has a home icon merges into it instead: the UI keys icons by app, so a second HOME row
+     * of one app breaks drag and remove (both rows go, one stays invisible).
      */
     suspend fun removeFromFolder(appItem: AppItem, folderId: Long, columns: Int, rows: Int) {
         db.withTransaction {
             val row = dao.getByKey(folderId, appItem.packageName, appItem.className, appItem.userSerial)
                 ?: return@withTransaction
-            val (p, x, y) = firstFreeCell(dao.getContainer(HOME), columns, rows)
-            dao.moveById(row.id, HOME, p, x, y)
+            if (onHome(row)) {
+                dao.deleteById(row.id)
+            } else {
+                val (p, x, y) = firstFreeCell(dao.getContainer(HOME), columns, rows)
+                dao.moveById(row.id, HOME, p, x, y)
+            }
             reindexFolder(folderId)
             dissolveIfNeeded(folderId)
         }
@@ -212,18 +218,28 @@ class HomeLayoutRepository @Inject constructor(
         }
     }
 
-    /** Collapses a folder once it holds a single app (move it out) or none (delete the folder). */
+    /** Collapses a folder once it holds a single app (move it out) or none (delete the folder). A last
+     *  app that already has a home icon is dropped with the folder, leaving the folder's cell empty. */
     private suspend fun dissolveIfNeeded(folderId: Long) {
         val children = dao.getContainerOrdered(folderId)
         when (children.size) {
             0 -> dao.deleteById(folderId)
             1 -> {
                 val folder = dao.getById(folderId) ?: return
+                val last = children.first()
                 dao.deleteById(folderId) // free the home cell first
-                dao.moveById(children.first().id, HOME, folder.page, folder.cellX, folder.cellY)
+                if (onHome(last)) {
+                    dao.deleteById(last.id)
+                } else {
+                    dao.moveById(last.id, HOME, folder.page, folder.cellX, folder.cellY)
+                }
             }
         }
     }
+
+    /** True if [row] is an app that already has its own icon directly on the home screen. */
+    private suspend fun onHome(row: HomeItemEntity): Boolean =
+        row.isApp && dao.getByKey(HOME, row.packageName, row.className, row.userSerial) != null
 
     /**
      * Moves [source] to a target cell in the [HOME] container, swapping with the cell's occupant if
@@ -454,36 +470,43 @@ class HomeLayoutRepository @Inject constructor(
     }
 
     /**
-     * Deletes every row whose app or shortcut is gone per [isInstalled]: an uninstalled app's rows
-     * never render, but they still occupy their cells and silently block placement, resizes and
-     * moves with no visible reason. [isInstalled] must be fail-safe — answer true when unsure
-     * (locked profile, transient error) so a hiccup can never wipe real items.
+     * The once-per-launch ghost sweep. Deletes every row whose app or shortcut is gone per
+     * [isInstalled]: an uninstalled app's rows never render, but they still occupy their cells and
+     * silently block placement, resizes and moves with no visible reason. [isInstalled] must be
+     * fail-safe — answer true when unsure (locked profile, transient error) so a hiccup can never
+     * wipe real items. Also keeps one row per app per container (lowest id): duplicates left by
+     * older versions break drag and remove, which the UI keys by app.
      */
     suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
         db.withTransaction {
             val all = dao.getAll()
-            val stale = staleAppRowIds(all, isInstalled)
-            if (stale.isEmpty()) return@withTransaction 0
-            val staleSet = stale.toHashSet()
-            val touchedFolders = all
-                .filter { it.id in staleSet && it.containerId != HOME }
-                .map { it.containerId }
-                .toSet()
-            stale.forEach { dao.deleteById(it) }
-            // Restore the folder invariants a manual removal keeps: a cellX gap would collide with
-            // addToFolder's childCount-as-index (unique cell index → SQLiteConstraintException),
-            // and a folder left with 0–1 children must dissolve.
-            touchedFolders.forEach { folderId ->
-                reindexFolder(folderId)
-                dissolveIfNeeded(folderId)
-            }
-            stale.size
+            val doomed = staleAppRowIds(all, isInstalled).toHashSet()
+            doomed += duplicateAppRowIds(all.filter { it.id !in doomed })
+            deleteAndRepairFolders(all, doomed)
         }
 
     /** Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
      *  [userSerial] (widgets, built-ins and folder rows are never touched). */
     suspend fun removeAppRowsForPackage(packageName: String, userSerial: Long): Int =
-        removeStaleAppRows { pkg, serial -> !(pkg == packageName && serial == userSerial) }
+        db.withTransaction {
+            val all = dao.getAll()
+            val doomed = staleAppRowIds(all) { pkg, serial -> !(pkg == packageName && serial == userSerial) }
+            deleteAndRepairFolders(all, doomed.toSet())
+        }
+
+    /** Deletes [ids] (rows of [all]) and restores the folder invariants a manual removal keeps: a
+     *  cellX gap would collide with addToFolder's childCount-as-index (unique cell index →
+     *  SQLiteConstraintException), and a folder left with 0–1 children must dissolve. */
+    private suspend fun deleteAndRepairFolders(all: List<HomeItemEntity>, ids: Set<Long>): Int {
+        if (ids.isEmpty()) return 0
+        val touchedFolders = all.filter { it.id in ids && it.containerId != HOME }.map { it.containerId }.toSet()
+        ids.forEach { dao.deleteById(it) }
+        touchedFolders.forEach { folderId ->
+            reindexFolder(folderId)
+            dissolveIfNeeded(folderId)
+        }
+        return ids.size
+    }
 
     companion object {
         /** DEFAULT rows per home page — the live value is the user's homeRows setting (5..8);
@@ -538,6 +561,14 @@ class HomeLayoutRepository @Inject constructor(
                     }
             }.map { it.id }
         }
+
+        /** Every app row past the first (lowest id) of its app key within one container — HOME or a
+         *  folder. The same app on home AND inside a folder is legitimate and kept. */
+        fun duplicateAppRowIds(items: List<HomeItemEntity>): List<Long> =
+            items.filter { it.isApp }
+                .groupBy { it.containerId to it.key }
+                .values
+                .flatMap { rows -> rows.sortedBy { it.id }.drop(1).map { it.id } }
 
         /** True if a [spanX]×[spanY] rect at (page,cellX,cellY) is on-grid and free of every item
          *  except [excludeRowId] (so a widget never blocks its own move/resize). */

@@ -149,10 +149,12 @@ object BackupMapper {
         // under-filled folder (children dropped above as uninstalled): a folder restored with zero
         // children would be stuck on the grid forever — folders have no delete affordance and an
         // empty one has nothing to long-press — and a single-child folder dissolves to that app on
-        // the folder's own cell, exactly like the live paths. Promotion is unconditional (a
-        // duplicate of an app already on home is allowed), matching dissolveIfNeeded.
+        // the folder's own cell, exactly like the live paths. Also like dissolveIfNeeded, a last
+        // child whose app is already on home goes with the folder (two HOME rows of one app break
+        // drag and remove) and the folder's cell stays empty.
         val childCounts = kept.filter { it.containerId != HomeItemEntity.HOME }
             .groupingBy { it.containerId }.eachCount()
+        val homeAppKeys = kept.filter { it.containerId == HomeItemEntity.HOME && it.isApp }.map { it.key }.toSet()
         val dissolving = HashMap<Long, HomeItemEntity>()
         val dropped = HashSet<Long>()
         for (folder in kept) {
@@ -167,6 +169,7 @@ object BackupMapper {
             val folder = dissolving[e.containerId]
             when {
                 e.folderName != null && (e.id in dropped || e.id in dissolving) -> null
+                folder != null && e.key in homeAppKeys -> { skipped++; null }
                 folder != null ->
                     e.copy(containerId = HomeItemEntity.HOME, page = folder.page, cellX = folder.cellX, cellY = folder.cellY)
                 else -> e

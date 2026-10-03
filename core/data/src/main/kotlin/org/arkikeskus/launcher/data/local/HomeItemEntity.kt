@@ -54,6 +54,11 @@ data class HomeItemEntity(
 
     val isBuiltin: Boolean get() = builtinType != null
 
+    /** A plain app icon (on home or inside a folder), resolved through [key]. */
+    val isApp: Boolean
+        get() = folderName == null && shortcutId == null && widgetProvider == null &&
+            builtinType == null && packageName.isNotEmpty()
+
     /** True for any row that occupies a spanX×spanY footprint (an app widget — bound or a restored
      *  placeholder — or a built-in widget); everything else is 1×1. */
     val hasFootprint: Boolean get() = widgetProvider != null || builtinType != null
