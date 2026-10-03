@@ -146,6 +146,18 @@ class LauncherAppsSource @Inject constructor(
     override fun ownUserSerial(): Long? =
         runCatching { userManager?.getSerialNumberForUser(Process.myUserHandle()) }.getOrNull()?.takeIf { it >= 0 }
 
+    override fun pinShortcuts(packageName: String, userSerial: Long, shortcutIds: List<String>): Boolean = try {
+        val user = availableProfile(userSerial)
+        if (user == null || !launcherApps.hasShortcutHostPermission()) {
+            false
+        } else {
+            launcherApps.pinShortcuts(packageName, shortcutIds, user)
+            true
+        }
+    } catch (e: Exception) {
+        false
+    }
+
     fun appsFlow(): Flow<List<AppItem>> = callbackFlow {
         val handler = Handler(Looper.getMainLooper())
 

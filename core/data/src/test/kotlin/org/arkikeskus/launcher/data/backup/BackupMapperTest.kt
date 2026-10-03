@@ -472,4 +472,38 @@ class BackupMapperTest {
         val secondary = BackupMapper.remapSettingsProfiles(mapOf("dock_favorites" to "a/A/12\nb/B/12\nw/W/13"), null, 0L)
         assertThat(secondary["dock_favorites"]).isEqualTo("a/A/0\nb/B/0")
     }
+
+    // --- Pinned shortcuts ------------------------------------------------------------------------
+
+    @Test
+    fun toEntities_skips_shortcuts_the_system_no_longer_has() {
+        val items = listOf(
+            BackupItem(1, -1, null, "com.p", "", true, "kept", 0, 0, 0),
+            BackupItem(2, -1, null, "com.p", "", true, "gone", 0, 1, 0),
+        )
+        val mapping = BackupMapper.toEntities(
+            items, 42L, emptySet(), setOf("com.p"), emptySet(), columns = 4,
+            missingShortcuts = setOf("com.p" to "gone"),
+        )
+        assertThat(mapping.entities.map { it.shortcutId }).containsExactly("kept")
+        assertThat(mapping.skipped).isEqualTo(1)
+    }
+
+    @Test
+    fun toEntities_skips_a_shortcut_inside_a_folder() {
+        // Folders render only apps: a shortcut child would be an invisible extra child.
+        val items = listOf(
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),
+            BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(12, 10, null, "com.b", "B", true, null, 0, 1, 0),
+            BackupItem(13, 10, null, "com.p", "", true, "s", 0, 2, 0),
+        )
+        val mapping = toEntities(
+            items,
+            installedAppKeys = setOf("com.a/A", "com.b/B"),
+            installedPackages = setOf("com.a", "com.b", "com.p"),
+        )
+        assertThat(mapping.entities.map { it.id }).containsExactly(10L, 11L, 12L)
+        assertThat(mapping.skipped).isEqualTo(1)
+    }
 }

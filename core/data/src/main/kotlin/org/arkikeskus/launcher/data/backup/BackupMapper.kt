@@ -42,7 +42,8 @@ object BackupMapper {
      * spanX×spanY footprints (a start-cell-only check let a restored widget cover other items),
      * folder children against surviving folder rows, known builtin types, well-formed widget
      * providers, and one instance per app per container. [widgetPackages] covers widget-only apps
-     * that have no launcher activity and so are absent from [installedPackages].
+     * that have no launcher activity and so are absent from [installedPackages]. A pinned shortcut
+     * listed in [missingShortcuts] (package to shortcut id) is one the system no longer has here.
      */
     fun toEntities(
         items: List<BackupItem>,
@@ -52,6 +53,7 @@ object BackupMapper {
         widgetPackages: Set<String>,
         columns: Int,
         gridRows: Int = HomeLayoutRepository.ROWS,
+        missingShortcuts: Set<Pair<String, String>> = emptySet(),
     ): RestoreMapping {
         val cols = columns.coerceIn(SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS)
         val rows = gridRows.coerceIn(SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS)
@@ -75,7 +77,8 @@ object BackupMapper {
                 }
                 it.folderName != null -> true
                 !it.mainProfile -> false                                        // v1: main profile only
-                it.shortcutId != null -> it.packageName in installedPackages    // pinned shortcut
+                it.shortcutId != null ->                                        // pinned shortcut
+                    it.packageName in installedPackages && (it.packageName to it.shortcutId) !in missingShortcuts
                 else -> "${it.packageName}/${it.className}" in installedAppKeys // app
             }
             if (!keep) { skipped++; continue }
@@ -115,7 +118,8 @@ object BackupMapper {
                 it.containerId !in keptFolderIds -> false
                 it.builtinType != null || it.widgetProvider != null || it.folderName != null -> false
                 !it.mainProfile -> false
-                it.shortcutId != null -> it.packageName in installedPackages
+                // Folders render only apps: a shortcut child would be an invisible extra child.
+                it.shortcutId != null -> false
                 else -> "${it.packageName}/${it.className}" in installedAppKeys
             }
             if (!keep) { skipped++; continue }

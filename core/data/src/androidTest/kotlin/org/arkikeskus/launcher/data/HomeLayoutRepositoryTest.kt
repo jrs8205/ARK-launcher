@@ -45,6 +45,7 @@ class HomeLayoutRepositoryTest {
             emptySet<String>()
         override fun isTemporarilyUnavailable(packageName: String, userSerial: Long) = false
         override fun ownUserSerial(): Long? = 0L
+        override fun pinShortcuts(packageName: String, userSerial: Long, shortcutIds: List<String>) = false
     }
 
     private fun app(pkg: String) = AppItem(

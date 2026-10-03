@@ -22,4 +22,12 @@ class FakeAppRowResolver : AppRowResolver {
     var ownSerial: Long? = 0L
 
     override fun ownUserSerial(): Long? = ownSerial
+
+    /** The last pin set written per (package, profile). */
+    val pins = LinkedHashMap<Pair<String, Long>, List<String>>()
+
+    override fun pinShortcuts(packageName: String, userSerial: Long, shortcutIds: List<String>): Boolean {
+        pins[packageName to userSerial] = shortcutIds
+        return true
+    }
 }

@@ -72,4 +72,23 @@ class BackupRepositoryTest {
         assertThat(settings.dockFavorites.first()).containsExactly("a/A/0")
         assertThat(settings.settings.first().leftSwipeAppKey).isEqualTo("a/A/0")
     }
+
+    @Test
+    fun restore_dropsShortcutsTheSystemNoLongerHas_andPinsTheRest() = runTest {
+        resolver.ownSerial = 0L
+        resolver.missing["p"] = setOf("gone")
+        // The layout being replaced pinned a shortcut of another app: its pin is released.
+        dao.insert(org.arkikeskus.launcher.data.local.HomeItemEntity(packageName = "q", shortcutId = "old", page = 0, cellX = 0, cellY = 0))
+        val backup = doc(
+            mapOf("home_columns" to 4),
+            BackupItem(1, -1, null, "p", "", true, "kept", 0, 0, 0),
+            BackupItem(2, -1, null, "p", "", true, "gone", 0, 1, 0),
+        )
+
+        val result = repo().restoreDocument(backup, installedApps = listOf("p/P/0"))
+
+        assertThat(dao.getAll().map { it.shortcutId }).containsExactly("kept")
+        assertThat(result.skipped).isEqualTo(1)
+        assertThat(resolver.pins).containsExactly("p" to 0L, listOf("kept"), "q" to 0L, emptyList<String>())
+    }
 }

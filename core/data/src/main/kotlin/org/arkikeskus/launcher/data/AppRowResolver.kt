@@ -47,4 +47,8 @@ interface AppRowResolver {
 
     /** Serial of the profile the launcher runs in — the one its app widgets are bound in. */
     fun ownUserSerial(): Long?
+
+    /** Replaces the system pin set of (package, profile) with exactly [shortcutIds]; false when the
+     *  system refused (not the default home app, profile unavailable). */
+    fun pinShortcuts(packageName: String, userSerial: Long, shortcutIds: List<String>): Boolean
 }
