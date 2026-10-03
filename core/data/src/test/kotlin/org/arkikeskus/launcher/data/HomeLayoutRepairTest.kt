@@ -293,4 +293,39 @@ class HomeLayoutRepairTest {
 
         assertThat(dao.getById(bound)).isNotNull()
     }
+
+    // --- Removing a page that looks empty --------------------------------------------------------
+
+    @Test
+    fun purgePage_keepsAPageWhoseAppsAreOnlyHiddenForNow() = runTest {
+        // A paused work profile's icons don't render, so the page looks empty; deleting them would
+        // lose the user's layout the moment the profile is switched back on.
+        dao.insert(HomeItemEntity(packageName = "work", className = "work.Main", userSerial = 10, page = 1, cellX = 0, cellY = 0))
+        homeApp("b", x = 0).also { dao.moveById(it, HOME, 2, 0, 0) }
+        resolver.unavailable += "work"
+
+        assertThat(repo.removeEmptyPage(1, purge = true)).isFalse()
+
+        assertThat(dao.getContainer(HOME).map { it.packageName to it.page }).containsExactly("work" to 1, "b" to 2)
+    }
+
+    @Test
+    fun purgePage_keepsAPageWhoseFolderHoldsAppsHiddenForNow() = runTest {
+        val f = folder(0, "sd", "other")
+        dao.moveById(f, HOME, 1, 0, 0)
+        resolver.unavailable += "sd"
+
+        assertThat(repo.removeEmptyPage(1, purge = true)).isFalse()
+        assertThat(dao.getContainerOrdered(f)).hasSize(2)
+    }
+
+    @Test
+    fun purgePage_stillDeletesRowsThatCanNeverShow() = runTest {
+        dao.insert(HomeItemEntity(packageName = "disabled", className = "d.Main", page = 1, cellX = 0, cellY = 0))
+        homeApp("b", x = 0).also { dao.moveById(it, HOME, 2, 0, 0) }
+
+        assertThat(repo.removeEmptyPage(1, purge = true)).isTrue()
+
+        assertThat(dao.getContainer(HOME).map { it.packageName to it.page }).containsExactly("b" to 1)
+    }
 }

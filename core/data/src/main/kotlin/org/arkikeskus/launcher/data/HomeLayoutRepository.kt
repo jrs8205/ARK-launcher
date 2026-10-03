@@ -387,11 +387,18 @@ class HomeLayoutRepository @Inject constructor(
      * Removes page [page] and closes the gap. With [purge], rows still stored on the page are deleted
      * first — the ones the home screen cannot show (an app the user disabled, a shortcut its app
      * dropped, a widget whose provider is gone) and that would otherwise keep an empty-looking page
-     * alive forever. Without it, false (and no change) when the page holds anything.
+     * alive forever. Rows hidden only for now (a paused work profile, an app on unmounted storage)
+     * come back by themselves, so they are never purged: the page stays and the result is false.
+     * Without [purge], false (and no change) when the page holds anything.
      */
     suspend fun removeEmptyPage(page: Int, purge: Boolean = false): Boolean = db.withTransaction {
         if (purge) {
             val folders = dao.folderIdsOnPage(HOME, page)
+            val rows = dao.getContainer(HOME).filter { it.page == page } + folders.flatMap { dao.getContainer(it) }
+            val owners = rows.filter { it.packageName.isNotEmpty() }.map { it.packageName to it.userSerial }.toSet()
+            if (owners.any { (pkg, serial) -> resolver.isTemporarilyUnavailable(pkg, serial) }) {
+                return@withTransaction false
+            }
             if (folders.isNotEmpty()) dao.deleteByContainers(folders)
             dao.deleteOnPage(HOME, page)
         } else if (dao.countOnPage(HOME, page) > 0) {
