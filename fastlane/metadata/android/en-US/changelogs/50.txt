@@ -1,0 +1,9 @@
+Fixed
+- Widgets no longer flash empty when you switch pages.
+- Steadier long-press: the menu opens even if your finger moves a little, and an icon moves only when you really drag it.
+- At the screen edge a drag waits before turning the page, and the drop lands on the page you see.
+- Leftovers are cleaned up: duplicate icons, icons of apps that changed their launcher entry, empty folders.
+
+Changed
+- The weather's place name comes from your phone; looking it up from BigDataCloud is now opt-in.
+- The widget page arrows are gone; drag to the edge instead.
