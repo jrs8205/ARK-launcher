@@ -386,11 +386,23 @@ class SettingsRepository @Inject constructor(
      * Inserts [key] into the dock favorites at [index] (clamped), used when an icon is dragged into
      * the dock. Any existing occurrence is removed first, so this also re-positions a key already in
      * the dock and never creates duplicates.
+     *
+     * The dock shows only favorites whose app resolves, so the drop index counts those. Given the
+     * [resolvableKeys], [index] is read in that shown order and the key lands right before the shown
+     * favorite at that position (or right after the last shown one); without it, [index] is a raw
+     * position and uninstalled favorites in between shift the drop.
      */
-    suspend fun addToDockAt(key: String, index: Int) = edit { p ->
+    suspend fun addToDockAt(key: String, index: Int, resolvableKeys: Set<String>? = null) = edit { p ->
         val current = currentFavorites(p).toMutableList()
         current.remove(key)
-        current.add(index.coerceIn(0, current.size), key)
+        val at = if (resolvableKeys == null) {
+            index.coerceIn(0, current.size)
+        } else {
+            val shown = current.indices.filter { current[it] in resolvableKeys }
+            val i = index.coerceIn(0, shown.size)
+            if (i < shown.size) shown[i] else (shown.lastOrNull()?.plus(1) ?: 0)
+        }
+        current.add(at, key)
         p[Keys.DOCK_FAVORITES] = current.joinToString("\n")
     }
 

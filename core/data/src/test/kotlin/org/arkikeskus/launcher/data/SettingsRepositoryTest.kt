@@ -132,6 +132,38 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `addToDockAt counts the drop index over the favorites the dock shows`() = runTest {
+        val repo = newRepository()
+        listOf("ghost", "a", "b").forEach { repo.addToDock(it) }
+
+        // An uninstalled favorite isn't shown: the dock reads [a, b] and the drop lands between them.
+        repo.addToDockAt("x", index = 1, resolvableKeys = setOf("a", "b", "x"))
+
+        assertThat(repo.dockFavorites.first()).containsExactly("ghost", "a", "x", "b").inOrder()
+    }
+
+    @Test
+    fun `addToDockAt at the end of the shown dock goes after its last shown favorite`() = runTest {
+        val repo = newRepository()
+        listOf("a", "ghost", "b", "ghost2").forEach { repo.addToDock(it) }
+
+        repo.addToDockAt("x", index = 2, resolvableKeys = setOf("a", "b"))
+        repo.addToDockAt("y", index = 0, resolvableKeys = setOf("a", "b"))
+
+        assertThat(repo.dockFavorites.first()).containsExactly("y", "a", "ghost", "b", "x", "ghost2").inOrder()
+    }
+
+    @Test
+    fun `addToDockAt repositions a shown favorite past an uninstalled one`() = runTest {
+        val repo = newRepository()
+        listOf("ghost", "a", "b", "c").forEach { repo.addToDock(it) }
+
+        repo.addToDockAt("c", index = 0, resolvableKeys = setOf("a", "b", "c"))
+
+        assertThat(repo.dockFavorites.first()).containsExactly("ghost", "c", "a", "b").inOrder()
+    }
+
+    @Test
     fun `searchContacts defaults to false and round-trips`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().searchContacts).isFalse()
