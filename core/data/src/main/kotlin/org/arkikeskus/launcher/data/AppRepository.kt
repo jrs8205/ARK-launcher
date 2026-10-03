@@ -2,11 +2,13 @@ package org.arkikeskus.launcher.data
 
 import android.os.UserHandle
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.di.ApplicationScope
 import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
@@ -53,10 +55,20 @@ class AppRepository @Inject constructor(
     fun isAppInstalled(packageName: String, userSerial: Long): Boolean =
         source.isAppInstalled(packageName, userSerial)
 
-    /** Launches [appItem]; on success, records the launch for the "most used" ranking (fire-and-forget). */
+    /** Points the app keys kept in the settings (dock, hidden apps, custom labels, drawer folders,
+     *  the left-swipe app) at an app's new launcher activity after it renamed or swapped it — see
+     *  [renamedAppKeys]. Run once per launch, next to the home rows' sweep. */
+    suspend fun followRenamedActivitiesInSettings() {
+        val renames = withContext(Dispatchers.IO) {
+            renamedAppKeys(settingsRepository.referencedAppKeys(), source)
+        }
+        settingsRepository.renameAppKeys(renames)
+    }
+
     /** See [LauncherAppsSource.launchClassName]. */
     fun launchClassName(packageName: String, user: UserHandle): String? = source.launchClassName(packageName, user)
 
+    /** Launches [appItem]; on success, records the launch for the "most used" ranking (fire-and-forget). */
     fun launch(appItem: AppItem): Result<Unit> {
         val result = source.launch(appItem)
         if (result.isSuccess) scope.launch { appUsageRepository.recordLaunch(appItem.key) }

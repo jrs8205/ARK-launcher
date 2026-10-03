@@ -1,5 +1,23 @@
 package org.arkikeskus.launcher.data
 
+/**
+ * App keys ("package/class/userSerial", AppItem.key) whose launcher activity is gone while the
+ * package, installed and enabled, now has exactly one → the key of that activity. Same rule as the
+ * home rows' sweep, except that nothing is ever dropped: a stale key in the settings is harmless.
+ */
+fun renamedAppKeys(keys: Collection<String>, resolver: AppRowResolver): Map<String, String> {
+    val renames = HashMap<String, String>()
+    for (key in keys) {
+        val parts = key.split('/')
+        val serial = parts.getOrNull(2)?.toLongOrNull()
+        if (parts.size != 3 || serial == null) continue
+        val now = resolver.launchTargets(parts[0], serial) as? PackageTargets.Launchable ?: continue
+        if (parts[1] in now.classNames) continue
+        now.classNames.singleOrNull()?.let { renames[key] = "${parts[0]}/$it/$serial" }
+    }
+    return renames
+}
+
 /** What the system says about one (package, profile) when the home layout is repaired. */
 sealed interface PackageTargets {
     /** No definitive answer: a paused or locked profile, a disabled or missing package, a failed

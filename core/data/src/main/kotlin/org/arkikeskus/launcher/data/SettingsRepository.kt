@@ -405,6 +405,31 @@ class SettingsRepository @Inject constructor(
         p[Keys.DOCK_FAVORITES] = (normalizedVisible + hiddenTail).joinToString("\n")
     }
 
+    /** Every app key the settings refer to: dock, hidden apps, custom labels, drawer folders and the
+     *  left-swipe app (see [APP_KEY_PREFS]). */
+    suspend fun referencedAppKeys(): Set<String> {
+        val prefs = dataStore.data.first()
+        val keys = LinkedHashSet<String>()
+        for (name in APP_KEY_PREFS) {
+            val raw = prefs[stringPreferencesKey(name)] ?: continue
+            rewriteAppKeys(name, raw) { keys += it; it }
+        }
+        return keys
+    }
+
+    /** Replaces app keys per [renames] in every setting that refers to apps, in one write; a renamed
+     *  entry that meets its new key collapses into it (see [rewriteAppKeys]). */
+    suspend fun renameAppKeys(renames: Map<String, String>) {
+        if (renames.isEmpty()) return
+        edit { p ->
+            for (name in APP_KEY_PREFS) {
+                val key = stringPreferencesKey(name)
+                val raw = p[key] ?: continue
+                p[key] = rewriteAppKeys(name, raw) { renames[it] ?: it }
+            }
+        }
+    }
+
     private fun currentFavorites(p: MutablePreferences): List<String> =
         p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
 
@@ -593,6 +618,35 @@ class SettingsRepository @Inject constructor(
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
         )
+
+        /** Preferences whose values hold app keys ("package/class/userSerial", AppItem.key). */
+        val APP_KEY_PREFS = setOf("dock_favorites", "hidden_apps", "custom_labels", "drawer_folders", "left_swipe_app_key")
+
+        /**
+         * Rewrites each app key inside the value [raw] of the [APP_KEY_PREFS] preference [name] with
+         * [transform]; null drops that entry (a dock or hidden entry, a label line, a drawer-folder
+         * member, the left-swipe app). Duplicates a rewrite creates collapse into the first one.
+         * Folders that end up empty stay (an empty drawer folder is a normal state), and any other
+         * preference comes back unchanged.
+         */
+        fun rewriteAppKeys(name: String, raw: String, transform: (String) -> String?): String {
+            val lines = raw.split("\n").filter { it.isNotEmpty() }
+            return when (name) {
+                "dock_favorites", "hidden_apps" -> lines.mapNotNull(transform).distinct().joinToString("\n")
+                "custom_labels" -> lines.mapNotNull { line ->
+                    val tab = line.indexOf('\t')
+                    if (tab <= 0) line else transform(line.substring(0, tab))?.let { it + line.substring(tab) }
+                }.distinctBy { it.substringBefore('\t') }.joinToString("\n")
+                "drawer_folders" -> lines.joinToString("\n") { line ->
+                    val fields = line.split('\t')
+                    if (fields.size <= 2) line
+                    else (fields.take(2) + fields.drop(2).filter { it.isNotEmpty() }.mapNotNull(transform).distinct())
+                        .joinToString("\t")
+                }
+                "left_swipe_app_key" -> if (raw.isBlank()) raw else transform(raw.trim()).orEmpty()
+                else -> raw
+            }
+        }
 
         /** Device-local bookkeeping keys excluded from an exported backup and never imported.
          *  The `drive_*`/`update_*` names are ≤0.7.11 leftovers (the Drive backup and in-app
