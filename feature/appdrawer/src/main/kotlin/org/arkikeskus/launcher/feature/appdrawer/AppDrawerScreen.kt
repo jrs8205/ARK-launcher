@@ -905,12 +905,16 @@ private fun LazyGridScope.appCells(
                         // position. The drawer is hidden with alpha (not translated) during
                         // the drag, so its local coordinate space stays put and this stays
                         // accurate.
-                        dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position)
+                        val token = Any()
+                        if (!dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position, token)) {
+                            return@awaitEachGesture
+                        }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         val dragStartPx = IconPress.DragStartThreshold.toPx()
                         try {
                             val completed = drag(down.id) { change ->
                                 change.consume()
+                                if (!dragController.owns(token)) return@drag
                                 // Only commit to a drag-out once the finger is pulled past the
                                 // drag-start threshold — otherwise a still long-press (with finger
                                 // jitter) would collapse the drawer instead of just showing the menu.
@@ -924,7 +928,9 @@ private fun LazyGridScope.appCells(
                                     dragController.update(bounds.topLeft + change.position)
                                 }
                             }
-                            if (completed && dragController.moving) {
+                            // Nothing on release once HOME cancelled the lift.
+                            val live = completed && dragController.owns(token)
+                            if (live && dragController.moving) {
                                 val root = dragController.rootPosition
                                 when {
                                     dragController.isOverDock(root) && dragController.dockHasSpace ->
@@ -935,7 +941,7 @@ private fun LazyGridScope.appCells(
                                     }
                                 }
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            } else if (completed) {
+                            } else if (live) {
                                 // No movement → static long-press → show the menu by the icon.
                                 onAppLongClick(app, bounds)
                             }
@@ -943,7 +949,7 @@ private fun LazyGridScope.appCells(
                             // Reset even on cancellation (node disposed / pointerInput restarted),
                             // mirroring Workspace's local-drag path, so a dead gesture can't leave
                             // the shared controller lifted.
-                            dragController.stop()
+                            dragController.stop(token)
                         }
                     }
                 }

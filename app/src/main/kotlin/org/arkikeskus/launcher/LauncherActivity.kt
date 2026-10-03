@@ -12,6 +12,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
@@ -29,8 +30,13 @@ class LauncherActivity : ComponentActivity() {
     /** Emits on every HOME intent (onNewIntent). The payload is Launcher3's "alreadyOnHome": true
      *  when HOME was pressed while the launcher was already the foreground app (→ snap the workspace
      *  back to the first page), false when the user is coming home from another app (→ keep the page
-     *  they launched from; popups/drawer still get dismissed by the collectors). */
-    private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+     *  they launched from; popups/drawer still get dismissed by the collectors). DROP_OLDEST: a
+     *  collector still animating the previous press must get the latest one — tryEmit with a plain
+     *  buffer of one dropped a third quick press, so the drawer stayed open. */
+    private val homeSignals = MutableSharedFlow<Boolean>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     /** True between onResume and onStop. Device-verified (Pixel 8a, Android 17): the lifecycle STATE
      *  cannot tell the two HOME cases apart — the system STARTs the launcher during the app-close

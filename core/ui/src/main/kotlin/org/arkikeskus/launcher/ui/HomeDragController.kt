@@ -81,12 +81,35 @@ class HomeDragController {
     fun isOverScrollableWidget(p: Offset): Boolean =
         scrollableWidgetRects.values.any { !it.isEmpty && it.contains(p) }
 
-    /** Lift [app] (long-press) — menu shows; not yet "moving". */
-    fun start(app: AppItem, from: DragSource, root: Offset) {
+    /**
+     * The gesture holding the current lift — an app icon on any surface, or a home folder/shortcut.
+     * A second finger's long-press is refused while one is held: it used to overwrite this shared
+     * state, so the first finger's release dropped the OTHER item. Same rule as WidgetDragController.
+     */
+    private var owner: Any? = null
+
+    /** Claims the lift for [token]; false while another gesture holds it. */
+    fun claim(token: Any): Boolean {
+        if (owner != null && owner !== token) return false
+        owner = token
+        return true
+    }
+
+    /** False once the lift was cancelled ([cancel]) — the gesture must then drop nothing on release. */
+    fun owns(token: Any): Boolean = owner === token
+
+    fun release(token: Any) {
+        if (owner === token) owner = null
+    }
+
+    /** Lift [app] (long-press) for [token] — menu shows; not yet "moving". False if refused. */
+    fun start(app: AppItem, from: DragSource, root: Offset, token: Any): Boolean {
+        if (!claim(token)) return false
         draggedApp = app
         source = from
         rootPosition = root
         moving = false
+        return true
     }
 
     fun update(root: Offset) {
@@ -98,9 +121,20 @@ class HomeDragController {
         moving = true
     }
 
-    fun stop() {
+    fun stop(token: Any) {
+        if (owner !== token) return
         draggedApp = null
         moving = false
+        owner = null
+    }
+
+    /** HOME: ends whatever lift is held; its gesture sees [owns] turn false and drops nothing. */
+    fun cancel() {
+        draggedApp = null
+        moving = false
+        localDragging = false
+        localGestureActive = false
+        owner = null
     }
 
     fun isOverDock(p: Offset): Boolean = !dockBounds.isEmpty && dockBounds.contains(p)

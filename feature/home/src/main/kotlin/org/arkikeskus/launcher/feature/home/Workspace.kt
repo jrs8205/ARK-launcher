@@ -497,7 +497,9 @@ internal fun Workspace(
             if (swiped) return@awaitEachGesture
             // Desktop locked: long-press does nothing (no move/remove); tap (above) still opens.
             if (locked) return@awaitEachGesture
-            // PICK UP
+            // PICK UP — refused while another finger holds a lift (see HomeDragController.claim).
+            val token = Any()
+            if (!dragController.claim(token)) return@awaitEachGesture
             draggingLocal = entry
             localMoving = false
             // Claim the gesture for this local entry so the root swipe-up detector (which runs in the
@@ -510,6 +512,7 @@ internal fun Workspace(
                 val completed = drag(down.id) { change ->
                     val delta = change.positionChange()
                     change.consume()
+                    if (!dragController.owns(token)) return@drag
                     localDragPos += delta
                     // Same drag-start threshold as an app icon: a wobbling hold opens the folder / menu.
                     if (!localMoving && IconPress.startsDrag(change.position, down.position, dragStartPx)) {
@@ -533,10 +536,12 @@ internal fun Workspace(
                 }
                 targetCell = null
                 val rootPos = dragController.gridBounds.topLeft + localDragPos
-                if (completed && localMoving && removable && dragController.isOverRemove(rootPos)) {
+                // Nothing on release once HOME cancelled the lift.
+                val live = completed && dragController.owns(token)
+                if (live && localMoving && removable && dragController.isOverRemove(rootPos)) {
                     onRemove()
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                } else if (completed && localMoving) {
+                } else if (live && localMoving) {
                     val tx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
                     val ty = (localDragPos.y / cellH).toInt().coerceIn(0, rows - 1)
                     val targetPage = pagerState.currentPage
@@ -547,16 +552,20 @@ internal fun Workspace(
                             if (!onMoveFolder(rowId, targetPage, tx, ty)) localOptimistic = null
                         }
                     }
-                } else if (completed) {
+                } else if (live) {
                     onStillPress()
                 }
             } finally {
                 // Reset even on cancellation (node disposed / pointerInput restarted), so a stuck flag
-                // can never leave the root swipe detector permanently disabled.
-                dragController.localDragging = false
-                dragController.localGestureActive = false
-                draggingLocal = null
-                localMoving = false
+                // can never leave the root swipe detector permanently disabled. A lift HOME already
+                // cancelled was reset there, and the state may belong to a newer gesture by now.
+                if (dragController.owns(token)) {
+                    dragController.localDragging = false
+                    dragController.localGestureActive = false
+                    draggingLocal = null
+                    localMoving = false
+                    dragController.release(token)
+                }
             }
         }
     }
@@ -573,6 +582,12 @@ internal fun Workspace(
     LaunchedEffect(homeSignals, pageCount, homeIndex) {
         homeSignals.collect { alreadyOnHome ->
             widgetDragController.cancel()
+            // A held icon, folder or shortcut lift ends too; its gesture drops nothing on release.
+            dragController.cancel()
+            dragging = null
+            draggingLocal = null
+            localMoving = false
+            targetCell = null
             editingWidget = null
             if (alreadyOnHome && pagerState.currentPage != homeIndex) pagerState.animateScrollToPage(homeIndex)
         }
@@ -881,18 +896,22 @@ internal fun Workspace(
                                             if (swiped) return@awaitEachGesture
                                             // Desktop locked: long-press does nothing (no menu, no drag); tap still launches.
                                             if (locked) return@awaitEachGesture
-                                            // PICK UP
-                                            dragging = placed
-                                            dragPos = Offset(
+                                            // PICK UP — lift into the shared controller (not yet
+                                            // "moving"); refused while another finger holds a lift.
+                                            val token = Any()
+                                            val pickup = Offset(
                                                 placed.cellX * cellW + down.position.x,
                                                 placed.cellY * cellH + down.position.y,
                                             )
-                                            // Lift into the shared controller (not yet "moving").
-                                            dragController.start(
-                                                placed.app,
-                                                DragSource.Home,
-                                                dragController.gridBounds.topLeft + dragPos,
-                                            )
+                                            if (!dragController.start(
+                                                    placed.app,
+                                                    DragSource.Home,
+                                                    dragController.gridBounds.topLeft + pickup,
+                                                    token,
+                                                )
+                                            ) return@awaitEachGesture
+                                            dragging = placed
+                                            dragPos = pickup
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val dragStartPx = IconPress.DragStartThreshold.toPx()
                                             try {
@@ -903,6 +922,7 @@ internal fun Workspace(
                                                 val completed = drag(down.id) { change ->
                                                     val delta = change.positionChange()
                                                     change.consume()
+                                                    if (!dragController.owns(token)) return@drag
                                                     dragPos += delta
                                                     if (!dragController.moving &&
                                                         IconPress.startsDrag(change.position, down.position, dragStartPx)
@@ -943,7 +963,8 @@ internal fun Workspace(
                                                 // DROP — only act on a real finger-up (completed),
                                                 // never on a cancellation, so the menu can't pop up
                                                 // under a still-pressed finger.
-                                                val d = dragging
+                                                // Nothing on release once HOME cancelled the lift.
+                                                val d = dragging?.takeIf { dragController.owns(token) }
                                                 if (d != null && completed && !dragController.moving) {
                                                     // Static long-press → show the menu next to the icon
                                                     // (after release, so it can't steal the drag). Anchor at
@@ -1029,9 +1050,11 @@ internal fun Workspace(
                                                 // Reset even on cancellation (node disposed / pointerInput
                                                 // restarted), mirroring the local-drag path below, so a dead
                                                 // gesture can't leave the shared controller lifted.
-                                                targetCell = null
-                                                dragController.stop()
-                                                dragging = null
+                                                if (dragController.owns(token)) {
+                                                    targetCell = null
+                                                    dragging = null
+                                                }
+                                                dragController.stop(token)
                                             }
                                         }
                                     },

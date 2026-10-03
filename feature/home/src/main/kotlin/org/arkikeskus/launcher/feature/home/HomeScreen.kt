@@ -979,8 +979,12 @@ private fun Modifier.pixelHomeSwipe(
             // 3 = notification shade opened (swallow the rest of the gesture so it can't reach the pager)
             var mode = 0
             var lastY = down.position.y
+            var settled = false
 
-            while (true) {
+            // A drawer drag that ends any other way than a finger-up (a lift by another finger, the
+            // pointer vanishing, the gesture cancelled) must still settle, or the drawer stayed frozen
+            // half-open until Back or HOME.
+            try { while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 velocityTracker.addPosition(change.uptimeMillis, change.position)
@@ -997,6 +1001,7 @@ private fun Modifier.pixelHomeSwipe(
                     if (mode == 1) {
                         val finalDy = change.position.y - lastY
                         if (finalDy != 0f) latestOnDrawerDrag(finalDy)
+                        settled = true
                         latestOnDrawerSettle(velocityTracker.calculateVelocity().y)
                     } else if (mode == 2) {
                         // Left-edge action: commit only when dragged far enough right (a short drag
@@ -1053,6 +1058,8 @@ private fun Modifier.pixelHomeSwipe(
                     // pager never grabs the rest of the gesture.
                     change.consume()
                 }
+            } } finally {
+                if (mode == 1 && !settled) latestOnDrawerSettle(0f)
             }
         }
     }

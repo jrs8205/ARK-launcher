@@ -173,12 +173,15 @@ fun Dock(
                                 if (abandoned) return@awaitEachGesture
                                 // Desktop locked: long-press does nothing (no menu, no lift); tap still launches.
                                 if (locked) return@awaitEachGesture
-                                // LONG PRESS → lift
+                                // LONG PRESS → lift (refused while another finger holds one)
+                                val token = Any()
+                                val itemRoot = itemRoots[index] ?: Offset.Zero
+                                if (!dragController.start(app, DragSource.Dock, itemRoot + down.position, token)) {
+                                    return@awaitEachGesture
+                                }
                                 draggingIndex = index
                                 dragOffsetX = 0f
                                 val dragStartPx = IconPress.DragStartThreshold.toPx()
-                                val itemRoot = itemRoots[index] ?: Offset.Zero
-                                dragController.start(app, DragSource.Dock, itemRoot + down.position)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 try {
                                     val completed = drag(down.id) { change ->
@@ -188,6 +191,7 @@ fun Dock(
                                         // worked because it uses the absolute change.position below).
                                         dragOffsetX += change.positionChange().x
                                         change.consume()
+                                        if (!dragController.owns(token)) return@drag
                                         // Only promote to a real move once the finger is pulled past the
                                         // drag-start threshold FROM WHERE IT WAS PICKED UP. A drift during a
                                         // static long-press must stay a long-press so the popup (app
@@ -202,7 +206,9 @@ fun Dock(
                                             dragController.update((itemRoots[index] ?: itemRoot) + change.position)
                                         }
                                     }
-                                    if (completed && dragController.moving) {
+                                    // Nothing on release once HOME cancelled the lift.
+                                    val live = completed && dragController.owns(token)
+                                    if (live && dragController.moving) {
                                         val rootPos = dragController.rootPosition
                                         if (dragController.isOverRemove(rootPos)) {
                                             onRemoveFromDock(app)
@@ -223,7 +229,7 @@ fun Dock(
                                             }
                                         }
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    } else if (completed) {
+                                    } else if (live) {
                                         // No movement → static long-press → show the menu above the item.
                                         val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
                                         val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
@@ -233,7 +239,7 @@ fun Dock(
                                     // Reset even on cancellation (node disposed / pointerInput restarted),
                                     // mirroring the local-drag path in Workspace, so a dead gesture can't
                                     // leave the shared controller lifted.
-                                    dragController.stop()
+                                    dragController.stop(token)
                                     draggingIndex = -1
                                     dragOffsetX = 0f
                                 }
