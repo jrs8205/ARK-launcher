@@ -147,6 +147,7 @@ fun HomeScreen(
     val headsUpActive by viewModel.headsUpActive.collectAsStateWithLifecycle()
     // First-run intro (fresh installs only) — covers the whole home surface until finished/skipped.
     val showOnboarding by viewModel.showOnboarding.collectAsStateWithLifecycle()
+    val leftSwipeAvailable by viewModel.leftSwipeAvailable.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
 
@@ -236,6 +237,21 @@ fun HomeScreen(
     val widgetViews = remember { mutableStateMapOf<Int, android.appwidget.AppWidgetHostView>() }
     val widgetScrollableById = remember { mutableStateMapOf<Int, Boolean>() }
     val widgetSizeReporter = remember { WidgetSizeReporter() }
+    // Frees AppWidgetHost ids that no home_items row holds. The host ids AND the in-flight bind are
+    // snapshotted BEFORE the (suspending) DB query: an id allocated, or a bind finished, while the
+    // query runs is absent from the snapshot or excluded, so it can never be swept. Returns the
+    // snapshot, or null when the host can't be read.
+    suspend fun sweepUnusedHostIds(host: android.appwidget.AppWidgetHost): Set<Int>? {
+        val hostIds = runCatching { host.appWidgetIds }.getOrNull() ?: return null
+        val inFlight = pendingWidget?.appWidgetId
+        val dbIds = viewModel.boundWidgetIds()
+        hostIds.forEach { id ->
+            if (id !in dbIds && id != inFlight && id != pendingWidget?.appWidgetId) {
+                runCatching { host.deleteAppWidgetId(id) }
+            }
+        }
+        return hostIds.toSet()
+    }
     val placedWidgetIds = remember(uiState.entries) {
         uiState.entries.filterIsInstance<PlacedWidget>().map { it.appWidgetId }.toSet()
     }
@@ -273,11 +289,15 @@ fun HomeScreen(
                 }
             }
         }
-        (widgetViews.keys - placedWidgetIds).forEach {
+        val gone = widgetViews.keys - placedWidgetIds
+        gone.forEach {
             widgetViews.remove(it)
             widgetScrollableById.remove(it)
             widgetSizeReporter.forget(it)
         }
+        // Rows that vanished (a restore replaced the layout, a provider was uninstalled) left their
+        // host ids allocated until the next start, and providers kept updating widgets nobody shows.
+        if (gone.isNotEmpty()) sweepUnusedHostIds(host)
     }
 
     // One-shot at startup: free any AppWidgetHost ids with no home_items row — e.g. the old bound ids
@@ -286,11 +306,7 @@ fun HomeScreen(
     // runs is absent from the snapshot and can never be swept; an in-flight bind's id is excluded too.
     LaunchedEffect(widgetHost) {
         val host = widgetHost ?: return@LaunchedEffect
-        val hostIds = runCatching { host.appWidgetIds }.getOrNull() ?: return@LaunchedEffect
-        val dbIds = viewModel.boundWidgetIds()
-        hostIds.forEach { id ->
-            if (id !in dbIds && id != pendingWidget?.appWidgetId) runCatching { host.deleteAppWidgetId(id) }
-        }
+        val hostIds = sweepUnusedHostIds(host) ?: return@LaunchedEffect
         // The reverse direction: DB rows bound to ids this host never allocated — what a Google Auto
         // Backup / device-transfer restore leaves behind (the Room DB carries the OLD device's ids).
         // Unbind them into tap-to-set-up placeholders instead of invisible dead zones on the grid.
@@ -483,7 +499,7 @@ fun HomeScreen(
                 onDrawerSettle = onDrawerSettle,
                 onOpenNotifications = { NotificationShade.expand(context) },
                 // Left-edge action: a right-drag on the leftmost page launches the configured app.
-                leftEdgeEnabled = settings.leftSwipeAppKey.isNotBlank() && !showOnboarding,
+                leftEdgeEnabled = leftSwipeAvailable && !showOnboarding,
                 atLeftEdge = { dragController.currentPage == 0 },
                 onLeftEdgeAction = viewModel::onLeftSwipe,
             ),

@@ -735,7 +735,9 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
 private fun rememberAvatarBitmap(entry: org.arkikeskus.launcher.data.PersonEntry, size: Dp): ImageBitmap? {
     val context = LocalContext.current
     val px = with(LocalDensity.current) { size.roundToPx() }
-    var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    // Keyed on the person: when the list reorders, this slot must not keep showing the previous
+    // person's picture until the new one decodes.
+    var bitmap by remember(entry.key) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(entry.key, entry.postTime, px) {
         val icon = entry.personIcon
         bitmap = withContext(Dispatchers.IO) {
@@ -796,7 +798,7 @@ private fun AllTilesDialog(
         title = { Text(stringResource(R.string.people_all_title)) },
         text = {
             Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                tiles.forEach { tile ->
+                tiles.forEach { tile -> key(tile.key) {
                     val hideName = tile.hidesName(privacy)
                     Row(
                         modifier = Modifier
@@ -824,7 +826,7 @@ private fun AllTilesDialog(
                         }
                         NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
                     }
-                }
+                } }
             }
         },
         confirmButton = {

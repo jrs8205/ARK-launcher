@@ -76,6 +76,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.arkikeskus.launcher.model.WidgetPlacement
@@ -266,8 +269,9 @@ internal fun Workspace(
     // cell writes nothing, so without this its override would never be released.
     LaunchedEffect(placedApps, optimistic) {
         if (optimistic.isNotEmpty()) {
+            // Released once the app shows at its target, or once it has left home altogether.
             optimistic = optimistic.filterNot { (key, pos) ->
-                placedApps.any {
+                placedApps.none { it.app.key == key } || placedApps.any {
                     it.app.key == key && it.page == pos.first &&
                         it.cellX == pos.second && it.cellY == pos.third
                 }
@@ -276,6 +280,14 @@ internal fun Workspace(
         if (removedKeys.isNotEmpty()) {
             removedKeys = removedKeys.filterTo(mutableSetOf()) { rk -> placedApps.any { it.app.key == rk } }
         }
+    }
+    // A hide whose write failed (a folder that couldn't be created, a dock that filled up meanwhile)
+    // never sees its app leave home; without this the icon stayed invisible while still holding its
+    // cell. Writes land in milliseconds, so anything still hidden after this long is shown again.
+    LaunchedEffect(removedKeys) {
+        if (removedKeys.isEmpty()) return@LaunchedEffect
+        delay(REMOVED_HIDE_TIMEOUT_MS)
+        removedKeys = emptySet()
     }
     val effectiveApps = remember(placedApps, optimistic, removedKeys) {
         placedApps
@@ -286,7 +298,7 @@ internal fun Workspace(
     }
     // Clear the local optimistic override once the DB flow reports the entry (folder or shortcut) at
     // its new cell.
-    LaunchedEffect(folders, placedShortcuts) {
+    LaunchedEffect(folders, placedShortcuts, localOptimistic) {
         val opt = localOptimistic ?: return@LaunchedEffect
         val (id, pos) = opt
         val landed = folders.any { it.id == id && it.page == pos.first && it.cellX == pos.second && it.cellY == pos.third } ||
@@ -591,6 +603,21 @@ internal fun Workspace(
             editingWidget = null
             if (alreadyOnHome && pagerState.currentPage != homeIndex) pagerState.animateScrollToPage(homeIndex)
         }
+    }
+
+    // An edit frame whose widget is gone (provider uninstalled, a restore swapped it for a placeholder)
+    // left a scrim over an empty cell with the pager and the swipe-up locked until tapped.
+    LaunchedEffect(editingWidget, effectiveEntries) {
+        val ew = editingWidget ?: return@LaunchedEffect
+        val present = effectiveEntries.any {
+            (it is PlacedWidget && it.rowId == ew.rowId) || (it is PlacedBuiltin && it.rowId == ew.rowId)
+        }
+        if (!present) editingWidget = null
+    }
+    // Leaving the launcher (screen off, another app) also leaves edit mode, like HOME does.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        widgetDragController.cancel()
+        editingWidget = null
     }
 
     // Only retreat from the temporary trailing page. Pages explicitly added from the menu are
@@ -1753,3 +1780,19 @@ private fun PageDots(count: Int, current: Int, home: Int, modifier: Modifier = M
 /** Widget bounds applied optimistically (by row id) until the DB flow catches up — spans included,
  *  so an edit-frame resize shows on the hosted content immediately, not only after the round-trip. */
 private data class WidgetBounds(val page: Int, val cellX: Int, val cellY: Int, val spanX: Int, val spanY: Int)
+
+/** How long an icon dropped into a folder or the dock stays hidden while its write lands. */
+private const val REMOVED_HIDE_TIMEOUT_MS = 1_500L
+
+/** How long a dragged item must rest at a screen edge before the page flips. */
+private const val EDGE_FLIP_DWELL_MS = 550L
+
+/** A stable composition key per home item. Apps have no row id here; their app key is unique on home. */
+private fun homeEntryKey(entry: HomeEntry): String = when (entry) {
+    is PlacedApp -> "app:${entry.app.key}"
+    is PlacedFolder -> "folder:${entry.id}"
+    is PlacedShortcut -> "shortcut:${entry.rowId}"
+    is PlacedWidget -> "widget:${entry.rowId}"
+    is PendingWidget -> "pending:${entry.rowId}"
+    is PlacedBuiltin -> "builtin:${entry.rowId}"
+}
