@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -54,6 +55,25 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().widgetTonalBackground).isTrue()
         restored.importRaw(mapOf("widget_tonal_background" to "invalid"))
         assertThat(restored.settings.first().widgetTonalBackground).isFalse()
+    }
+
+    @Test
+    fun `rolling back an import keeps settings written after it`() = runTest {
+        val store = InMemoryDataStore()
+        val repo = SettingsRepository(store)
+        repo.setShowWeather(false)
+        val before = repo.snapshot()
+        repo.importRaw(mapOf("show_weather" to true, "home_columns" to 6))
+        val imported = repo.snapshot()
+        // e.g. the notification listener saving a held notification while the layout is written
+        store.edit { it[stringPreferencesKey("people_held_notifications")] = "held" }
+
+        repo.rollbackImport(before, imported)
+
+        val s = repo.settings.first()
+        assertThat(s.showWeather).isFalse()
+        assertThat(store.data.first()[intPreferencesKey("home_columns")]).isNull()
+        assertThat(store.data.first()[stringPreferencesKey("people_held_notifications")]).isEqualTo("held")
     }
 
     @Test

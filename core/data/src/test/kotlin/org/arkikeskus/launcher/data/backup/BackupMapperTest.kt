@@ -464,13 +464,14 @@ class BackupMapperTest {
     }
 
     @Test
-    fun remapSettingsProfiles_infers_the_exporting_profile_of_an_older_file() {
-        // Older files don't record it: serial 0 is the device owner, whose launcher sees its own
-        // apps; a secondary user's launcher never sees serial 0, and its own apps dominate.
-        val owner = BackupMapper.remapSettingsProfiles(mapOf("dock_favorites" to "w/W/10\na/A/0\nb/B/0"), null, 11L)
-        assertThat(owner["dock_favorites"]).isEqualTo("a/A/11\nb/B/11")
-        val secondary = BackupMapper.remapSettingsProfiles(mapOf("dock_favorites" to "a/A/12\nb/B/12\nw/W/13"), null, 0L)
-        assertThat(secondary["dock_favorites"]).isEqualTo("a/A/0\nb/B/0")
+    fun remapSettingsProfiles_leaves_an_older_files_keys_as_they_are() {
+        // Older files don't record the exporting profile, and the keys can't tell it: a cleared
+        // dock and one hidden work app would make the work profile look like the main one, and
+        // moving its key to profile 0 would hide the personal copy. Such files import as before.
+        val settings = mapOf("dock_favorites" to "", "hidden_apps" to "com.mail/Main/10")
+        assertThat(BackupMapper.remapSettingsProfiles(settings, null, 0L)).isEqualTo(settings)
+        val mixed = mapOf("dock_favorites" to "w/W/10\na/A/0\nb/B/0")
+        assertThat(BackupMapper.remapSettingsProfiles(mixed, null, 11L)).isEqualTo(mixed)
     }
 
     // --- Pinned shortcuts ------------------------------------------------------------------------

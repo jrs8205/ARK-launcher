@@ -201,13 +201,13 @@ object BackupMapper {
      * the left-swipe app) moved to this device's profile [targetMainSerial] — the same remapping the
      * home rows get: keys of the profile the exporting launcher ran as follow it, keys of any other
      * profile are dropped (serials are device-local, and a stale one could name a different profile
-     * here). [sourceMainSerial] is null in older files; it is then inferred from the keys: serial 0
-     * is the device owner, whose launcher always lists its own apps, while a secondary user's
-     * launcher never sees serial 0 and mostly its own apps. Unparseable keys are left as they are.
+     * here). [sourceMainSerial] is null in older files, and the keys can't tell it — a cleared dock
+     * plus one hidden work app would make the work profile look like the main one — so such files
+     * import exactly as before, unmapped. Unparseable keys are left as they are.
      */
     fun remapSettingsProfiles(settings: Map<String, Any>, sourceMainSerial: Long?, targetMainSerial: Long): Map<String, Any> {
         val appKeyValues = settings.filter { (name, value) -> name in SettingsRepository.APP_KEY_PREFS && value is String }
-        val source = sourceMainSerial ?: inferMainSerial(appKeyValues) ?: return settings
+        val source = sourceMainSerial ?: return settings
         return settings.mapValues { (name, value) ->
             if (name !in appKeyValues) {
                 value
@@ -222,20 +222,6 @@ object BackupMapper {
                 }
             }
         }
-    }
-
-    private fun inferMainSerial(appKeyValues: Map<String, Any>): Long? {
-        val serials = ArrayList<Long>()
-        for ((name, value) in appKeyValues) {
-            SettingsRepository.rewriteAppKeys(name, value as String) { key ->
-                key.substringAfterLast('/').toLongOrNull()?.let(serials::add)
-                key
-            }
-        }
-        if (serials.isEmpty()) return null
-        if (0L in serials) return 0L
-        return serials.groupingBy { it }.eachCount().entries
-            .maxWith(compareBy<Map.Entry<Long, Int>> { it.value }.thenByDescending { it.key }).key
     }
 
     private fun entity(it: BackupItem, mainUserSerial: Long, spanX: Int, spanY: Int) = HomeItemEntity(

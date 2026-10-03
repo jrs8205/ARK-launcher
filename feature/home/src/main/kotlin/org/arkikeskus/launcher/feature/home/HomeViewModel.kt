@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.AppItem
@@ -419,6 +420,10 @@ class HomeViewModel @Inject constructor(
     /** Stores a pinned shortcut on home (the system-level pin is done by the caller, which has a
      *  Context). Idempotent — the repository skips one already present. */
     fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
+        ShortcutPinLock.withLock { storePinnedShortcut(packageName, shortcutId, userSerial) }
+    }
+
+    private suspend fun storePinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) {
         val s = settingsRepository.settings.first()
         homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
     }
@@ -429,16 +434,18 @@ class HomeViewModel @Inject constructor(
 
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
     fun removeShortcut(rowId: Long) = viewModelScope.launch {
-        homeLayoutRepository.removeShortcut(rowId)?.let { remaining ->
-            AppShortcuts.setPinned(context, remaining.packageName, remaining.userSerial, remaining.shortcutIds)
+        ShortcutPinLock.withLock {
+            homeLayoutRepository.removeShortcut(rowId)?.let { remaining ->
+                AppShortcuts.setPinned(context, remaining.packageName, remaining.userSerial, remaining.shortcutIds)
+            }
         }
     }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell). */
     fun pinShortcut(item: AppShortcuts.Item) = viewModelScope.launch {
-        if (AppShortcuts.pin(context, item)) {
-            addPinnedShortcut(item.packageName, item.id, item.userSerial)
+        ShortcutPinLock.withLock {
+            if (AppShortcuts.pin(context, item)) storePinnedShortcut(item.packageName, item.id, item.userSerial)
         }
     }
 

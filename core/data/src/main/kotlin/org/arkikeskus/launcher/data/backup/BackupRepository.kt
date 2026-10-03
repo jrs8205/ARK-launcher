@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import javax.inject.Inject
@@ -64,19 +65,22 @@ class BackupRepository @Inject constructor(
         // restored one on the old grid, where items past its columns/rows are invisible rows that
         // block cells. NonCancellable: the caller's scope dies when the user leaves Settings
         // mid-restore, and a cancelled coroutine could neither write the layout nor roll back.
-        withContext(NonCancellable) {
+        // Under the pin lock: the re-pin below replaces whole system pin sets, so a shortcut pinned
+        // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
+        withContext(NonCancellable) { ShortcutPinLock.withLock {
             val previousSettings = settings.snapshot()
             val previousLayout = homeItemDao.getAllOnce()
             settings.importRaw(restoredSettings)
+            val importedSettings = settings.snapshot()
             try {
                 homeItemDao.replaceLayout(mapping.entities)
             } catch (t: Throwable) {
                 // Put the old settings back so a failed layout write never leaves half a restore.
-                runCatching { settings.restoreSnapshot(previousSettings) }
+                runCatching { settings.rollbackImport(previousSettings, importedSettings) }
                 throw t
             }
             repinShortcuts(previousLayout, mapping.entities)
-        }
+        } }
         return RestoreResult(mapping.entities.size, mapping.skipped)
     }
 

@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
+import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.search.SearchAggregator
@@ -198,6 +199,10 @@ class AppDrawerViewModel @Inject constructor(
 
     /** Stores a pinned shortcut on home (system-level pin done by the caller, which has a Context). */
     fun addPinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) = viewModelScope.launch {
+        ShortcutPinLock.withLock { storePinnedShortcut(packageName, shortcutId, userSerial) }
+    }
+
+    private suspend fun storePinnedShortcut(packageName: String, shortcutId: String, userSerial: Long) {
         val s = settingsRepository.settings.first()
         homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
     }
@@ -205,8 +210,10 @@ class AppDrawerViewModel @Inject constructor(
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell). */
     fun pinShortcut(item: org.arkikeskus.launcher.ui.AppShortcuts.Item) = viewModelScope.launch {
-        if (org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)) {
-            addPinnedShortcut(item.packageName, item.id, item.userSerial)
+        ShortcutPinLock.withLock {
+            if (org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)) {
+                storePinnedShortcut(item.packageName, item.id, item.userSerial)
+            }
         }
     }
 

@@ -530,12 +530,26 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    /** Every stored preference exactly as it is, for [restoreSnapshot] (a failed restore's rollback;
+    /** Every stored preference exactly as it is, for [rollbackImport] (a failed restore's rollback;
      *  [importRaw] can't put back keys it doesn't know with their original types). */
     internal suspend fun snapshot(): Preferences = dataStore.data.first()
 
-    internal suspend fun restoreSnapshot(snapshot: Preferences) {
-        dataStore.updateData { snapshot }
+    /**
+     * Undoes an [importRaw] whose layout write then failed: every key still holding the value the
+     * import left ([imported]) goes back to its [before] value, or away. A key written since — the
+     * notification listener saving a held notification meanwhile, say — keeps its newer value;
+     * putting the whole old snapshot back silently discarded it.
+     */
+    internal suspend fun rollbackImport(before: Preferences, imported: Preferences) {
+        dataStore.edit { prefs ->
+            for (key in before.asMap().keys + imported.asMap().keys) {
+                @Suppress("UNCHECKED_CAST")
+                val k = key as Preferences.Key<Any>
+                if (prefs[k] != imported[k]) continue
+                val old = before[k]
+                if (old == null) prefs.remove(k) else prefs[k] = old
+            }
+        }
     }
 
     private suspend fun edit(block: (MutablePreferences) -> Unit) {
