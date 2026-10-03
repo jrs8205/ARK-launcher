@@ -1138,9 +1138,7 @@ internal fun Workspace(
                                                 val hDp = (widget.spanY * cellH / density.density).toInt()
                                                 if (wDp > 0 && hDp > 0) {
                                                     widgetSizeReporter.report(widget.appWidgetId, wDp, hDp) {
-                                                        val opts = widgetSizeOptions(wDp, hDp)
-                                                        hostView.updateAppWidgetSize(opts, wDp, hDp, wDp, hDp)
-                                                        hostView.updateAppWidgetOptions(opts)
+                                                        sendWidgetSize(hostView, wDp, hDp)
                                                     }
                                                 }
                                                 if (hostView.parent !== container) {
@@ -1678,6 +1676,22 @@ internal fun widgetSizeOptions(wDp: Int, hDp: Int): android.os.Bundle =
             )
         }
     }
+
+/**
+ * Sends [hostView]'s provider its new size as ONE options update. On S+ the size-list overload keeps
+ * the [android.util.SizeF] list that responsive widgets pick their layout from (Launcher3 uses it too);
+ * the old min/max overload rewrote that list to empty inside the bundle it was handed, and re-sending
+ * the same bundle with updateAppWidgetOptions broadcast every change twice.
+ */
+internal fun sendWidgetSize(hostView: android.appwidget.AppWidgetHostView, wDp: Int, hDp: Int) {
+    val opts = widgetSizeOptions(wDp, hDp)
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        hostView.updateAppWidgetSize(opts, listOf(android.util.SizeF(wDp.toFloat(), hDp.toFloat())))
+    } else {
+        @Suppress("DEPRECATION")
+        hostView.updateAppWidgetSize(opts, wDp, hDp, wDp, hDp)
+    }
+}
 
 /**
  * True if this view tree contains an internally scrollable collection view — an `AdapterView`

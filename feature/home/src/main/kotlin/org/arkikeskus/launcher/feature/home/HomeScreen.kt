@@ -247,16 +247,21 @@ fun HomeScreen(
                 if (info != null) {
                     runCatching {
                         // Mark the widget as living on the HOME screen up front — some providers
-                        // (WhatsApp's chat list) won't populate until the host category is set.
-                        appWidgetManager.updateAppWidgetOptions(
-                            id,
-                            android.os.Bundle().apply {
-                                putInt(
-                                    AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY,
-                                    AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
-                                )
-                            },
-                        )
+                        // (WhatsApp's chat list) won't populate until the host category is set. Only
+                        // when it isn't set yet: every update is a broadcast the provider redraws on.
+                        val category = appWidgetManager.getAppWidgetOptions(id)
+                            .getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, 0)
+                        if (category != AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN) {
+                            appWidgetManager.updateAppWidgetOptions(
+                                id,
+                                android.os.Bundle().apply {
+                                    putInt(
+                                        AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY,
+                                        AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+                                    )
+                                },
+                            )
+                        }
                         val v = host.createView(context, id, info)
                         v.setPadding(0, 0, 0, 0)
                         v.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
