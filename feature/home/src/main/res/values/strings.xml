@@ -99,8 +99,6 @@
     <string name="widget_restore_tap">Napauta ottaaksesi käyttöön</string>
     <string name="widget_resize">Muuta kokoa</string>
     <string name="widget_reconfigure">Widgetin asetukset</string>
-    <string name="widget_move_prev_page">Siirrä edelliselle sivulle</string>
-    <string name="widget_move_next_page">Siirrä seuraavalle sivulle</string>
     <string name="widget_picker_title">Valitse widget</string>
     <string name="widget_search">Hae widgettejä</string>
     <string name="widget_search_none">Ei tuloksia</string>

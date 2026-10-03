@@ -88,7 +88,6 @@ import org.arkikeskus.launcher.data.ReorderPlanner
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
-import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.AppLabel
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
@@ -1354,27 +1353,6 @@ internal fun Workspace(
                             },
                             onReconfigure = { ew.appWidgetId?.let(onReconfigureWidget); editingWidget = null },
                             onExit = { editingWidget = null },
-                            canMovePrev = ew.page > 0,
-                            canMoveNext = ew.page < pageCount,
-                            onMoveToPage = { targetPage, msx, msy ->
-                                // Place at the first free cell on the target page; commit, exit edit and
-                                // scroll there. No room → no-op (stay in edit).
-                                run loop@{
-                                    for (fy in 0..(rows - msy).coerceAtLeast(0)) {
-                                        for (fx in 0..(columns - msx).coerceAtLeast(0)) {
-                                            if (rectFreeOnGrid(ew.rowId, targetPage, fx, fy, msx, msy)) {
-                                                widgetOptimistic = ew.rowId to WidgetBounds(targetPage, fx, fy, msx, msy)
-                                                scope.launch {
-                                                    if (!onSetWidgetBounds(ew.rowId, targetPage, fx, fy, msx, msy)) widgetOptimistic = null
-                                                }
-                                                editingWidget = null
-                                                scope.launch { pagerState.animateScrollToPage(targetPage) }
-                                                return@loop
-                                            }
-                                        }
-                                    }
-                                }
-                            },
                         ) } }
                     }
                 }
@@ -1456,9 +1434,6 @@ private fun WidgetEditOverlay(
     onPreviewBounds: (x: Int, y: Int, spanX: Int, spanY: Int) -> Unit,
     onReconfigure: () -> Unit,
     onExit: () -> Unit,
-    canMovePrev: Boolean,
-    canMoveNext: Boolean,
-    onMoveToPage: (targetPage: Int, spanX: Int, spanY: Int) -> Unit,
 ) {
     var cx by remember(widget.rowId) { mutableStateOf(widget.cellX) }
     var cy by remember(widget.rowId) { mutableStateOf(widget.cellY) }
@@ -1646,47 +1621,6 @@ private fun WidgetEditOverlay(
                 tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(with(density) { (handlePx * 0.6f).toDp() }),
             )
-        }
-    }
-
-    // Page-move arrows (bottom-centre): move this widget to the previous / next home page (commits to
-    // the first free cell there). Placed away from the resize handles + gear so they never overlap.
-    if (canMovePrev || canMoveNext) {
-        val arrowY = (rows * cellH - handlePx - with(density) { 16.dp.toPx() })
-        val centerX = columns * cellW / 2f
-        if (canMovePrev) {
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset((centerX - handlePx - with(density) { 8.dp.toPx() }).roundToInt(), arrowY.roundToInt()) }
-                    .size(with(density) { handlePx.toDp() })
-                    .background(primary, CircleShape)
-                    .clickable(enabled = !committing) { onMoveToPage(widget.page - 1, sx, sy) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(LauncherIcons.ChevronRight),
-                    contentDescription = stringResource(R.string.widget_move_prev_page),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(with(density) { (handlePx * 0.62f).toDp() }).graphicsLayer { scaleX = -1f },
-                )
-            }
-        }
-        if (canMoveNext) {
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset((centerX + with(density) { 8.dp.toPx() }).roundToInt(), arrowY.roundToInt()) }
-                    .size(with(density) { handlePx.toDp() })
-                    .background(primary, CircleShape)
-                    .clickable(enabled = !committing) { onMoveToPage(widget.page + 1, sx, sy) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(LauncherIcons.ChevronRight),
-                    contentDescription = stringResource(R.string.widget_move_next_page),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(with(density) { (handlePx * 0.62f).toDp() }),
-                )
-            }
         }
     }
 }

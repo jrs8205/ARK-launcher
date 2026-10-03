@@ -99,8 +99,6 @@
     <string name="widget_restore_tap">Tap to set up</string>
     <string name="widget_resize">Resize</string>
     <string name="widget_reconfigure">Widget settings</string>
-    <string name="widget_move_prev_page">Move to previous page</string>
-    <string name="widget_move_next_page">Move to next page</string>
     <string name="widget_picker_title">Choose a widget</string>
     <string name="widget_search">Search widgets</string>
     <string name="widget_search_none">No results</string>
