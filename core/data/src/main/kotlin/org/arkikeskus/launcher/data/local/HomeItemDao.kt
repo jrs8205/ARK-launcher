@@ -84,6 +84,10 @@ interface HomeItemDao {
     @Query("DELETE FROM home_items WHERE containerId = :containerId AND page = :page")
     suspend fun deleteOnPage(containerId: Long, page: Int)
 
+    /** Points an app row at another launcher activity of the same package (see the ghost sweep). */
+    @Query("UPDATE home_items SET className = :className WHERE id = :id")
+    suspend fun updateClassName(id: Long, className: String)
+
     @Query("UPDATE home_items SET folderName = :name WHERE id = :id")
     suspend fun renameFolder(id: Long, name: String)
 

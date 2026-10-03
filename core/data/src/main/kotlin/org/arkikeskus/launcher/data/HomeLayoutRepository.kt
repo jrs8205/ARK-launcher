@@ -18,6 +18,10 @@ data class ReflowPlacement(
     val id: Long, val page: Int, val cellX: Int, val cellY: Int, val spanX: Int, val spanY: Int,
 )
 
+/** What [HomeLayoutRepository.removeStaleAppRows] changes: rows to delete, and app rows to point at
+ *  another launcher activity (row id → new class name). */
+internal data class SweepPlan(val delete: Set<Long>, val remap: Map<Long, String>)
+
 /** Where [HomeLayoutRepository.firstRectWithPush] places a new rect, plus the displacements
  *  (rowId → new cell on [page]) that free it. Empty [moved] = the rect was genuinely free. */
 data class PushPlacement(val page: Int, val cellX: Int, val cellY: Int, val moved: Map<Long, Pair<Int, Int>>)
@@ -32,6 +36,7 @@ data class PushPlacement(val page: Int, val cellX: Int, val cellY: Int, val move
 class HomeLayoutRepository @Inject constructor(
     private val db: LauncherDatabase,
     private val dao: HomeItemDao,
+    private val resolver: AppRowResolver,
 ) {
     /** All rows (home items, folders, folder children); the ViewModel partitions by container. */
     val homeItems: Flow<List<HomeItemEntity>> = dao.observeAll()
@@ -470,19 +475,20 @@ class HomeLayoutRepository @Inject constructor(
     }
 
     /**
-     * The once-per-launch ghost sweep. Deletes every row whose app or shortcut is gone per
-     * [isInstalled]: an uninstalled app's rows never render, but they still occupy their cells and
-     * silently block placement, resizes and moves with no visible reason. [isInstalled] must be
-     * fail-safe — answer true when unsure (locked profile, transient error) so a hiccup can never
-     * wipe real items. Also keeps one row per app per container (lowest id): duplicates left by
-     * older versions break drag and remove, which the UI keys by app.
+     * The once-per-launch ghost sweep (see [planSweep]): rows that never render still occupy their
+     * cells and silently block placement, resizes and moves with no visible reason. [isInstalled]
+     * must be fail-safe — answer true when unsure (locked profile, transient error) so a hiccup can
+     * never wipe real items. Every folder is repaired afterwards, including ones an older version
+     * left with one or no apps. Returns the number of rows deleted or re-pointed.
      */
     suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
         db.withTransaction {
-            val all = dao.getAll()
-            val doomed = staleAppRowIds(all, isInstalled).toHashSet()
-            doomed += duplicateAppRowIds(all.filter { it.id !in doomed })
-            deleteAndRepairFolders(all, doomed)
+            val plan = planSweep(dao.getAll(), isInstalled, resolver)
+            // Re-point first: dissolving a folder checks the home rows' final app keys.
+            plan.remap.forEach { (id, className) -> dao.updateClassName(id, className) }
+            plan.delete.forEach { dao.deleteById(it) }
+            repairFolders(dao.getContainer(HOME).filter { it.isFolder }.map { it.id })
+            plan.delete.size + plan.remap.size
         }
 
     /** Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
@@ -494,18 +500,22 @@ class HomeLayoutRepository @Inject constructor(
             deleteAndRepairFolders(all, doomed.toSet())
         }
 
-    /** Deletes [ids] (rows of [all]) and restores the folder invariants a manual removal keeps: a
-     *  cellX gap would collide with addToFolder's childCount-as-index (unique cell index →
-     *  SQLiteConstraintException), and a folder left with 0–1 children must dissolve. */
+    /** Deletes [ids] (rows of [all]) and repairs the folders they left. */
     private suspend fun deleteAndRepairFolders(all: List<HomeItemEntity>, ids: Set<Long>): Int {
         if (ids.isEmpty()) return 0
-        val touchedFolders = all.filter { it.id in ids && it.containerId != HOME }.map { it.containerId }.toSet()
         ids.forEach { dao.deleteById(it) }
-        touchedFolders.forEach { folderId ->
+        repairFolders(all.filter { it.id in ids && it.containerId != HOME }.map { it.containerId }.distinct())
+        return ids.size
+    }
+
+    /** Restores the folder invariants a manual removal keeps: a cellX gap would collide with
+     *  addToFolder's childCount-as-index (unique cell index → SQLiteConstraintException), and a
+     *  folder left with 0–1 children must dissolve. */
+    private suspend fun repairFolders(folderIds: Collection<Long>) {
+        folderIds.forEach { folderId ->
             reindexFolder(folderId)
             dissolveIfNeeded(folderId)
         }
-        return ids.size
     }
 
     companion object {
@@ -562,13 +572,60 @@ class HomeLayoutRepository @Inject constructor(
             }.map { it.id }
         }
 
-        /** Every app row past the first (lowest id) of its app key within one container — HOME or a
-         *  folder. The same app on home AND inside a folder is legitimate and kept. */
-        fun duplicateAppRowIds(items: List<HomeItemEntity>): List<Long> =
-            items.filter { it.isApp }
-                .groupBy { it.containerId to it.key }
+        /**
+         * Pure decision behind [removeStaleAppRows]:
+         *  - rows of an uninstalled app or shortcut ([staleAppRowIds]) go, unless the app is only
+         *    hidden for now (an app on unmounted storage reads as "not installed");
+         *  - an app row whose launcher activity is gone although its package is installed and
+         *    enabled (renamed, or an in-app icon chooser switched activity-aliases) follows the
+         *    package's single launcher activity; with none or several there is no right icon and
+         *    the row goes, as in Launcher3. Disabled apps answer [PackageTargets.Unknown] and stay;
+         *  - a pinned shortcut goes only when the system definitively no longer has it; one inside a
+         *    folder always goes (folders render only apps, so it is an invisible extra child);
+         *  - one row per app per container: an untouched row beats a re-pointed one, then the
+         *    lowest id. The same app on home AND inside a folder is legitimate and kept.
+         */
+        internal fun planSweep(
+            items: List<HomeItemEntity>,
+            isInstalled: (packageName: String, userSerial: Long) -> Boolean,
+            resolver: AppRowResolver,
+        ): SweepPlan {
+            val byId = items.associateBy { it.id }
+            val hiddenForNow = HashMap<Pair<String, Long>, Boolean>()
+            val delete = staleAppRowIds(items, isInstalled).filterTo(HashSet()) { id ->
+                val row = byId.getValue(id)
+                !hiddenForNow.getOrPut(row.packageName to row.userSerial) {
+                    resolver.isTemporarilyUnavailable(row.packageName, row.userSerial)
+                }
+            }
+            val targets = HashMap<Pair<String, Long>, PackageTargets>()
+            val remap = HashMap<Long, String>()
+            for (row in items) {
+                if (!row.isApp || row.id in delete) continue
+                val now = targets.getOrPut(row.packageName to row.userSerial) {
+                    resolver.launchTargets(row.packageName, row.userSerial)
+                }
+                if (now !is PackageTargets.Launchable || row.className in now.classNames) continue
+                val only = now.classNames.singleOrNull()
+                if (only != null) remap[row.id] = only else delete += row.id
+            }
+            val shortcuts = items.filter { it.isShortcut && it.packageName.isNotEmpty() && it.id !in delete }
+            shortcuts.filter { it.containerId != HOME }.forEach { delete += it.id }
+            shortcuts.filter { it.containerId == HOME }
+                .groupBy { it.packageName to it.userSerial }
+                .forEach { (owner, rows) ->
+                    val ids = rows.mapNotNull { it.shortcutId }.distinct()
+                    val missing = resolver.missingShortcuts(owner.first, owner.second, ids)
+                    rows.filter { it.shortcutId in missing }.forEach { delete += it.id }
+                }
+            items.filter { it.isApp && it.id !in delete }
+                .groupBy { "${it.containerId}|${it.packageName}/${remap[it.id] ?: it.className}/${it.userSerial}" }
                 .values
-                .flatMap { rows -> rows.sortedBy { it.id }.drop(1).map { it.id } }
+                .forEach { rows ->
+                    rows.sortedWith(compareBy({ it.id in remap }, { it.id })).drop(1).forEach { delete += it.id }
+                }
+            return SweepPlan(delete, remap.filterKeys { it !in delete })
+        }
 
         /** True if a [spanX]×[spanY] rect at (page,cellX,cellY) is on-grid and free of every item
          *  except [excludeRowId] (so a widget never blocks its own move/resize). */

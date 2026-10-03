@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.arkikeskus.launcher.data.AppIconFetcher
 import org.arkikeskus.launcher.data.AppIconKeyer
+import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,4 +90,7 @@ object DataModule {
 
     @Provides
     fun provideHomeItemDao(database: LauncherDatabase): HomeItemDao = database.homeItemDao()
+
+    @Provides
+    fun provideAppRowResolver(source: LauncherAppsSource): AppRowResolver = source
 }

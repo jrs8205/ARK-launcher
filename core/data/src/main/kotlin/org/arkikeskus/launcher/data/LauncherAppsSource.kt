@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
@@ -52,7 +53,7 @@ class LauncherAppsSource @Inject constructor(
     private val iconPacks: IconPackRepository,
     // Provider breaks the instantiation cycle: the ImageLoader itself is built with this source.
     private val imageLoader: Provider<ImageLoader>,
-) {
+) : AppRowResolver {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
 
@@ -80,6 +81,65 @@ class LauncherAppsSource @Inject constructor(
         val um = userManager ?: return true
         return installVerdict(runCatching { um.getUserForSerialNumber(userSerial) }) { user ->
             runCatching { launcherApps.getApplicationInfo(packageName, 0, user) }
+        }
+    }
+
+    /** The profile behind [userSerial] when its apps can be queried right now: not paused (quiet
+     *  mode, a locked private space) and unlocked. Null when it's gone, unavailable or unknown. */
+    private fun availableProfile(userSerial: Long): UserHandle? {
+        val um = userManager ?: return null
+        val user = um.getUserForSerialNumber(userSerial) ?: return null
+        return if (um.isQuietModeEnabled(user) || !um.isUserUnlocked(user)) null else user
+    }
+
+    override fun launchTargets(packageName: String, userSerial: Long): PackageTargets {
+        return try {
+            val user = availableProfile(userSerial) ?: return PackageTargets.Unknown
+            // False for a disabled package as well as a missing one: disabled apps are kept on purpose.
+            if (!launcherApps.isPackageEnabled(packageName, user)) return PackageTargets.Unknown
+            PackageTargets.Launchable(
+                launcherApps.getActivityList(packageName, user).map { it.componentName.className }.distinct(),
+            )
+        } catch (e: Exception) {
+            PackageTargets.Unknown
+        }
+    }
+
+    override fun missingShortcuts(packageName: String, userSerial: Long, shortcutIds: Collection<String>): Set<String> {
+        if (shortcutIds.isEmpty()) return emptySet()
+        return try {
+            val user = availableProfile(userSerial) ?: return emptySet()
+            // Only the default home app may query shortcuts; a disabled package keeps its rows.
+            if (!launcherApps.hasShortcutHostPermission()) return emptySet()
+            if (!launcherApps.isPackageEnabled(packageName, user)) return emptySet()
+            val query = LauncherApps.ShortcutQuery()
+                .setPackage(packageName)
+                .setShortcutIds(shortcutIds.toList())
+                .setQueryFlags(
+                    LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
+                        LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
+                        LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST,
+                )
+            val found = launcherApps.getShortcuts(query, user) ?: return emptySet()
+            shortcutIds.toSet() - found.map { it.id }.toSet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+    }
+
+    override fun isTemporarilyUnavailable(packageName: String, userSerial: Long): Boolean {
+        val um = userManager ?: return true
+        return try {
+            val user = um.getUserForSerialNumber(userSerial) ?: return false // the profile was removed for good
+            if (um.isQuietModeEnabled(user) || !um.isUserUnlocked(user)) return true
+            // Unmounted storage: the package manager still knows the app (with uninstalled packages
+            // included) but can't launch it — Launcher3's "app on SD card" check.
+            val info = launcherApps.getApplicationInfo(packageName, PackageManager.MATCH_UNINSTALLED_PACKAGES, user)
+            (info.flags and ApplicationInfo.FLAG_EXTERNAL_STORAGE) != 0 && !launcherApps.isPackageEnabled(packageName, user)
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        } catch (e: Exception) {
+            true
         }
     }
 

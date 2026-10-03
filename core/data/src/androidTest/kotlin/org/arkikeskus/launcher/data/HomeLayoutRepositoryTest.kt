@@ -32,11 +32,19 @@ class HomeLayoutRepositoryTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, LauncherDatabase::class.java).build()
         dao = db.homeItemDao()
-        repo = HomeLayoutRepository(db, dao)
+        repo = HomeLayoutRepository(db, dao, KeepAllRows)
     }
 
     @After
     fun tearDown() = db.close()
+
+    /** The system knows nothing definite, so the repairs keep every row. */
+    private object KeepAllRows : AppRowResolver {
+        override fun launchTargets(packageName: String, userSerial: Long) = PackageTargets.Unknown
+        override fun missingShortcuts(packageName: String, userSerial: Long, shortcutIds: Collection<String>) =
+            emptySet<String>()
+        override fun isTemporarilyUnavailable(packageName: String, userSerial: Long) = false
+    }
 
     private fun app(pkg: String) = AppItem(
         packageName = pkg,
