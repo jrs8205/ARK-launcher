@@ -32,6 +32,8 @@ data class CurrentWeather(
     /** Reverse-geocoded locality ("Espoo"); null when no geocoder backend or no name resolves. */
     val city: String?,
     val fetchedAt: Long,
+    /** [city] came from the BigDataCloud fallback — dropped the moment the user turns it off. */
+    val cityFromNetwork: Boolean = false,
 )
 
 /**
@@ -56,9 +58,21 @@ class WeatherRepository @Inject constructor(
     /** The network-place-name setting the current [weather] was resolved with. */
     @Volatile private var resolvedWithNetworkPlaceNames = false
 
+    /** The user's CURRENT consent to the BigDataCloud fallback. A fetch already running reads this,
+     *  not the value it started with, right before the request and again before publishing: a
+     *  consent withdrawn meanwhile must stop it. */
+    @Volatile private var networkConsent = false
+
     /** [networkPlaceNames]: the user allowed the BigDataCloud place-name fallback. A changed setting
-     *  re-fetches at once, so turning it off drops a network-sourced name on the next home resume. */
+     *  re-fetches at once; turning it off also drops a network-sourced name right away, whether or
+     *  not the new weather query succeeds. */
     fun refresh(networkPlaceNames: Boolean) {
+        networkConsent = networkPlaceNames
+        if (!networkPlaceNames) {
+            _weather.value?.takeIf { it.cityFromNetwork }?.let {
+                _weather.value = it.copy(city = null, cityFromNetwork = false)
+            }
+        }
         if (!hasPermission()) {
             _weather.value = null
             return
@@ -80,9 +94,11 @@ class WeatherRepository @Inject constructor(
                 val lat = Math.round(exactLat * 100) / 100.0
                 val lon = Math.round(exactLon * 100) / 100.0
                 runCatching { fetch(lat, lon) }.getOrNull()?.let {
-                    val city = resolveCity(exactLat, exactLon, lat, lon, networkPlaceNames)
-                    resolvedWithNetworkPlaceNames = networkPlaceNames
-                    _weather.value = it.copy(city = city)
+                    val consent = networkConsent
+                    val place = resolveCity(exactLat, exactLon, lat, lon, consent)
+                        ?.takeIf { p -> !p.fromNetwork || networkConsent }
+                    resolvedWithNetworkPlaceNames = consent
+                    _weather.value = it.copy(city = place?.name, cityFromNetwork = place?.fromNetwork == true)
                 }
             } finally {
                 fetching.set(false)
@@ -144,10 +160,11 @@ class WeatherRepository @Inject constructor(
 
     private fun resolveCity(
         exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double, networkPlaceNames: Boolean,
-    ): String? = placeNames.resolve(
+    ): PlaceName? = placeNames.resolve(
         areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon),
         local = { cityName(exactLat, exactLon) },
-        network = if (networkPlaceNames) ({ networkCityName(roundedLat, roundedLon) }) else null,
+        // Re-checked right before the request: the local geocoder may have taken a while.
+        network = if (networkPlaceNames) ({ if (networkConsent) networkCityName(roundedLat, roundedLon) else null }) else null,
     )
 
     /** Locality via the platform Geocoder — works worldwide on devices with a geocoder backend

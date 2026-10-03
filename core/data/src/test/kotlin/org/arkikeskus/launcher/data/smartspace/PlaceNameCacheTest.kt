@@ -15,13 +15,20 @@ class PlaceNameCacheTest {
 
     @Test fun aLocalNameNeedsNoNetwork() {
         assertThat(cache.resolve("60.21,24.87", local = { "Vantaa" }, network = network("Helsinki")))
-            .isEqualTo("Vantaa")
+            .isEqualTo(PlaceName("Vantaa", fromNetwork = false))
         assertThat(networkCalls).isEqualTo(0)
     }
 
     @Test fun theNetworkNamesThePlaceWhenTheFallbackIsOnAndTheDeviceCannot() {
         assertThat(cache.resolve("60.21,24.87", local = { null }, network = network("Vantaa")))
-            .isEqualTo("Vantaa")
+            .isEqualTo(PlaceName("Vantaa", fromNetwork = true))
+    }
+
+    @Test fun aCachedNetworkNameStaysMarkedAsFromTheNetwork() {
+        cache.resolve("60.21,24.87", local = { null }, network = network("Vantaa"))
+
+        assertThat(cache.resolve("60.21,24.87", local = { null }, network = network(null)))
+            .isEqualTo(PlaceName("Vantaa", fromNetwork = true))
     }
 
     @Test fun aNetworkNameIsNotReusedOnceTheFallbackIsTurnedOff() {
@@ -33,7 +40,7 @@ class PlaceNameCacheTest {
     @Test fun aLocalNameSurvivesATransientFailureInTheSameArea() {
         cache.resolve("60.21,24.87", local = { "Vantaa" }, network = null)
 
-        assertThat(cache.resolve("60.21,24.87", local = { null }, network = null)).isEqualTo("Vantaa")
+        assertThat(cache.resolve("60.21,24.87", local = { null }, network = null)?.name).isEqualTo("Vantaa")
     }
 
     @Test fun anotherAreaDoesNotKeepThePreviousName() {
