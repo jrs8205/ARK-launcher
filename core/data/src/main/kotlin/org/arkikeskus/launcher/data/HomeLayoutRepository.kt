@@ -214,6 +214,17 @@ class HomeLayoutRepository @Inject constructor(
         dao.renameFolder(folderId, name)
     }
 
+    /** Deletes a folder together with every child. The way out for a folder whose apps all fail to
+     *  resolve (disabled, a paused profile): it renders empty, so no child can be dragged out of it.
+     *  No-op when [folderId] is gone or isn't a folder. */
+    suspend fun removeFolder(folderId: Long) {
+        db.withTransaction {
+            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+            dao.deleteByContainers(listOf(folderId))
+            dao.deleteById(folderId)
+        }
+    }
+
     private suspend fun reindexFolder(folderId: Long) {
         val children = dao.getContainerOrdered(folderId)
         children.forEachIndexed { i, child ->

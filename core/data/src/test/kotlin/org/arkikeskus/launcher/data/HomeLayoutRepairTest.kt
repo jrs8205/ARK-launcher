@@ -235,4 +235,30 @@ class HomeLayoutRepairTest {
 
         assertThat(homeKeys()).containsExactly("sd")
     }
+
+    // --- Removing a folder outright --------------------------------------------------------------
+
+    @Test
+    fun removeFolder_deletesTheFolderAndEveryChild() = runTest {
+        homeApp("a", x = 0)
+        val f = folder(1, "a", "b", "c")
+        val other = folder(2, "d", "e")
+
+        repo.removeFolder(f)
+
+        assertThat(dao.getById(f)).isNull()
+        assertThat(dao.getAll().none { it.containerId == f }).isTrue()
+        assertThat(homeKeys()).containsExactly("a")
+        assertThat(dao.getContainerOrdered(other)).hasSize(2)
+    }
+
+    @Test
+    fun removeFolder_isANoOpForAMissingFolderOrAnotherRow() = runTest {
+        val app = homeApp("a", x = 0)
+
+        repo.removeFolder(999L)
+        repo.removeFolder(app)
+
+        assertThat(homeKeys()).containsExactly("a")
+    }
 }
