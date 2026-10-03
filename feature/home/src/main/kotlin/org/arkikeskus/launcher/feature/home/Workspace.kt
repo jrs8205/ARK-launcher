@@ -116,7 +116,7 @@ import kotlin.math.roundToInt
  * the launcher was already foreground (the Boolean payload) it also scrolls back to the first page.
  */
 @Composable
-fun Workspace(
+internal fun Workspace(
     pageCount: Int,
     columns: Int,
     rows: Int,
@@ -164,6 +164,7 @@ fun Workspace(
     // update is dropped). Keyed by appWidgetId. [widgetScrollableById] mirrors per-id scrollability.
     widgetViews: Map<Int, android.appwidget.AppWidgetHostView> = emptyMap(),
     widgetScrollableById: Map<Int, Boolean> = emptyMap(),
+    widgetSizeReporter: WidgetSizeReporter = remember { WidgetSizeReporter() },
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -1130,8 +1131,8 @@ fun Workspace(
                                                 val wDp = (widget.spanX * cellW / density.density).toInt()
                                                 val hDp = (widget.spanY * cellH / density.density).toInt()
                                                 if (wDp > 0 && hDp > 0) {
-                                                    val opts = widgetSizeOptions(wDp, hDp)
-                                                    runCatching {
+                                                    widgetSizeReporter.report(widget.appWidgetId, wDp, hDp) {
+                                                        val opts = widgetSizeOptions(wDp, hDp)
                                                         hostView.updateAppWidgetSize(opts, wDp, hDp, wDp, hDp)
                                                         hostView.updateAppWidgetOptions(opts)
                                                     }

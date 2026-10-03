@@ -235,6 +235,7 @@ fun HomeScreen(
     // Mirrors Launcher3's LauncherWidgetHolder keeping every host view registered for the app's lifetime.
     val widgetViews = remember { mutableStateMapOf<Int, android.appwidget.AppWidgetHostView>() }
     val widgetScrollableById = remember { mutableStateMapOf<Int, Boolean>() }
+    val widgetSizeReporter = remember { WidgetSizeReporter() }
     val placedWidgetIds = remember(uiState.entries) {
         uiState.entries.filterIsInstance<PlacedWidget>().map { it.appWidgetId }.toSet()
     }
@@ -270,6 +271,7 @@ fun HomeScreen(
         (widgetViews.keys - placedWidgetIds).forEach {
             widgetViews.remove(it)
             widgetScrollableById.remove(it)
+            widgetSizeReporter.forget(it)
         }
     }
 
@@ -595,6 +597,7 @@ fun HomeScreen(
                 },
                 widgetViews = widgetViews,
                 widgetScrollableById = widgetScrollableById,
+                widgetSizeReporter = widgetSizeReporter,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
