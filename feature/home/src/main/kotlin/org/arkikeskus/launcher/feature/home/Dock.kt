@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import kotlinx.coroutines.withTimeoutOrNull
@@ -159,7 +160,7 @@ fun Dock(
                                             tapped = true
                                             return@withTimeoutOrNull
                                         }
-                                        if ((c.position - down.position).getDistance() > slop) {
+                                        if (!IconPress.staysOnIcon(c.position, size, slop)) {
                                             abandoned = true
                                             return@withTimeoutOrNull
                                         }
@@ -175,8 +176,7 @@ fun Dock(
                                 // LONG PRESS → lift
                                 draggingIndex = index
                                 dragOffsetX = 0f
-                                var dragDistance = 0f
-                                val moveThreshold = viewConfiguration.touchSlop
+                                val dragStartPx = IconPress.DragStartThreshold.toPx()
                                 val itemRoot = itemRoots[index] ?: Offset.Zero
                                 dragController.start(app, DragSource.Dock, itemRoot + down.position)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -187,13 +187,15 @@ fun Dock(
                                         // dragOffsetX and broke in-dock reordering (the drag-out path still
                                         // worked because it uses the absolute change.position below).
                                         dragOffsetX += change.positionChange().x
-                                        dragDistance += change.positionChange().getDistance()
                                         change.consume()
-                                        // Only promote to a real move once the finger travels past the slop.
-                                        // A tiny drift during a static long-press must stay a long-press so the
-                                        // popup (app shortcuts) opens instead of a no-op reorder + 2nd haptic —
-                                        // this was the "vibrates twice, no menu" flakiness.
-                                        if (dragDistance > moveThreshold && !dragController.moving) {
+                                        // Only promote to a real move once the finger is pulled past the
+                                        // drag-start threshold FROM WHERE IT WAS PICKED UP. A drift during a
+                                        // static long-press must stay a long-press so the popup (app
+                                        // shortcuts) opens instead of a no-op reorder + 2nd haptic. Summing
+                                        // the travelled distance let plain finger jitter cross it.
+                                        if (!dragController.moving &&
+                                            IconPress.startsDrag(change.position, down.position, dragStartPx)
+                                        ) {
                                             dragController.beginMove()
                                         }
                                         if (dragController.moving) {

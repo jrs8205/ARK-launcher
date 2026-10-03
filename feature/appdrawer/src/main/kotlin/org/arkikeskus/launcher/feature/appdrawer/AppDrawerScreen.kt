@@ -86,6 +86,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.SearchResult
@@ -94,6 +95,7 @@ import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.RenameDialog
@@ -876,9 +878,12 @@ private fun LazyGridScope.appCells(
                                     outcome = 1
                                     return@withTimeoutOrNull
                                 }
-                                // Don't consume: let the LazyGrid scroll a quick drag.
+                                // Don't consume: let the LazyGrid scroll a quick drag. Vertical travel
+                                // past the slop is that scroll; sideways roll only ends the hold once
+                                // the finger leaves the icon (the grid never scrolls sideways).
                                 if (c.isConsumed ||
-                                    (c.position - down.position).getDistance() > slop
+                                    abs(c.position.y - down.position.y) > slop ||
+                                    !IconPress.staysOnIcon(c.position, size, slop)
                                 ) {
                                     outcome = 2
                                     return@withTimeoutOrNull
@@ -902,14 +907,15 @@ private fun LazyGridScope.appCells(
                         // accurate.
                         dragController.start(app, DragSource.Drawer, bounds.topLeft + down.position)
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        val dragStartPx = IconPress.DragStartThreshold.toPx()
                         try {
                             val completed = drag(down.id) { change ->
                                 change.consume()
-                                // Only commit to a drag-out once the finger has moved past the
-                                // slop — otherwise a still long-press (with finger jitter) would
-                                // collapse the drawer instead of just showing the menu.
+                                // Only commit to a drag-out once the finger is pulled past the
+                                // drag-start threshold — otherwise a still long-press (with finger
+                                // jitter) would collapse the drawer instead of just showing the menu.
                                 if (!dragController.moving &&
-                                    (change.position - down.position).getDistance() > slop
+                                    IconPress.startsDrag(change.position, down.position, dragStartPx)
                                 ) {
                                     dragController.beginMove()
                                     onDragOutStart()

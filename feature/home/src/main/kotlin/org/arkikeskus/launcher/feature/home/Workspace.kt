@@ -88,6 +88,7 @@ import org.arkikeskus.launcher.data.ReorderPlanner
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.AppLabel
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
@@ -175,7 +176,6 @@ internal fun Workspace(
     var gridSize by remember { mutableStateOf(IntSize.Zero) }
     var dragging by remember { mutableStateOf<PlacedApp?>(null) }
     var dragPos by remember { mutableStateOf(Offset.Zero) }
-    var dragDistance by remember { mutableStateOf(0f) }
     var editingWidget by remember { mutableStateOf<EditingItem?>(null) }
     // While the edit frame is open, the root swipe-up detector must yield (it bails on localGestureActive),
     // so a handle/scrim drag can never open the drawer. Reset when the frame closes.
@@ -490,7 +490,7 @@ internal fun Workspace(
                     if (c == null) { swiped = true; return@withTimeoutOrNull }
                     c.consume()
                     if (!c.pressed) { tapped = true; return@withTimeoutOrNull }
-                    if ((c.position - down.position).getDistance() > slop) { swiped = true; return@withTimeoutOrNull }
+                    if (!IconPress.staysOnIcon(c.position, size, slop)) { swiped = true; return@withTimeoutOrNull }
                 }
             }
             if (tapped) { onTap(); return@awaitEachGesture }
@@ -505,15 +505,18 @@ internal fun Workspace(
             dragController.localGestureActive = true
             localDragPos = Offset(entry.cellX * cellW + down.position.x, entry.cellY * cellH + down.position.y)
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            val dragStartPx = IconPress.DragStartThreshold.toPx()
             try {
                 val completed = drag(down.id) { change ->
                     val delta = change.positionChange()
                     change.consume()
                     localDragPos += delta
-                    if (!localMoving) {
+                    // Same drag-start threshold as an app icon: a wobbling hold opens the folder / menu.
+                    if (!localMoving && IconPress.startsDrag(change.position, down.position, dragStartPx)) {
                         localMoving = true
                         if (removable) dragController.localDragging = true
                     }
+                    if (!localMoving) return@drag
                     // Publish root coords so the remove zone can highlight + hit-test this local drag.
                     if (removable) dragController.update(dragController.gridBounds.topLeft + localDragPos)
                     if (!pagerState.isScrollInProgress) {
@@ -865,7 +868,7 @@ internal fun Workspace(
                                                         tapped = true
                                                         return@withTimeoutOrNull
                                                     }
-                                                    if ((c.position - down.position).getDistance() > slop) {
+                                                    if (!IconPress.staysOnIcon(c.position, size, slop)) {
                                                         swiped = true
                                                         return@withTimeoutOrNull
                                                     }
@@ -880,7 +883,6 @@ internal fun Workspace(
                                             if (locked) return@awaitEachGesture
                                             // PICK UP
                                             dragging = placed
-                                            dragDistance = 0f
                                             dragPos = Offset(
                                                 placed.cellX * cellW + down.position.x,
                                                 placed.cellY * cellH + down.position.y,
@@ -892,17 +894,22 @@ internal fun Workspace(
                                                 dragController.gridBounds.topLeft + dragPos,
                                             )
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            val dragStartPx = IconPress.DragStartThreshold.toPx()
                                             try {
-                                                // DRAG
+                                                // DRAG — drag() reports every pixel, so a lifted icon only
+                                                // starts moving once pulled past the drag-start threshold;
+                                                // a hold that merely wobbles still releases into the menu
+                                                // instead of nudging the icon into a neighbouring cell.
                                                 val completed = drag(down.id) { change ->
                                                     val delta = change.positionChange()
                                                     change.consume()
                                                     dragPos += delta
-                                                    dragDistance += delta.getDistance()
-                                                    // Any movement past the touch slop (drag() already
-                                                    // enforces it) is a drag → start moving immediately so
-                                                    // the floating icon tracks the finger from the start.
-                                                    if (!dragController.moving) dragController.beginMove()
+                                                    if (!dragController.moving &&
+                                                        IconPress.startsDrag(change.position, down.position, dragStartPx)
+                                                    ) {
+                                                        dragController.beginMove()
+                                                    }
+                                                    if (!dragController.moving) return@drag
                                                     dragController.update(
                                                         dragController.gridBounds.topLeft + dragPos,
                                                     )
