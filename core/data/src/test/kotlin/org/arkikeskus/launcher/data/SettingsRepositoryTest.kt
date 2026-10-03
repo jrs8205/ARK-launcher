@@ -57,6 +57,18 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun networkPlaceNamesIsOptInAndRoundTripsThroughBackup() = runTest {
+        val source = newRepository()
+        assertThat(source.settings.first().networkPlaceNames).isFalse()
+        source.setNetworkPlaceNames(true)
+        val restored = newRepository()
+        restored.importRaw(source.exportRaw())
+        assertThat(restored.settings.first().networkPlaceNames).isTrue()
+        restored.importRaw(mapOf("network_place_names" to "invalid"))
+        assertThat(restored.settings.first().networkPlaceNames).isFalse()
+    }
+
+    @Test
     fun `reorderVisibleDock keeps favorites hidden by the column cap`() = runTest {
         val repo = newRepository()
         listOf("a", "b", "c", "d", "e", "f").forEach { repo.addToDock(it) }

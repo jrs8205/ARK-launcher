@@ -231,6 +231,14 @@ fun SettingsScreen(
                 )
                 SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, viewModel::setWidgetTonalBackground)
                 WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
+                if (s.showWeather) {
+                    SwitchRow(
+                        stringResource(R.string.settings_network_place_names),
+                        stringResource(R.string.settings_network_place_names_desc),
+                        s.networkPlaceNames,
+                        viewModel::setNetworkPlaceNames,
+                    )
+                }
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_notif_widget_count),
                     description = stringResource(
@@ -812,10 +820,21 @@ private fun RowLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) =
+    SwitchRow(label, description = null, checked, onCheckedChange)
+
+@Composable
+private fun SwitchRow(label: String, description: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val p = LocalExpressivePalette.current
     ExpressiveCard {
-        RowLabel(label, Modifier.weight(1f))
+        if (description == null) {
+            RowLabel(label, Modifier.weight(1f))
+        } else {
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                RowLabel(label)
+                Text(description, color = p.dim, fontSize = 12.5.sp)
+            }
+        }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,

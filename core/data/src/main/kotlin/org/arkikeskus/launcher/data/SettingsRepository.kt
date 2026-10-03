@@ -87,6 +87,7 @@ class SettingsRepository @Inject constructor(
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
             showWeather = p[Keys.SHOW_WEATHER] ?: true,
+            networkPlaceNames = p[Keys.NETWORK_PLACE_NAMES] ?: false,
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: 0.6f).coerceIn(0f, 1f),
             widgetTonalBackground = p[Keys.WIDGET_TONAL_BACKGROUND] ?: false,
@@ -360,6 +361,8 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setShowWeather(value: Boolean) = edit { it[Keys.SHOW_WEATHER] = value }
 
+    suspend fun setNetworkPlaceNames(value: Boolean) = edit { it[Keys.NETWORK_PLACE_NAMES] = value }
+
     /** Hides/shows the system status bar while the launcher is foreground (immersive home). */
     suspend fun setHideSystemStatusBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = value }
 
@@ -532,6 +535,7 @@ class SettingsRepository @Inject constructor(
         val TWO_LINE_DRAWER_LABELS = booleanPreferencesKey("two_line_drawer_labels")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
         val SHOW_WEATHER = booleanPreferencesKey("show_weather")
+        val NETWORK_PLACE_NAMES = booleanPreferencesKey("network_place_names")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
@@ -582,6 +586,7 @@ class SettingsRepository @Inject constructor(
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
+            "network_place_names",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

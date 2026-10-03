@@ -1,7 +1,7 @@
 # ARK-launcher Privacy Policy
 
-*Last updated: 2026-09-29 · applies to ARK-launcher v0.8.0 and later
-([v0.7.11 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.7.11/PRIVACY.md))*
+*Last updated: 2026-10-03 · applies to ARK-launcher v0.8.3 and later
+([v0.8.2 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.8.2/PRIVACY.md))*
 
 *Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
 
@@ -54,12 +54,14 @@ public, so every claim here can be verified:
    rounded to about one-kilometre precision before the request; the exact
    position never leaves the device.
 2. **Municipality name** shown next to the weather: the name is resolved with
-   the device's own geocoder first. If the device has no working geocoder
-   backend (some models don't), the app falls back to the keyless
-   [BigDataCloud](https://www.bigdatacloud.com) reverse-geocoding API, sending
-   the same ~1 km rounded coordinates plus the device's interface language —
-   at most once per 30-minute weather refresh, and only when the local
-   geocoder failed.
+   the device's own geocoder. Only if you turn on *Place name from the
+   internet* (Settings ▸ Home, off by default) and the device has no working
+   geocoder backend (some models don't), the app asks the keyless
+   [BigDataCloud](https://www.bigdatacloud.com) reverse-geocoding API instead,
+   sending the same ~1 km rounded coordinates plus the device's interface
+   language — at most once per 30-minute weather refresh, and only when the
+   local geocoder failed. With the setting off, no request is ever made to
+   BigDataCloud; on such devices the weather then shows without a place name.
 
 That is the complete list. The "Check for updates" row in Settings only opens
 the GitHub releases page in your browser — the app itself performs no update

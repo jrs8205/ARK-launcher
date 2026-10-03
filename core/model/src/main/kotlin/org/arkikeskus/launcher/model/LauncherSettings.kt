@@ -53,6 +53,9 @@ data class LauncherSettings(
     val showStatusBar: Boolean = false,
     /** Show the current weather (Open-Meteo; needs a location permission) in the smartspace widget. */
     val showWeather: Boolean = true,
+    /** Name the weather's place with BigDataCloud's reverse geocoder when the device's own Geocoder
+     *  can't. Opt-in: BigDataCloud is a proprietary service (F-Droid's NonFreeNet anti-feature). */
+    val networkPlaceNames: Boolean = false,
     /** Hide the system status bar while the launcher is in the foreground (immersive/fullscreen home).
      *  Independent of [showStatusBar]; combine the two to replace the system bar with the themed one. */
     val hideSystemStatusBar: Boolean = false,

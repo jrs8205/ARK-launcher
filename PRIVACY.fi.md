@@ -1,7 +1,7 @@
 # ARK-launcherin tietosuojaseloste
 
-*Päivitetty: 29.9.2026 · koskee ARK-launcherin versiota 0.8.0 ja uudempia
-([version 0.7.11 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.7.11/PRIVACY.fi.md))*
+*Päivitetty: 3.10.2026 · koskee ARK-launcherin versiota 0.8.3 ja uudempia
+([version 0.8.2 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.8.2/PRIVACY.fi.md))*
 
 *This policy in English: [PRIVACY.md](PRIVACY.md)*
 
@@ -59,13 +59,17 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
    [Open-Meteo](https://open-meteo.com)-rajapinnasta. Koordinaatit pyöristetään
    noin kilometrin tarkkuuteen ennen pyyntöä; tarkka sijainti ei koskaan
    poistu laitteelta.
-2. **Kuntanimi** sään vieressä: nimi selvitetään ensisijaisesti laitteen
-   omalla geokooderilla. Jos laitteessa ei ole toimivaa geokooderia (joissakin
-   malleissa ei ole), sovellus käyttää varalla avaimetonta
+2. **Kuntanimi** sään vieressä: nimi selvitetään laitteen omalla
+   geokooderilla. Vain jos olet ottanut käyttöön asetuksen *Paikkakunta
+   verkosta* (Asetukset ▸ Etusivu, oletuksena pois) eikä laitteessa ole
+   toimivaa geokooderia (joissakin malleissa ei ole), sovellus käyttää sen
+   sijaan avaimetonta
    [BigDataCloud](https://www.bigdatacloud.com)-käänteisgeokoodausrajapintaa
    ja lähettää sinne samat ~1 km:n tarkkuuteen pyöristetyt koordinaatit sekä
    laitteen käyttöliittymäkielen — enintään kerran 30 minuutin säähakua
-   kohden, ja vain kun paikallinen geokooderi epäonnistui.
+   kohden, ja vain kun paikallinen geokooderi epäonnistui. Kun asetus on pois,
+   BigDataCloudiin ei lähetetä mitään; tällaisissa laitteissa sää näkyy silloin
+   ilman paikkakunnan nimeä.
 
 Tämä on koko lista. Asetusten "Tarkista päivitykset" -rivi vain avaa GitHubin
 julkaisusivun selaimessa — sovellus itse ei tee päivitystarkistuksia eikä

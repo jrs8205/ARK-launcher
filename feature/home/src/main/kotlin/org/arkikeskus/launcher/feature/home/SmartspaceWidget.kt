@@ -97,7 +97,8 @@ class SmartspaceViewModel @Inject constructor(
         // Gate on the PERSISTED setting, not the StateFlow: at process start the stateIn initial
         // value (true) would fire one location read + network query even with weather turned off.
         viewModelScope.launch {
-            if (settingsRepository.settings.first().showWeather) weatherRepository.refresh()
+            val s = settingsRepository.settings.first()
+            if (s.showWeather) weatherRepository.refresh(s.networkPlaceNames)
         }
     }
 

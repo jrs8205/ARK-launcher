@@ -6,6 +6,7 @@ Features:
 * Dock of favourite apps.
 * App drawer with universal search: apps, system settings pages, contacts (opt-in), and a calculator / unit converter, plus an optional most-used apps row.
 * Home-screen widgets — add, resize, move, reconfigure, and stretch a widget to full width. Collection widgets (chat lists, calendars) scroll in place.
+* Built-in widgets: a clock with the date, your next event, the next alarm and optional weather; battery; notifications; and people (conversations grouped by person).
 * Folders on the home screen and inside the app drawer.
 * Third-party icon packs (ADW/Nova appfilter format) and Material You themed icons.
 * Configurable gestures: swipe up for the app drawer, swipe down for notifications, and a configurable left-edge swipe.
@@ -13,5 +14,7 @@ Features:
 * Backup and restore your layout and settings to a file. Widgets are included in backups.
 * Double-tap empty home-screen space to lock the screen (opt-in).
 * Lock desktop, hide apps, rename apps with custom labels, and a self-contained settings screen.
+
+Network use: the only feature that uses the internet is the optional weather in the clock widget. It needs the location permission and fetches the current weather from Open-Meteo (open-meteo.com) with your location rounded to about 1 km. The place name comes from the phone's own geocoder; only if you turn on "Place name from the internet" (off by default) and the phone has no geocoder of its own is the name looked up from BigDataCloud (bigdatacloud.com). With the weather turned off in Settings, the app makes no network requests.
 
 Free and open-source under the Apache-2.0 license.

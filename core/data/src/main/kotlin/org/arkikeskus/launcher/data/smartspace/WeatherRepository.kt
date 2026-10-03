@@ -53,13 +53,21 @@ class WeatherRepository @Inject constructor(
         context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-    fun refresh() {
+    /** The network-place-name setting the current [weather] was resolved with. */
+    @Volatile private var resolvedWithNetworkPlaceNames = false
+
+    /** [networkPlaceNames]: the user allowed the BigDataCloud place-name fallback. A changed setting
+     *  re-fetches at once, so turning it off drops a network-sourced name on the next home resume. */
+    fun refresh(networkPlaceNames: Boolean) {
         if (!hasPermission()) {
             _weather.value = null
             return
         }
         val cached = _weather.value
-        if (cached != null && System.currentTimeMillis() - cached.fetchedAt < REFRESH_INTERVAL_MS) return
+        if (cached != null &&
+            System.currentTimeMillis() - cached.fetchedAt < REFRESH_INTERVAL_MS &&
+            networkPlaceNames == resolvedWithNetworkPlaceNames
+        ) return
         if (!fetching.compareAndSet(false, true)) return
         scope.launch(Dispatchers.IO) {
             try {
@@ -72,7 +80,9 @@ class WeatherRepository @Inject constructor(
                 val lat = Math.round(exactLat * 100) / 100.0
                 val lon = Math.round(exactLon * 100) / 100.0
                 runCatching { fetch(lat, lon) }.getOrNull()?.let {
-                    _weather.value = it.copy(city = resolveCity(exactLat, exactLon, lat, lon))
+                    val city = resolveCity(exactLat, exactLon, lat, lon, networkPlaceNames)
+                    resolvedWithNetworkPlaceNames = networkPlaceNames
+                    _weather.value = it.copy(city = city)
                 }
             } finally {
                 fetching.set(false)
@@ -129,27 +139,16 @@ class WeatherRepository @Inject constructor(
         }
     }
 
-    /** Last successfully geocoded name + the rounded area it belongs to: a transient geocoder
-     *  failure must not blank a name the user was already seeing, but a clearly different area
-     *  must not keep showing the previous town. Guarded by the [fetching] gate (single writer). */
-    private var lastCity: String? = null
-    private var lastCityAreaKey: String? = null
-    private var lastCityAtMs = 0L
+    /** Guarded by the [fetching] gate (single writer). */
+    private val placeNames = PlaceNameCache(CITY_CACHE_MAX_AGE_MS)
 
-    private fun resolveCity(exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double): String? {
-        val areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon)
-        val fresh = cityName(exactLat, exactLon) ?: networkCityName(roundedLat, roundedLon)
-        if (fresh != null) {
-            lastCity = fresh
-            lastCityAreaKey = areaKey
-            lastCityAtMs = System.currentTimeMillis()
-            return fresh
-        }
-        // Same rounded area AND recent enough: a transient failure must not blank the name, but a
-        // dead geocoder must not pin a stale name forever either.
-        val cacheAlive = System.currentTimeMillis() - lastCityAtMs < CITY_CACHE_MAX_AGE_MS
-        return if (areaKey == lastCityAreaKey && cacheAlive) lastCity else null
-    }
+    private fun resolveCity(
+        exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double, networkPlaceNames: Boolean,
+    ): String? = placeNames.resolve(
+        areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon),
+        local = { cityName(exactLat, exactLon) },
+        network = if (networkPlaceNames) ({ networkCityName(roundedLat, roundedLon) }) else null,
+    )
 
     /** Locality via the platform Geocoder — works worldwide on devices with a geocoder backend
      *  (localized names); null elsewhere. Checks several results and fields: older OEM backends
@@ -182,7 +181,8 @@ class WeatherRepository @Inject constructor(
      *  (the Samsung A40 symptom): BigDataCloud's keyless client API. Client-side calls with the
      *  device's own current fix are exactly its permitted use. Sends only the SAME 2-decimal
      *  rounded coordinates the weather query already sends — the exact fix never leaves the device.
-     *  Reached at most once per 30-min weather refresh, and only when the local geocoder failed. */
+     *  Reached only when the user turned the setting on, at most once per 30-min weather refresh,
+     *  and only when the local geocoder failed. */
     private fun networkCityName(roundedLat: Double, roundedLon: Double): String? {
         val url = URL(
             "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=%.2f&longitude=%.2f&localityLanguage=%s"

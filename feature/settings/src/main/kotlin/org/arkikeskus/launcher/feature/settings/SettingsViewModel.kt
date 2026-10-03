@@ -101,6 +101,7 @@ class SettingsViewModel @Inject constructor(
     fun setTwoLineDrawerLabels(value: Boolean) = update { repository.setTwoLineDrawerLabels(value) }
     fun setShowStatusBar(value: Boolean) = update { repository.setShowStatusBar(value) }
     fun setShowWeather(value: Boolean) = update { repository.setShowWeather(value) }
+    fun setNetworkPlaceNames(value: Boolean) = update { repository.setNetworkPlaceNames(value) }
     fun setWidgetTonalBackground(value: Boolean) = update { repository.setWidgetTonalBackground(value) }
     fun setNotificationWidgetCountStyle(value: String) = update { repository.setNotificationWidgetCountStyle(value) }
     fun setPeoplePrivacy(value: String) = update { repository.setPeoplePrivacy(value) }
