@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_drawer_search_hint">Sök efter appar</string>
+    <string name="add_to_dock">Lägg till i Dock</string>
+    <string name="remove_from_dock">Ta bort från Dock</string>
+    <string name="add_to_home">Lägg till på startskärmen</string>
+    <string name="remove_from_home">Ta bort från startskärmen</string>
+    <string name="app_info">Appinformation</string>
+    <string name="hide_app">Dölj app</string>
+    <string name="rename">Byt namn</string>
+    <string name="uninstall">Avinstallera</string>
+    <string name="folder_name_label">Mappnamn</string>
+    <string name="folder_add_apps">Lägg till appar</string>
+    <string name="folder_delete">Radera mapp</string>
+    <string name="folder_remove_hint">Tryck länge på en app för att ta bort den från mappen</string>
+    <string name="folder_add">Lägg till</string>
+    <string name="folder_cancel">Avbryt</string>
+    <string name="search_section_apps">Appar</string>
+    <string name="search_section_settings">Inställningar</string>
+    <string name="search_section_contacts">Kontakter</string>
+    <string name="search_calc_copied">Kopierat till urklipp</string>
+    <string name="search_contact_call">Ring</string>
+    <string name="search_contact_message">Meddelande</string>
+    <string name="drawer_frequent_apps">Mest använda</string>
+    <string name="search_clear">Rensa sökningen</string>
+    <string name="search_no_results">Inga resultat hittades</string>
+</resources>

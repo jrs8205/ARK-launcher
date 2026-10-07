@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rename_title">Byt namn</string>
+    <string name="rename_label">Namn</string>
+    <string name="rename_save">Spara</string>
+    <string name="rename_cancel">Avbryt</string>
+    <string name="rename_reset">Återställ standardnamn</string>
+    <string name="shortcut_pin">Fäst på startskärmen</string>
+    <string name="app_info_unavailable">Det gick inte att öppna appinformationen</string>
+</resources>

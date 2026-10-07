@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Backup</string>
+    <string name="backup_file_section">Arquivo</string>
+    <string name="backup_export">Exportar para arquivo</string>
+    <string name="backup_import">Importar de arquivo</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_exported">Backup salvo</string>
+    <string name="backup_restored">Backup restaurado</string>
+    <plurals name="backup_restored_skipped">
+        <item quantity="one">Backup restaurado — %1$d item ignorado (não instalado)</item>
+        <item quantity="many">Backup restaurado — %1$d itens ignorados (não instalados)</item>
+        <item quantity="other">Backup restaurado — %1$d itens ignorados (não instalados)</item>
+    </plurals>
+    <string name="backup_import_invalid">Arquivo de backup inválido ou incompatível</string>
+    <string name="backup_error_too_large">O arquivo de backup é muito grande</string>
+    <string name="backup_failed">Falha na operação</string>
+    <string name="backup_restore_confirm_title">Restaurar backup?</string>
+    <string name="backup_restore_confirm_msg">A tela inicial e as configurações atuais serão substituídas. Os widgets serão restaurados como espaços reservados: toque em cada um para configurá-lo.</string>
+    <string name="backup_restore_confirm_ok">Restaurar</string>
+    <string name="backup_cancel">Cancelar</string>
+    <string name="backup_last_time">Último: %1$s</string>
+</resources>

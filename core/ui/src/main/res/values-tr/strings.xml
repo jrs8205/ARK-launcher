@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rename_title">Yeniden adlandır</string>
+    <string name="rename_label">Ad</string>
+    <string name="rename_save">Kaydet</string>
+    <string name="rename_cancel">İptal</string>
+    <string name="rename_reset">Varsayılana sıfırla</string>
+    <string name="shortcut_pin">Ana ekrana sabitle</string>
+    <string name="app_info_unavailable">Uygulama bilgileri açılamadı</string>
+</resources>

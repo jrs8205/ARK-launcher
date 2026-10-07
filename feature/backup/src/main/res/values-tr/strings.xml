@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Yedekleme</string>
+    <string name="backup_file_section">Dosya</string>
+    <string name="backup_export">Dosyaya dışa aktar</string>
+    <string name="backup_import">Dosyadan içe aktar</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_exported">Yedek kaydedildi</string>
+    <string name="backup_restored">Yedek geri yüklendi</string>
+    <plurals name="backup_restored_skipped">
+        <item quantity="one">Yedek geri yüklendi — %1$d öğe atlandı (yüklü değil)</item>
+        <item quantity="other">Yedek geri yüklendi — %1$d öğe atlandı (yüklü değil)</item>
+    </plurals>
+    <string name="backup_import_invalid">Geçersiz veya uyumsuz yedek dosyası</string>
+    <string name="backup_error_too_large">Yedek dosyası çok büyük</string>
+    <string name="backup_failed">İşlem başarısız oldu</string>
+    <string name="backup_restore_confirm_title">Yedek geri yüklensin mi?</string>
+    <string name="backup_restore_confirm_msg">Mevcut ana ekranınız ve ayarlarınız bu yedekle değiştirilecek. Widget\'lar, dokunarak kurulabilen yer tutucular olarak geri yüklenir.</string>
+    <string name="backup_restore_confirm_ok">Geri yükle</string>
+    <string name="backup_cancel">İptal</string>
+    <string name="backup_last_time">Son yedek: %1$s</string>
+</resources>

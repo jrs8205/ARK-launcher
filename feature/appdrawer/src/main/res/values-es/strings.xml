@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_drawer_search_hint">Buscar aplicaciones</string>
+    <string name="add_to_dock">Agregar al dock</string>
+    <string name="remove_from_dock">Quitar del dock</string>
+    <string name="add_to_home">Agregar a la pantalla de inicio</string>
+    <string name="remove_from_home">Quitar de la pantalla de inicio</string>
+    <string name="app_info">Información de la aplicación</string>
+    <string name="hide_app">Ocultar aplicación</string>
+    <string name="rename">Cambiar nombre</string>
+    <string name="uninstall">Desinstalar</string>
+    <string name="folder_name_label">Nombre de la carpeta</string>
+    <string name="folder_add_apps">Agregar aplicaciones</string>
+    <string name="folder_delete">Eliminar carpeta</string>
+    <string name="folder_remove_hint">Mantén pulsada una aplicación para quitarla de la carpeta</string>
+    <string name="folder_add">Agregar</string>
+    <string name="folder_cancel">Cancelar</string>
+    <string name="search_section_apps">Aplicaciones</string>
+    <string name="search_section_settings">Configuración</string>
+    <string name="search_section_contacts">Contactos</string>
+    <string name="search_calc_copied">Copiado en el portapapeles</string>
+    <string name="search_contact_call">Llamar</string>
+    <string name="search_contact_message">Mensaje</string>
+    <string name="drawer_frequent_apps">Más usadas</string>
+    <string name="search_clear">Borrar búsqueda</string>
+    <string name="search_no_results">No se encontraron resultados</string>
+</resources>

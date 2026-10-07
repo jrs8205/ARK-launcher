@@ -6,7 +6,8 @@
 [![Built with Jetpack Compose](https://img.shields.io/badge/Built%20with-Jetpack%20Compose-4285F4)](https://developer.android.com/jetpack/compose)
 
 A modern, lightweight Android home-screen launcher built entirely with **Jetpack Compose**.
-It is **bilingual** — English (default) and Finnish — and shares the visual identity of the
+It speaks **English, Finnish, German, Spanish, French, Portuguese, Russian, Swedish and Turkish**
+(English is the fallback) and shares the visual identity of the
 **Arkikeskus** app, but works as a standalone launcher for anyone.
 
 > Status: early but daily-driven. Built from scratch on a current Kotlin/Compose stack.
@@ -140,3 +141,7 @@ Android Open Source Project's **Launcher3** (also Apache-2.0); see [NOTICE](NOTI
 Issues and pull requests are welcome — for feature ideas, consider starting a
 [Discussion](https://github.com/jrs8205/ARK-launcher/discussions) first. By contributing you agree
 your contributions are licensed under the project's Apache-2.0 license.
+
+**Translations welcome.** English and Finnish are maintained by the author; the other languages
+have not been reviewed by native speakers yet, so corrections from native speakers are
+especially appreciated — edit the `values-<lang>/strings.xml` files (one per module) and open a pull request.

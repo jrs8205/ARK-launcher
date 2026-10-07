@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The *_aliases entries deliberately include accent-less and colloquial spellings for search. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
+    <string name="setting_wifi">Wi-Fi</string>
+    <string name="setting_wifi_aliases">wifi,wlan,trådlöst,tradlost,internet,nätverk,natverk</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_bluetooth_aliases">bluetooth,bt,hörlurar,horlurar,headset</string>
+    <string name="setting_network">Nätverk och internet</string>
+    <string name="setting_network_aliases">nätverk,natverk,internet,mobilnät,mobilnat,mobil,data,sim</string>
+    <string name="setting_data">Dataanvändning</string>
+    <string name="setting_data_aliases">data,dataanvändning,dataanvandning,mobildata</string>
+    <string name="setting_battery">Batteri</string>
+    <string name="setting_battery_aliases">batteri,ström,strom,batterisparläge,batterisparlage,energisparläge,energisparlage,laddning</string>
+    <string name="setting_display">Skärm</string>
+    <string name="setting_display_aliases">skärm,skarm,ljusstyrka,mörkt,morkt,tema,bakgrund</string>
+    <string name="setting_sound">Ljud</string>
+    <string name="setting_sound_aliases">ljud,volym,vibration,ringsignal</string>
+    <string name="setting_apps">Appar</string>
+    <string name="setting_apps_aliases">appar,applikationer,program</string>
+    <string name="setting_storage">Lagringsutrymme</string>
+    <string name="setting_storage_aliases">lagring,lagringsutrymme,minne,disk</string>
+    <string name="setting_location">Plats</string>
+    <string name="setting_location_aliases">plats,gps,position,platstjänster,platstjanster</string>
+    <string name="setting_datetime">Datum och tid</string>
+    <string name="setting_datetime_aliases">datum,tid,klocka,tidszon</string>
+    <string name="setting_security">Säkerhet</string>
+    <string name="setting_security_aliases">säkerhet,sakerhet,lås,las,skärmlås,skarmlas,lösenord,losenord,fingeravtryck,pinkod</string>
+    <string name="setting_accessibility">Tillgänglighet</string>
+    <string name="setting_accessibility_aliases">tillgänglighet,tillganglighet,a11y</string>
+    <string name="setting_language">Språk och inmatning</string>
+    <string name="setting_language_aliases">språk,sprak,tangentbord,inmatning</string>
+    <string name="setting_about">Om telefonen</string>
+    <string name="setting_about_aliases">om,version,modell,android</string>
+    <string name="setting_systemupdate">Programuppdateringar</string>
+    <string name="setting_systemupdate_aliases">programuppdatering,systemuppdatering,uppdatering,uppdateringar,uppdatera,system update</string>
+</resources>

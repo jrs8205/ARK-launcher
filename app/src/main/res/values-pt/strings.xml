@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ARK-launcher</string>
+    <string name="set_default_launcher">Definir como tela inicial padrão</string>
+    <string name="default_launcher_active">Tela inicial padrão ativa</string>
+    <string name="settings_label">Configurações do ARK-launcher</string>
+</resources>

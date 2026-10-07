@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_drawer_search_hint">Uygulamalarda ara</string>
+    <string name="add_to_dock">Dock\'a ekle</string>
+    <string name="remove_from_dock">Dock\'tan kaldır</string>
+    <string name="add_to_home">Ana ekrana ekle</string>
+    <string name="remove_from_home">Ana ekrandan kaldır</string>
+    <string name="app_info">Uygulama bilgileri</string>
+    <string name="hide_app">Uygulamayı gizle</string>
+    <string name="rename">Yeniden adlandır</string>
+    <string name="uninstall">Yüklemeyi kaldır</string>
+    <string name="folder_name_label">Klasör adı</string>
+    <string name="folder_add_apps">Uygulama ekle</string>
+    <string name="folder_delete">Klasörü sil</string>
+    <string name="folder_remove_hint">Klasörden çıkarmak için uygulamayı basılı tutun</string>
+    <string name="folder_add">Ekle</string>
+    <string name="folder_cancel">İptal</string>
+    <string name="search_section_apps">Uygulamalar</string>
+    <string name="search_section_settings">Ayarlar</string>
+    <string name="search_section_contacts">Kişiler</string>
+    <string name="search_calc_copied">Panoya kopyalandı</string>
+    <string name="search_contact_call">Ara</string>
+    <string name="search_contact_message">Mesaj</string>
+    <string name="drawer_frequent_apps">En çok kullanılanlar</string>
+    <string name="search_clear">Aramayı temizle</string>
+    <string name="search_no_results">Sonuç bulunamadı</string>
+</resources>

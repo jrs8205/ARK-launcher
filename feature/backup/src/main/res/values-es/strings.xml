@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Copia de seguridad</string>
+    <string name="backup_file_section">Archivo</string>
+    <string name="backup_export">Exportar a un archivo</string>
+    <string name="backup_import">Importar desde un archivo</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_exported">Copia de seguridad guardada</string>
+    <string name="backup_restored">Copia de seguridad restaurada</string>
+    <plurals name="backup_restored_skipped">
+        <item quantity="one">Copia de seguridad restaurada — %1$d elemento omitido (no instalado)</item>
+        <item quantity="many">Copia de seguridad restaurada — %1$d elementos omitidos (no instalados)</item>
+        <item quantity="other">Copia de seguridad restaurada — %1$d elementos omitidos (no instalados)</item>
+    </plurals>
+    <string name="backup_import_invalid">Archivo de copia de seguridad no válido o incompatible</string>
+    <string name="backup_error_too_large">El archivo de copia de seguridad es demasiado grande</string>
+    <string name="backup_failed">No se pudo completar la operación</string>
+    <string name="backup_restore_confirm_title">¿Restaurar la copia de seguridad?</string>
+    <string name="backup_restore_confirm_msg">Se reemplazarán la pantalla de inicio y la configuración actuales. Los widgets se restaurarán como marcadores de posición; tócalos para configurarlos.</string>
+    <string name="backup_restore_confirm_ok">Restaurar</string>
+    <string name="backup_cancel">Cancelar</string>
+    <string name="backup_last_time">Última copia: %1$s</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rename_title">Umbenennen</string>
+    <string name="rename_label">Name</string>
+    <string name="rename_save">Speichern</string>
+    <string name="rename_cancel">Abbrechen</string>
+    <string name="rename_reset">Auf Standard zurücksetzen</string>
+    <string name="shortcut_pin">Zum Startbildschirm hinzufügen</string>
+    <string name="app_info_unavailable">App-Info konnte nicht geöffnet werden</string>
+</resources>

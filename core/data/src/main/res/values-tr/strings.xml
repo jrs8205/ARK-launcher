@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The *_aliases entries deliberately include accent-less and colloquial spellings for search. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
+    <string name="setting_wifi">Wi-Fi</string>
+    <string name="setting_wifi_aliases">wifi,wlan,kablosuz,kablosuz ağ,kablosuz ag,internet,ağ,ag</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_bluetooth_aliases">bluetooth,bt,kulaklık,kulaklik,bağlı cihazlar,bagli cihazlar</string>
+    <string name="setting_network">Ağ ve internet</string>
+    <string name="setting_network_aliases">ağ,ag,internet,mobil,hücresel,hucresel,data,veri,sim,operatör,operator</string>
+    <string name="setting_data">Veri kullanımı</string>
+    <string name="setting_data_aliases">data,veri,veri kullanımı,veri kullanimi,mobil veri,mobil data,kota</string>
+    <string name="setting_battery">Pil</string>
+    <string name="setting_battery_aliases">pil,batarya,şarj,sarj,güç,guc,tasarruf,pil tasarrufu</string>
+    <string name="setting_display">Ekran</string>
+    <string name="setting_display_aliases">ekran,parlaklık,parlaklik,koyu tema,karanlık,karanlik,tema,duvar kağıdı,duvar kagidi</string>
+    <string name="setting_sound">Ses</string>
+    <string name="setting_sound_aliases">ses,ses düzeyi,ses duzeyi,titreşim,titresim,zil sesi,melodi</string>
+    <string name="setting_apps">Uygulamalar</string>
+    <string name="setting_apps_aliases">uygulamalar,uygulama,apps,programlar</string>
+    <string name="setting_storage">Depolama</string>
+    <string name="setting_storage_aliases">depolama,depolama alanı,depolama alani,hafıza,hafiza,bellek,disk</string>
+    <string name="setting_location">Konum</string>
+    <string name="setting_location_aliases">konum,gps,yer</string>
+    <string name="setting_datetime">Tarih ve saat</string>
+    <string name="setting_datetime_aliases">tarih,saat,zaman,saat dilimi</string>
+    <string name="setting_security">Güvenlik</string>
+    <string name="setting_security_aliases">güvenlik,guvenlik,kilit,ekran kilidi,şifre,sifre,parola,parmak izi</string>
+    <string name="setting_accessibility">Erişilebilirlik</string>
+    <string name="setting_accessibility_aliases">erişilebilirlik,erisilebilirlik,a11y</string>
+    <string name="setting_language">Diller ve giriş</string>
+    <string name="setting_language_aliases">dil,diller,klavye,giriş,giris</string>
+    <string name="setting_about">Telefon hakkında</string>
+    <string name="setting_about_aliases">hakkında,hakkinda,sürüm,surum,versiyon,model,android</string>
+    <string name="setting_systemupdate">Yazılım güncellemeleri</string>
+    <string name="setting_systemupdate_aliases">yazılım güncellemesi,yazilim guncellemesi,sistem güncellemesi,sistem guncellemesi,güncelleme,guncelleme,güncellemeler,guncellemeler</string>
+</resources>

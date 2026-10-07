@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The *_aliases entries deliberately include accent-less and colloquial spellings for search. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="Typos">
+    <string name="setting_wifi">Wi-Fi</string>
+    <string name="setting_wifi_aliases">wifi,wlan,вайфай,вай-фай,беспроводная сеть,интернет,сеть</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_bluetooth_aliases">bluetooth,bt,блютуз,блютус,наушники,гарнитура</string>
+    <string name="setting_network">Сеть и интернет</string>
+    <string name="setting_network_aliases">сеть,интернет,мобильная сеть,мобильный интернет,data,sim,сим-карта,симка</string>
+    <string name="setting_data">Передача данных</string>
+    <string name="setting_data_aliases">data,передача данных,трафик,мобильные данные,мобильный интернет</string>
+    <string name="setting_battery">Батарея</string>
+    <string name="setting_battery_aliases">батарея,аккумулятор,заряд,зарядка,энергосбережение,экономия заряда</string>
+    <string name="setting_display">Экран</string>
+    <string name="setting_display_aliases">экран,дисплей,яркость,темная тема,тема,обои</string>
+    <string name="setting_sound">Звук</string>
+    <string name="setting_sound_aliases">звук,громкость,вибрация,рингтон,мелодия звонка</string>
+    <string name="setting_apps">Приложения</string>
+    <string name="setting_apps_aliases">приложения,программы,софт</string>
+    <string name="setting_storage">Хранилище</string>
+    <string name="setting_storage_aliases">хранилище,память,накопитель,диск</string>
+    <string name="setting_location">Местоположение</string>
+    <string name="setting_location_aliases">местоположение,геолокация,геоданные,локация,gps</string>
+    <string name="setting_datetime">Дата и время</string>
+    <string name="setting_datetime_aliases">дата,время,часы,часовой пояс</string>
+    <string name="setting_security">Безопасность</string>
+    <string name="setting_security_aliases">безопасность,защита,блокировка экрана,пароль,pin-код,отпечаток пальца</string>
+    <string name="setting_accessibility">Специальные возможности</string>
+    <string name="setting_accessibility_aliases">специальные возможности,спецвозможности,доступность,a11y</string>
+    <string name="setting_language">Языки и ввод</string>
+    <string name="setting_language_aliases">язык,языки,клавиатура,ввод,раскладка</string>
+    <string name="setting_about">О телефоне</string>
+    <string name="setting_about_aliases">о телефоне,сведения,версия,модель,android</string>
+    <string name="setting_systemupdate">Обновление ПО</string>
+    <string name="setting_systemupdate_aliases">обновление системы,обновление,обновления,прошивка,system update</string>
+</resources>

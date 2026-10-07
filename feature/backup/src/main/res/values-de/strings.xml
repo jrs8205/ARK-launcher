@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Sicherung</string>
+    <string name="backup_file_section">Datei</string>
+    <string name="backup_export">In Datei exportieren</string>
+    <string name="backup_import">Aus Datei importieren</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_exported">Sicherung gespeichert</string>
+    <string name="backup_restored">Sicherung wiederhergestellt</string>
+    <plurals name="backup_restored_skipped">
+        <item quantity="one">Sicherung wiederhergestellt – %1$d übersprungen (nicht installiert)</item>
+        <item quantity="other">Sicherung wiederhergestellt – %1$d übersprungen (nicht installiert)</item>
+    </plurals>
+    <string name="backup_import_invalid">Ungültige oder inkompatible Sicherungsdatei</string>
+    <string name="backup_error_too_large">Die Sicherungsdatei ist zu groß</string>
+    <string name="backup_failed">Vorgang fehlgeschlagen</string>
+    <string name="backup_restore_confirm_title">Sicherung wiederherstellen?</string>
+    <string name="backup_restore_confirm_msg">Dein aktueller Startbildschirm und deine Einstellungen werden ersetzt. Widgets werden als Platzhalter wiederhergestellt – tippe darauf, um sie einzurichten.</string>
+    <string name="backup_restore_confirm_ok">Wiederherstellen</string>
+    <string name="backup_cancel">Abbrechen</string>
+    <string name="backup_last_time">Zuletzt: %1$s</string>
+</resources>

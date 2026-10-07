@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rename_title">Renomear</string>
+    <string name="rename_label">Nome</string>
+    <string name="rename_save">Salvar</string>
+    <string name="rename_cancel">Cancelar</string>
+    <string name="rename_reset">Restaurar padrão</string>
+    <string name="shortcut_pin">Fixar na tela inicial</string>
+    <string name="app_info_unavailable">Não foi possível abrir os detalhes do app</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ARK-launcher</string>
+    <string name="set_default_launcher">Establecer como launcher predeterminado</string>
+    <string name="default_launcher_active">Launcher predeterminado activo</string>
+    <string name="settings_label">Configuración de ARK-launcher</string>
+</resources>
