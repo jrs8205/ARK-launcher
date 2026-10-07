@@ -1,0 +1,6 @@
+Added
+- Seven new languages: German, Spanish, French, Portuguese, Russian, Swedish and Turkish. Corrections from native speakers are welcome.
+
+Fixed
+- English is now the fallback language: a phone set to any other language no longer gets Finnish.
+- The app list and the weather's place name follow an app-language change right away.
