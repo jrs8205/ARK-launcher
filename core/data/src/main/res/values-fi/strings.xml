@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_wifi">Wi-Fi</string>
+    <string name="setting_wifi_aliases">wifi,wlan,langaton,internet,verkko</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_bluetooth_aliases">bluetooth,bt,kuulokkeet</string>
+    <string name="setting_network">Verkko ja internet</string>
+    <string name="setting_network_aliases">verkko,internet,mobiili,data,sim</string>
+    <string name="setting_data">Datankäyttö</string>
+    <string name="setting_data_aliases">data,datankäyttö,mobiilidata</string>
+    <string name="setting_battery">Akku</string>
+    <string name="setting_battery_aliases">akku,virta,virransäästö,lataus</string>
+    <string name="setting_display">Näyttö</string>
+    <string name="setting_display_aliases">näyttö,kirkkaus,tumma,teema,taustakuva</string>
+    <string name="setting_sound">Äänet</string>
+    <string name="setting_sound_aliases">äänet,äänenvoimakkuus,värinä,soittoääni</string>
+    <string name="setting_apps">Sovellukset</string>
+    <string name="setting_apps_aliases">sovellukset,appit,ohjelmat</string>
+    <string name="setting_storage">Tallennustila</string>
+    <string name="setting_storage_aliases">tallennustila,muisti,levy</string>
+    <string name="setting_location">Sijainti</string>
+    <string name="setting_location_aliases">sijainti,gps,paikannus</string>
+    <string name="setting_datetime">Päivämäärä ja aika</string>
+    <string name="setting_datetime_aliases">päivämäärä,aika,kello,aikavyöhyke</string>
+    <string name="setting_security">Suojaus</string>
+    <string name="setting_security_aliases">suojaus,turvallisuus,lukitus,salasana,sormenjälki</string>
+    <string name="setting_accessibility">Esteettömyys</string>
+    <string name="setting_accessibility_aliases">esteettömyys,saavutettavuus</string>
+    <string name="setting_language">Kielet ja syöttötapa</string>
+    <string name="setting_language_aliases">kieli,kielet,näppäimistö,syöttö</string>
+    <string name="setting_about">Tietoja puhelimesta</string>
+    <string name="setting_about_aliases">tietoja,versio,malli,android</string>
+    <string name="setting_systemupdate">Ohjelmistopäivitykset</string>
+    <string name="setting_systemupdate_aliases">ohjelmistopäivitykset,ohjelmisto,päivitys,päivitykset,system update</string>
+</resources>

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Muokkaa nimeä</string>
-    <string name="rename_label">Nimi</string>
-    <string name="rename_save">Tallenna</string>
-    <string name="rename_cancel">Peruuta</string>
-    <string name="rename_reset">Palauta oletus</string>
-    <string name="shortcut_pin">Kiinnitä aloitusnäyttöön</string>
-    <string name="app_info_unavailable">Sovelluksen tietoja ei voitu avata</string>
+    <string name="rename_title">Rename</string>
+    <string name="rename_label">Name</string>
+    <string name="rename_save">Save</string>
+    <string name="rename_cancel">Cancel</string>
+    <string name="rename_reset">Reset to default</string>
+    <string name="shortcut_pin">Pin to home screen</string>
+    <string name="app_info_unavailable">Could not open the app\'s details</string>
 </resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_title">Varmuuskopiointi</string>
+    <string name="backup_file_section">Tiedosto</string>
+    <string name="backup_export">Vie tiedostoon</string>
+    <string name="backup_import">Tuo tiedostosta</string>
+    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_exported">Varmuuskopio tallennettu</string>
+    <string name="backup_restored">Varmuuskopio palautettu</string>
+    <plurals name="backup_restored_skipped">
+        <item quantity="one">Varmuuskopio palautettu — %1$d ohitettu (ei asennettu)</item>
+        <item quantity="other">Varmuuskopio palautettu — %1$d ohitettu (ei asennettu)</item>
+    </plurals>
+    <string name="backup_import_invalid">Virheellinen tai yhteensopimaton varmuuskopiotiedosto</string>
+    <string name="backup_error_too_large">Varmuuskopiotiedosto on liian suuri</string>
+    <string name="backup_failed">Toiminto epäonnistui</string>
+    <string name="backup_restore_confirm_title">Palauta varmuuskopio?</string>
+    <string name="backup_restore_confirm_msg">Nykyinen kotinäyttö ja asetukset korvataan. Widgetit palautetaan napautettavina paikkamerkkeinä.</string>
+    <string name="backup_restore_confirm_ok">Palauta</string>
+    <string name="backup_cancel">Peruuta</string>
+    <string name="backup_last_time">Viimeksi: %1$s</string>
+</resources>

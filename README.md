@@ -6,7 +6,7 @@
 [![Built with Jetpack Compose](https://img.shields.io/badge/Built%20with-Jetpack%20Compose-4285F4)](https://developer.android.com/jetpack/compose)
 
 A modern, lightweight Android home-screen launcher built entirely with **Jetpack Compose**.
-It is **bilingual** — Finnish (default) and English — and shares the visual identity of the
+It is **bilingual** — English (default) and Finnish — and shares the visual identity of the
 **Arkikeskus** app, but works as a standalone launcher for anyone.
 
 > Status: early but daily-driven. Built from scratch on a current Kotlin/Compose stack.

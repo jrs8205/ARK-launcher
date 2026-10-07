@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_drawer_search_hint">Hae sovelluksia</string>
+    <string name="add_to_dock">Lisää dockkiin</string>
+    <string name="remove_from_dock">Poista dockista</string>
+    <string name="add_to_home">Lisää kotinäytölle</string>
+    <string name="remove_from_home">Poista kotinäytöltä</string>
+    <string name="app_info">Sovelluksen tiedot</string>
+    <string name="hide_app">Piilota sovellus</string>
+    <string name="rename">Muokkaa nimeä</string>
+    <string name="uninstall">Poista sovellus</string>
+    <string name="folder_name_label">Kansion nimi</string>
+    <string name="folder_add_apps">Lisää sovelluksia</string>
+    <string name="folder_delete">Poista kansio</string>
+    <string name="folder_remove_hint">Paina sovellusta pitkään poistaaksesi sen kansiosta</string>
+    <string name="folder_add">Lisää</string>
+    <string name="folder_cancel">Peruuta</string>
+    <string name="search_section_apps">Sovellukset</string>
+    <string name="search_section_settings">Asetukset</string>
+    <string name="search_section_contacts">Yhteystiedot</string>
+    <string name="search_calc_copied">Kopioitu leikepöydälle</string>
+    <string name="search_contact_call">Soita</string>
+    <string name="search_contact_message">Viesti</string>
+    <string name="drawer_frequent_apps">Eniten käytetyt</string>
+    <string name="search_clear">Tyhjennä haku</string>
+    <string name="search_no_results">Ei hakutuloksia</string>
+</resources>

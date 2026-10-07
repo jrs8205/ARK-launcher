@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Languages the launcher ships. English (values/) is the fallback for every other device
+     language; Finnish lives in values-fi/. Listing them here lets Android 13+ offer the launcher
+     in Settings > System > Languages > App languages. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="fi" />
+</locale-config>
