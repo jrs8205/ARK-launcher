@@ -1,10 +1,12 @@
 package org.arkikeskus.launcher.data
 
+import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -204,9 +206,30 @@ class LauncherAppsSource @Inject constructor(
                 packageEvent(*names)
         }
 
+        // Labels are resolved in the process locale at query time. A system-language change — or
+        // an Android 13+ per-app language switch, which recreates the activity but not this
+        // singleton — would otherwise leave the drawer, the home grid and the search index on the
+        // old language until the next package event. The application-level callback fires after
+        // the process Resources carry the new locales, so the rescan reads the new labels.
+        var locales = context.resources.configuration.locales.toLanguageTags()
+        val localeCallback = object : ComponentCallbacks {
+            override fun onConfigurationChanged(newConfig: Configuration) {
+                val now = newConfig.locales.toLanguageTags()
+                if (now != locales) {
+                    locales = now
+                    reload()
+                }
+            }
+            override fun onLowMemory() = Unit
+        }
+        context.registerComponentCallbacks(localeCallback)
+
         launcherApps.registerCallback(callback, handler)
         reload()
-        awaitClose { launcherApps.unregisterCallback(callback) }
+        awaitClose {
+            launcherApps.unregisterCallback(callback)
+            context.unregisterComponentCallbacks(localeCallback)
+        }
     }
 
     private fun queryApps(): List<AppItem> {

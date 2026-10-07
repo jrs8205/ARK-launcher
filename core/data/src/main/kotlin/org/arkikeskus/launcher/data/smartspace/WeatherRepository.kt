@@ -58,6 +58,11 @@ class WeatherRepository @Inject constructor(
     /** The network-place-name setting the current [weather] was resolved with. */
     @Volatile private var resolvedWithNetworkPlaceNames = false
 
+    /** The UI language ([Locale.getDefault] tag) the current [weather]'s place name was resolved in.
+     *  An Android 13+ app-language switch recreates the activity but not this singleton: the
+     *  30-minute freshness gate must not keep "London" on a screen that is now Finnish. */
+    @Volatile private var resolvedLanguage: String? = null
+
     /** The user's CURRENT consent to the BigDataCloud fallback. A fetch already running reads this,
      *  not the value it started with, right before the request and again before publishing: a
      *  consent withdrawn meanwhile must stop it. */
@@ -78,9 +83,11 @@ class WeatherRepository @Inject constructor(
             return
         }
         val cached = _weather.value
+        val language = Locale.getDefault().toLanguageTag()
         if (cached != null &&
             System.currentTimeMillis() - cached.fetchedAt < REFRESH_INTERVAL_MS &&
-            networkPlaceNames == resolvedWithNetworkPlaceNames
+            networkPlaceNames == resolvedWithNetworkPlaceNames &&
+            language == resolvedLanguage
         ) return
         if (!fetching.compareAndSet(false, true)) return
         scope.launch(Dispatchers.IO) {
@@ -95,9 +102,10 @@ class WeatherRepository @Inject constructor(
                 val lon = Math.round(exactLon * 100) / 100.0
                 runCatching { fetch(lat, lon) }.getOrNull()?.let {
                     val consent = networkConsent
-                    val place = resolveCity(exactLat, exactLon, lat, lon, consent)
+                    val place = resolveCity(exactLat, exactLon, lat, lon, consent, language)
                         ?.takeIf { p -> !p.fromNetwork || networkConsent }
                     resolvedWithNetworkPlaceNames = consent
+                    resolvedLanguage = language
                     _weather.value = it.copy(city = place?.name, cityFromNetwork = place?.fromNetwork == true)
                 }
             } finally {
@@ -160,8 +168,9 @@ class WeatherRepository @Inject constructor(
 
     private fun resolveCity(
         exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double, networkPlaceNames: Boolean,
+        languageTag: String,
     ): PlaceName? = placeNames.resolve(
-        areaKey = "%.2f,%.2f".format(Locale.US, roundedLat, roundedLon),
+        areaKey = placeAreaKey(roundedLat, roundedLon, languageTag),
         local = { cityName(exactLat, exactLon) },
         // Re-checked right before the request: the local geocoder may have taken a while.
         network = if (networkPlaceNames) ({ if (networkConsent) networkCityName(roundedLat, roundedLon) else null }) else null,

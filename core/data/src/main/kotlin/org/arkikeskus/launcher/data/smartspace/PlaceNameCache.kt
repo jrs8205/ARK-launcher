@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.data.smartspace
 
+import java.util.Locale
+
 /** A resolved place name and whether it came from the network fallback. */
 data class PlaceName(val name: String, val fromNetwork: Boolean)
 
@@ -8,8 +10,9 @@ data class PlaceName(val name: String, val fromNetwork: Boolean)
  * network fallback. The last name is kept for its rounded area so a transient geocoder failure does
  * not blank a name the user was already seeing — but a clearly different area must not keep the
  * previous town, a dead geocoder must not pin a stale name forever, and a name that came from the
- * network is dropped as soon as the fallback is turned off. Not thread-safe: the weather refresh is
- * its single caller.
+ * network is dropped as soon as the fallback is turned off. The area key carries the UI language
+ * ([placeAreaKey]): a name resolved in one language is never shown after the user switches the
+ * app or system language. Not thread-safe: the weather refresh is its single caller.
  */
 internal class PlaceNameCache(
     private val maxAgeMs: Long,
@@ -38,3 +41,8 @@ internal class PlaceNameCache(
         return PlaceName(name, fromNetwork)
     }
 }
+
+/** The cache key for a rounded location in one UI language: a language switch (Android 13+ app
+ *  language or the system language) must re-geocode instead of reusing "London" on a Finnish screen. */
+internal fun placeAreaKey(roundedLat: Double, roundedLon: Double, languageTag: String): String =
+    "%.2f,%.2f@%s".format(Locale.US, roundedLat, roundedLon, languageTag)
