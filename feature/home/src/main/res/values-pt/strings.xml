@@ -41,7 +41,7 @@
     <string name="people_action_unlink">Desvincular nomes mesclados</string>
     <string name="people_link_title">Vincular %1$s a uma pessoa</string>
     <string name="people_link_hint">A partir de agora, as mensagens com este nome serão mostradas no bloco da pessoa escolhida.</string>
-    <string name="people_held_until">Entrega às %1$s</string>
+    <string name="people_held_until">Entrega: %1$s</string>
     <string name="people_time_now">agora</string>
     <string name="people_all_title">Todas as pessoas</string>
     <string name="onboarding_skip">Pular</string>

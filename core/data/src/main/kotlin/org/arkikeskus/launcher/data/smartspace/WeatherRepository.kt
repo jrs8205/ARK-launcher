@@ -83,7 +83,10 @@ class WeatherRepository @Inject constructor(
             return
         }
         val cached = _weather.value
-        val language = Locale.getDefault().toLanguageTag()
+        // Captured once: the geocoders, the cache key and the freshness stamp must all use the SAME
+        // language even if the user switches languages while this fetch is running.
+        val locale = Locale.getDefault()
+        val language = locale.toLanguageTag()
         if (cached != null &&
             System.currentTimeMillis() - cached.fetchedAt < REFRESH_INTERVAL_MS &&
             networkPlaceNames == resolvedWithNetworkPlaceNames &&
@@ -102,7 +105,7 @@ class WeatherRepository @Inject constructor(
                 val lon = Math.round(exactLon * 100) / 100.0
                 runCatching { fetch(lat, lon) }.getOrNull()?.let {
                     val consent = networkConsent
-                    val place = resolveCity(exactLat, exactLon, lat, lon, consent, language)
+                    val place = resolveCity(exactLat, exactLon, lat, lon, consent, locale)
                         ?.takeIf { p -> !p.fromNetwork || networkConsent }
                     resolvedWithNetworkPlaceNames = consent
                     resolvedLanguage = language
@@ -168,26 +171,26 @@ class WeatherRepository @Inject constructor(
 
     private fun resolveCity(
         exactLat: Double, exactLon: Double, roundedLat: Double, roundedLon: Double, networkPlaceNames: Boolean,
-        languageTag: String,
+        locale: Locale,
     ): PlaceName? = placeNames.resolve(
-        areaKey = placeAreaKey(roundedLat, roundedLon, languageTag),
-        local = { cityName(exactLat, exactLon) },
+        areaKey = placeAreaKey(roundedLat, roundedLon, locale.toLanguageTag()),
+        local = { cityName(exactLat, exactLon, locale) },
         // Re-checked right before the request: the local geocoder may have taken a while.
-        network = if (networkPlaceNames) ({ if (networkConsent) networkCityName(roundedLat, roundedLon) else null }) else null,
+        network = if (networkPlaceNames) ({ if (networkConsent) networkCityName(roundedLat, roundedLon, locale) else null }) else null,
     )
 
     /** Locality via the platform Geocoder — works worldwide on devices with a geocoder backend
      *  (localized names); null elsewhere. Checks several results and fields: older OEM backends
      *  (e.g. Samsung A40) may leave locality empty and put the usable name in another field.
      *  The sync call is fine on this IO thread. Logs never include coordinates. */
-    private fun cityName(lat: Double, lon: Double): String? {
+    private fun cityName(lat: Double, lon: Double, locale: Locale): String? {
         if (!Geocoder.isPresent()) {
             Log.d(TAG, "Reverse geocoding skipped: no geocoder backend")
             return null
         }
         return try {
             @Suppress("DEPRECATION")
-            val addresses = Geocoder(context, Locale.getDefault()).getFromLocation(lat, lon, 3).orEmpty()
+            val addresses = Geocoder(context, locale).getFromLocation(lat, lon, 3).orEmpty()
             if (addresses.isEmpty()) {
                 Log.d(TAG, "Reverse geocoding returned no addresses")
                 return null
@@ -209,10 +212,10 @@ class WeatherRepository @Inject constructor(
      *  rounded coordinates the weather query already sends — the exact fix never leaves the device.
      *  Reached only when the user turned the setting on, at most once per 30-min weather refresh,
      *  and only when the local geocoder failed. */
-    private fun networkCityName(roundedLat: Double, roundedLon: Double): String? {
+    private fun networkCityName(roundedLat: Double, roundedLon: Double, locale: Locale): String? {
         val url = URL(
             "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=%.2f&longitude=%.2f&localityLanguage=%s"
-                .format(Locale.US, roundedLat, roundedLon, Locale.getDefault().language),
+                .format(Locale.US, roundedLat, roundedLon, locale.language),
         )
         val connection = url.openConnection() as HttpURLConnection
         return try {

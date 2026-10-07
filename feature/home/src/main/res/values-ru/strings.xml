@@ -57,7 +57,7 @@
     <string name="onboarding_perms_title">Разрешения</string>
     <string name="onboarding_perms_text">ARK-launcher лучше всего работает с этими разрешениями. Их можно изменить в любое время в настройках системы.</string>
     <string name="onboarding_perm_notif">Доступ к уведомлениям</string>
-    <string name="onboarding_perm_notif_desc">Значки уведомлений и строка состояния</string>
+    <string name="onboarding_perm_notif_desc">Значки уведомлений и значки в строке состояния</string>
     <string name="onboarding_perm_calendar">Календарь</string>
     <string name="onboarding_perm_calendar_desc">События в виджете часов</string>
     <string name="onboarding_perm_contacts">Контакты</string>
