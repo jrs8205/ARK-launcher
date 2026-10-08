@@ -37,6 +37,10 @@ your device to install. To update, install the newer APK from the same page (Set
 
 Requires **Android 11 (API 30)** or newer.
 
+**Registered with Google.** The package name and signing key are registered in Google's Android
+Developer Console, so the app keeps installing as usual under Google's new [sideloading
+rules](https://developer.android.com/developer-verification).
+
 ### Auto-updates with Obtainium
 
 Prefer an app-store-style experience with automatic updates? Install
