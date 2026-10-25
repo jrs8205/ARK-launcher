@@ -20,6 +20,10 @@ class BackupEventMessageTest {
         assertThat(text).doesNotContain("content://")
     }
 
+    @Test fun aTimedOutReadSaysSo() {
+        assertThat(backupEventMessage(res, BackupEvent.ReadTimedOut)).isEqualTo(res.getString(R.string.backup_import_timeout))
+    }
+
     @Test fun onlyTheBlockedReadNeedsTimeToBeRead() {
         assertThat(BackupEvent.ReadBlocked.needsTimeToRead).isTrue()
         assertThat(BackupEvent.InvalidFile.needsTimeToRead).isFalse()

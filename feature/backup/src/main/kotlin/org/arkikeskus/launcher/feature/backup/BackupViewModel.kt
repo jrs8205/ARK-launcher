@@ -28,6 +28,9 @@ sealed interface BackupEvent {
 
     /** The system would not let the launcher read the picked file ([BackupReadBlockedException]). */
     data object ReadBlocked : BackupEvent
+
+    /** The picked file did not arrive in time ([BackupReadTimeoutException]). */
+    data object ReadTimedOut : BackupEvent
     data class Failed(val message: String) : BackupEvent
 
     /** A message too long to read in a short snackbar: it stays until dismissed or timed out long. */
@@ -80,7 +83,7 @@ class BackupViewModel @Inject constructor(
     }
 
     fun importFrom(uri: Uri) = viewModelScope.launch {
-        _events.emit(restorer.restoreFrom(uri))
+        _events.emit(restorer.restoreFrom(uri) {})
     }
 
     internal companion object {

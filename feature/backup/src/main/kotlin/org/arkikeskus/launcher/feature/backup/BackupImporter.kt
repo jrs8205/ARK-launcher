@@ -19,8 +19,12 @@ import javax.inject.Inject
 /** Restores the home layout and settings from a backup file: the backup screen's import and the
  *  "Open with" import both go through it, so both have the same checks. */
 fun interface BackupRestorer {
-    /** [BackupEvent.Restored], or the failure as the screen shows it ([importFailureEvent]). */
-    suspend fun restoreFrom(uri: Uri): BackupEvent
+    /**
+     * [BackupEvent.Restored], or the failure as the screen shows it ([importFailureEvent]). Reading
+     * and checking the file can be cancelled at any point and changes nothing; [onWriting] is called
+     * when the layout starts being replaced, a short step that always finishes, cancelled or not.
+     */
+    suspend fun restoreFrom(uri: Uri, onWriting: () -> Unit): BackupEvent
 }
 
 internal class BackupImporter @Inject constructor(
@@ -29,11 +33,13 @@ internal class BackupImporter @Inject constructor(
     private val appRepository: AppRepository,
 ) : BackupRestorer {
 
-    override suspend fun restoreFrom(uri: Uri): BackupEvent = runCatching {
-        withContext(Dispatchers.IO) {
-            val doc = BackupCodec.decode(readBackupText(context.contentResolver, uri))
-            backupRepository.restoreDocument(doc = doc, installedApps = installedApps().map { it.key })
-        }
+    override suspend fun restoreFrom(uri: Uri, onWriting: () -> Unit): BackupEvent = runCatching {
+        val json = readBackupTextWithin(context.contentResolver, uri)
+        val doc = withContext(Dispatchers.Default) { BackupCodec.decode(json) }
+        val apps = installedApps().map { it.key }
+        onWriting()
+        // restoreDocument writes under NonCancellable: once started, it finishes.
+        withContext(Dispatchers.IO) { backupRepository.restoreDocument(doc = doc, installedApps = apps) }
     }.fold(
         onSuccess = { BackupEvent.Restored(it.restored, it.skipped) },
         onFailure = {

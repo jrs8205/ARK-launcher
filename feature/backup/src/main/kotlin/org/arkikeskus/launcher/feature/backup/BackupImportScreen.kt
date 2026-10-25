@@ -27,6 +27,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,24 +54,49 @@ fun backupImportUri(context: Context, intent: Intent): Uri? {
     return uri.takeIf { owner != context.packageName }
 }
 
-/** Where the "Open with" import is: asking, restoring, or showing how it went. */
+/** Where the "Open with" import is: asking, reading the file, replacing the layout, or showing how it went. */
 sealed interface BackupImportState {
     data object Confirm : BackupImportState
-    data object Running : BackupImportState
+
+    /** The file is being read and checked: nothing is changed yet, and the user may still leave. */
+    data object Reading : BackupImportState
+
+    /** The layout is being replaced: a short step that always finishes, so there is no way out. */
+    data object Restoring : BackupImportState
     data class Done(val event: BackupEvent) : BackupImportState
+
+    /** The user left before anything was changed; the screen is going away and shows nothing. */
+    data object Left : BackupImportState
 }
 
 @HiltViewModel
 class BackupImportViewModel @Inject constructor(private val restorer: BackupRestorer) : ViewModel() {
     private val _state = MutableStateFlow<BackupImportState>(BackupImportState.Confirm)
     val state: StateFlow<BackupImportState> = _state.asStateFlow()
+    private var job: Job? = null
 
     /** Restores [uri] once: a second tap, or one after the outcome, does nothing. The state lives here,
      *  so a rotation mid-restore shows the same step again instead of asking anew. */
     fun restore(uri: Uri) {
         if (_state.value != BackupImportState.Confirm) return
-        _state.value = BackupImportState.Running
-        viewModelScope.launch { _state.value = BackupImportState.Done(restorer.restoreFrom(uri)) }
+        _state.value = BackupImportState.Reading
+        job = viewModelScope.launch {
+            val event = restorer.restoreFrom(uri) { _state.value = BackupImportState.Restoring }
+            _state.value = BackupImportState.Done(event)
+        }
+    }
+
+    /** Whether the user may leave now. Leaving while the file is still read stops the import (a
+     *  provider that never answers must not trap the user); while the layout is replaced it is refused. */
+    fun leave(): Boolean = when (_state.value) {
+        BackupImportState.Restoring -> false
+        BackupImportState.Reading, BackupImportState.Confirm -> {
+            job?.cancel()
+            // Nothing may start after this, not even a Restore tap that lands late.
+            _state.value = BackupImportState.Left
+            true
+        }
+        is BackupImportState.Done, BackupImportState.Left -> true
     }
 }
 
@@ -82,48 +108,66 @@ fun BackupImportScreen(
     viewModel: BackupImportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    BackupImportDialog(state = state, onRestore = { viewModel.restore(uri) }, onFinish = onFinish)
+    BackupImportDialog(
+        state = state,
+        onRestore = { viewModel.restore(uri) },
+        onLeave = { if (viewModel.leave()) onFinish() },
+    )
 }
 
 @Composable
 internal fun BackupImportDialog(
     state: BackupImportState,
     onRestore: () -> Unit,
-    onFinish: () -> Unit,
+    onLeave: () -> Unit,
 ) {
     when (state) {
         BackupImportState.Confirm -> AlertDialog(
-            onDismissRequest = onFinish,
+            onDismissRequest = onLeave,
             title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
             text = { DialogText(stringResource(R.string.backup_restore_confirm_msg)) },
             confirmButton = {
                 TextButton(onClick = onRestore) { Text(stringResource(R.string.backup_restore_confirm_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = onFinish) { Text(stringResource(R.string.backup_cancel)) }
+                TextButton(onClick = onLeave) { Text(stringResource(R.string.backup_cancel)) }
             },
         )
-        // No way out while the layout is being replaced: leaving would cancel the restore half-way.
-        BackupImportState.Running -> AlertDialog(
+        // Back, a tap outside and Cancel stop the import: the file may never arrive.
+        BackupImportState.Reading -> AlertDialog(
+            onDismissRequest = onLeave,
+            title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
+            text = { Working() },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onLeave) { Text(stringResource(R.string.backup_cancel)) }
+            },
+        )
+        // No way out while the layout is replaced: the step is short and always finishes.
+        BackupImportState.Restoring -> AlertDialog(
             onDismissRequest = {},
             properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
             title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
-            text = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CircularProgressIndicator(Modifier.size(24.dp))
-                    Text(stringResource(R.string.backup_restoring))
-                }
-            },
+            text = { Working() },
             confirmButton = {},
         )
         is BackupImportState.Done -> AlertDialog(
-            onDismissRequest = onFinish,
+            onDismissRequest = onLeave,
             title = { Text(stringResource(R.string.backup_title)) },
             text = { DialogText(backupEventMessage(LocalResources.current, state.event)) },
             confirmButton = {
-                TextButton(onClick = onFinish) { Text(stringResource(android.R.string.ok)) }
+                TextButton(onClick = onLeave) { Text(stringResource(android.R.string.ok)) }
             },
         )
+        BackupImportState.Left -> Unit
+    }
+}
+
+@Composable
+private fun Working() {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        CircularProgressIndicator(Modifier.size(24.dp))
+        Text(stringResource(R.string.backup_restoring))
     }
 }
 

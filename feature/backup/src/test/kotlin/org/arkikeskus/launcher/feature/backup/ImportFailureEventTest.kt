@@ -13,6 +13,10 @@ class ImportFailureEventTest {
             .isEqualTo(BackupEvent.ReadBlocked)
     }
 
+    @Test fun aReadThatTookTooLongTimedOut() {
+        assertThat(importFailureEvent(BackupReadTimeoutException())).isEqualTo(BackupEvent.ReadTimedOut)
+    }
+
     /** Only the read is wrapped: a refusal later on (restoring) is not about picking the file. */
     @Test fun aSecurityExceptionOutsideTheReadIsAPlainFailure() {
         assertThat(importFailureEvent(SecurityException("profile gone")))

@@ -23,13 +23,13 @@ class BackupImportDialogTest {
 
     private val res = RuntimeEnvironment.getApplication().resources
     private var restores = 0
-    private var finishes = 0
+    private var leaves = 0
 
     /** A scroll container that holds [text], on itself or on a child. */
     private fun scrollableWith(text: String) = hasScrollAction() and (hasText(text) or hasAnyDescendant(hasText(text)))
 
     private fun show(state: BackupImportState) = compose.setContent {
-        BackupImportDialog(state = state, onRestore = { restores++ }, onFinish = { finishes++ })
+        BackupImportDialog(state = state, onRestore = { restores++ }, onLeave = { leaves++ })
     }
 
     @Test fun asksTheSameQuestionAsTheBackupScreen() {
@@ -45,7 +45,7 @@ class BackupImportDialogTest {
         compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).performClick()
 
         assertThat(restores).isEqualTo(1)
-        assertThat(finishes).isEqualTo(0)
+        assertThat(leaves).isEqualTo(0)
     }
 
     @Test fun cancelLeavesWithoutRestoring() {
@@ -53,12 +53,22 @@ class BackupImportDialogTest {
 
         compose.onNodeWithText(res.getString(R.string.backup_cancel)).performClick()
 
-        assertThat(finishes).isEqualTo(1)
+        assertThat(leaves).isEqualTo(1)
         assertThat(restores).isEqualTo(0)
     }
 
-    @Test fun whileRestoringItSaysSoAndOffersNoWayOut() {
-        show(BackupImportState.Running)
+    /** A provider that never answers must not trap the user in the dialog. */
+    @Test fun whileTheFileIsReadItCanBeCancelled() {
+        show(BackupImportState.Reading)
+
+        compose.onNodeWithText(res.getString(R.string.backup_restoring)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.backup_cancel)).performClick()
+
+        assertThat(leaves).isEqualTo(1)
+    }
+
+    @Test fun whileTheLayoutIsReplacedItSaysSoAndOffersNoWayOut() {
+        show(BackupImportState.Restoring)
 
         compose.onNodeWithText(res.getString(R.string.backup_restoring)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.backup_cancel)).assertDoesNotExist()
@@ -70,15 +80,13 @@ class BackupImportDialogTest {
     @Test fun aLongOutcomeCanBeScrolledToItsEnd() {
         show(BackupImportState.Done(BackupEvent.ReadBlocked))
 
-        compose.onNode(scrollableWith(res.getString(R.string.backup_import_read_blocked)))
-            .assertExists()
+        compose.onNode(scrollableWith(res.getString(R.string.backup_import_read_blocked))).assertExists()
     }
 
     @Test fun theQuestionCanBeScrolledToo() {
         show(BackupImportState.Confirm)
 
-        compose.onNode(scrollableWith(res.getString(R.string.backup_restore_confirm_msg)))
-            .assertExists()
+        compose.onNode(scrollableWith(res.getString(R.string.backup_restore_confirm_msg))).assertExists()
     }
 
     @Test fun theOutcomeIsShownUntilOk() {
@@ -87,7 +95,7 @@ class BackupImportDialogTest {
         compose.onNodeWithText(res.getString(R.string.backup_import_read_blocked)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(android.R.string.ok)).performClick()
 
-        assertThat(finishes).isEqualTo(1)
+        assertThat(leaves).isEqualTo(1)
         assertThat(restores).isEqualTo(0)
     }
 }

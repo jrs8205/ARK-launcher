@@ -17,6 +17,7 @@
     <string name="backup_error_too_large">Файл резервной копии слишком большой</string>
     <string name="backup_failed">Не удалось выполнить операцию</string>
     <string name="backup_import_read_blocked">Служба хранилища Android заблокировала чтение этого файла. Выберите его в разделе «Загрузки», а не в папках памяти телефона, либо откройте его в ARK-launcher из другого файлового менеджера.</string>
+    <string name="backup_import_timeout">Файл не открылся вовремя. Повторите попытку или выберите его в разделе «Загрузки» или в другом файловом менеджере.</string>
     <string name="backup_open_with_label">Восстановить в ARK-launcher</string>
     <string name="backup_restoring">Восстановление…</string>
     <string name="backup_restore_confirm_title">Восстановить резервную копию?</string>

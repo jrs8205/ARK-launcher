@@ -17,6 +17,7 @@
     <string name="backup_error_too_large">Plik kopii zapasowej jest za duży</string>
     <string name="backup_failed">Operacja nie powiodła się</string>
     <string name="backup_import_read_blocked">Usługa pamięci Androida zablokowała odczyt tego pliku. Wybierz go w folderze Pobrane zamiast w folderach pamięci telefonu albo otwórz go w ARK-launcher z innej aplikacji do zarządzania plikami.</string>
+    <string name="backup_import_timeout">Plik nie otworzył się na czas. Spróbuj ponownie albo wybierz go w folderze Pobrane lub w innej aplikacji do zarządzania plikami.</string>
     <string name="backup_open_with_label">Przywróć w ARK-launcher</string>
     <string name="backup_restoring">Przywracanie…</string>
     <string name="backup_restore_confirm_title">Przywrócić kopię zapasową?</string>

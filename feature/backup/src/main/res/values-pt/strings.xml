@@ -16,6 +16,7 @@
     <string name="backup_error_too_large">O arquivo de backup é muito grande</string>
     <string name="backup_failed">Falha na operação</string>
     <string name="backup_import_read_blocked">O serviço de armazenamento do Android bloqueou a leitura deste arquivo. Escolha-o em Downloads em vez das pastas de armazenamento do telefone, ou abra-o com o ARK-launcher a partir de outro app gerenciador de arquivos.</string>
+    <string name="backup_import_timeout">O arquivo não abriu a tempo. Tente de novo ou escolha-o em Downloads ou em outro app gerenciador de arquivos.</string>
     <string name="backup_open_with_label">Restaurar no ARK-launcher</string>
     <string name="backup_restoring">Restaurando…</string>
     <string name="backup_restore_confirm_title">Restaurar backup?</string>

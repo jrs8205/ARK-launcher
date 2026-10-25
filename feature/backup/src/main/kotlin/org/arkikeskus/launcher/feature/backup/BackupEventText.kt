@@ -14,6 +14,7 @@ internal fun backupEventMessage(res: Resources, event: BackupEvent): String = wh
     BackupEvent.InvalidFile -> res.getString(R.string.backup_import_invalid)
     BackupEvent.TooLarge -> res.getString(R.string.backup_error_too_large)
     BackupEvent.ReadBlocked -> res.getString(R.string.backup_import_read_blocked)
+    BackupEvent.ReadTimedOut -> res.getString(R.string.backup_import_timeout)
     is BackupEvent.Failed -> {
         val failed = res.getString(R.string.backup_failed)
         if (event.message.isBlank()) failed else "$failed: ${event.message}"

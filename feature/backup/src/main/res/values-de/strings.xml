@@ -15,6 +15,7 @@
     <string name="backup_error_too_large">Die Sicherungsdatei ist zu groß</string>
     <string name="backup_failed">Vorgang fehlgeschlagen</string>
     <string name="backup_import_read_blocked">Der Speicherdienst von Android hat das Lesen dieser Datei blockiert. Wähle sie unter „Downloads“ statt in den Speicherordnern des Telefons aus, oder öffne sie aus einer anderen Dateimanager-App mit ARK-launcher.</string>
+    <string name="backup_import_timeout">Die Datei hat sich nicht rechtzeitig geöffnet. Versuche es erneut oder wähle sie unter „Downloads“ oder in einer anderen Dateimanager-App aus.</string>
     <string name="backup_open_with_label">In ARK-launcher wiederherstellen</string>
     <string name="backup_restoring">Wird wiederhergestellt…</string>
     <string name="backup_restore_confirm_title">Sicherung wiederherstellen?</string>
