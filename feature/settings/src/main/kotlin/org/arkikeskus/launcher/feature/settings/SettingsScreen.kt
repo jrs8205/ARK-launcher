@@ -70,6 +70,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -312,11 +313,7 @@ fun SettingsScreen(
                 }
                 StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
                 if (s.showStatusBar) {
-                    SliderRow(
-                        label = stringResource(R.string.settings_status_bar_scrim),
-                        value = s.statusBarScrimOpacity,
-                        onValueChange = viewModel::setStatusBarScrimOpacity,
-                    )
+                    StatusBarScrimRow(s.statusBarScrimOpacity, viewModel::setStatusBarScrimOpacity)
                 }
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_icons))
@@ -954,6 +951,21 @@ private fun StepButton(@DrawableRes icon: Int, contentDescription: String, onCli
             modifier = Modifier.size(20.dp),
         )
     }
+}
+
+/** The status bar background darkness as a percent of black: 0 % transparent, 100 % solid black, in
+ *  5 % steps with a tick of haptic feedback on each, and a chip back to the default. */
+@Composable
+internal fun StatusBarScrimRow(value: Float, onValueChange: (Float) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_status_bar_scrim),
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = 0f..1f,
+        valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
+        default = LauncherSettings.DEFAULT_STATUS_BAR_SCRIM,
+    )
 }
 
 @Composable

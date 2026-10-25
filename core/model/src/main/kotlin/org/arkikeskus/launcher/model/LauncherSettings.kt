@@ -76,7 +76,7 @@ data class LauncherSettings(
     val hideSystemStatusBar: Boolean = false,
     /** Darkness of the scrim drawn behind the themed status bar (0 = none, 1 = solid black); keeps the
      *  clock/indicators legible over bright wallpapers. Own setting, like [dockBackgroundOpacity]. */
-    val statusBarScrimOpacity: Float = 0.6f,
+    val statusBarScrimOpacity: Float = DEFAULT_STATUS_BAR_SCRIM,
     /** Count indicator of the built-in notifications widget: [COUNT_NUMBER], [COUNT_DOT] or [COUNT_NONE]. */
     /** Use theme surfaces for built-in widgets; false keeps the translucent wallpaper style. */
     val widgetTonalBackground: Boolean = false,
@@ -114,5 +114,9 @@ data class LauncherSettings(
         const val PRIVACY_COUNT = "count"
 
         const val DEFAULT_BATCH_TIMES = "08:00,12:00,17:00"
+
+        /** [statusBarScrimOpacity] out of the box: 60 % black keeps white status text readable even
+         *  over a white wallpaper, without the band looking heavy. */
+        const val DEFAULT_STATUS_BAR_SCRIM = 0.6f
     }
 }
