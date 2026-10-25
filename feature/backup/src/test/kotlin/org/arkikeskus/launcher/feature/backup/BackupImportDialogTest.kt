@@ -1,5 +1,8 @@
 package org.arkikeskus.launcher.feature.backup
 
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
@@ -98,6 +101,56 @@ class BackupImportDialogTest {
 
         val dialog = ShadowDialog.getLatestDialog()
         assertThat(dialog.window!!.decorView.filterTouchesWhenObscured).isTrue()
+    }
+
+    /** A finger tap on Restore that arrives with [flags], sent the way the system sends it: to the
+     *  dialog window's decor view. */
+    private fun tapRestore(flags: Int) {
+        val dialog = ShadowDialog.getLatestDialog()
+        val at = compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok))
+            .fetchSemanticsNode().boundsInWindow.center
+        val down = SystemClock.uptimeMillis()
+        for ((action, time) in listOf(MotionEvent.ACTION_DOWN to down, MotionEvent.ACTION_UP to down + 50)) {
+            val event = MotionEvent.obtain(
+                down, time, action, 1,
+                arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_FINGER }),
+                arrayOf(MotionEvent.PointerCoords().apply { x = at.x; y = at.y; pressure = 1f; size = 1f }),
+                0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, flags,
+            )
+            dialog.window!!.decorView.dispatchTouchEvent(event)
+            event.recycle()
+        }
+        compose.waitForIdle()
+    }
+
+    @Test fun aPlainTapOnRestoreRestores() {
+        show(BackupImportState.Confirm)
+        compose.waitForIdle()
+
+        tapRestore(flags = 0)
+
+        assertThat(restores).isEqualTo(1)
+    }
+
+    /** On Android 11 nothing hides other apps' overlays: one can cover the warning and leave Restore
+     *  in sight. A touch through a window that covers only part of the dialog is dropped as well. */
+    @Config(sdk = [30])
+    @Test fun aTapThroughAPartlyCoveringOverlayIsDropped() {
+        show(BackupImportState.Confirm)
+        compose.waitForIdle()
+
+        tapRestore(flags = MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED)
+
+        assertThat(restores).isEqualTo(0)
+    }
+
+    @Test fun aTapThroughACoveringOverlayIsDropped() {
+        show(BackupImportState.Confirm)
+        compose.waitForIdle()
+
+        tapRestore(flags = MotionEvent.FLAG_WINDOW_IS_OBSCURED)
+
+        assertThat(restores).isEqualTo(0)
     }
 
     @Test fun theOutcomeIsShownUntilOk() {

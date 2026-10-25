@@ -4,6 +4,10 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.view.KeyboardShortcutGroup
+import android.view.Menu
+import android.view.MotionEvent
+import android.view.Window
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -23,6 +27,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.content.IntentCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -184,12 +189,46 @@ private fun DialogText(text: String) {
 
 /** Drops touches that reach the dialog's window through another app's overlay (tapjacking): the
  *  dialog replaces the layout on one tap, over the app that handed the file. Every Android version;
- *  from Android 12 the activity also hides such overlays outright. */
+ *  from Android 12 the activity also hides such overlays outright. The view's own filter only knows a
+ *  window that covers the whole touch, so the dialog window's touches go through [ObscuredTouchFilter]
+ *  too: on Android 11 an overlay can cover the warning and leave Restore in sight. */
 @Composable
 private fun FilterObscuredTouches() {
     val view = LocalView.current
     DisposableEffect(view) {
         view.rootView.filterTouchesWhenObscured = true
-        onDispose {}
+        val window = (view.parent as? DialogWindowProvider)?.window
+        val filter = window?.callback?.takeIf { it !is ObscuredTouchFilter }?.let(::ObscuredTouchFilter)
+        if (filter != null) window.callback = filter
+        onDispose { if (filter != null && window.callback === filter) window.callback = filter.delegate }
+    }
+}
+
+/** A window's touches, less every gesture that came through another window, wholly or partly. */
+internal class ObscuredTouchFilter(val delegate: Window.Callback) : Window.Callback by delegate {
+    private var dropping = false
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) dropping = false
+        if (!dropping && event.flags and OBSCURED != 0) {
+            dropping = true
+            // A gesture already under way ends as cancelled, so nothing is left half pressed.
+            if (event.actionMasked != MotionEvent.ACTION_DOWN) {
+                val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                delegate.dispatchTouchEvent(cancel)
+                cancel.recycle()
+            }
+        }
+        return dropping || delegate.dispatchTouchEvent(event)
+    }
+
+    // Java default methods, which delegation leaves out.
+    override fun onProvideKeyboardShortcuts(data: MutableList<KeyboardShortcutGroup>?, menu: Menu?, deviceId: Int) =
+        delegate.onProvideKeyboardShortcuts(data, menu, deviceId)
+
+    override fun onPointerCaptureChanged(hasCapture: Boolean) = delegate.onPointerCaptureChanged(hasCapture)
+
+    private companion object {
+        const val OBSCURED = MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED
     }
 }
