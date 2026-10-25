@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.ui
 
+import android.view.WindowManager.LayoutParams.FLAG_SPLIT_TOUCH
+import android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -36,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -74,6 +77,10 @@ internal val SHORTCUT_ICON_SIZE = 24.dp
  * [hasWidgets] finds the app home-screen widgets, as in Pixel Launcher — and the caller-supplied
  * [actions], with a caret pointing at the icon ([anchor] in root coords; [preferAbove] for
  * dock/bottom items). Styled with the shared Version C expressive palette.
+ *
+ * [held] is true while the finger that lifted the icon is still down — the menu opens at the lift
+ * (issue #12). A second finger's tap on a row does nothing then: the row would act on an icon that is
+ * still being held. Once the finger lifts the menu works as usual.
  */
 @Composable
 fun AppActionPopup(
@@ -85,6 +92,7 @@ fun AppActionPopup(
     onPinShortcut: ((AppShortcuts.Item) -> Unit)? = null,
     onWidgets: (() -> Unit)? = null,
     hasWidgets: (suspend (AppItem) -> Boolean)? = null,
+    held: Boolean = false,
 ) {
     val context = LocalContext.current
     var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>>(emptyList()) }
@@ -98,7 +106,7 @@ fun AppActionPopup(
         )
     }
 
-    ExpressivePopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss) {
+    ExpressivePopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held) {
         shortcuts.forEach { shortcut ->
             ShortcutPopupRow(
                 label = shortcut.label,
@@ -180,7 +188,12 @@ fun IconMenuPopup(
 /**
  * Shared Version C popup chrome: an anchored, dismissible rounded card (with a caret pointing at the
  * icon) wrapped in [ExpressiveTheme] so it resolves the warm-orange dark/light palette regardless of
- * the caller. [content] is the scrollable column of rows.
+ * the caller. [content] is the scrollable column of rows; while [blockTouches] a cover over the card
+ * takes every touch, so no row gets one.
+ *
+ * Both menus can open while a finger is still down on the launcher. Android 11–12L send a second
+ * finger to the window the first is in unless the window it lands on splits touches, so without
+ * [FLAG_SPLIT_TOUCH] a tap on a row reached the icons behind the menu instead.
  */
 @Composable
 private fun ExpressivePopupCard(
@@ -188,6 +201,7 @@ private fun ExpressivePopupCard(
     preferAbove: Boolean,
     onDismiss: () -> Unit,
     showCaret: Boolean = true,
+    blockTouches: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -198,7 +212,8 @@ private fun ExpressivePopupCard(
     Popup(
         popupPositionProvider = positionProvider,
         onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true),
+        // = PopupProperties(focusable = true), plus split touch.
+        properties = PopupProperties(flags = FLAG_WATCH_OUTSIDE_TOUCH or FLAG_SPLIT_TOUCH),
     ) {
         ExpressiveTheme {
             val palette = LocalExpressivePalette.current
@@ -214,25 +229,37 @@ private fun ExpressivePopupCard(
                     .coerceIn(14f, cardWidthPx - caretWidthPx - 14f)
                     .toDp()
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Left-aligned caret so [caretStart] is a true offset from the card's left edge.
-                if (showCaret && !preferAbove) Caret(pointingUp = true, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = cardColor,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 10.dp,
-                    modifier = Modifier.width(CARD_WIDTH),
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .heightIn(max = 520.dp)
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 8.dp),
-                        content = content,
+            Box {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Left-aligned caret so [caretStart] is a true offset from the card's left edge.
+                    if (showCaret && !preferAbove) Caret(pointingUp = true, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = cardColor,
+                        tonalElevation = 3.dp,
+                        shadowElevation = 10.dp,
+                        modifier = Modifier.width(CARD_WIDTH),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .heightIn(max = 520.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp),
+                            content = content,
+                        )
+                    }
+                    if (showCaret && preferAbove) Caret(pointingUp = false, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
+                }
+                // On top of the rows, so it is hit instead of them (siblings do not share touches).
+                if (blockTouches) {
+                    Box(
+                        Modifier.matchParentSize().pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                            }
+                        },
                     )
                 }
-                if (showCaret && preferAbove) Caret(pointingUp = false, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
             }
         }
     }

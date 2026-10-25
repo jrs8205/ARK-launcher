@@ -819,6 +819,8 @@ fun HomeScreen(
                 widgetPickerPackage = menu.app.packageName
                 showWidgetPicker = true
             }),
+            // Opened at the lift, under the still-held finger (issue #12).
+            held = dragController.isDragging,
         )
     }
 

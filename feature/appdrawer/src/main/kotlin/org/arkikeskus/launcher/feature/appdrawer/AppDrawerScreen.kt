@@ -286,6 +286,8 @@ fun AppDrawerScreen(
             onDismiss = { menuTarget = null },
             onPinShortcut = { item -> viewModel.pinShortcut(item) },
             onWidgets = if (uiState.desktopLocked) null else onShowWidgets?.let { { it(app) } },
+            // Opened at the lift, under the still-held finger (issue #12).
+            held = dragController.isDragging,
         )
     }
 

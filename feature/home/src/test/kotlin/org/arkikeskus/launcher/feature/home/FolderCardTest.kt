@@ -216,6 +216,23 @@ class FolderCardTest {
         assertThat(reorders).containsExactly(notes to mail)
     }
 
+    /** A second finger on the open menu while the first still holds the icon picks nothing; once the
+     *  holding finger lifts the row works. */
+    @Test fun aMenuRowDoesNothingWhileTheIconIsHeld() {
+        show()
+
+        hold("Mail")
+        compose.onNodeWithText("Remove from folder").performClick()
+        compose.waitForIdle()
+        assertThat(removed).isEmpty()
+        compose.onNodeWithText("Remove from folder").assertIsDisplayed()
+
+        release("Mail")
+        compose.onNodeWithText("Remove from folder").performClick()
+        compose.waitForIdle()
+        assertThat(removed).containsExactly(mail)
+    }
+
     @Test fun removeFromFolderAndRenameAreMenuActions() {
         show()
 
