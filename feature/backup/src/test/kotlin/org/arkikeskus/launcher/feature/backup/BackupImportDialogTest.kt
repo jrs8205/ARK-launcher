@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.feature.backup
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -21,6 +24,9 @@ class BackupImportDialogTest {
     private val res = RuntimeEnvironment.getApplication().resources
     private var restores = 0
     private var finishes = 0
+
+    /** A scroll container that holds [text], on itself or on a child. */
+    private fun scrollableWith(text: String) = hasScrollAction() and (hasText(text) or hasAnyDescendant(hasText(text)))
 
     private fun show(state: BackupImportState) = compose.setContent {
         BackupImportDialog(state = state, onRestore = { restores++ }, onFinish = { finishes++ })
@@ -57,6 +63,22 @@ class BackupImportDialogTest {
         compose.onNodeWithText(res.getString(R.string.backup_restoring)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.backup_cancel)).assertDoesNotExist()
         compose.onNodeWithText(res.getString(android.R.string.ok)).assertDoesNotExist()
+    }
+
+    /** On a small screen at a large font the advice is taller than the dialog: it must scroll, or its
+     *  end — the part that says what works instead — is cut off. */
+    @Test fun aLongOutcomeCanBeScrolledToItsEnd() {
+        show(BackupImportState.Done(BackupEvent.ReadBlocked))
+
+        compose.onNode(scrollableWith(res.getString(R.string.backup_import_read_blocked)))
+            .assertExists()
+    }
+
+    @Test fun theQuestionCanBeScrolledToo() {
+        show(BackupImportState.Confirm)
+
+        compose.onNode(scrollableWith(res.getString(R.string.backup_restore_confirm_msg)))
+            .assertExists()
     }
 
     @Test fun theOutcomeIsShownUntilOk() {

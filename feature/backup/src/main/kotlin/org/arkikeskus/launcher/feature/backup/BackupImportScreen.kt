@@ -7,6 +7,8 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -93,7 +95,7 @@ internal fun BackupImportDialog(
         BackupImportState.Confirm -> AlertDialog(
             onDismissRequest = onFinish,
             title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
-            text = { Text(stringResource(R.string.backup_restore_confirm_msg)) },
+            text = { DialogText(stringResource(R.string.backup_restore_confirm_msg)) },
             confirmButton = {
                 TextButton(onClick = onRestore) { Text(stringResource(R.string.backup_restore_confirm_ok)) }
             },
@@ -117,10 +119,17 @@ internal fun BackupImportDialog(
         is BackupImportState.Done -> AlertDialog(
             onDismissRequest = onFinish,
             title = { Text(stringResource(R.string.backup_title)) },
-            text = { Text(backupEventMessage(LocalResources.current, state.event)) },
+            text = { DialogText(backupEventMessage(LocalResources.current, state.event)) },
             confirmButton = {
                 TextButton(onClick = onFinish) { Text(stringResource(android.R.string.ok)) }
             },
         )
     }
+}
+
+/** A dialog's message, scrollable: on a small screen at a large font the blocked-read advice is taller
+ *  than the dialog allows, and its end is the part that says what to do instead. */
+@Composable
+private fun DialogText(text: String) {
+    Text(text, Modifier.verticalScroll(rememberScrollState()))
 }
