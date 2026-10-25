@@ -3,8 +3,16 @@ package org.arkikeskus.launcher.data
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ImageDecoder
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import coil3.ImageLoader
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
@@ -17,6 +25,7 @@ import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.CustomIconImage
 import java.io.File
 import java.util.UUID
+import kotlin.math.roundToInt
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -42,6 +51,23 @@ class CustomIconSource @Inject constructor(
 class CustomIconFiles(context: Context) {
     private val dir = File(context.filesDir, "custom_icons")
 
+    /**
+     * Turns the picture at [uri] into an icon: the middle square of it, scaled to [SIZE] and cut to
+     * the phone's own icon shape (the adaptive-icon mask), so it sits among the other icons like
+     * one of them. Null when [uri] is no readable picture.
+     */
+    fun import(context: Context, uri: Uri): CustomIcon.FromFile? = runCatching {
+        val picture = decodePicture(context, uri) ?: return null
+        val side = minOf(picture.width, picture.height)
+        val crop = Rect((picture.width - side) / 2, (picture.height - side) / 2, (picture.width + side) / 2, (picture.height + side) / 2)
+        val icon = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(icon)
+        val shape = AdaptiveIconDrawable(ColorDrawable(Color.BLACK), null).apply { setBounds(0, 0, SIZE, SIZE) }.iconMask
+        canvas.clipPath(shape)
+        canvas.drawBitmap(picture, crop, Rect(0, 0, SIZE, SIZE), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+        save(icon)
+    }.getOrNull()
+
     /** Saves [bitmap] under a new name, so a new pick never reuses an old one's cached image. */
     fun save(bitmap: Bitmap): CustomIcon.FromFile {
         dir.mkdirs()
@@ -56,8 +82,39 @@ class CustomIconFiles(context: Context) {
             runCatching { file.inputStream().use(BitmapFactory::decodeStream) }.getOrNull()
         }
 
+    /** The picture at [uri], its short side no larger than twice [SIZE]. ImageDecoder first: it
+     *  turns a camera photo upright by its EXIF orientation; BitmapFactory where it can't decode. */
+    private fun decodePicture(context: Context, uri: Uri): Bitmap? {
+        runCatching {
+            val source = ImageDecoder.createSource(context.contentResolver, uri)
+            return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                val scale = (SIZE * 2f) / minOf(info.size.width, info.size.height)
+                if (scale < 1f) {
+                    decoder.setTargetSize(
+                        (info.size.width * scale).roundToInt().coerceAtLeast(1),
+                        (info.size.height * scale).roundToInt().coerceAtLeast(1),
+                    )
+                }
+            }
+        }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val shortSide = minOf(bounds.outWidth, bounds.outHeight)
+        if (shortSide <= 0) return null
+        var sample = 1
+        while (shortSide / (sample * 2) >= SIZE * 2) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        return context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    }
+
     fun delete(icon: CustomIcon.FromFile) {
         runCatching { File(dir, icon.name).delete() }
+    }
+
+    companion object {
+        /** Side of a saved icon image (px): as crisp as the launcher's own rasterized icons. */
+        const val SIZE = 192
     }
 }
 

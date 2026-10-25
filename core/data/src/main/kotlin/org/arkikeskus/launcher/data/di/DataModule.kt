@@ -22,6 +22,7 @@ import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.CustomIconFetcher
 import org.arkikeskus.launcher.data.CustomIconKeyer
 import org.arkikeskus.launcher.data.CustomIconSource
+import org.arkikeskus.launcher.data.IconChoicesSource
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.ProfileSystem
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import javax.inject.Singleton
+import org.arkikeskus.launcher.model.IconChoices
 
 private val Context.settingsDataStore by preferencesDataStore(
     name = "launcher_settings",
@@ -68,6 +70,9 @@ object DataModule {
     @ApplicationScope
     fun provideApplicationScope(): CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Provides
+    fun provideIconChoices(source: IconChoicesSource): IconChoices = source
 
     @Provides
     @Singleton

@@ -37,3 +37,21 @@ sealed interface CustomIcon {
 
 /** Coil model for drawing a [CustomIcon] on its own: a folder's picked icon, the icon picker's grid. */
 data class CustomIconImage(val icon: CustomIcon)
+
+/** An installed icon pack the picker offers. */
+data class IconPackChoice(val packageName: String, val label: String)
+
+/**
+ * What the icon picker offers, as in Nova Launcher and Lawnchair: the installed icon packs, every
+ * icon of one, the pack's own match for an app, and a gallery image turned into an icon. Blocking
+ * calls (packs are parsed, images decoded): call them off the main thread.
+ */
+interface IconChoices {
+    fun packs(): List<IconPackChoice>
+    fun icons(pack: String): List<String>
+    fun suggestion(pack: String, app: AppItem): String?
+    /** Saves the picture at [uri] as an icon, or null when it is no readable picture. */
+    fun importImage(uri: android.net.Uri): CustomIcon?
+    /** Deletes an imported image that ended up unused (the picker was left without saving). */
+    fun discard(icon: CustomIcon)
+}

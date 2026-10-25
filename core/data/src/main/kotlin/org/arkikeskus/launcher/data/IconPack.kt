@@ -27,10 +27,32 @@ class IconPack(
 ) {
     /** The pack's drawable for [component], or null if the pack doesn't map it. */
     fun getIcon(component: ComponentName): Drawable? {
-        val name = componentMap["${component.packageName}/${component.className}"] ?: return null
+        val name = drawableName(component) ?: return null
         val id = res.getIdentifier(name, "drawable", packageName).takeIf { it != 0 } ?: return null
         return runCatching { ResourcesCompat.getDrawable(res, id, null) }.getOrNull()
     }
+
+    /** The name of the drawable the pack maps [component] to — its own match for the app. */
+    fun drawableName(component: ComponentName): String? = componentMap["${component.packageName}/${component.className}"]
+
+    /** Every drawable the appfilter maps an app to, once each — the pack's icons when it lists none. */
+    fun mappedDrawables(): List<String> = componentMap.values.distinct()
+}
+
+/**
+ * The drawables an icon pack lists for icon pickers in its `drawable.xml` (`<item drawable="…"/>`,
+ * grouped under `<category>`s), once each and in the pack's order.
+ */
+internal fun parseDrawableList(parser: XmlPullParser): List<String> {
+    val names = LinkedHashSet<String>()
+    var event = parser.eventType
+    while (event != XmlPullParser.END_DOCUMENT) {
+        if (event == XmlPullParser.START_TAG && parser.name == "item") {
+            parser.getAttributeValue(null, "drawable")?.takeIf { it.isNotBlank() }?.let(names::add)
+        }
+        event = parser.next()
+    }
+    return names.toList()
 }
 
 /**
@@ -72,9 +94,36 @@ class IconPackRepository @Inject constructor(
     @Synchronized
     fun invalidate(pkg: String): Boolean {
         resources.remove(pkg)
+        names.remove(pkg)
         if (!cache.containsKey(pkg)) return false
         cache.remove(pkg)
         return true
+    }
+
+    // package -> every icon it offers in the picker (see [iconNames]).
+    private val names = HashMap<String, List<String>>()
+
+    /** Every icon the pack [pkg] offers for picking: its `drawable.xml` list (res/xml or assets),
+     *  else the icons its appfilter maps; only names the pack really has. Cached. */
+    fun iconNames(pkg: String): List<String> {
+        synchronized(this) { names[pkg]?.let { return it } }
+        val res = packResources(pkg) ?: return emptyList()
+        val listed = runCatching { readDrawableList(pkg, res) }.getOrNull().orEmpty()
+        val all = listed.ifEmpty { get(pkg)?.mappedDrawables().orEmpty() }
+            .filter { res.getIdentifier(it, "drawable", pkg) != 0 }
+        synchronized(this) { names[pkg] = all }
+        return all
+    }
+
+    /** The pack [pkg]'s own match for [component] (its appfilter), to show first in the picker. */
+    fun suggestion(pkg: String, component: ComponentName): String? = get(pkg)?.drawableName(component)
+
+    private fun readDrawableList(pkg: String, res: Resources): List<String> {
+        val xmlId = res.getIdentifier("drawable", "xml", pkg)
+        if (xmlId != 0) return res.getXml(xmlId).use(::parseDrawableList)
+        return context.createPackageContext(pkg, 0).assets.open("drawable.xml").use { stream ->
+            parseDrawableList(Xml.newPullParser().apply { setInput(stream, null) })
+        }
     }
 
     /** The drawable [name] of the installed pack [pkg] — an icon picked from it for one app or
