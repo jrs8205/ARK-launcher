@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -21,6 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -166,7 +168,14 @@ fun LauncherShell(
                 dragController = dragController,
                 showWidgetsFor = showWidgetsFor,
                 onShowWidgetsHandled = { showWidgetsFor = null },
-                modifier = Modifier.fillMaxSize(),
+                // Home dims as the drawer rises over it (DrawerEdge.kt); read at draw time only.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawWithContent {
+                        drawContent()
+                        val scrim = drawerScrimAlpha(currentProgress)
+                        if (scrim > 0f) drawRect(Color.Black.copy(alpha = scrim))
+                    },
             )
 
             // Always compose AppDrawerScreen at fillMaxSize to keep it pre-composed, pre-measured, and pre-laid out.
@@ -203,8 +212,14 @@ fun LauncherShell(
                         if (draggingFromDrawer) {
                             alpha = dragOutAlpha.value
                         } else {
-                            val ty = (1f - currentProgress) * size.height
-                            translationY = ty
+                            val p = currentProgress
+                            translationY = (1f - p) * size.height
+                            // A soft top edge while it moves (DrawerEdge.kt): round corners and a shadow,
+                            // squaring off as it opens so the open drawer fills the screen as before.
+                            val corner = DRAWER_CORNER_RADIUS * drawerCornerFraction(p)
+                            shape = RoundedCornerShape(topStart = corner, topEnd = corner)
+                            clip = corner > 0.dp
+                            shadowElevation = DRAWER_EDGE_ELEVATION.toPx() * drawerShadowFraction(p)
                         }
                     },
             )
