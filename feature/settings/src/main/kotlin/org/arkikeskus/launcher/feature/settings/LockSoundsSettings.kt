@@ -173,7 +173,9 @@ internal fun LockSoundsSettings(
     var pending by rememberSaveable { mutableStateOf<SoundSlot?>(null) }
     val current: (SoundSlot) -> String = { if (it == SoundSlot.Lock) lockUri else unlockUri }
     val set: (SoundSlot, String) -> Unit = { slot, uri ->
-        releaseFileGrant(context, current(slot), keep = uri)
+        // The same file may be both sounds: its grant goes only once neither uses it.
+        val other = current(if (slot == SoundSlot.Lock) SoundSlot.Unlock else SoundSlot.Lock)
+        releaseFileGrant(context, current(slot), stillUsed = setOf(uri, other))
         onSetSound(slot, uri)
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -249,9 +251,9 @@ private fun soundDisplayName(context: Context, uri: Uri): String? {
     }.getOrNull()?.takeIf { it.isNotBlank() }
 }
 
-/** Gives back the read grant of a picked file that is being replaced, so grants don't pile up. */
-private fun releaseFileGrant(context: Context, old: String, keep: String) {
-    if (old.isBlank() || old == keep) return
+/** Gives back the read grant of a picked file that no sound uses any more, so grants don't pile up. */
+private fun releaseFileGrant(context: Context, old: String, stillUsed: Set<String>) {
+    if (old.isBlank() || old in stillUsed) return
     val uri = old.toUri()
     val held = context.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission }
     if (held) runCatching { context.contentResolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
