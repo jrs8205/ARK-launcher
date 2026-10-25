@@ -41,36 +41,39 @@ fun FolderIcon(
     customIcon: CustomIcon? = null,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        if (customIcon != null) {
-            Box(contentAlignment = Alignment.TopEnd) {
-                PickedIcon(customIcon, size, contentDescription = name)
-                NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
-            }
-            if (showLabel) AppLabel(name, labelColor, reserveLines = true)
-            return@Column
-        }
         Box(contentAlignment = Alignment.TopEnd) {
-            // EVERYTHING inside scales with the tile — padding and gap included. A fixed padding/gap
-            // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 columns on a
-            // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
-            val scale = size / 52.dp
-            Box(
-                modifier = Modifier
-                    .size(size)
-                    .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(15.dp))
-                    .padding(6.dp * scale),
-                contentAlignment = Alignment.Center,
-            ) {
-                val mini = 17.dp * scale
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp * scale)) {
-                    PreviewRow(apps.getOrNull(0), apps.getOrNull(1), mini, gap = 2.dp * scale)
-                    PreviewRow(apps.getOrNull(2), apps.getOrNull(3), mini, gap = 2.dp * scale)
-                }
+            if (customIcon != null) {
+                // Its pack uninstalled or its picture gone: the preview again, never a blank tile.
+                PickedIcon(customIcon, size, contentDescription = name, fallback = { FolderPreview(apps, size) })
+            } else {
+                FolderPreview(apps, size)
             }
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         // Home-only tile in a fixed centred cell: reserve the full label block (see AppLabel).
         if (showLabel) AppLabel(name, labelColor, reserveLines = true)
+    }
+}
+
+/** The folder's 2×2 preview of its first four apps. */
+@Composable
+private fun FolderPreview(apps: List<AppItem>, size: Dp) {
+    // EVERYTHING inside scales with the tile — padding and gap included. A fixed padding/gap
+    // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 columns on a
+    // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
+    val scale = size / 52.dp
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(15.dp))
+            .padding(6.dp * scale),
+        contentAlignment = Alignment.Center,
+    ) {
+        val mini = 17.dp * scale
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp * scale)) {
+            PreviewRow(apps.getOrNull(0), apps.getOrNull(1), mini, gap = 2.dp * scale)
+            PreviewRow(apps.getOrNull(2), apps.getOrNull(3), mini, gap = 2.dp * scale)
+        }
     }
 }
 

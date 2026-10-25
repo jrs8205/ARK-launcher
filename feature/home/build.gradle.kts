@@ -20,6 +20,7 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    testImplementation(libs.coil.compose)
     testImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation(libs.androidx.test.ext.junit)

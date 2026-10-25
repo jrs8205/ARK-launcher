@@ -705,16 +705,23 @@ private fun DrawerFolderTile(
     }
 }
 
-/** A drawer folder's picture: the [icon] picked for it, else a rounded 2×2 preview of its first apps.
- *  EVERYTHING inside scales with the tile — padding and gaps included: a fixed padding/gap with
- *  linearly scaled icons inverted the margin below ~45dp tiles (6–7 drawer columns on a narrow
- *  screen), squeezing the preview asymmetrically out of its card. */
+/** A drawer folder's picture: the [icon] picked for it, else a rounded 2×2 preview of its first apps. */
 @Composable
 private fun DrawerFolderGlyph(folder: DrawerFolderUi, icon: CustomIcon?, tileSize: Dp) {
     if (icon != null) {
-        PickedIcon(icon, tileSize, contentDescription = folder.name)
-        return
+        // Its pack uninstalled or its picture gone: the preview again, never a blank tile.
+        PickedIcon(icon, tileSize, contentDescription = folder.name, fallback = { DrawerFolderPreview(folder, tileSize) })
+    } else {
+        DrawerFolderPreview(folder, tileSize)
     }
+}
+
+/** A drawer folder's 2×2 preview of its first four apps. EVERYTHING inside scales with the tile —
+ *  padding and gaps included: a fixed padding/gap with linearly scaled icons inverted the margin
+ *  below ~45dp tiles (6–7 drawer columns on a narrow screen), squeezing the preview asymmetrically
+ *  out of its card. */
+@Composable
+private fun DrawerFolderPreview(folder: DrawerFolderUi, tileSize: Dp) {
     val scale = tileSize / 56.dp
     Box(
         modifier = Modifier
