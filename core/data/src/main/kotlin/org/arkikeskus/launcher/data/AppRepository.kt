@@ -27,7 +27,8 @@ class AppRepository @Inject constructor(
     /**
      * All launchable apps, sorted by (effective) label, updating on install/remove/change. Any
      * user-chosen custom label (see [SettingsRepository.customLabels]) is applied over the system
-     * label so it shows everywhere apps are rendered, and re-sorted to stay alphabetical.
+     * label so it shows everywhere apps are rendered, and re-sorted to stay alphabetical; a picked
+     * icon ([SettingsRepository.customIcons]) rides along the same way.
      *
      * Shared (Eagerly, replay 1): the upstream is a cold callbackFlow that registers a
      * LauncherApps.Callback and scans every profile's activities per collector — and this flow has
@@ -42,11 +43,13 @@ class AppRepository @Inject constructor(
         // A profile added, removed or toggled is not a package event: re-query on its broadcast.
         source.appsFlow(reloadSignals = profiles.changes),
         settingsRepository.customLabels,
-    ) { apps, labels ->
+        settingsRepository.customIcons,
+    ) { apps, labels, icons ->
+        val withIcons = if (icons.isEmpty()) apps else apps.map { a -> icons[a.key]?.let { a.copy(customIcon = it) } ?: a }
         if (labels.isEmpty()) {
-            apps
+            withIcons
         } else {
-            apps
+            withIcons
                 .map { a -> labels[a.key]?.let { a.copy(label = it) } ?: a }
                 .sortedBy { it.label.lowercase() }
         }

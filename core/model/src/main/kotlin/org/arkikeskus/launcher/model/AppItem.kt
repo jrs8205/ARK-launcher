@@ -14,6 +14,8 @@ data class AppItem(
     val userSerial: Long,
     val label: String,
     val isHidden: Boolean = false,
+    /** The icon the user picked for this app in place of its own, or null (see [CustomIcon]). */
+    val customIcon: CustomIcon? = null,
 ) {
     val componentName: ComponentName get() = ComponentName(packageName, className)
 

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,6 +31,13 @@ data class PinnedPerson(
 
 /** A folder shown in the app drawer: a stable [id], a [name], and the keys of its member apps. */
 data class DrawerFolder(val id: Long, val name: String, val appKeys: List<String>)
+
+/** How a folder's own icon is filed in [SettingsRepository.folderIcons]: home folders by their row
+ *  id, drawer folders by theirs — both ids survive a backup and restore. */
+object FolderIconKey {
+    fun home(id: Long) = "home:$id"
+    fun drawer(id: Long) = "drawer:$id"
+}
 
 /**
  * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
@@ -273,6 +281,26 @@ class SettingsRepository @Inject constructor(
         val trimmed = label?.trim().orEmpty()
         if (trimmed.isEmpty()) current.remove(key) else current[key] = trimmed
         p[Keys.CUSTOM_LABELS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+    }
+
+    /** Icons the user picked for single apps (AppItem.key -> icon), shown in place of their own. */
+    val customIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.CUSTOM_ICONS]) }
+
+    /** Sets (or, for null, clears) the icon picked for the app [key]. */
+    suspend fun setCustomIcon(key: String, icon: CustomIcon?) = edit { p ->
+        p[Keys.CUSTOM_ICONS] = serializeIcons(parseIcons(p[Keys.CUSTOM_ICONS]).toMutableMap().apply {
+            if (icon == null) remove(key) else put(key, icon)
+        })
+    }
+
+    /** Icons the user picked for folders ([FolderIconKey] -> icon), shown in place of the preview. */
+    val folderIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.FOLDER_ICONS]) }
+
+    /** Sets (or, for null, clears) the icon picked for the folder [key] (see [FolderIconKey]). */
+    suspend fun setFolderIcon(key: String, icon: CustomIcon?) = edit { p ->
+        p[Keys.FOLDER_ICONS] = serializeIcons(parseIcons(p[Keys.FOLDER_ICONS]).toMutableMap().apply {
+            if (icon == null) remove(key) else put(key, icon)
+        })
     }
 
     private fun parseLabels(raw: String?): Map<String, String> =
@@ -524,7 +552,15 @@ class SettingsRepository @Inject constructor(
     suspend fun exportRaw(): Map<String, Any> =
         dataStore.data.first().asMap().entries
             .filterNot { it.key.name in DEVICE_LOCAL_KEYS || it.key.name == AppUsageRepository.USAGE_KEY }
-            .associate { (k, v) -> k.name to v }
+            .mapNotNull { (k, v) ->
+                // A gallery image is a file on this phone: only icon-pack icons go in the backup.
+                if (k.name in ICON_PREFS && v is String) {
+                    serializeIcons(parseIcons(v).filterValues { it is CustomIcon.FromPack }).takeIf { it.isNotEmpty() }?.let { k.name to it }
+                } else {
+                    k.name to v
+                }
+            }
+            .toMap()
 
     /**
      * Replaces all preferences with [values]. Known keys are written only with their registered
@@ -550,6 +586,11 @@ class SettingsRepository @Inject constructor(
             val unlockSound = prefs[Keys.UNLOCK_SOUND_URI]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
+            // Gallery images are files on this phone (not in a backup): keep them for the apps and
+            // folders the backup picks no icon for.
+            val localImages = ICON_PREFS.associateWith { name ->
+                parseIcons(prefs[stringPreferencesKey(name)]).filterValues { it is CustomIcon.FromFile }
+            }
             prefs.clear()
             for ((name, value) in values) {
                 when {
@@ -579,6 +620,12 @@ class SettingsRepository @Inject constructor(
             if (lockSound != null) prefs[Keys.LOCK_SOUND_URI] = lockSound
             if (unlockSound != null) prefs[Keys.UNLOCK_SOUND_URI] = unlockSound
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
+            for ((name, images) in localImages) {
+                if (images.isEmpty()) continue
+                val key = stringPreferencesKey(name)
+                val restored = parseIcons(prefs[key])
+                prefs[key] = serializeIcons(images.filterKeys { it !in restored } + restored)
+            }
         }
     }
 
@@ -620,6 +667,8 @@ class SettingsRepository @Inject constructor(
         val DOCK_FAVORITES = stringPreferencesKey("dock_favorites")
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val CUSTOM_LABELS = stringPreferencesKey("custom_labels")
+        val CUSTOM_ICONS = stringPreferencesKey("custom_icons")
+        val FOLDER_ICONS = stringPreferencesKey("folder_icons")
         val DRAWER_FOLDERS = stringPreferencesKey("drawer_folders")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
@@ -721,10 +770,23 @@ class SettingsRepository @Inject constructor(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "home_page_marker",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
+            "custom_icons", "folder_icons",
         )
 
+        /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */
+        val ICON_PREFS = setOf("custom_icons", "folder_icons")
+
+        private fun parseIcons(raw: String?): Map<String, CustomIcon> =
+            raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
+                val i = line.indexOf('\t')
+                if (i <= 0) null else CustomIcon.decode(line.substring(i + 1))?.let { line.substring(0, i) to it }
+            }?.toMap() ?: emptyMap()
+
+        private fun serializeIcons(icons: Map<String, CustomIcon>): String =
+            icons.entries.joinToString("\n") { "${it.key}\t${it.value.encode()}" }
+
         /** Preferences whose values hold app keys ("package/class/userSerial", AppItem.key). */
-        val APP_KEY_PREFS = setOf("dock_favorites", "hidden_apps", "custom_labels", "drawer_folders", "left_swipe_app_key")
+        val APP_KEY_PREFS = setOf("dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key")
 
         /**
          * Rewrites each app key inside the value [raw] of the [APP_KEY_PREFS] preference [name] with
@@ -737,7 +799,7 @@ class SettingsRepository @Inject constructor(
             val lines = raw.split("\n").filter { it.isNotEmpty() }
             return when (name) {
                 "dock_favorites", "hidden_apps" -> lines.mapNotNull(transform).distinct().joinToString("\n")
-                "custom_labels" -> lines.mapNotNull { line ->
+                "custom_labels", "custom_icons" -> lines.mapNotNull { line ->
                     val tab = line.indexOf('\t')
                     if (tab <= 0) line else transform(line.substring(0, tab))?.let { it + line.substring(tab) }
                 }.distinctBy { it.substringBefore('\t') }.joinToString("\n")
