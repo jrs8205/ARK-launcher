@@ -35,8 +35,9 @@ import javax.inject.Inject
  * The backup file another app hands over with "Open with" (`ACTION_VIEW`) or share (`ACTION_SEND`),
  * or null. The import is an exported activity any app can start, so only a content URI from another
  * app's provider is taken: never a file path (the launcher has no storage access), and never one of
- * the launcher's own providers, which another app must not get it to read for them. [Uri.getHost]
- * leaves out a `userId@` prefix, which would otherwise hide an own authority from the check.
+ * the launcher's own providers, which another app must not get it to read for them. The provider is
+ * looked up the way ContentResolver finds it: the decoded authority after its last `@` (a `userId@`
+ * prefix, written plainly or as `%40`, would otherwise hide an own authority from the check).
  */
 fun backupImportUri(context: Context, intent: Intent): Uri? {
     val uri = when (intent.action) {
@@ -45,7 +46,7 @@ fun backupImportUri(context: Context, intent: Intent): Uri? {
         else -> null
     } ?: return null
     if (uri.scheme != ContentResolver.SCHEME_CONTENT) return null
-    val authority = uri.host ?: return null
+    val authority = uri.authority?.substringAfterLast('@') ?: return null
     val owner = context.packageManager.resolveContentProvider(authority, 0)?.packageName
     return uri.takeIf { owner != context.packageName }
 }

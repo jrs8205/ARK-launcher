@@ -66,4 +66,19 @@ class BackupImportUriTest {
         assertThat(backupImportUri(context, Intent(Intent.ACTION_VIEW).setDataAndType(own, "application/json"))).isNull()
         assertThat(backupImportUri(context, Intent(Intent.ACTION_VIEW).setDataAndType(ownWithUser, "application/json"))).isNull()
     }
+
+    /** ContentResolver strips the user prefix from the *decoded* authority, so an encoded `@` must not
+     *  hide the launcher's own provider either. */
+    @Test fun anEncodedUserPrefixDoesNotHideTheLaunchersOwnProvider() {
+        shadowOf(context.packageManager).addOrUpdateProvider(
+            ProviderInfo().apply {
+                authority = "org.arkikeskus.launcher.test.files"
+                packageName = context.packageName
+                name = "org.arkikeskus.launcher.test.FilesProvider"
+            },
+        )
+        val encoded = Uri.parse("content://0%40org.arkikeskus.launcher.test.files/private/settings.json")
+
+        assertThat(backupImportUri(context, Intent(Intent.ACTION_VIEW).setDataAndType(encoded, "application/json"))).isNull()
+    }
 }
