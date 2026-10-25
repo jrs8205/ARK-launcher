@@ -1135,6 +1135,24 @@ internal fun Workspace(
                                             dragging = placed
                                             dragPos = pickup
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            // The menu opens now, under the still-held finger (issue #12);
+                                            // pulling the icon on closes it (DismissWhenDragMoves in
+                                            // HomeScreen) and the drag goes on. Anchor at the icon's TOP
+                                            // edge when it's in the lower half (popup flips above) and its
+                                            // BOTTOM edge otherwise, so the popup never covers the icon;
+                                            // only icons in the top ~45% open downward, so a tall popup
+                                            // never covers the dock.
+                                            run {
+                                                val cellTop = dragController.gridBounds.top + placed.cellY * cellH
+                                                val above = cellTop + cellH / 2f > windowHeightPx * 0.45f
+                                                val anchorX = dragController.gridBounds.left + placed.cellX * cellW + cellW / 2f
+                                                val anchorY = if (above) cellTop else cellTop + cellH
+                                                onAppMenu(
+                                                    placed.app,
+                                                    IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
+                                                    above,
+                                                )
+                                            }
                                             val dragStartPx = IconPress.DragStartThreshold.toPx()
                                             try {
                                                 // DRAG — drag() reports every pixel, so a lifted icon only
@@ -1168,26 +1186,8 @@ internal fun Workspace(
                                                 // under a still-pressed finger.
                                                 // Nothing on release once HOME cancelled the lift.
                                                 val d = dragging?.takeIf { dragController.owns(token) }
-                                                if (d != null && completed && !dragController.moving) {
-                                                    // Static long-press → show the menu next to the icon
-                                                    // (after release, so it can't steal the drag). Anchor at
-                                                    // the icon's TOP edge when it's in the lower half (popup
-                                                    // flips above) and its BOTTOM edge otherwise (popup
-                                                    // below) — so the popup never covers the icon.
-                                                    val cellTop = dragController.gridBounds.top + d.cellY * cellH
-                                                    // Bias toward opening upward: only icons in the top
-                                                    // ~45% open downward (room below); the middle and
-                                                    // everything lower open up so a tall popup never
-                                                    // covers the dock.
-                                                    val above = cellTop + cellH / 2f > windowHeightPx * 0.45f
-                                                    val anchorX = dragController.gridBounds.left + d.cellX * cellW + cellW / 2f
-                                                    val anchorY = if (above) cellTop else cellTop + cellH
-                                                    onAppMenu(
-                                                        d.app,
-                                                        IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
-                                                        above,
-                                                    )
-                                                } else if (d != null && completed && dragController.moving) {
+                                                // A still release leaves the menu, opened at the lift, as it is.
+                                                if (d != null && completed && dragController.moving) {
                                                     val rootPos = dragController.gridBounds.topLeft + dragPos
                                                     when {
                                                         // Dropped on the top "remove" zone → take it off home.

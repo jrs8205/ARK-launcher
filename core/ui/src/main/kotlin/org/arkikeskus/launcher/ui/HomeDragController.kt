@@ -1,11 +1,14 @@
 package org.arkikeskus.launcher.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import org.arkikeskus.launcher.model.AppItem
@@ -185,3 +188,16 @@ class HomeDragController {
 
 @Composable
 fun rememberHomeDragController(): HomeDragController = remember { HomeDragController() }
+
+/**
+ * Calls [onDismiss] when a lifted icon starts to move. An icon's menu opens the moment the icon lifts
+ * under the still-held finger (issue #12, as in Pixel Launcher); pulling the icon on from there closes
+ * the menu and the drag goes on.
+ */
+@Composable
+fun DismissWhenDragMoves(controller: HomeDragController, onDismiss: () -> Unit) {
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(controller) {
+        snapshotFlow { controller.moving }.collect { moving -> if (moving) currentOnDismiss() }
+    }
+}

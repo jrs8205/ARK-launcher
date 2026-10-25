@@ -91,6 +91,7 @@ import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.DefaultLauncher
+import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconMenuItem
@@ -211,6 +212,8 @@ fun HomeScreen(
 
     // The single Pixel-style long-press menu, anchored to the long-pressed icon.
     var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
+    // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
+    DismissWhenDragMoves(dragController) { menuTarget = null }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     // Empty-area long-press options popup (anchor + whether it flips above the press point).

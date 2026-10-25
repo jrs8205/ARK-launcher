@@ -47,6 +47,7 @@ class DrawerIconSwipeTest {
         packageName = "com.mail", className = "mail.Main", user = Process.myUserHandle(), userSerial = 0, label = "Mail",
     )
     private var clicks = 0
+    private var longClicks = 0
     private var longPress = 0L
     private lateinit var pager: PagerState
     private val dragController = HomeDragController()
@@ -65,7 +66,7 @@ class DrawerIconSwipeTest {
                     LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize()) {
                         appCells(
                             apps = listOf(app), badges = emptyMap(), badgeShowCount = true, badgeScale = 1f,
-                            showLabels = true, iconSize = 56.dp, onAppClick = { clicks++ }, onAppLongClick = { _, _ -> },
+                            showLabels = true, iconSize = 56.dp, onAppClick = { clicks++ }, onAppLongClick = { _, _ -> longClicks++ },
                             dragController = dragController, onDragOutStart = {}, onDropOnHome = { _, _, _, _ -> },
                             onDropOnDock = {}, haptics = haptics, locked = false,
                         )
@@ -75,6 +76,22 @@ class DrawerIconSwipeTest {
                 }
             }
         }
+    }
+
+    /** Issue #12: the menu opens as the icon lifts, while the finger is still down, and only once. */
+    @Test fun aStillHoldOpensTheMenuBeforeTheFingerLifts() {
+        compose()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Mail").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(longPress + 50)
+        compose.waitForIdle()
+        assertThat(longClicks).isEqualTo(1)
+
+        compose.onNodeWithText("Mail").performTouchInput { up() }
+        compose.waitForIdle()
+        assertThat(longClicks).isEqualTo(1)
+        assertThat(clicks).isEqualTo(0)
     }
 
     @Test fun aCleanTapOnAnIconLaunchesIt() {

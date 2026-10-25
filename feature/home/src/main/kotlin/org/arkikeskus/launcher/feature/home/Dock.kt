@@ -193,6 +193,13 @@ fun Dock(
                                 dragOffsetX = 0f
                                 val dragStartPx = IconPress.DragStartThreshold.toPx()
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                // The menu opens now, above the item, under the still-held finger
+                                // (issue #12); pulling the icon on closes it and the drag goes on.
+                                run {
+                                    val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
+                                    val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
+                                    onAppMenu(app, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
+                                }
                                 try {
                                     val completed = drag(down.id) { change ->
                                         // Accumulate the delta BEFORE consuming: positionChange() returns
@@ -240,12 +247,8 @@ fun Dock(
                                             }
                                         }
                                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    } else if (live) {
-                                        // No movement → static long-press → show the menu above the item.
-                                        val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
-                                        val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
-                                        onAppMenu(app, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
                                     }
+                                    // A still release leaves the menu, opened at the lift, as it is.
                                 } finally {
                                     // Reset even on cancellation (node disposed / pointerInput restarted),
                                     // mirroring the local-drag path in Workspace, so a dead gesture can't

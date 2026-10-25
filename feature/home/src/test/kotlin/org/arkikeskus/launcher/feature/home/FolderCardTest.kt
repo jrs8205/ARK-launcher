@@ -31,7 +31,8 @@ import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performSemanticsAction
@@ -157,15 +158,15 @@ class FolderCardTest {
         compose.waitForIdle()
         assertThat(rootCenter("Notes")).isEqualTo(slot)
 
-        compose.onRoot().performTouchInput { click(slot) }
+        cardRoot().performTouchInput { click(slot) }
         compose.waitForIdle()
         assertThat(launched).containsExactly(notes)
 
-        compose.onRoot().performTouchInput { down(slot) }
+        cardRoot().performTouchInput { down(slot) }
         compose.mainClock.advanceTimeBy(longPress + 50)
         compose.waitForIdle()
         assertThat(drag.draggedApp).isEqualTo(notes)
-        compose.onRoot().performTouchInput { up() }
+        cardRoot().performTouchInput { up() }
         compose.waitForIdle()
         compose.onNodeWithText("App info").assertIsDisplayed()
     }
@@ -185,6 +186,34 @@ class FolderCardTest {
         assertThat(dismissed).isEqualTo(0)
         assertThat(drag.isDragging).isFalse()
         assertNothingDropped()
+    }
+
+    /** Issue #12: the menu opens as the icon lifts, while the finger is still down. */
+    @Test fun aStillHoldOpensTheMenuBeforeTheFingerLifts() {
+        show()
+
+        hold("Mail")
+
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        assertThat(launched).isEmpty()
+        assertThat(drag.moving).isFalse()
+    }
+
+    /** Pulling the lifted icon on closes its open menu and the drag goes on as before. */
+    @Test fun pullingTheIconOnAfterTheMenuOpenedClosesItAndReorders() {
+        show()
+        val mailCenter = rootCenter("Mail")
+        val notesCenter = rootCenter("Notes")
+
+        hold("Notes")
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        moveTo((notesCenter + mailCenter) / 2f)
+        moveTo(mailCenter)
+
+        compose.onNodeWithText("App info").assertDoesNotExist()
+        assertThat(drag.moving).isTrue()
+        release("Notes")
+        assertThat(reorders).containsExactly(notes to mail)
     }
 
     @Test fun removeFromFolderAndRenameAreMenuActions() {
@@ -351,13 +380,17 @@ class FolderCardTest {
 
     // --- reorder inside the card ---
 
+    /** The folder card's own window: while an icon is held its menu is open too, in a window of its own
+     *  (issue #12), and the held gesture belongs to the window it started in. */
+    private fun cardRoot() = compose.onAllNodes(isRoot()).onFirst()
+
     private fun rootCenter(label: String): Offset = compose.onNodeWithText(label).fetchSemanticsNode().boundsInRoot.center
 
     private fun rootLeft(label: String): Float = compose.onNodeWithText(label).fetchSemanticsNode().boundsInRoot.left
 
     /** Continues the held gesture: the finger moves to [root] (root coordinates). */
     private fun moveTo(root: Offset) {
-        compose.onRoot().performTouchInput { moveTo(root) }
+        cardRoot().performTouchInput { moveTo(root) }
         compose.waitForIdle()
     }
 
@@ -512,7 +545,7 @@ class FolderCardTest {
     // --- drag out of the card ---
 
     private fun cardBounds(): Rect = compose.onNodeWithTag("folderCard").fetchSemanticsNode().boundsInRoot
-    private fun rootBounds(): Rect = compose.onRoot().fetchSemanticsNode().boundsInRoot
+    private fun rootBounds(): Rect = cardRoot().fetchSemanticsNode().boundsInRoot
 
     /** A point on the home screen below the card. */
     private fun below(): Offset {

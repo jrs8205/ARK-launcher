@@ -97,6 +97,7 @@ import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -147,6 +148,8 @@ fun AppDrawerScreen(
         }
     }
     var menuTarget by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
+    DismissWhenDragMoves(dragController) { menuTarget = null }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
@@ -1008,6 +1011,9 @@ internal fun LazyGridScope.appCells(
                             return@awaitEachGesture
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        // The menu opens now, by the icon, under the still-held finger (issue #12);
+                        // pulling the icon on closes it (DismissWhenDragMoves) and the drag goes on.
+                        onAppLongClick(app, bounds)
                         val dragStartPx = IconPress.DragStartThreshold.toPx()
                         try {
                             val completed = drag(down.id) { change ->
@@ -1039,10 +1045,8 @@ internal fun LazyGridScope.appCells(
                                     }
                                 }
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            } else if (live) {
-                                // No movement → static long-press → show the menu by the icon.
-                                onAppLongClick(app, bounds)
                             }
+                            // A still release leaves the menu, opened at the lift, as it is.
                         } finally {
                             // Reset even on cancellation (node disposed / pointerInput restarted),
                             // mirroring Workspace's local-drag path, so a dead gesture can't leave

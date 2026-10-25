@@ -76,6 +76,7 @@ import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
@@ -157,6 +158,8 @@ internal fun FolderCard(
 
     // The long-pressed app and its icon's root bounds, for the menu's anchor.
     var menu by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
+    DismissWhenDragMoves(dragController) { menu = null }
     // Live reorder: the slot under the finger while a lifted icon moves inside the card, and the
     // order a release committed, kept (optimistically) until the folder's apps change — to that
     // order once the database caught up, or to whatever else they became.
@@ -283,6 +286,9 @@ internal fun FolderCard(
                                 }
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 lifted = true
+                                // The menu opens now, under the still-held finger (issue #12); pulling
+                                // the icon on closes it (DismissWhenDragMoves below) and the drag goes on.
+                                menu = app to itemRect
                                 val dragStartPx = IconPress.DragStartThreshold.toPx()
                                 try {
                                     val completed = dragPointer(down.id) { change ->
@@ -325,7 +331,8 @@ internal fun FolderCard(
                                     val live = completed && dragController.owns(token)
                                     when {
                                         !live -> Unit
-                                        !dragController.moving -> menu = app to itemRect
+                                        // A still release leaves the menu, opened at the lift, as it is.
+                                        !dragController.moving -> Unit
                                         dragController.leftSource -> {
                                             // The drawer's drop rules: the remove pill, the dock when
                                             // it has room, a home cell; anywhere else leaves the app
