@@ -72,6 +72,21 @@ class SystemBarContrastTest {
     }
 
     /**
+     * The scrim stays at full strength until the drawer covers the status bar, which is also when the
+     * glyphs switch to the drawer's colour: fading it with the drawer's whole travel left light glyphs
+     * on an almost bare light strip at the top while the drawer was still below the bar.
+     */
+    @Test fun theTopScrimStaysUntilTheDrawerCoversTheBar() {
+        val height = 2400f
+        val statusBar = 130f
+
+        assertThat(homeTopScrimAlpha(progress = 0f, heightPx = height, barPx = statusBar)).isEqualTo(HOME_TOP_SCRIM_ALPHA)
+        assertThat(homeTopScrimAlpha(progress = 0.95f, heightPx = height, barPx = statusBar)).isEqualTo(HOME_TOP_SCRIM_ALPHA)
+        assertThat(homeTopScrimAlpha(progress = 0.98f, heightPx = height, barPx = statusBar)).isEqualTo(0f)
+        assertThat(homeTopScrimAlpha(progress = 1f, heightPx = height, barPx = statusBar)).isEqualTo(0f)
+    }
+
+    /**
      * The bar heights arrive after the first frame (insets are 0 until the window is laid out). The
      * glyph decision must follow them: an effect that kept the first frame's 0 never saw the drawer
      * covering the status bar and left white glyphs on the open, light drawer.

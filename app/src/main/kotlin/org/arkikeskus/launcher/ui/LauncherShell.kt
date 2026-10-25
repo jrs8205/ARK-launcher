@@ -192,6 +192,7 @@ fun LauncherShell(
             HomeTopScrim(
                 shown = homeTopScrimShown(statusBars.ownBarShown, statusBars.systemBarHidden, wallpaperDarkText.value),
                 progress = { currentProgress },
+                heightPx = { shellHeightPx },
             )
 
             // Always compose AppDrawerScreen at fillMaxSize to keep it pre-composed, pre-measured, and pre-laid out.

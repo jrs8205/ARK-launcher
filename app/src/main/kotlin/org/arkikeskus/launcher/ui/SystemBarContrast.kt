@@ -176,19 +176,30 @@ internal fun SystemBarContrast(
 }
 
 /**
+ * The top scrim's strength: full until the drawer covers the status bar ([drawerCoversStatusBar]) —
+ * the moment the glyphs switch to the drawer's colour — and none after. The rising drawer is drawn
+ * over the scrim, so it needs no fade of its own.
+ */
+internal fun homeTopScrimAlpha(progress: Float, heightPx: Float, barPx: Float): Float =
+    if (drawerCoversStatusBar(progress, heightPx, barPx)) 0f else HOME_TOP_SCRIM_ALPHA
+
+/**
  * The soft dark gradient behind the system status bar on home ([homeTopScrimShown]): twice the bar's
- * height, fading out as the drawer rises over home. Drawn only, so every touch passes through.
+ * height, gone once the drawer covers the bar ([homeTopScrimAlpha]). Drawn only, so every touch passes
+ * through.
  */
 @Composable
-internal fun HomeTopScrim(shown: Boolean, progress: () -> Float) {
+internal fun HomeTopScrim(shown: Boolean, progress: () -> Float, heightPx: () -> Float) {
     if (!shown) return
-    val barHeight = with(LocalDensity.current) { WindowInsets.statusBars.getTop(this).toDp() }
+    val density = LocalDensity.current
+    val barPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val barHeight = with(density) { barPx.toDp() }
     Box(
         Modifier
             .fillMaxWidth()
             .height(maxOf(barHeight * 2, HOME_TOP_SCRIM_MIN_HEIGHT))
             .drawBehind {
-                val alpha = HOME_TOP_SCRIM_ALPHA * (1f - progress()).coerceIn(0f, 1f)
+                val alpha = homeTopScrimAlpha(progress(), heightPx(), barPx)
                 if (alpha > 0f) {
                     drawRect(Brush.verticalGradient(0f to Color.Black.copy(alpha = alpha), 1f to Color.Transparent))
                 }
