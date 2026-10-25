@@ -57,12 +57,15 @@ internal suspend fun readBackupText(resolver: ContentResolver, uri: Uri): String
             val result = runCatching {
                 val input = resolver.openInputStream(uri) ?: error("Could not open input stream")
                 stream.set(input)
-                // Cancelled while it was opening: the handler found nothing to close.
-                if (!cont.isActive) {
+                try {
+                    // Cancelled while it was opening: the handler found nothing to close.
+                    if (!cont.isActive) throw CancellationException("Import left while the file was opening")
+                    readBounded(input).decodeToString()
+                } finally {
+                    // Whoever takes the stream closes it — this thread or the cancellation handler,
+                    // never both: two racing closes of one descriptor can close a reused one.
                     stream.getAndSet(null)?.closeQuietly()
-                    throw CancellationException("Import left while the file was opening")
                 }
-                input.use { readBounded(it).decodeToString() }
             }.recoverCatching { if (it is SecurityException) throw BackupReadBlockedException(it) else throw it }
             // A cancelled continuation ignores this.
             cont.resumeWith(result)

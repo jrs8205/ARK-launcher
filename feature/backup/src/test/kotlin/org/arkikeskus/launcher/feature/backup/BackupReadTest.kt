@@ -19,6 +19,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Reading the picked file. On some phones the system's storage provider is itself refused by
@@ -103,5 +104,37 @@ class BackupReadTest {
 
         assertThat(read.isCancelled).isTrue()
         assertThat(silent.closed.await(2, TimeUnit.SECONDS)).isTrue()
+    }
+
+    /**
+     * Leaving just as the read ends: the reading thread is closing the file when the cancellation
+     * comes. Only one side may close it — two closes of a file descriptor racing each other can close
+     * one the process has meanwhile reused, which crashes the launcher on Android 11.
+     */
+    @Test fun aCancelThatMeetsTheEndOfTheReadClosesTheFileOnce() = runBlocking {
+        val closing = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val closed = CountDownLatch(1)
+        val closes = AtomicInteger()
+        val stream = object : InputStream() {
+            override fun read(): Int = -1
+            override fun read(b: ByteArray, off: Int, len: Int): Int = -1
+            override fun close() {
+                if (closes.incrementAndGet() == 1) {
+                    closing.countDown()
+                    release.await()
+                    closed.countDown()
+                }
+            }
+        }
+        shadowOf(resolver).registerInputStream(uri, stream)
+
+        val read = async(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) { readBackupText(resolver, uri) }
+        assertThat(closing.await(2, TimeUnit.SECONDS)).isTrue()
+        read.cancel()
+        release.countDown()
+        assertThat(closed.await(2, TimeUnit.SECONDS)).isTrue()
+
+        assertThat(closes.get()).isEqualTo(1)
     }
 }
