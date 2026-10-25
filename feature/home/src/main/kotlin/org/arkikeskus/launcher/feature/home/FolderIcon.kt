@@ -16,13 +16,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.AppLabel
 import org.arkikeskus.launcher.ui.component.NotificationBadge
+import org.arkikeskus.launcher.ui.component.PickedIcon
 
 /**
- * A home-screen folder: a rounded tile showing a 2×2 preview of the first four contained app icons,
- * an optional label, and a notification badge (aggregated from its contents).
+ * A home-screen folder: a rounded tile showing a 2×2 preview of the first four contained app icons
+ * — or the [customIcon] the user picked for it instead — an optional label, and a notification badge
+ * (aggregated from its contents).
  */
 @Composable
 fun FolderIcon(
@@ -35,8 +38,17 @@ fun FolderIcon(
     labelColor: Color = Color.White,
     size: Dp = 52.dp,
     modifier: Modifier = Modifier,
+    customIcon: CustomIcon? = null,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        if (customIcon != null) {
+            Box(contentAlignment = Alignment.TopEnd) {
+                PickedIcon(customIcon, size, contentDescription = name)
+                NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
+            }
+            if (showLabel) AppLabel(name, labelColor, reserveLines = true)
+            return@Column
+        }
         Box(contentAlignment = Alignment.TopEnd) {
             // EVERYTHING inside scales with the tile — padding and gap included. A fixed padding/gap
             // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 columns on a

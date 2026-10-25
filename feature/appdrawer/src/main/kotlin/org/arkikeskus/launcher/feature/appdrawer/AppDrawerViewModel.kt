@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PauseOutcome
@@ -31,14 +32,16 @@ import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.SearchResults
 import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.HomeNotice
 import javax.inject.Inject
 
-/** A drawer folder resolved to its member [apps] (for rendering). */
-data class DrawerFolderUi(val id: Long, val name: String, val apps: List<AppItem>)
+/** A drawer folder resolved to its member [apps] (for rendering), with the [icon] the user picked
+ *  for it in place of its preview, if any. */
+data class DrawerFolderUi(val id: Long, val name: String, val apps: List<AppItem>, val icon: CustomIcon? = null)
 
 /** The work profile as the Work tab needs it; see `WorkProfile` in core/data for the fields. */
 data class WorkProfileUi(val paused: Boolean, val canPause: Boolean, val transitioning: Boolean)
@@ -178,6 +181,8 @@ class AppDrawerViewModel @Inject constructor(
                     ?.let { WorkProfileUi(it.paused, it.canPause, it.transitioning) },
             )
         }
+    }.combine(settingsRepository.folderIcons) { state, icons ->
+        if (icons.isEmpty()) state else state.copy(folders = state.folders.map { it.copy(icon = icons[FolderIconKey.drawer(it.id)]) })
     }.combine(searchResults) { state, results ->
         if (state.query.isBlank()) {
             state // idle drawer: apps + folders already prepared above

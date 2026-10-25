@@ -1066,6 +1066,7 @@ internal fun Workspace(
                                         badgeScale = badgeScale,
                                         labelColor = labelColor,
                                         size = cellIconSize,
+                                        customIcon = entry.icon,
                                     )
                                 }
                             }
@@ -1688,6 +1689,7 @@ internal fun Workspace(
                         badgeScale = badgeScale,
                         labelColor = labelColor,
                         size = cellIconSize,
+                        customIcon = dl.icon,
                     )
                     is PlacedShortcut -> ShortcutIconContent(dl, showLabels, labelColor, cellIconSize)
                     else -> Unit

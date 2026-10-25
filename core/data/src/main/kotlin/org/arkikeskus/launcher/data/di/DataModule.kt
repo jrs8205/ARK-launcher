@@ -19,6 +19,9 @@ import org.arkikeskus.launcher.data.AppIconFetcher
 import org.arkikeskus.launcher.data.AppIconKeyer
 import org.arkikeskus.launcher.data.AndroidProfileSystem
 import org.arkikeskus.launcher.data.AppRowResolver
+import org.arkikeskus.launcher.data.CustomIconFetcher
+import org.arkikeskus.launcher.data.CustomIconKeyer
+import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.ProfileSystem
 import kotlinx.coroutines.CoroutineScope
@@ -71,10 +74,13 @@ object DataModule {
     fun provideImageLoader(
         @ApplicationContext context: Context,
         source: LauncherAppsSource,
+        custom: CustomIconSource,
     ): ImageLoader = ImageLoader.Builder(context)
         .components {
             add(AppIconKeyer())
-            add(AppIconFetcher.Factory(source))
+            add(AppIconFetcher.Factory(source, custom))
+            add(CustomIconKeyer())
+            add(CustomIconFetcher.Factory(custom))
         }
         .build()
 

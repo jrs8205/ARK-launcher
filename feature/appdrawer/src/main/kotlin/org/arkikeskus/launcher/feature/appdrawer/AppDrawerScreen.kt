@@ -107,6 +107,7 @@ import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.R as UiR
 import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
+import org.arkikeskus.launcher.ui.component.PickedIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
@@ -683,7 +684,9 @@ private fun DrawerFolderTile(
         // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
         val scale = tileSize / 56.dp
         Box(contentAlignment = Alignment.TopEnd) {
-            Box(
+            // A picked icon replaces the preview of the first apps.
+            if (folder.icon != null) PickedIcon(folder.icon, tileSize, contentDescription = folder.name)
+            else Box(
                 modifier = Modifier
                     .size(tileSize)
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))

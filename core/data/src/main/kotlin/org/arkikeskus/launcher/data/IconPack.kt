@@ -44,6 +44,8 @@ class IconPackRepository @Inject constructor(
 ) {
     // package -> parsed pack (or null when it has no usable appfilter); LinkedHashMap for a stable order.
     private val cache = HashMap<String, IconPack?>()
+    // package -> its resources, for single drawables picked from it (see [drawable]).
+    private val resources = HashMap<String, Resources?>()
 
     /** Apps that declare one of the de-facto icon-pack theme intents, for the settings picker. Packs
      *  declare these either as an ACTION (Nova/ADW/Go) or as a category on a MAIN activity (Apex/Tesla),
@@ -69,9 +71,23 @@ class IconPackRepository @Inject constructor(
      *  rasterized icons may be stale. */
     @Synchronized
     fun invalidate(pkg: String): Boolean {
+        resources.remove(pkg)
         if (!cache.containsKey(pkg)) return false
         cache.remove(pkg)
         return true
+    }
+
+    /** The drawable [name] of the installed pack [pkg] — an icon picked from it for one app or
+     *  folder — or null when the pack or the drawable is gone. */
+    fun drawable(pkg: String, name: String): Drawable? = runCatching {
+        val res = packResources(pkg) ?: return null
+        val id = res.getIdentifier(name, "drawable", pkg).takeIf { it != 0 } ?: return null
+        ResourcesCompat.getDrawable(res, id, null)
+    }.getOrNull()
+
+    @Synchronized
+    private fun packResources(pkg: String): Resources? = resources.getOrPut(pkg) {
+        runCatching { context.packageManager.getResourcesForApplication(pkg) }.getOrNull()
     }
 
     /** Loads + parses [pkg] (cached, including a cached "no pack" result). */

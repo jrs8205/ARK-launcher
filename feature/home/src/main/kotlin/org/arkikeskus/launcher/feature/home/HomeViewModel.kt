@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PlaceResult
@@ -36,6 +37,7 @@ import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.AppShortcuts
@@ -97,6 +99,8 @@ data class PlacedFolder(
     override val page: Int,
     override val cellX: Int,
     override val cellY: Int,
+    /** The icon the user picked for the folder, shown in place of its preview; null = the preview. */
+    val icon: CustomIcon? = null,
 ) : HomeEntry
 
 /** A pinned deep shortcut placed at a free cell ([rowId] is the home_items row, used to move/remove).
@@ -331,9 +335,10 @@ class HomeViewModel @Inject constructor(
         settingsRepository.dockFavorites,
         appRepository.apps,
         // A new cache generation re-runs this with the same rows, re-resolving what was invalidated.
-        homeLayoutRepository.homeItems.combine(shortcutCache.generation) { items, _ -> items },
+        homeLayoutRepository.homeItems.combine(shortcutCache.generation) { items, _ -> items }
+            .combine(settingsRepository.folderIcons) { items, icons -> items to icons },
         notificationBadgeRepository.badges,
-    ) { settings, favoriteKeys, apps, homeItems, badges ->
+    ) { settings, favoriteKeys, apps, (homeItems, folderIcons), badges ->
         val byKey = apps.associateBy { it.key }
         val dockApps = favoriteKeys.mapNotNull { byKey[it] }.take(settings.dockColumns)
         // Children grouped by their folder id, kept in stored order.
@@ -372,7 +377,10 @@ class HomeViewModel @Inject constructor(
                         val folderApps = childrenByFolder[row.id].orEmpty()
                             .mapNotNull { byKey[it.key] }
                             .distinctBy { it.key }
-                        PlacedFolder(row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY)
+                        PlacedFolder(
+                            row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY,
+                            icon = folderIcons[FolderIconKey.home(row.id)],
+                        )
                     }
                     row.isShortcut -> {
                         resolvedShortcuts[PinnedShortcutCache.Key(row.packageName, row.shortcutId!!, row.userSerial)]?.let { r ->

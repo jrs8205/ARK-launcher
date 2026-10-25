@@ -9,7 +9,9 @@ class AppIconKeyer : Keyer<IconRequest> {
     // and a settings/theme change re-fetches instead of serving a stale bitmap. Omitting the icon pack
     // was a bug: selecting a pack changed the model but not the cache key, so the old icon was served.
     // The epoch (bumped per package on update, globally on icon-pack change — see IconEpochs) keeps a
-    // version change from serving the pre-update icon out of the cache.
+    // version change from serving the pre-update icon out of the cache. An icon the user picked for
+    // the app is in the key too, so picking or clearing one shows at once.
     override fun key(data: IconRequest, options: Options): String =
-        "appicon:${data.app.key}:t=${data.themed}:d=${data.dark}:p=${data.iconPack}:e=${data.epoch}"
+        "appicon:${data.app.key}:t=${data.themed}:d=${data.dark}:p=${data.iconPack}:e=${data.epoch}" +
+            ":c=${data.app.customIcon?.encode().orEmpty()}"
 }

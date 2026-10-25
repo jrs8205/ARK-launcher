@@ -34,3 +34,6 @@ sealed interface CustomIcon {
         }
     }
 }
+
+/** Coil model for drawing a [CustomIcon] on its own: a folder's picked icon, the icon picker's grid. */
+data class CustomIconImage(val icon: CustomIcon)
