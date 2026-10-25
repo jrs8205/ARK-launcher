@@ -319,7 +319,7 @@ class AppDrawerViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.renameDrawerFolder(id, name) }
 
     fun deleteDrawerFolder(id: Long) =
-        viewModelScope.launch { settingsRepository.deleteDrawerFolder(id) }
+        viewModelScope.launch { customIcons.deleteDrawerFolder(id) }
 
     fun addAppsToDrawerFolder(id: Long, keys: List<String>) =
         viewModelScope.launch { settingsRepository.addAppsToDrawerFolder(id, keys) }

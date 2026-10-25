@@ -30,6 +30,13 @@ class CustomIconStore @Inject constructor(
         dropReplaced(old, icon)
     }
 
+    /** Deletes a drawer folder with its icon: the next new folder may get the same id. */
+    suspend fun deleteDrawerFolder(id: Long) {
+        val old = settings.folderIcons.first()[FolderIconKey.drawer(id)]
+        settings.deleteDrawerFolder(id)
+        dropReplaced(old, null)
+    }
+
     private fun dropReplaced(old: CustomIcon?, new: CustomIcon?) {
         if (old is CustomIcon.FromFile && old != new) source.files.delete(old)
     }

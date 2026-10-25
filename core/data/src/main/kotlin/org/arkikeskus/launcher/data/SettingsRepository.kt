@@ -316,13 +316,15 @@ class SettingsRepository @Inject constructor(
 
     val drawerFolders: Flow<List<DrawerFolder>> = dataStore.data.map { p -> parseFolders(p[Keys.DRAWER_FOLDERS]) }
 
-    /** Creates an empty drawer folder, returns its new id. */
+    /** Creates an empty drawer folder, returns its new id. A deleted folder's id comes back this way,
+     *  so an icon still filed under it is dropped: a new folder starts with its preview. */
     suspend fun createDrawerFolder(name: String): Long {
         var newId = 1L
         edit { p ->
             val folders = parseFolders(p[Keys.DRAWER_FOLDERS])
             newId = (folders.maxOfOrNull { it.id } ?: 0L) + 1L
             p[Keys.DRAWER_FOLDERS] = serializeFolders(folders + DrawerFolder(newId, name, emptyList()))
+            dropFolderIcon(p, FolderIconKey.drawer(newId))
         }
         return newId
     }
@@ -331,7 +333,16 @@ class SettingsRepository @Inject constructor(
         folders.map { if (it.id == id) it.copy(name = name) else it }
     }
 
-    suspend fun deleteDrawerFolder(id: Long) = editFolders { folders -> folders.filterNot { it.id == id } }
+    /** Deletes a drawer folder and its icon (an image file stays: see CustomIconStore.deleteDrawerFolder). */
+    suspend fun deleteDrawerFolder(id: Long) = edit { p ->
+        p[Keys.DRAWER_FOLDERS] = serializeFolders(parseFolders(p[Keys.DRAWER_FOLDERS]).filterNot { it.id == id })
+        dropFolderIcon(p, FolderIconKey.drawer(id))
+    }
+
+    private fun dropFolderIcon(p: MutablePreferences, key: String) {
+        val icons = parseIcons(p[Keys.FOLDER_ICONS])
+        if (key in icons) p[Keys.FOLDER_ICONS] = serializeIcons(icons - key)
+    }
 
     suspend fun addAppsToDrawerFolder(id: Long, keys: List<String>) = editFolders { folders ->
         folders.map { f ->
