@@ -18,22 +18,39 @@ import org.junit.Test
 class SystemBarContrastTest {
 
     @Test fun onHomeTheWallpaperDecides() {
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarShown = false, wallpaperSupportsDarkText = false))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarBacksDark = false, wallpaperSupportsDarkText = false))
             .isFalse()
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarShown = false, wallpaperSupportsDarkText = true))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
             .isTrue()
     }
 
     /** ARK's own bar backs the system bar with a dark scrim: dark glyphs would vanish on it. */
     @Test fun onTheLaunchersOwnBarTheGlyphsAreLight() {
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarShown = true, wallpaperSupportsDarkText = true))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarBacksDark = true, wallpaperSupportsDarkText = true))
             .isFalse()
     }
 
-    @Test fun overTheDrawerItsSurfaceDecides() {
-        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, ownBarShown = true, wallpaperSupportsDarkText = false))
+    /**
+     * ARK's bar backs the system bar with its scrim at the opacity the user picked. A weak scrim is no
+     * dark backing: forcing light glyphs there put white glyphs on a light wallpaper, so the
+     * wallpaper's hint decides instead.
+     */
+    @Test fun aWeakOwnBarScrimIsNoDarkBacking() {
+        assertThat(ownBarBacksDark(ownBarShown = true, scrimOpacity = 0.6f)).isTrue()
+        assertThat(ownBarBacksDark(ownBarShown = true, scrimOpacity = OWN_BAR_DARK_BACKING)).isTrue()
+        assertThat(ownBarBacksDark(ownBarShown = true, scrimOpacity = 0f)).isFalse()
+        assertThat(ownBarBacksDark(ownBarShown = true, scrimOpacity = 0.3f)).isFalse()
+        assertThat(ownBarBacksDark(ownBarShown = false, scrimOpacity = 1f)).isFalse()
+        // A transparent own bar over a light wallpaper: dark glyphs, as without the bar.
+        val weak = ownBarBacksDark(ownBarShown = true, scrimOpacity = 0f)
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, ownBarBacksDark = weak, wallpaperSupportsDarkText = true))
             .isTrue()
-        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, ownBarShown = false, wallpaperSupportsDarkText = true))
+    }
+
+    @Test fun overTheDrawerItsSurfaceDecides() {
+        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, ownBarBacksDark = true, wallpaperSupportsDarkText = false))
+            .isTrue()
+        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
             .isFalse()
     }
 
@@ -104,7 +121,7 @@ class SystemBarContrastTest {
             statusBarPx = { statusBar.floatValue },
             navBarPx = { 60f },
             surfaceIsLight = { true },
-            ownBarShown = { false },
+            ownBarBacksDark = { false },
             wallpaperSupportsDarkText = { false },
         )
         assertThat(glyphs.darkStatus.value).isFalse()

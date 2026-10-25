@@ -40,20 +40,29 @@ import kotlinx.coroutines.withContext
 
 /**
  * Whether the system status bar draws dark glyphs. Once the drawer covers the bar its surface decides;
- * on home, ARK's own status bar backs the system bar with a dark scrim (light glyphs), and otherwise the
- * wallpaper's own hint decides — as in Pixel Launcher, instead of the phone's light/dark mode, which
- * drew black glyphs on dark wallpapers in light mode (issue #11).
+ * on home, ARK's own status bar backs the system bar with a dark scrim when that is strong enough
+ * ([ownBarBacksDark]: light glyphs), and otherwise the wallpaper's own hint decides — as in Pixel
+ * Launcher, instead of the phone's light/dark mode, which drew black glyphs on dark wallpapers in light
+ * mode (issue #11).
  */
 internal fun statusBarDarkIcons(
     drawerCoversBar: Boolean,
     drawerSurfaceIsLight: Boolean,
-    ownBarShown: Boolean,
+    ownBarBacksDark: Boolean,
     wallpaperSupportsDarkText: Boolean,
 ): Boolean = when {
     drawerCoversBar -> drawerSurfaceIsLight
-    ownBarShown -> false
+    ownBarBacksDark -> false
     else -> wallpaperSupportsDarkText
 }
+
+/**
+ * ARK's own bar backs the system status bar with a scrim dark enough for light glyphs: its opacity is
+ * the user's, and a scrim under [OWN_BAR_DARK_BACKING] leaves a light wallpaper light enough that dark
+ * glyphs read better, so the wallpaper's hint decides then.
+ */
+internal fun ownBarBacksDark(ownBarShown: Boolean, scrimOpacity: Float): Boolean =
+    ownBarShown && scrimOpacity >= OWN_BAR_DARK_BACKING
 
 /** Whether the navigation bar (gesture handle / buttons) draws dark glyphs: the drawer's surface once
  *  the drawer covers it, the wallpaper's hint otherwise. */
@@ -75,13 +84,19 @@ internal fun drawerCoversNavigationBar(progress: Float, heightPx: Float, barPx: 
  *  Launcher3's own top scrim peaks a little lighter (24 %) over 70 dp. */
 internal const val HOME_TOP_SCRIM_ALPHA = 0.3f
 
+/** The weakest own-bar scrim that counts as dark backing. Black at this opacity over a white wallpaper
+ *  leaves about the grey where light and dark glyphs read equally well (relative luminance ≈ 0.18); the
+ *  default opacity is 0.6. */
+internal const val OWN_BAR_DARK_BACKING = 0.5f
+
 private val HOME_TOP_SCRIM_MIN_HEIGHT = 70.dp
 
 /**
  * Whether home gets a soft dark gradient behind the system status bar. The wallpaper hint describes the
  * whole image, so a wallpaper that is mostly dark but light at the top gets light glyphs on a light
  * strip; like Launcher3's top scrim, the gradient keeps them readable on any wallpaper. Not with ARK's
- * own bar (it has its own scrim) nor with the system bar hidden (no glyphs to back).
+ * own bar (it has its own scrim, at the opacity the user picked, and the gradient would dim ARK's own
+ * glyphs) nor with the system bar hidden (no glyphs to back).
  */
 internal fun homeTopScrimShown(ownBarShown: Boolean, systemBarHidden: Boolean, wallpaperSupportsDarkText: Boolean): Boolean =
     !ownBarShown && !systemBarHidden && !wallpaperSupportsDarkText
@@ -110,7 +125,7 @@ internal class SystemBarGlyphs(
     statusBarPx: () -> Float,
     navBarPx: () -> Float,
     surfaceIsLight: () -> Boolean,
-    ownBarShown: () -> Boolean,
+    ownBarBacksDark: () -> Boolean,
     wallpaperSupportsDarkText: () -> Boolean,
 ) {
     /** The status bar draws dark glyphs ([statusBarDarkIcons]). */
@@ -118,7 +133,7 @@ internal class SystemBarGlyphs(
         statusBarDarkIcons(
             drawerCoversBar = drawerCoversStatusBar(progress(), heightPx(), statusBarPx()),
             drawerSurfaceIsLight = surfaceIsLight(),
-            ownBarShown = ownBarShown(),
+            ownBarBacksDark = ownBarBacksDark(),
             wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
         )
     }
@@ -142,7 +157,7 @@ internal class SystemBarGlyphs(
 internal fun SystemBarContrast(
     progress: () -> Float,
     heightPx: () -> Float,
-    ownBarShown: Boolean,
+    ownBarBacksDark: Boolean,
     wallpaperDarkText: State<Boolean>,
 ) {
     val view = LocalView.current
@@ -151,7 +166,7 @@ internal fun SystemBarContrast(
     val statusBarPx = rememberUpdatedState(WindowInsets.statusBars.getTop(density).toFloat())
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
     val surfaceIsLight = rememberUpdatedState(MaterialTheme.colorScheme.surface.luminance() > 0.5f)
-    val ownBar = rememberUpdatedState(ownBarShown)
+    val ownBar = rememberUpdatedState(ownBarBacksDark)
     val currentProgress = rememberUpdatedState(progress)
     val currentHeight = rememberUpdatedState(heightPx)
     val glyphs = remember {
@@ -161,7 +176,7 @@ internal fun SystemBarContrast(
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
             surfaceIsLight = { surfaceIsLight.value },
-            ownBarShown = { ownBar.value },
+            ownBarBacksDark = { ownBar.value },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },
         )
     }

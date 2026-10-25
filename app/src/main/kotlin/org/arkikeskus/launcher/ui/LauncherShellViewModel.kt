@@ -12,11 +12,15 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.IconEpochs
 import javax.inject.Inject
 
+/** ARK's own status bar is on, with its scrim at [scrimOpacity]; the system bar is hidden on home. */
+data class StatusBarSettings(
+    val ownBarShown: Boolean = false,
+    val systemBarHidden: Boolean = false,
+    val scrimOpacity: Float = 0.6f,
+)
+
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
  *  matches the surfaces. */
-/** ARK's own status bar is on (it backs the system bar with a dark scrim); the system bar is hidden on home. */
-data class StatusBarSettings(val ownBarShown: Boolean = false, val systemBarHidden: Boolean = false)
-
 data class IconStyle(val iconPack: String = "", val themed: Boolean = false, val iconScale: Float = 1f)
 
 /**
@@ -38,7 +42,13 @@ class LauncherShellViewModel @Inject constructor(
 
     /** The status-bar settings the system bars' glyph colour depends on (see SystemBarContrast). */
     val statusBars: StateFlow<StatusBarSettings> = settingsRepository.settings
-        .map { StatusBarSettings(ownBarShown = it.showStatusBar, systemBarHidden = it.hideSystemStatusBar) }
+        .map {
+            StatusBarSettings(
+                ownBarShown = it.showStatusBar,
+                systemBarHidden = it.hideSystemStatusBar,
+                scrimOpacity = it.statusBarScrimOpacity,
+            )
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())
 
     /** The long-press delay setting, applied once at the shell root for every press site under it. */

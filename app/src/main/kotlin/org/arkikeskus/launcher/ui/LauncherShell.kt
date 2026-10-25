@@ -157,7 +157,7 @@ fun LauncherShell(
     SystemBarContrast(
         progress = { currentProgress },
         heightPx = { shellHeightPx },
-        ownBarShown = statusBars.ownBarShown,
+        ownBarBacksDark = ownBarBacksDark(statusBars.ownBarShown, statusBars.scrimOpacity),
         wallpaperDarkText = wallpaperDarkText,
     )
 
