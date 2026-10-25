@@ -15,13 +15,20 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /** What locking and unlocking play: the owner's switch and the two picked sounds ("" = none). */
 data class LockSoundChoice(val enabled: Boolean = false, val lockUri: String = "", val unlockUri: String = "")
 
-/** Plays a picked sound ([ShortSoundPlayer] on the phone). */
+/**
+ * Plays a picked sound ([ShortSoundPlayer] on the phone). Opening a file can take a while (a file
+ * in the cloud), so [stillWanted] is asked again right before the sound starts: a call may have
+ * begun, the setting gone off or another sound been picked meanwhile.
+ */
 fun interface SoundPlayer {
-    fun play(uri: Uri)
+    fun play(uri: Uri, stillWanted: () -> Boolean)
 }
 
 /**
@@ -56,17 +63,24 @@ class LockSoundMonitor(
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val now = choice()
-            if (!now.enabled) return
-            val uri = when (intent.action) {
-                Intent.ACTION_SCREEN_OFF -> now.lockUri
-                Intent.ACTION_USER_PRESENT -> now.unlockUri
-                else -> return
-            }
-            if (uri.isBlank()) return
-            if (quietNow(audio.ringerMode, notifications.currentInterruptionFilter, audio.mode)) return
-            player.play(uri.toUri())
+            val action = intent.action ?: return
+            val uri = soundFor(action) ?: return
+            player.play(uri.toUri()) { soundFor(action) == uri }
         }
+    }
+
+    /** The sound [action] plays now, or null: the setting off, no sound picked, or a quiet moment. */
+    private fun soundFor(action: String): String? {
+        val now = choice()
+        if (!now.enabled) return null
+        val uri = when (action) {
+            Intent.ACTION_SCREEN_OFF -> now.lockUri
+            Intent.ACTION_USER_PRESENT -> now.unlockUri
+            else -> return null
+        }
+        if (uri.isBlank()) return null
+        if (quietNow(audio.ringerMode, notifications.currentInterruptionFilter, audio.mode)) return null
+        return uri
     }
 
     fun start() {
@@ -101,42 +115,71 @@ internal fun soundVolumeAt(elapsedMs: Long): Float {
     }
 }
 
+/** One thread for every short sound in the process: files open there, one after another. */
+private val soundWorker: Executor by lazy {
+    Executors.newSingleThreadExecutor { Thread(it, "short-sounds").apply { isDaemon = true } }
+}
+
 /**
  * Plays a short sound at the volume of the system sounds (the stream the phone's own lock sound
- * uses), cut at [SOUND_MAX_MS] with a short fade; a new sound stops the one still playing. A sound
- * that can't be played (its file gone, its permission lost) is simply not heard.
+ * uses), cut at [SOUND_MAX_MS] with a short fade; a new sound, or [stop], cancels the one still
+ * playing or still opening. The file opens on [worker] — a provider may be slow (a cloud file) and
+ * the caller is the main thread — and the sound starts on the main thread once prepared, if it is
+ * still the latest and still wanted. A sound that can't be played (its file gone, its permission
+ * lost) is simply not heard.
  */
-class ShortSoundPlayer(private val context: Context) : SoundPlayer {
+class ShortSoundPlayer internal constructor(
+    private val context: Context,
+    private val worker: Executor,
+    private val newPlayer: () -> MediaPlayer,
+) : SoundPlayer {
+    constructor(context: Context) : this(context, soundWorker, ::MediaPlayer)
+
     private val handler = Handler(Looper.getMainLooper())
+    /** Bumped by every play and stop: a sound whose ticket is no longer current is dropped. */
+    private val latest = AtomicInteger()
+    /** The sound playing now; main thread only. */
     private var current: MediaPlayer? = null
 
-    override fun play(uri: Uri) {
+    override fun play(uri: Uri, stillWanted: () -> Boolean) {
         stop()
-        val player = MediaPlayer()
-        current = player
-        runCatching {
-            player.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            player.setDataSource(context, uri)
-            player.setOnPreparedListener { prepared ->
-                if (current !== prepared) return@setOnPreparedListener
-                prepared.start()
-                fade(prepared, SystemClock.uptimeMillis())
+        val ticket = latest.get()
+        worker.execute {
+            if (latest.get() != ticket) return@execute
+            // The player has no looper on this thread, so its callbacks come on the main thread.
+            val player = newPlayer()
+            val prepared = runCatching {
+                player.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build(),
+                )
+                player.setDataSource(context, uri)
+                player.setOnPreparedListener { ready ->
+                    if (latest.get() != ticket || !stillWanted()) {
+                        release(ready)
+                        return@setOnPreparedListener
+                    }
+                    current = ready
+                    ready.start()
+                    fade(ready, SystemClock.uptimeMillis())
+                }
+                player.setOnCompletionListener(::release)
+                player.setOnErrorListener { failed, _, _ -> release(failed); true }
+                if (latest.get() != ticket) error("replaced while opening")
+                player.prepareAsync()
             }
-            player.setOnCompletionListener(::release)
-            player.setOnErrorListener { failed, _, _ -> release(failed); true }
-            player.prepareAsync()
-        }.onFailure {
-            Log.w("ShortSoundPlayer", "Cannot play $uri", it)
-            release(player)
+            prepared.onFailure {
+                if (latest.get() == ticket) Log.w("ShortSoundPlayer", "Cannot play $uri", it)
+                runCatching { player.release() }
+            }
         }
     }
 
+    /** Stops the sound playing now and drops one still opening. Main thread. */
     fun stop() {
+        latest.incrementAndGet()
         current?.let(::release)
     }
 

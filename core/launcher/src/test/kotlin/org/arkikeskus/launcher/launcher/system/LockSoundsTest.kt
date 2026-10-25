@@ -28,8 +28,12 @@ class LockSoundsTest {
     private val context: Application = RuntimeEnvironment.getApplication()
     private val audio = context.getSystemService(AudioManager::class.java)
     private val played = mutableListOf<Uri>()
+    private var stillWanted: () -> Boolean = { error("nothing played") }
     private var choice = LockSoundChoice(enabled = true, lockUri = "content://sounds/lock", unlockUri = "content://sounds/unlock")
-    private val monitor = LockSoundMonitor(context, { choice }, SoundPlayer { played += it })
+    private val monitor = LockSoundMonitor(context, { choice }) { uri, wanted ->
+        played += uri
+        stillWanted = wanted
+    }
 
     @After fun tearDown() = monitor.stop()
 
@@ -109,6 +113,24 @@ class LockSoundsTest {
         send(Intent.ACTION_SCREEN_OFF)
 
         assertThat(played).isEmpty()
+    }
+
+    /** Opening the file takes a while: when it is ready the player asks again, and the answer
+     *  follows the setting, the picked sound and the phone's state at that moment. */
+    @Test fun theSoundIsStillWantedOnlyWhileNothingChanged() {
+        monitor.start()
+        send(Intent.ACTION_SCREEN_OFF)
+        assertThat(stillWanted()).isTrue()
+
+        audio.mode = AudioManager.MODE_IN_CALL
+        assertThat(stillWanted()).isFalse()
+        audio.mode = AudioManager.MODE_NORMAL
+        assertThat(stillWanted()).isTrue()
+
+        choice = choice.copy(lockUri = "content://sounds/other")
+        assertThat(stillWanted()).isFalse()
+        choice = choice.copy(lockUri = "content://sounds/lock", enabled = false)
+        assertThat(stillWanted()).isFalse()
     }
 
     @Test fun quietMeansSilentVibrateDoNotDisturbOrACall() {

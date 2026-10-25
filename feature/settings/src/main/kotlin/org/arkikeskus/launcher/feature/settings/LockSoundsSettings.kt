@@ -217,7 +217,7 @@ internal fun LockSoundsSettings(
                 }
             }
         },
-        onPreview = { player.play(it.toUri()) },
+        onPreview = { player.play(it.toUri()) { true } },
         onOpenSoundSettings = {
             try {
                 context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
