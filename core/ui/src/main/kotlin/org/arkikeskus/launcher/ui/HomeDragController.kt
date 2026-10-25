@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import kotlinx.coroutines.flow.drop
 import org.arkikeskus.launcher.model.AppItem
 
 /** Which surface an in-progress drag was picked up from. */
@@ -39,6 +41,14 @@ class HomeDragController {
      * the menu and the bar never show at the same time.
      */
     var moving by mutableStateOf(false)
+        private set
+
+    /**
+     * How many lifts have started moving. [moving] can turn true and back to false before an observer
+     * looks — the move past the threshold and the release handled in one input batch — while this
+     * count still says a move began ([DismissWhenDragMoves]).
+     */
+    var moveStarts by mutableIntStateOf(0)
         private set
 
     /**
@@ -134,6 +144,7 @@ class HomeDragController {
      *  false only for a move that stays on its own surface (a reorder inside the folder card). */
     fun beginMove(leftSource: Boolean = true) {
         moving = true
+        moveStarts++
         this.leftSource = leftSource
     }
 
@@ -192,12 +203,13 @@ fun rememberHomeDragController(): HomeDragController = remember { HomeDragContro
 /**
  * Calls [onDismiss] when a lifted icon starts to move. An icon's menu opens the moment the icon lifts
  * under the still-held finger (issue #12, as in Pixel Launcher); pulling the icon on from there closes
- * the menu and the drag goes on.
+ * the menu and the drag goes on. Watches [HomeDragController.moveStarts], not `moving`: a move and its
+ * release in one input batch are over before this looks.
  */
 @Composable
 fun DismissWhenDragMoves(controller: HomeDragController, onDismiss: () -> Unit) {
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     LaunchedEffect(controller) {
-        snapshotFlow { controller.moving }.collect { moving -> if (moving) currentOnDismiss() }
+        snapshotFlow { controller.moveStarts }.drop(1).collect { currentOnDismiss() }
     }
 }

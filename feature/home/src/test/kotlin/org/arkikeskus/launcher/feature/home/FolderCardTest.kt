@@ -216,6 +216,26 @@ class FolderCardTest {
         assertThat(reorders).containsExactly(notes to mail)
     }
 
+    /** The threshold-crossing move and the release can arrive in one batch, before the menu's
+     *  observer runs: the move still closes the menu. */
+    @Test fun aMoveAndReleaseInOneBatchStillCloseTheMenu() {
+        show()
+        val mailCenter = rootCenter("Mail")
+        val notesCenter = rootCenter("Notes")
+
+        hold("Notes")
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        cardRoot().performTouchInput {
+            moveTo((notesCenter + mailCenter) / 2f)
+            moveTo(mailCenter)
+            up()
+        }
+        compose.waitForIdle()
+
+        assertThat(reorders).containsExactly(notes to mail)
+        compose.onNodeWithText("App info").assertDoesNotExist()
+    }
+
     /** A second finger on the open menu while the first still holds the icon picks nothing; once the
      *  holding finger lifts the row works. */
     @Test fun aMenuRowDoesNothingWhileTheIconIsHeld() {
