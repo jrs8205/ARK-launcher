@@ -207,28 +207,51 @@ internal fun HomeTopScrim(shown: Boolean, progress: () -> Float, heightPx: () ->
     )
 }
 
+/**
+ * The wallpaper's dark-text hint as state: the colours listener's reports and the first read. The first
+ * read may take a while, and a report that arrives meanwhile is newer, so the read's answer only lands
+ * when no report came during it. Main thread only.
+ */
+internal class WallpaperDarkText {
+    val state = mutableStateOf(false)
+    private var reports = 0
+
+    fun onColorsChanged(supportsDarkText: Boolean) {
+        reports++
+        state.value = supportsDarkText
+    }
+
+    suspend fun readInitial(read: suspend () -> Boolean) {
+        val before = reports
+        val value = read()
+        if (reports == before) state.value = value
+    }
+}
+
 /** The system wallpaper's dark-text hint, kept current as the wallpaper (or its colours) change. */
 @Composable
 internal fun rememberWallpaperSupportsDarkText(): State<Boolean> {
     val context = LocalContext.current
-    val state = remember { mutableStateOf(false) }
+    val wallpaper = remember { WallpaperDarkText() }
     DisposableEffect(context) {
         val manager = WallpaperManager.getInstance(context)
         val listener = WallpaperManager.OnColorsChangedListener { colors, which ->
-            if (which and WallpaperManager.FLAG_SYSTEM != 0) state.value = wallpaperSupportsDarkText(colors)
+            if (which and WallpaperManager.FLAG_SYSTEM != 0) wallpaper.onColorsChanged(wallpaperSupportsDarkText(colors))
         }
         manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper()))
         onDispose { manager.removeOnColorsChangedListener(listener) }
     }
     LaunchedEffect(context) {
-        // The first read may extract the colours from the image: off the main thread.
-        state.value = withContext(Dispatchers.IO) {
-            runCatching {
-                wallpaperSupportsDarkText(WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM))
-            }.getOrDefault(false)
+        wallpaper.readInitial {
+            // The first read may extract the colours from the image: off the main thread.
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    wallpaperSupportsDarkText(WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM))
+                }.getOrDefault(false)
+            }
         }
     }
-    return state
+    return wallpaper.state
 }
 
 private fun Context.findActivity(): Activity? =

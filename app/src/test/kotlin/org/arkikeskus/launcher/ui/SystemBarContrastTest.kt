@@ -3,6 +3,10 @@ package org.arkikeskus.launcher.ui
 import android.app.WallpaperColors
 import androidx.compose.runtime.mutableFloatStateOf
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 /**
@@ -111,6 +115,32 @@ class SystemBarContrastTest {
         progress.floatValue = 0f
         assertThat(glyphs.darkStatus.value).isFalse()
         assertThat(glyphs.darkNav.value).isFalse()
+    }
+
+    /**
+     * The first read may take a while; a wallpaper (or live-wallpaper colour) change reported by the
+     * listener meanwhile is newer, and the first read's older answer must not overwrite it.
+     */
+    @Test fun aColourChangeDuringTheFirstReadIsNotOverwrittenByIt() = runBlocking {
+        val wallpaper = WallpaperDarkText()
+        val firstRead = CompletableDeferred<Boolean>()
+        val reading = launch(start = CoroutineStart.UNDISPATCHED) { wallpaper.readInitial { firstRead.await() } }
+
+        wallpaper.onColorsChanged(true)
+        firstRead.complete(false)
+        reading.join()
+
+        assertThat(wallpaper.state.value).isTrue()
+    }
+
+    @Test fun theFirstReadLandsWhenNothingNewerCame() = runBlocking {
+        val wallpaper = WallpaperDarkText()
+
+        wallpaper.readInitial { true }
+
+        assertThat(wallpaper.state.value).isTrue()
+        wallpaper.onColorsChanged(false)
+        assertThat(wallpaper.state.value).isFalse()
     }
 
     @Test fun theWallpaperHintIsRead() {
