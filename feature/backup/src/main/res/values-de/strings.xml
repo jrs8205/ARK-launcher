@@ -14,6 +14,9 @@
     <string name="backup_import_invalid">Ungültige oder inkompatible Sicherungsdatei</string>
     <string name="backup_error_too_large">Die Sicherungsdatei ist zu groß</string>
     <string name="backup_failed">Vorgang fehlgeschlagen</string>
+    <string name="backup_import_read_blocked">Der Speicherdienst von Android hat das Lesen dieser Datei blockiert. Wähle sie unter „Downloads“ statt in den Speicherordnern des Telefons aus, oder öffne sie aus einer anderen Dateimanager-App mit ARK-launcher.</string>
+    <string name="backup_open_with_label">In ARK-launcher wiederherstellen</string>
+    <string name="backup_restoring">Wird wiederhergestellt…</string>
     <string name="backup_restore_confirm_title">Sicherung wiederherstellen?</string>
     <string name="backup_restore_confirm_msg">Dein aktueller Startbildschirm und deine Einstellungen werden ersetzt. Widgets werden als Platzhalter wiederhergestellt – tippe darauf, um sie einzurichten.</string>
     <string name="backup_restore_confirm_ok">Wiederherstellen</string>

@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -24,10 +25,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,7 +48,6 @@ fun BackupScreen(
     viewModel: BackupViewModel = hiltViewModel(),
 ) {
     BackHandler(onBack = onBack)
-    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
 
     // --- File-import state (rememberSaveable: the confirm dialog must survive rotation) ---
@@ -63,30 +64,16 @@ fun BackupScreen(
     ) { uri -> if (uri != null) pendingImport = uri }
 
     // --- Event handler ---
-    val restoredMsg = stringResource(R.string.backup_restored)
-    val invalidMsg = stringResource(R.string.backup_import_invalid)
-    val tooLargeMsg = stringResource(R.string.backup_error_too_large)
-    val failedMsg = stringResource(R.string.backup_failed)
-    val exportedMsg = stringResource(R.string.backup_exported)
+    val resources by rememberUpdatedState(LocalResources.current)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(Unit) {
         viewModel.events.flowWithLifecycle(lifecycle).collectLatest { e ->
-            snackbar.showMessage(
-                when (e) {
-                    is BackupEvent.Exported -> exportedMsg
-                    is BackupEvent.Restored ->
-                        if (e.skipped > 0) {
-                            context.resources.getQuantityString(
-                                R.plurals.backup_restored_skipped, e.skipped, e.skipped,
-                            )
-                        } else {
-                            restoredMsg
-                        }
-                    BackupEvent.InvalidFile -> invalidMsg
-                    BackupEvent.TooLarge -> tooLargeMsg
-                    is BackupEvent.Failed -> if (e.message.isBlank()) failedMsg else "$failedMsg: ${e.message}"
-                },
-            )
+            val message = backupEventMessage(resources, e)
+            if (e.needsTimeToRead) {
+                snackbar.showSnackbar(message, withDismissAction = true, duration = SnackbarDuration.Long)
+            } else {
+                snackbar.showSnackbar(message)
+            }
         }
     }
 
@@ -142,8 +129,6 @@ fun BackupScreen(
         )
     }
 }
-
-private suspend fun SnackbarHostState.showMessage(msg: String) { showSnackbar(msg) }
 
 /** The suggested export name: [base] plus when the backup was made, so a new export never offers
  *  the previous one's name. ASCII digits in every locale, and no characters a file system rejects. */

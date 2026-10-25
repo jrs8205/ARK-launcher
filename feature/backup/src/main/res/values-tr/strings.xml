@@ -14,6 +14,9 @@
     <string name="backup_import_invalid">Geçersiz veya uyumsuz yedek dosyası</string>
     <string name="backup_error_too_large">Yedek dosyası çok büyük</string>
     <string name="backup_failed">İşlem başarısız oldu</string>
+    <string name="backup_import_read_blocked">Android\'in depolama hizmeti bu dosyanın okunmasını engelledi. Dosyayı telefonun depolama klasörleri yerine İndirilenler bölümünden seçin ya da başka bir dosya yöneticisi uygulamasından ARK-launcher ile açın.</string>
+    <string name="backup_open_with_label">ARK-launcher\'a geri yükle</string>
+    <string name="backup_restoring">Geri yükleniyor…</string>
     <string name="backup_restore_confirm_title">Yedek geri yüklensin mi?</string>
     <string name="backup_restore_confirm_msg">Mevcut ana ekranınız ve ayarlarınız bu yedekle değiştirilecek. Widget\'lar, dokunarak kurulabilen yer tutucular olarak geri yüklenir.</string>
     <string name="backup_restore_confirm_ok">Geri yükle</string>

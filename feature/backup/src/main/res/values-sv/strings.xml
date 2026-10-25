@@ -14,6 +14,9 @@
     <string name="backup_import_invalid">Ogiltig eller inkompatibel säkerhetskopia</string>
     <string name="backup_error_too_large">Säkerhetskopian är för stor</string>
     <string name="backup_failed">Åtgärden misslyckades</string>
+    <string name="backup_import_read_blocked">Androids lagringstjänst blockerade läsningen av den här filen. Välj den under Nedladdningar i stället för i telefonens lagringsmappar, eller öppna den med ARK-launcher från en annan filhanterarapp.</string>
+    <string name="backup_open_with_label">Återställ i ARK-launcher</string>
+    <string name="backup_restoring">Återställer…</string>
     <string name="backup_restore_confirm_title">Vill du återställa säkerhetskopian?</string>
     <string name="backup_restore_confirm_msg">Din nuvarande startskärm och dina inställningar ersätts. Widgetar återställs som platshållare – tryck på dem för att konfigurera.</string>
     <string name="backup_restore_confirm_ok">Återställ</string>

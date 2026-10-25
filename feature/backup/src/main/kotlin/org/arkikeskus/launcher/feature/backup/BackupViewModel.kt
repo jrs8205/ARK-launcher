@@ -13,15 +13,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.backup.BackupCodec
-import org.arkikeskus.launcher.data.backup.BackupFormatException
 import org.arkikeskus.launcher.data.backup.BackupRepository
-import org.json.JSONException
 import javax.inject.Inject
 
 sealed interface BackupEvent {
@@ -29,17 +25,20 @@ sealed interface BackupEvent {
     data class Restored(val restored: Int, val skipped: Int) : BackupEvent
     data object InvalidFile : BackupEvent
     data object TooLarge : BackupEvent
-    data class Failed(val message: String) : BackupEvent
-}
 
-/** Thrown when a backup file exceeds the import size cap — never buffer it whole. */
-internal class BackupTooLargeException : Exception()
+    /** The system would not let the launcher read the picked file ([BackupReadBlockedException]). */
+    data object ReadBlocked : BackupEvent
+    data class Failed(val message: String) : BackupEvent
+
+    /** A message too long to read in a short snackbar: it stays until dismissed or timed out long. */
+    val needsTimeToRead: Boolean get() = this is ReadBlocked
+}
 
 @HiltViewModel
 class BackupViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val backupRepository: BackupRepository,
-    private val appRepository: AppRepository,
+    private val restorer: BackupRestorer,
     private val settings: SettingsRepository,
 ) : ViewModel() {
 
@@ -81,53 +80,10 @@ class BackupViewModel @Inject constructor(
     }
 
     fun importFrom(uri: Uri) = viewModelScope.launch {
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val json = context.contentResolver.openInputStream(uri)?.use { readBounded(it).decodeToString() }
-                    ?: error("Could not open input stream")
-                val doc = BackupCodec.decode(json)
-                backupRepository.restoreDocument(doc = doc, installedApps = installedApps().map { it.key })
-            }
-        }.onSuccess { _events.emit(BackupEvent.Restored(it.restored, it.skipped)) }
-            .onFailure {
-                if (it is kotlinx.coroutines.CancellationException) throw it
-                when {
-                    it is BackupTooLargeException -> _events.emit(BackupEvent.TooLarge)
-                    it is BackupFormatException || it is JSONException -> _events.emit(BackupEvent.InvalidFile)
-                    else -> _events.emit(BackupEvent.Failed(it.message.orEmpty()))
-                }
-            }
-    }
-
-    /** The current app list, REQUIRED non-empty: a transient LauncherApps failure yields an empty
-     *  list, and restoring against it would silently drop every app item from the layout. */
-    private suspend fun installedApps() =
-        kotlinx.coroutines.withTimeoutOrNull(APP_LIST_TIMEOUT_MS) {
-            appRepository.apps.first { it.isNotEmpty() }
-        } ?: error("App list unavailable")
-
-    /** Reads the stream fully but never past [MAX_BACKUP_BYTES] — an oversized or corrupt file
-     *  must fail fast instead of OOMing the HOME process. */
-    private fun readBounded(stream: java.io.InputStream): ByteArray {
-        val out = java.io.ByteArrayOutputStream()
-        val buf = ByteArray(64 * 1024)
-        var total = 0L
-        while (true) {
-            val n = stream.read(buf)
-            if (n < 0) break
-            total += n
-            if (total > MAX_BACKUP_BYTES) throw BackupTooLargeException()
-            out.write(buf, 0, n)
-        }
-        return out.toByteArray()
+        _events.emit(restorer.restoreFrom(uri))
     }
 
     internal companion object {
         const val TAG = "BackupVM"
-
-        /** Hard cap for a backup file; a real backup is a few kB, so 10 MiB is generous. */
-        const val MAX_BACKUP_BYTES = 10L * 1024 * 1024
-
-        private const val APP_LIST_TIMEOUT_MS = 10_000L
     }
 }

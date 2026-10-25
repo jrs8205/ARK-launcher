@@ -14,6 +14,9 @@
     <string name="backup_import_invalid">Virheellinen tai yhteensopimaton varmuuskopiotiedosto</string>
     <string name="backup_error_too_large">Varmuuskopiotiedosto on liian suuri</string>
     <string name="backup_failed">Toiminto epäonnistui</string>
+    <string name="backup_import_read_blocked">Androidin tallennuspalvelu esti tämän tiedoston lukemisen. Valitse tiedosto Lataukset-kohdasta puhelimen tallennustilan kansioiden sijaan, tai avaa se ARK-launcherilla toisesta tiedostonhallintasovelluksesta.</string>
+    <string name="backup_open_with_label">Palauta ARK-launcheriin</string>
+    <string name="backup_restoring">Palautetaan…</string>
     <string name="backup_restore_confirm_title">Palauta varmuuskopio?</string>
     <string name="backup_restore_confirm_msg">Nykyinen kotinäyttö ja asetukset korvataan. Widgetit palautetaan napautettavina paikkamerkkeinä.</string>
     <string name="backup_restore_confirm_ok">Palauta</string>

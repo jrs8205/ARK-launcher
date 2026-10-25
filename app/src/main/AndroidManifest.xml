@@ -105,6 +105,32 @@
             </intent-filter>
         </activity>
 
+        <!-- A backup file opened ("Open with") or shared from another app, with that app's read
+             grant: from a file manager app or Downloads, the way round phones whose system storage
+             provider is refused the file. JSON
+             from a content provider only (never a file path, never BROWSABLE); the confirmation
+             runs before anything is replaced. Its own task when started with NEW_TASK, kept out of
+             recents. -->
+        <activity
+            android:name=".BackupImportActivity"
+            android:exported="true"
+            android:label="@string/backup_open_with_label"
+            android:excludeFromRecents="true"
+            android:autoRemoveFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.ArkikeskusLauncher.Translucent">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:mimeType="application/json" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
+        </activity>
+
         <!-- Notification dots: the system binds this once the user grants notification access. -->
         <service
             android:name=".notifications.NotificationDotListenerService"

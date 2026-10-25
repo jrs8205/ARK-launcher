@@ -15,6 +15,9 @@
     <string name="backup_import_invalid">Archivo de copia de seguridad no válido o incompatible</string>
     <string name="backup_error_too_large">El archivo de copia de seguridad es demasiado grande</string>
     <string name="backup_failed">No se pudo completar la operación</string>
+    <string name="backup_import_read_blocked">El servicio de almacenamiento de Android bloqueó la lectura de este archivo. Elígelo en Descargas en lugar de en las carpetas de almacenamiento del teléfono, o ábrelo con ARK-launcher desde otra app de gestión de archivos.</string>
+    <string name="backup_open_with_label">Restaurar en ARK-launcher</string>
+    <string name="backup_restoring">Restaurando…</string>
     <string name="backup_restore_confirm_title">¿Restaurar la copia de seguridad?</string>
     <string name="backup_restore_confirm_msg">Se reemplazarán la pantalla de inicio y la configuración actuales. Los widgets se restaurarán como marcadores de posición; tócalos para configurarlos.</string>
     <string name="backup_restore_confirm_ok">Restaurar</string>
