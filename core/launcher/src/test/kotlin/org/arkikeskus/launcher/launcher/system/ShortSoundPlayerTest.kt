@@ -13,6 +13,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.lang.ref.WeakReference
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -94,6 +95,40 @@ class ShortSoundPlayerTest {
 
         assertThat(players.single().started).isFalse()
         assertThat(players.single().released).isTrue()
+    }
+
+    /**
+     * The native player holds only a weak reference to its Java object: between the opening and the
+     * prepared callback the player must be kept, or a garbage collection frees it and the sound is
+     * never heard. Here the test keeps nothing but a weak reference.
+     */
+    @Test fun aPreparingSoundIsKeptAliveUntilItIsReady() {
+        var weak: WeakReference<FakePlayer>? = null
+        val sounds = ShortSoundPlayer(context, Executor(Runnable::run)) { FakePlayer().also { weak = WeakReference(it) } }
+        sounds.play(uri) { true }
+
+        repeat(5) {
+            System.gc()
+            System.runFinalization()
+            Thread.sleep(20)
+        }
+
+        val player = weak!!.get()
+        assertThat(player).isNotNull()
+        player!!.ready()
+        assertThat(player.started).isTrue()
+    }
+
+    /** A sound still preparing when it is stopped or replaced is let go at once, not when ready. */
+    @Test fun stoppingReleasesASoundStillPreparing() {
+        val sounds = player()
+        sounds.play(uri) { true }
+
+        sounds.stop()
+
+        assertThat(players.single().released).isTrue()
+        players.single().ready()
+        assertThat(players.single().started).isFalse()
     }
 
     @Test fun aNewerSoundReplacesOneStillOpening() {

@@ -15,6 +15,7 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import java.util.Collections
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -140,6 +141,12 @@ class ShortSoundPlayer internal constructor(
     private val latest = AtomicInteger()
     /** The sound playing now; main thread only. */
     private var current: MediaPlayer? = null
+    /** Every player from its creation until it is released. The native player holds only a weak
+     *  reference to its Java object, so one opening or preparing must be held here, or a garbage
+     *  collection frees it before it is ready and the sound is never heard. */
+    private val alive: MutableSet<MediaPlayer> = Collections.synchronizedSet(mutableSetOf())
+    /** Players between `prepareAsync` and their prepared callback: [stop] lets them go at once. */
+    private val preparing: MutableSet<MediaPlayer> = Collections.synchronizedSet(mutableSetOf())
 
     override fun play(uri: Uri, stillWanted: () -> Boolean) {
         stop()
@@ -148,6 +155,7 @@ class ShortSoundPlayer internal constructor(
             if (latest.get() != ticket) return@execute
             // The player has no looper on this thread, so its callbacks come on the main thread.
             val player = newPlayer()
+            alive += player
             val prepared = runCatching {
                 player.setAudioAttributes(
                     AudioAttributes.Builder()
@@ -157,6 +165,7 @@ class ShortSoundPlayer internal constructor(
                 )
                 player.setDataSource(context, uri)
                 player.setOnPreparedListener { ready ->
+                    preparing -= ready
                     if (latest.get() != ticket || !stillWanted()) {
                         release(ready)
                         return@setOnPreparedListener
@@ -169,18 +178,23 @@ class ShortSoundPlayer internal constructor(
                 player.setOnErrorListener { failed, _, _ -> release(failed); true }
                 if (latest.get() != ticket) error("replaced while opening")
                 player.prepareAsync()
+                preparing += player
             }
             prepared.onFailure {
                 if (latest.get() == ticket) Log.w("ShortSoundPlayer", "Cannot play $uri", it)
-                runCatching { player.release() }
+                drop(player)
             }
+            // Stopped or replaced between the last check and joining [preparing]: let it go now.
+            if (prepared.isSuccess && latest.get() != ticket) handler.post { release(player) }
         }
     }
 
-    /** Stops the sound playing now and drops one still opening. Main thread. */
+    /** Stops the sound playing now and lets go of any still preparing; one still opening drops
+     *  itself when it sees it was replaced. Main thread. */
     fun stop() {
         latest.incrementAndGet()
         current?.let(::release)
+        synchronized(preparing) { preparing.toList() }.forEach(::release)
     }
 
     private fun fade(player: MediaPlayer, startedAt: Long) {
@@ -199,8 +213,16 @@ class ShortSoundPlayer internal constructor(
         }, SOUND_MAX_MS - SOUND_FADE_MS)
     }
 
+    /** Main thread: ends [player], the current one or not. */
     private fun release(player: MediaPlayer) {
         if (current === player) current = null
+        drop(player)
+    }
+
+    /** Any thread: lets go of a player that never became [current]. */
+    private fun drop(player: MediaPlayer) {
+        preparing -= player
+        alive -= player
         runCatching { player.release() }
     }
 }
