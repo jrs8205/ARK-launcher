@@ -18,15 +18,15 @@ import org.junit.Test
 class SystemBarContrastTest {
 
     @Test fun onHomeTheWallpaperDecides() {
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarBacksDark = false, wallpaperSupportsDarkText = false))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, coverIsLight = null, ownBarBacksDark = false, wallpaperSupportsDarkText = false))
             .isFalse()
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, coverIsLight = null, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
             .isTrue()
     }
 
     /** ARK's own bar backs the system bar with a dark scrim: dark glyphs would vanish on it. */
     @Test fun onTheLaunchersOwnBarTheGlyphsAreLight() {
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, ownBarBacksDark = true, wallpaperSupportsDarkText = true))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, coverIsLight = null, ownBarBacksDark = true, wallpaperSupportsDarkText = true))
             .isFalse()
     }
 
@@ -43,22 +43,42 @@ class SystemBarContrastTest {
         assertThat(ownBarBacksDark(ownBarShown = false, scrimOpacity = 1f)).isFalse()
         // A transparent own bar over a light wallpaper: dark glyphs, as without the bar.
         val weak = ownBarBacksDark(ownBarShown = true, scrimOpacity = 0f)
-        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, ownBarBacksDark = weak, wallpaperSupportsDarkText = true))
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, coverIsLight = null, ownBarBacksDark = weak, wallpaperSupportsDarkText = true))
             .isTrue()
     }
 
     @Test fun overTheDrawerItsSurfaceDecides() {
-        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, ownBarBacksDark = true, wallpaperSupportsDarkText = false))
+        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, coverIsLight = null, ownBarBacksDark = true, wallpaperSupportsDarkText = false))
             .isTrue()
-        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
+        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, coverIsLight = null, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
             .isFalse()
     }
 
+    /**
+     * A full-screen surface over home — the widget picker, the first-run intro — hides the wallpaper
+     * and ARK's own bar: both bars' glyphs follow it, until the drawer covers a bar in turn. The top
+     * gradient is not drawn over it.
+     */
+    @Test fun aSurfaceCoveringHomeDecides() {
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, coverIsLight = false, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
+            .isFalse()
+        assertThat(statusBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, coverIsLight = true, ownBarBacksDark = true, wallpaperSupportsDarkText = false))
+            .isTrue()
+        assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, coverIsLight = true, ownBarBacksDark = false, wallpaperSupportsDarkText = true))
+            .isFalse()
+
+        assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, coverIsLight = false, wallpaperSupportsDarkText = true)).isFalse()
+        assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, coverIsLight = true, wallpaperSupportsDarkText = false)).isTrue()
+        assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, coverIsLight = true, wallpaperSupportsDarkText = true)).isFalse()
+
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = false, covered = true)).isFalse()
+    }
+
     @Test fun theNavigationBarFollowsTheDrawerOrTheWallpaper() {
-        assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, wallpaperSupportsDarkText = false)).isFalse()
-        assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, wallpaperSupportsDarkText = true)).isTrue()
-        assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, wallpaperSupportsDarkText = false)).isTrue()
-        assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, wallpaperSupportsDarkText = true)).isFalse()
+        assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = true, coverIsLight = null, wallpaperSupportsDarkText = false)).isFalse()
+        assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, coverIsLight = null, wallpaperSupportsDarkText = true)).isTrue()
+        assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, coverIsLight = null, wallpaperSupportsDarkText = false)).isTrue()
+        assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, coverIsLight = null, wallpaperSupportsDarkText = true)).isFalse()
     }
 
     /** The drawer slides up from the bottom: it reaches the navigation bar almost at once and the status
@@ -84,11 +104,11 @@ class SystemBarContrastTest {
      * bar whenever its glyphs are light on home, so they read on any wallpaper.
      */
     @Test fun aTopScrimBacksLightGlyphsOnHome() {
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = false)).isTrue()
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = true)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = false, covered = false)).isTrue()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = true, covered = false)).isFalse()
         // ARK's own bar has its own scrim; a hidden system bar has no glyphs to back.
-        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = false, wallpaperSupportsDarkText = false)).isFalse()
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = true, wallpaperSupportsDarkText = false)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = false, wallpaperSupportsDarkText = false, covered = false)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = true, wallpaperSupportsDarkText = false, covered = false)).isFalse()
         assertThat(HOME_TOP_SCRIM_ALPHA).isAtMost(0.35f)
     }
 
@@ -121,6 +141,7 @@ class SystemBarContrastTest {
             statusBarPx = { statusBar.floatValue },
             navBarPx = { 60f },
             surfaceIsLight = { true },
+            coverIsLight = { null },
             ownBarBacksDark = { false },
             wallpaperSupportsDarkText = { false },
         )

@@ -54,6 +54,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -61,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import org.arkikeskus.launcher.ui.CoverSystemBars
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.LauncherIcons
 
@@ -86,6 +88,8 @@ fun OnboardingFlow(
 ) {
     var page by rememberSaveable { mutableIntStateOf(0) }
     BackHandler(enabled = page > 0) { page-- }
+    // Edge to edge, behind both system bars: their glyphs follow the intro, not the hidden wallpaper.
+    CoverSystemBars(light = AURORA_BASE.luminance() > 0.5f)
 
     Box(
         modifier = modifier

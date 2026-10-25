@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -36,6 +37,7 @@ import androidx.core.view.drawToBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.ui.CoverSystemBars
 import org.arkikeskus.launcher.ui.LauncherIcons
 
 internal data class WidgetGroup(val packageName: String, val label: String, val widgets: List<WidgetOption>)
@@ -98,6 +100,8 @@ fun WidgetPickerScreen(
     val all = listOf(WidgetGroup("builtin", builtinTitle, builtins)) + groups.orEmpty()
     val visible = visibleWidgetGroups(all, query, onlyPackage)
     val dragging = dragController.moving
+    // Edge to edge, behind both system bars: their glyphs follow this surface, not the hidden wallpaper.
+    CoverSystemBars(light = MaterialTheme.colorScheme.surface.luminance() > 0.5f, active = !dragging)
     Surface(
         modifier.graphicsLayer { alpha = if (dragging) 0f else 1f },
         color = MaterialTheme.colorScheme.surface,

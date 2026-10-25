@@ -40,7 +40,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * Whether the system status bar draws dark glyphs. Once the drawer covers the bar its surface decides;
- * on home, ARK's own status bar backs the system bar with a dark scrim when that is strong enough
+ * then a full-screen surface over home ([coverIsLight], see [SystemBarCovers]) when one is shown; on
+ * home, ARK's own status bar backs the system bar with a dark scrim when that is strong enough
  * ([ownBarBacksDark]: light glyphs), and otherwise the wallpaper's own hint decides — as in Pixel
  * Launcher, instead of the phone's light/dark mode, which drew black glyphs on dark wallpapers in light
  * mode (issue #11).
@@ -48,10 +49,12 @@ import kotlinx.coroutines.withContext
 internal fun statusBarDarkIcons(
     drawerCoversBar: Boolean,
     drawerSurfaceIsLight: Boolean,
+    coverIsLight: Boolean?,
     ownBarBacksDark: Boolean,
     wallpaperSupportsDarkText: Boolean,
 ): Boolean = when {
     drawerCoversBar -> drawerSurfaceIsLight
+    coverIsLight != null -> coverIsLight
     ownBarBacksDark -> false
     else -> wallpaperSupportsDarkText
 }
@@ -65,12 +68,18 @@ internal fun ownBarBacksDark(ownBarShown: Boolean, scrimOpacity: Float): Boolean
     ownBarShown && scrimOpacity >= OWN_BAR_DARK_BACKING
 
 /** Whether the navigation bar (gesture handle / buttons) draws dark glyphs: the drawer's surface once
- *  the drawer covers it, the wallpaper's hint otherwise. */
+ *  the drawer covers it, a full-screen surface over home while one is shown, the wallpaper's hint
+ *  otherwise. */
 internal fun navigationBarDarkIcons(
     drawerCoversBar: Boolean,
     drawerSurfaceIsLight: Boolean,
+    coverIsLight: Boolean?,
     wallpaperSupportsDarkText: Boolean,
-): Boolean = if (drawerCoversBar) drawerSurfaceIsLight else wallpaperSupportsDarkText
+): Boolean = when {
+    drawerCoversBar -> drawerSurfaceIsLight
+    coverIsLight != null -> coverIsLight
+    else -> wallpaperSupportsDarkText
+}
 
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
@@ -96,10 +105,15 @@ private val HOME_TOP_SCRIM_MIN_HEIGHT = 70.dp
  * whole image, so a wallpaper that is mostly dark but light at the top gets light glyphs on a light
  * strip; like Launcher3's top scrim, the gradient keeps them readable on any wallpaper. Not with ARK's
  * own bar (it has its own scrim, at the opacity the user picked, and the gradient would dim ARK's own
- * glyphs) nor with the system bar hidden (no glyphs to back).
+ * glyphs), nor with the system bar hidden (no glyphs to back), nor while a full-screen surface is
+ * [covered] over home (it is drawn above home, the gradient would sit on top of it).
  */
-internal fun homeTopScrimShown(ownBarShown: Boolean, systemBarHidden: Boolean, wallpaperSupportsDarkText: Boolean): Boolean =
-    !ownBarShown && !systemBarHidden && !wallpaperSupportsDarkText
+internal fun homeTopScrimShown(
+    ownBarShown: Boolean,
+    systemBarHidden: Boolean,
+    wallpaperSupportsDarkText: Boolean,
+    covered: Boolean,
+): Boolean = !ownBarShown && !systemBarHidden && !wallpaperSupportsDarkText && !covered
 
 /** The wallpaper says dark text reads well on it. The hint constant is inlined at compile time; only
  *  Android 12+ hands over real hints (see [wallpaperSupportsDarkText]). */
@@ -125,6 +139,7 @@ internal class SystemBarGlyphs(
     statusBarPx: () -> Float,
     navBarPx: () -> Float,
     surfaceIsLight: () -> Boolean,
+    coverIsLight: () -> Boolean?,
     ownBarBacksDark: () -> Boolean,
     wallpaperSupportsDarkText: () -> Boolean,
 ) {
@@ -133,6 +148,7 @@ internal class SystemBarGlyphs(
         statusBarDarkIcons(
             drawerCoversBar = drawerCoversStatusBar(progress(), heightPx(), statusBarPx()),
             drawerSurfaceIsLight = surfaceIsLight(),
+            coverIsLight = coverIsLight(),
             ownBarBacksDark = ownBarBacksDark(),
             wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
         )
@@ -143,6 +159,7 @@ internal class SystemBarGlyphs(
         navigationBarDarkIcons(
             drawerCoversBar = drawerCoversNavigationBar(progress(), heightPx(), navBarPx()),
             drawerSurfaceIsLight = surfaceIsLight(),
+            coverIsLight = coverIsLight(),
             wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
         )
     }
@@ -157,6 +174,7 @@ internal class SystemBarGlyphs(
 internal fun SystemBarContrast(
     progress: () -> Float,
     heightPx: () -> Float,
+    covers: SystemBarCovers,
     ownBarBacksDark: Boolean,
     wallpaperDarkText: State<Boolean>,
 ) {
@@ -176,6 +194,7 @@ internal fun SystemBarContrast(
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
             surfaceIsLight = { surfaceIsLight.value },
+            coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { ownBar.value },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },
         )

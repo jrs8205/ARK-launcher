@@ -69,6 +69,8 @@ fun LauncherShell(
     val longPressScale by shellViewModel.longPressScale.collectAsStateWithLifecycle()
     val statusBars by shellViewModel.statusBars.collectAsStateWithLifecycle()
     val wallpaperDarkText = rememberWallpaperSupportsDarkText()
+    // Full-screen surfaces over home (the widget picker, the first-run intro) report what is behind the bars.
+    val barCovers = remember { SystemBarCovers() }
     // Bounds keep a high-initial-velocity settle (the fling-carried spring below) from overshooting
     // past the ends — an overshoot past 1 would briefly translate the drawer above the screen top.
     val progress = remember { Animatable(0f).apply { updateBounds(0f, 1f) } }
@@ -157,6 +159,7 @@ fun LauncherShell(
     SystemBarContrast(
         progress = { currentProgress },
         heightPx = { shellHeightPx },
+        covers = barCovers,
         ownBarBacksDark = ownBarBacksDark(statusBars.ownBarShown, statusBars.scrimOpacity),
         wallpaperDarkText = wallpaperDarkText,
     )
@@ -168,29 +171,36 @@ fun LauncherShell(
                 .onSizeChanged { shellHeightPx = it.height.toFloat().coerceAtLeast(1f) }
                 .onGloballyPositioned { shellOrigin = it.positionInRoot() },
         ) {
-            HomeScreen(
-                onOpenDrawer = { animateProgress(1f) },
-                onDrawerDrag = { dragDrawer(it) },
-                onDrawerSettle = { settleDrawer(it) },
-                onOpenSettings = onOpenSettings,
-                homeSignals = homeSignals,
-                drawerOpen = drawerOpen,
-                dragController = dragController,
-                showWidgetsFor = showWidgetsFor,
-                onShowWidgetsHandled = { showWidgetsFor = null },
-                // Home dims as the drawer rises over it (DrawerEdge.kt); read at draw time only.
-                modifier = Modifier
-                    .fillMaxSize()
-                    .drawWithContent {
-                        drawContent()
-                        val scrim = drawerScrimAlpha(currentProgress)
-                        if (scrim > 0f) drawRect(Color.Black.copy(alpha = scrim))
-                    },
-            )
+            CompositionLocalProvider(LocalSystemBarCovers provides barCovers) {
+                HomeScreen(
+                    onOpenDrawer = { animateProgress(1f) },
+                    onDrawerDrag = { dragDrawer(it) },
+                    onDrawerSettle = { settleDrawer(it) },
+                    onOpenSettings = onOpenSettings,
+                    homeSignals = homeSignals,
+                    drawerOpen = drawerOpen,
+                    dragController = dragController,
+                    showWidgetsFor = showWidgetsFor,
+                    onShowWidgetsHandled = { showWidgetsFor = null },
+                    // Home dims as the drawer rises over it (DrawerEdge.kt); read at draw time only.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawWithContent {
+                            drawContent()
+                            val scrim = drawerScrimAlpha(currentProgress)
+                            if (scrim > 0f) drawRect(Color.Black.copy(alpha = scrim))
+                        },
+                )
+            }
 
             // Light system-bar glyphs on home get a soft dark gradient behind them (SystemBarContrast.kt).
             HomeTopScrim(
-                shown = homeTopScrimShown(statusBars.ownBarShown, statusBars.systemBarHidden, wallpaperDarkText.value),
+                shown = homeTopScrimShown(
+                    statusBars.ownBarShown,
+                    statusBars.systemBarHidden,
+                    wallpaperDarkText.value,
+                    covered = barCovers.coverIsLight != null,
+                ),
                 progress = { currentProgress },
                 heightPx = { shellHeightPx },
             )
