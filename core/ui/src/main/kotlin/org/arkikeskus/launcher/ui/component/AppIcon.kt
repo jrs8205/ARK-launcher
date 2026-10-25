@@ -9,12 +9,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -23,6 +31,7 @@ import coil3.compose.AsyncImage
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.model.IconRequest
+import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 
 /**
  * Whether [AppIcon]s under this subtree render as Material You themed (monochrome) icons. Provided per
@@ -75,7 +84,9 @@ val LocalAppLabelLines = compositionLocalOf { 1 }
  * cached and loaded off the main thread. Caller supplies [labelColor] (white on wallpaper, the
  * theme on-surface color inside the drawer). When [badgeCount] > 0 a notification badge is drawn at
  * the icon's top-right corner ([badgeShowCount] picks number vs plain dot). [reserveLabelLines] is
- * for fixed, centred cells (the home grid): see [AppLabel].
+ * for fixed, centred cells (the home grid): see [AppLabel]. A touch on it tells the launcher's
+ * [LocalAppLaunchSources] where the icon is, so the app opens with a zoom from it; it only watches,
+ * every gesture stays the surface's.
  */
 @Composable
 fun AppIcon(
@@ -90,8 +101,19 @@ fun AppIcon(
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
 ) {
+    val launchSources = LocalAppLaunchSources.current
+    val view = LocalView.current
+    val icon = remember { arrayOfNulls<LayoutCoordinates>(1) }
     Column(
-        modifier = modifier,
+        modifier = if (launchSources == null) modifier else modifier.pointerInput(launchSources, appItem, view) {
+            awaitPointerEventScope {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.type != PointerEventType.Press) continue
+                    icon[0]?.takeIf { it.isAttached }?.let { launchSources.record(appItem, view, it.boundsInRoot()) }
+                }
+            }
+        },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
@@ -104,7 +126,7 @@ fun AppIcon(
                     epoch = LocalIconEpochs.current.of(appItem.packageName),
                 ),
                 contentDescription = appItem.label,
-                modifier = Modifier.size(iconSize),
+                modifier = Modifier.size(iconSize).onGloballyPositioned { icon[0] = it },
             )
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }

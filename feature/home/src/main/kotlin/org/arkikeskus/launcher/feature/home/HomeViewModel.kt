@@ -37,6 +37,7 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.HomeNotice
 import javax.inject.Inject
@@ -441,8 +442,9 @@ class HomeViewModel @Inject constructor(
         initialValue = HomeUiState(),
     )
 
-    fun launch(appItem: AppItem) {
-        appRepository.launch(appItem).onFailure {
+    /** Launches [appItem], with a zoom from its icon when [from] says where it was tapped. */
+    fun launch(appItem: AppItem, from: AppLaunch? = null) {
+        appRepository.launch(appItem, from?.sourceBounds, from?.options).onFailure {
             Log.w("HomeViewModel", "Failed to launch ${appItem.key}", it)
         }
     }

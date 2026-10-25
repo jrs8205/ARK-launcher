@@ -8,10 +8,12 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.res.Configuration
+import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
@@ -293,12 +295,13 @@ class LauncherAppsSource @Inject constructor(
     }
 
     /**
-     * Launches [appItem]. A launcher is the device's HOME, so a single failed launch (app removed
-     * mid-tap, profile locked, activity no longer launchable) must never crash the process — the
-     * error is captured in the [Result] for the caller to log or surface.
+     * Launches [appItem], opening from [sourceBounds] (the icon on screen) with [options] (its zoom)
+     * when given. A launcher is the device's HOME, so a single failed launch (app removed mid-tap,
+     * profile locked, activity no longer launchable) must never crash the process — the error is
+     * captured in the [Result] for the caller to log or surface.
      */
-    fun launch(appItem: AppItem): Result<Unit> = runCatching {
-        launcherApps.startMainActivity(appItem.componentName, appItem.user, null, null)
+    fun launch(appItem: AppItem, sourceBounds: Rect? = null, options: Bundle? = null): Result<Unit> = runCatching {
+        launcherApps.startMainActivity(appItem.componentName, appItem.user, sourceBounds, options)
     }
 
     /**

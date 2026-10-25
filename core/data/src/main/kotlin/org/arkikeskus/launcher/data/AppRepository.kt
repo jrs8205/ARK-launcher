@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.data
 
+import android.graphics.Rect
+import android.os.Bundle
 import android.os.UserHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,9 +78,10 @@ class AppRepository @Inject constructor(
     /** See [LauncherAppsSource.launchClassName]. */
     fun launchClassName(packageName: String, user: UserHandle): String? = source.launchClassName(packageName, user)
 
-    /** Launches [appItem]; on success, records the launch for the "most used" ranking (fire-and-forget). */
-    fun launch(appItem: AppItem): Result<Unit> {
-        val result = source.launch(appItem)
+    /** Launches [appItem] (from [sourceBounds] with [options], see [LauncherAppsSource.launch]); on
+     *  success, records the launch for the "most used" ranking (fire-and-forget). */
+    fun launch(appItem: AppItem, sourceBounds: Rect? = null, options: Bundle? = null): Result<Unit> {
+        val result = source.launch(appItem, sourceBounds, options)
         if (result.isSuccess) scope.launch { appUsageRepository.recordLaunch(appItem.key) }
         return result
     }

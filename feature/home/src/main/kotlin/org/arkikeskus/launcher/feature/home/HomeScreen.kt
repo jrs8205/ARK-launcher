@@ -97,6 +97,7 @@ import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconMenuItem
 import org.arkikeskus.launcher.ui.IconMenuPopup
 import org.arkikeskus.launcher.ui.LauncherIcons
+import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.R as UiR
 import org.arkikeskus.launcher.ui.RenameDialog
@@ -212,6 +213,9 @@ fun HomeScreen(
 
     // The single Pixel-style long-press menu, anchored to the long-pressed icon.
     var menuTarget by remember { mutableStateOf<AppMenuTarget?>(null) }
+    // A tapped app opens with a zoom from its icon (AppLaunchSources).
+    val launchSources = LocalAppLaunchSources.current
+    val launchApp: (AppItem) -> Unit = { app -> viewModel.launch(app, launchSources?.take(app)) }
     // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
     DismissWhenDragMoves(dragController) { menuTarget = null }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
@@ -605,7 +609,7 @@ fun HomeScreen(
                 dragController = dragController,
                 widgetDragController = widgetDrag,
                 onAddWidget = ::addWidget,
-                onAppClick = viewModel::launch,
+                onAppClick = launchApp,
                 onAppMenu = { app, anchor, above -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home, above) },
                 onMove = viewModel::moveItem,
                 onMoveFolder = viewModel::moveFolder,
@@ -675,7 +679,7 @@ fun HomeScreen(
                     backgroundAlpha = settings.dockBackgroundOpacity,
                     locked = settings.desktopLocked,
                     dragController = dragController,
-                    onAppClick = viewModel::launch,
+                    onAppClick = launchApp,
                     onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName) },
                     onRemoveFromDock = { viewModel.removeFromDock(it) },
@@ -705,7 +709,7 @@ fun HomeScreen(
                 locked = settings.desktopLocked,
                 dragController = dragController,
                 onRename = { viewModel.renameFolder(openFolder.id, it) },
-                onAppClick = { viewModel.launch(it) },
+                onAppClick = launchApp,
                 onRenameApp = { renameTarget = it },
                 onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id) },
                 onPinShortcut = { viewModel.pinShortcut(it) },

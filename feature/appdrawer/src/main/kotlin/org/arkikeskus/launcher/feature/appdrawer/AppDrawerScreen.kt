@@ -101,6 +101,7 @@ import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.LauncherIcons
+import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.LongPressDelay
 import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.R as UiR
@@ -148,6 +149,8 @@ fun AppDrawerScreen(
         }
     }
     var menuTarget by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    // A tapped app opens with a zoom from its icon (AppLaunchSources).
+    val launchSources = LocalAppLaunchSources.current
     // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
     DismissWhenDragMoves(dragController) { menuTarget = null }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
@@ -213,7 +216,7 @@ fun AppDrawerScreen(
         onAppClick = { app ->
             if (app.packageName == context.packageName) {
                 onOpenSettings()
-            } else if (viewModel.onAppClick(app)) {
+            } else if (viewModel.onAppClick(app, launchSources?.take(app))) {
                 // Keep the drawer open if the launch failed, so the user isn't dumped back to home
                 // with no explanation.
                 onClose()
@@ -314,7 +317,7 @@ fun AppDrawerScreen(
             badgeScale = uiState.notificationDotScale,
             onRename = { viewModel.renameDrawerFolder(openFolder.id, it) },
             onAppClick = { app ->
-                if (viewModel.onAppClick(app)) {
+                if (viewModel.onAppClick(app, launchSources?.take(app))) {
                     openFolderId = null
                     onClose()
                 }

@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -20,8 +21,10 @@ import org.arkikeskus.launcher.feature.home.APPWIDGET_HOST_ID
 import org.arkikeskus.launcher.feature.home.LocalAppWidgetHost
 import org.arkikeskus.launcher.feature.home.LocalOrphanWidgetConfigResult
 import org.arkikeskus.launcher.feature.home.LocalWidgetConfigLauncher
+import org.arkikeskus.launcher.ui.AppLaunchSources
 import org.arkikeskus.launcher.ui.LauncherShell
 import org.arkikeskus.launcher.ui.LauncherShellViewModel
+import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.component.LocalIconEpochs
 
 @AndroidEntryPoint
@@ -60,11 +63,14 @@ class LauncherActivity : ComponentActivity() {
                 // a package update bumps its epoch, which re-keys and re-fetches that icon everywhere
                 // — including AsyncImages already on screen, which only re-load on a model change.
                 val iconEpochs by hiltViewModel<LauncherShellViewModel>().iconEpochs.collectAsStateWithLifecycle()
+                // The icon a tap landed on, so the app opens with a zoom from it.
+                val launchSources = remember { AppLaunchSources() }
                 CompositionLocalProvider(
                     LocalAppWidgetHost provides appWidgetHost,
                     LocalWidgetConfigLauncher provides ::startWidgetConfig,
                     LocalOrphanWidgetConfigResult provides orphanConfigResult,
                     LocalIconEpochs provides iconEpochs,
+                    LocalAppLaunchSources provides launchSources,
                 ) {
                     LauncherShell(
                         homeSignals = homeSignals,

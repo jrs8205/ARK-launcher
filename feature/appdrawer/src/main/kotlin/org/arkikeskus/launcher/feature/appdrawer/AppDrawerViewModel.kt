@@ -33,6 +33,7 @@ import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.SearchResults
+import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.HomeNotice
 import javax.inject.Inject
 
@@ -237,8 +238,9 @@ class AppDrawerViewModel @Inject constructor(
     }
 
     /** Launches [appItem]; returns whether it started, so the drawer only closes on success. */
-    fun onAppClick(appItem: AppItem): Boolean =
-        appRepository.launch(appItem)
+    /** Launches [appItem], with a zoom from its icon when [from] says where it was tapped. */
+    fun onAppClick(appItem: AppItem, from: AppLaunch? = null): Boolean =
+        appRepository.launch(appItem, from?.sourceBounds, from?.options)
             .onFailure { Log.w("AppDrawerViewModel", "Failed to launch ${appItem.key}", it) }
             .isSuccess
 
