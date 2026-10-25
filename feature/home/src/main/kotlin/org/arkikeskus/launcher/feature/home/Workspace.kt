@@ -110,6 +110,7 @@ import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
 import org.arkikeskus.launcher.ui.LauncherIcons
+import org.arkikeskus.launcher.ui.appLaunchTouch
 import org.arkikeskus.launcher.ui.awaitIconPress
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.AppLabel
@@ -119,6 +120,7 @@ import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
+import org.arkikeskus.launcher.ui.rememberAppLaunchOrigin
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlin.math.roundToInt
 
@@ -1069,6 +1071,8 @@ internal fun Workspace(
                             }
                             is PlacedApp -> {
                             val placed = entry
+                            // The whole cell takes the tap; the launch zooms from the icon in it.
+                            val launchOrigin = rememberAppLaunchOrigin()
                             Box(
                                 modifier = Modifier
                                     .offset {
@@ -1094,6 +1098,7 @@ internal fun Workspace(
                                             dragController.moving
                                         ) 0f else 1f
                                     }
+                                    .appLaunchTouch(placed.app, launchOrigin)
                                     .pointerInput(
                                         placed.app.key, placed.page, placed.cellX, placed.cellY,
                                         cellW, cellH, columns, rows, pageLocked,
@@ -1270,6 +1275,7 @@ internal fun Workspace(
                                     labelColor = labelColor,
                                     showLabel = showLabels,
                                     iconSize = cellIconSize,
+                                    launchOrigin = launchOrigin,
                                     // Fixed centred cell: reserve the full label block so a name that
                                     // wraps does not lift its icon above its neighbours'.
                                     reserveLabelLines = true,

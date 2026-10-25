@@ -43,9 +43,11 @@ import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
+import org.arkikeskus.launcher.ui.appLaunchTouch
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
+import org.arkikeskus.launcher.ui.rememberAppLaunchOrigin
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
@@ -131,9 +133,12 @@ fun Dock(
         ) {
             apps.forEachIndexed { index, app ->
                 val isDragging = index == draggingIndex
+                // The whole slot takes the tap; the launch zooms from the icon in it.
+                val launchOrigin = rememberAppLaunchOrigin()
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .appLaunchTouch(app, launchOrigin)
                         .onGloballyPositioned { itemRoots[index] = it.positionInRoot() }
                         // Hide the in-dock copy only once it's moving; HomeScreen draws the floating
                         // copy. While merely lifted (menu showing) it stays visible.
@@ -269,6 +274,7 @@ fun Dock(
                         labelColor = labelColor,
                         showLabel = showLabels,
                         iconSize = dockIconSize,
+                        launchOrigin = launchOrigin,
                         // The dock stays a compact bar: one label line even when home labels wrap.
                         maxLabelLines = 1,
                         badgeCount = badges[app.badgeKey] ?: 0,
