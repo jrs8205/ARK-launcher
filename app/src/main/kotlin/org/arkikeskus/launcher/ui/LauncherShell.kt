@@ -67,6 +67,8 @@ fun LauncherShell(
     val shellViewModel = hiltViewModel<LauncherShellViewModel>()
     val iconStyle by shellViewModel.iconStyle.collectAsStateWithLifecycle()
     val longPressScale by shellViewModel.longPressScale.collectAsStateWithLifecycle()
+    val statusBars by shellViewModel.statusBars.collectAsStateWithLifecycle()
+    val wallpaperDarkText = rememberWallpaperSupportsDarkText()
     // Bounds keep a high-initial-velocity settle (the fling-carried spring below) from overshooting
     // past the ends — an overshoot past 1 would briefly translate the drawer above the screen top.
     val progress = remember { Animatable(0f).apply { updateBounds(0f, 1f) } }
@@ -151,6 +153,14 @@ fun LauncherShell(
 
     // The long-press delay setting wraps the whole shell: the home screen, the dock, folders, the
     // drawer and widgets all read their hold timeout from LocalViewConfiguration.
+    // The system bars' glyphs follow what is behind them: the wallpaper, ARK's own bar or the drawer.
+    SystemBarContrast(
+        progress = { currentProgress },
+        heightPx = { shellHeightPx },
+        ownBarShown = statusBars.ownBarShown,
+        wallpaperDarkText = wallpaperDarkText,
+    )
+
     LongPressDelay(longPressScale) {
         Box(
             modifier = modifier
@@ -176,6 +186,12 @@ fun LauncherShell(
                         val scrim = drawerScrimAlpha(currentProgress)
                         if (scrim > 0f) drawRect(Color.Black.copy(alpha = scrim))
                     },
+            )
+
+            // Light system-bar glyphs on home get a soft dark gradient behind them (SystemBarContrast.kt).
+            HomeTopScrim(
+                shown = homeTopScrimShown(statusBars.ownBarShown, statusBars.systemBarHidden, wallpaperDarkText.value),
+                progress = { currentProgress },
             )
 
             // Always compose AppDrawerScreen at fillMaxSize to keep it pre-composed, pre-measured, and pre-laid out.
