@@ -105,4 +105,16 @@
     <string name="settings_step_decrease">Disminuir</string>
     <string name="settings_step_increase">Aumentar</string>
     <string name="settings_widget_tonal">Fondos temáticos en los widgets integrados</string>
+    <string name="settings_sounds">Sonidos</string>
+    <string name="settings_lock_sounds">Sonidos de bloqueo y desbloqueo</string>
+    <string name="settings_lock_sounds_desc">Un sonido que elijas suena cuando el teléfono se bloquea y cuando se desbloquea, salvo en silencio o vibración, en No molestar o durante una llamada.</string>
+    <string name="settings_lock_sound">Sonido de bloqueo</string>
+    <string name="settings_unlock_sound">Sonido de desbloqueo</string>
+    <string name="settings_sound_none">Sin sonido</string>
+    <string name="settings_sound_from_files">Elegir un archivo</string>
+    <string name="settings_sound_from_phone">Sonidos del teléfono</string>
+    <string name="settings_sound_play">Reproducir</string>
+    <string name="settings_sound_picked">Sonido elegido</string>
+    <string name="settings_phone_sound_settings">Ajustes de sonido del teléfono</string>
+    <string name="settings_phone_sound_settings_desc">Desactiva allí el sonido de bloqueo de pantalla del propio teléfono para que no suenen los dos a la vez.</string>
 </resources>

@@ -104,4 +104,16 @@
     <string name="settings_step_decrease">Azalt</string>
     <string name="settings_step_increase">Artır</string>
     <string name="settings_widget_tonal">Yerleşik widget\'lar için temalı arka planlar</string>
+    <string name="settings_sounds">Sesler</string>
+    <string name="settings_lock_sounds">Kilitleme ve kilit açma sesleri</string>
+    <string name="settings_lock_sounds_desc">Seçtiğiniz bir ses telefon kilitlendiğinde ve kilidi açıldığında çalar; sessiz veya titreşim modunda, Rahatsız Etmeyin modunda ya da arama sırasında çalmaz.</string>
+    <string name="settings_lock_sound">Kilitleme sesi</string>
+    <string name="settings_unlock_sound">Kilit açma sesi</string>
+    <string name="settings_sound_none">Ses yok</string>
+    <string name="settings_sound_from_files">Dosya seç</string>
+    <string name="settings_sound_from_phone">Telefonun sesleri</string>
+    <string name="settings_sound_play">Oynat</string>
+    <string name="settings_sound_picked">Seçilen ses</string>
+    <string name="settings_phone_sound_settings">Telefonun ses ayarları</string>
+    <string name="settings_phone_sound_settings_desc">Orada telefonun kendi ekran kilidi sesini kapatın, böylece iki ses aynı anda çalmaz.</string>
 </resources>

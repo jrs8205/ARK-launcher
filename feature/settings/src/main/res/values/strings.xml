@@ -104,4 +104,16 @@
     <string name="settings_step_decrease">Decrease</string>
     <string name="settings_step_increase">Increase</string>
     <string name="settings_widget_tonal">Themed backgrounds for built-in widgets</string>
+    <string name="settings_sounds">Sounds</string>
+    <string name="settings_lock_sounds">Lock and unlock sounds</string>
+    <string name="settings_lock_sounds_desc">A sound you pick plays when the phone locks and when it unlocks — not when it is silent or on vibrate, in Do not disturb or in a call.</string>
+    <string name="settings_lock_sound">Lock sound</string>
+    <string name="settings_unlock_sound">Unlock sound</string>
+    <string name="settings_sound_none">No sound</string>
+    <string name="settings_sound_from_files">Choose a file</string>
+    <string name="settings_sound_from_phone">Phone\'s sounds</string>
+    <string name="settings_sound_play">Play</string>
+    <string name="settings_sound_picked">Picked sound</string>
+    <string name="settings_phone_sound_settings">Phone\'s sound settings</string>
+    <string name="settings_phone_sound_settings_desc">Turn off the phone\'s own screen locking sound there, so the two don\'t play together.</string>
 </resources>

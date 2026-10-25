@@ -364,6 +364,15 @@ fun SettingsScreen(
                     scale = s.notificationDotScale,
                 )
 
+                ExpressiveSectionTitle(stringResource(R.string.settings_sounds))
+                LockSoundsSettings(
+                    enabled = s.lockSoundsEnabled,
+                    lockUri = s.lockSoundUri,
+                    unlockUri = s.unlockSoundUri,
+                    onSetEnabled = viewModel::setLockSoundsEnabled,
+                    onSetSound = viewModel::setLockSound,
+                )
+
                 ExpressiveSectionTitle(stringResource(R.string.settings_search))
                 ContactsSearchToggle(
                     enabled = s.searchContacts,
@@ -880,7 +889,7 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
     SwitchRow(label, description = null, checked, onCheckedChange)
 
 @Composable
-private fun SwitchRow(label: String, description: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun SwitchRow(label: String, description: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     val p = LocalExpressivePalette.current
     ExpressiveCard {
         if (description == null) {

@@ -18,10 +18,14 @@ class LauncherApplication : Application(), SingletonImageLoader.Factory {
 
     override fun newImageLoader(context: PlatformContext): ImageLoader = imageLoader
 
+    @Inject
+    lateinit var lockSounds: LockSounds
+
     override fun onCreate() {
         super.onCreate()
         // Before any activity, so the home screen's first sweep already knows the widget ids another
         // app's request held when a previous process died with the system's bind dialog open.
         PendingWidgetIds.shared.persistIn(SharedPreferencesPendingIdStorage(this))
+        lockSounds.start()
     }
 }

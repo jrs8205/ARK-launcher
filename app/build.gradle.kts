@@ -74,6 +74,7 @@ android {
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
+    implementation(project(":core:launcher"))
     implementation(project(":core:model"))
     implementation(project(":core:ui"))
     implementation(project(":feature:home"))

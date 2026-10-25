@@ -83,6 +83,12 @@ data class LauncherSettings(
     val notificationWidgetCountStyle: String = COUNT_NUMBER,
     /** Double-tap on empty home-screen space locks the screen (needs the lock accessibility service). */
     val doubleTapToLock: Boolean = false,
+    /** Play [lockSoundUri] when the phone locks and [unlockSoundUri] when it unlocks. */
+    val lockSoundsEnabled: Boolean = false,
+    /** The sound picked for locking (a content URI; "" = none). Kept on this phone only. */
+    val lockSoundUri: String = "",
+    /** The sound picked for unlocking (a content URI; "" = none). Kept on this phone only. */
+    val unlockSoundUri: String = "",
     /** What the built-in people widget shows of a notification on the (shared) home screen:
      *  [PRIVACY_ALL] = sender + message text, [PRIVACY_SENDER] = sender only, [PRIVACY_COUNT] = the
      *  tile colors and counts but shows no text at all (pinned people keep their user-chosen name). */

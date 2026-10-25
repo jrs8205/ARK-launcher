@@ -120,6 +120,9 @@ class SettingsRepository @Inject constructor(
             notificationWidgetCountStyle = (p[Keys.NOTIF_WIDGET_COUNT_STYLE] ?: LauncherSettings.COUNT_NUMBER)
                 .let { if (it == LauncherSettings.COUNT_DOT || it == LauncherSettings.COUNT_NONE) it else LauncherSettings.COUNT_NUMBER },
             doubleTapToLock = p[Keys.DOUBLE_TAP_LOCK] ?: false,
+            lockSoundsEnabled = p[Keys.LOCK_SOUNDS_ENABLED] ?: false,
+            lockSoundUri = p[Keys.LOCK_SOUND_URI].orEmpty(),
+            unlockSoundUri = p[Keys.UNLOCK_SOUND_URI].orEmpty(),
             peoplePrivacy = (p[Keys.PEOPLE_PRIVACY] ?: LauncherSettings.PRIVACY_ALL).let {
                 if (it == LauncherSettings.PRIVACY_SENDER || it == LauncherSettings.PRIVACY_COUNT) it
                 else LauncherSettings.PRIVACY_ALL
@@ -241,6 +244,9 @@ class SettingsRepository @Inject constructor(
         }
 
     suspend fun setDoubleTapToLock(value: Boolean) = edit { it[Keys.DOUBLE_TAP_LOCK] = value }
+    suspend fun setLockSoundsEnabled(value: Boolean) = edit { it[Keys.LOCK_SOUNDS_ENABLED] = value }
+    suspend fun setLockSoundUri(uri: String) = edit { it[Keys.LOCK_SOUND_URI] = uri }
+    suspend fun setUnlockSoundUri(uri: String) = edit { it[Keys.UNLOCK_SOUND_URI] = uri }
 
     /** Ordered list of dock favorite app keys (see AppItem.key). */
     val dockFavorites: Flow<List<String>> = dataStore.data.map { p ->
@@ -539,6 +545,9 @@ class SettingsRepository @Inject constructor(
             val reminderDismissed = prefs[Keys.DEFAULT_REMINDER_DISMISSED]
             val firstRunFresh = prefs[Keys.FIRST_RUN_FRESH]
             val heldNotifications = prefs[Keys.PEOPLE_HELD]
+            // The picked sounds' file permissions belong to this phone (see DEVICE_LOCAL_KEYS).
+            val lockSound = prefs[Keys.LOCK_SOUND_URI]
+            val unlockSound = prefs[Keys.UNLOCK_SOUND_URI]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             prefs.clear()
@@ -567,6 +576,8 @@ class SettingsRepository @Inject constructor(
             if (reminderDismissed != null) prefs[Keys.DEFAULT_REMINDER_DISMISSED] = reminderDismissed
             if (firstRunFresh != null) prefs[Keys.FIRST_RUN_FRESH] = firstRunFresh
             if (heldNotifications != null) prefs[Keys.PEOPLE_HELD] = heldNotifications
+            if (lockSound != null) prefs[Keys.LOCK_SOUND_URI] = lockSound
+            if (unlockSound != null) prefs[Keys.UNLOCK_SOUND_URI] = unlockSound
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
         }
     }
@@ -628,6 +639,9 @@ class SettingsRepository @Inject constructor(
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
         val DOUBLE_TAP_LOCK = booleanPreferencesKey("double_tap_lock")
+        val LOCK_SOUNDS_ENABLED = booleanPreferencesKey("lock_sounds_enabled")
+        val LOCK_SOUND_URI = stringPreferencesKey("lock_sound_uri")
+        val UNLOCK_SOUND_URI = stringPreferencesKey("unlock_sound_uri")
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
@@ -701,7 +715,7 @@ class SettingsRepository @Inject constructor(
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
-            "network_place_names", "infinite_scroll",
+            "network_place_names", "infinite_scroll", "lock_sounds_enabled",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
@@ -749,6 +763,9 @@ class SettingsRepository @Inject constructor(
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
             "default_layout_seeded", "onboarding_done", "first_run_fresh", "people_held_notifications",
             "default_reminder_dismissed",
+            // A picked lock/unlock sound is a content URI this phone holds a read grant for; another
+            // phone could not play it.
+            "lock_sound_uri", "unlock_sound_uri",
         )
     }
 }

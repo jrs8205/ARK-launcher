@@ -9,10 +9,12 @@ android {
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:launcher"))
     implementation(project(":core:model"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:ui"))
     implementation(project(":feature:backup"))
+    implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
     testImplementation(libs.robolectric)

@@ -106,4 +106,16 @@
     <string name="settings_step_decrease">Zmniejsz</string>
     <string name="settings_step_increase">Zwiększ</string>
     <string name="settings_widget_tonal">Tła z motywem dla wbudowanych widżetów</string>
+    <string name="settings_sounds">Dźwięki</string>
+    <string name="settings_lock_sounds">Dźwięki blokady i odblokowania</string>
+    <string name="settings_lock_sounds_desc">Wybrany przez Ciebie dźwięk odtwarza się, gdy telefon się blokuje i gdy się odblokowuje – nie w trybie cichym, wibracji, Nie przeszkadzać ani podczas rozmowy.</string>
+    <string name="settings_lock_sound">Dźwięk blokady</string>
+    <string name="settings_unlock_sound">Dźwięk odblokowania</string>
+    <string name="settings_sound_none">Brak dźwięku</string>
+    <string name="settings_sound_from_files">Wybierz plik</string>
+    <string name="settings_sound_from_phone">Dźwięki telefonu</string>
+    <string name="settings_sound_play">Odtwórz</string>
+    <string name="settings_sound_picked">Wybrany dźwięk</string>
+    <string name="settings_phone_sound_settings">Ustawienia dźwięku telefonu</string>
+    <string name="settings_phone_sound_settings_desc">Wyłącz tam dźwięk blokady ekranu samego telefonu, aby oba dźwięki nie grały jednocześnie.</string>
 </resources>

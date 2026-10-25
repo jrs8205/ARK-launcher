@@ -96,6 +96,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setDesktopLocked(value: Boolean) = update { repository.setDesktopLocked(value) }
     fun setDoubleTapToLock(value: Boolean) = update { repository.setDoubleTapToLock(value) }
+    fun setLockSoundsEnabled(value: Boolean) = update { repository.setLockSoundsEnabled(value) }
+    internal fun setLockSound(slot: SoundSlot, uri: String) = update {
+        if (slot == SoundSlot.Lock) repository.setLockSoundUri(uri) else repository.setUnlockSoundUri(uri)
+    }
     fun setLongPressScale(value: Float) = update { repository.setLongPressScale(value) }
 
     fun setAppLabelTextScale(value: Float) = update { repository.setAppLabelTextScale(value) }

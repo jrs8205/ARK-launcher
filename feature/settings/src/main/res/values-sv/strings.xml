@@ -104,4 +104,16 @@
     <string name="settings_step_decrease">Minska</string>
     <string name="settings_step_increase">Öka</string>
     <string name="settings_widget_tonal">Bakgrunder med tema för inbyggda widgetar</string>
+    <string name="settings_sounds">Ljud</string>
+    <string name="settings_lock_sounds">Ljud vid låsning och upplåsning</string>
+    <string name="settings_lock_sounds_desc">Ett ljud du väljer spelas när telefonen låses och när den låses upp – inte i ljudlöst läge, vibrationsläge, Stör ej eller under ett samtal.</string>
+    <string name="settings_lock_sound">Låsljud</string>
+    <string name="settings_unlock_sound">Upplåsningsljud</string>
+    <string name="settings_sound_none">Inget ljud</string>
+    <string name="settings_sound_from_files">Välj en fil</string>
+    <string name="settings_sound_from_phone">Telefonens ljud</string>
+    <string name="settings_sound_play">Spela upp</string>
+    <string name="settings_sound_picked">Valt ljud</string>
+    <string name="settings_phone_sound_settings">Telefonens ljudinställningar</string>
+    <string name="settings_phone_sound_settings_desc">Stäng av telefonens eget skärmlåsljud där, så att båda inte spelas samtidigt.</string>
 </resources>

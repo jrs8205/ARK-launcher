@@ -105,4 +105,16 @@
     <string name="settings_step_decrease">Diminuer</string>
     <string name="settings_step_increase">Augmenter</string>
     <string name="settings_widget_tonal">Fonds à thème pour les widgets intégrés</string>
+    <string name="settings_sounds">Sons</string>
+    <string name="settings_lock_sounds">Sons de verrouillage et de déverrouillage</string>
+    <string name="settings_lock_sounds_desc">Un son de votre choix est joué quand le téléphone se verrouille et se déverrouille, sauf en mode silencieux ou vibreur, en mode Ne pas déranger ou pendant un appel.</string>
+    <string name="settings_lock_sound">Son de verrouillage</string>
+    <string name="settings_unlock_sound">Son de déverrouillage</string>
+    <string name="settings_sound_none">Aucun son</string>
+    <string name="settings_sound_from_files">Choisir un fichier</string>
+    <string name="settings_sound_from_phone">Sons du téléphone</string>
+    <string name="settings_sound_play">Lire</string>
+    <string name="settings_sound_picked">Son choisi</string>
+    <string name="settings_phone_sound_settings">Paramètres sonores du téléphone</string>
+    <string name="settings_phone_sound_settings_desc">Désactivez-y le son de verrouillage de l\'écran du téléphone pour que les deux ne soient pas joués en même temps.</string>
 </resources>

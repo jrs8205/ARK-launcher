@@ -106,4 +106,16 @@
     <string name="settings_step_decrease">Уменьшить</string>
     <string name="settings_step_increase">Увеличить</string>
     <string name="settings_widget_tonal">Тематический фон встроенных виджетов</string>
+    <string name="settings_sounds">Звуки</string>
+    <string name="settings_lock_sounds">Звуки блокировки и разблокировки</string>
+    <string name="settings_lock_sounds_desc">Выбранный вами звук звучит при блокировке и разблокировке телефона — но не в беззвучном режиме, в режиме вибрации, «Не беспокоить» или во время звонка.</string>
+    <string name="settings_lock_sound">Звук блокировки</string>
+    <string name="settings_unlock_sound">Звук разблокировки</string>
+    <string name="settings_sound_none">Без звука</string>
+    <string name="settings_sound_from_files">Выбрать файл</string>
+    <string name="settings_sound_from_phone">Звуки телефона</string>
+    <string name="settings_sound_play">Воспроизвести</string>
+    <string name="settings_sound_picked">Выбранный звук</string>
+    <string name="settings_phone_sound_settings">Настройки звука телефона</string>
+    <string name="settings_phone_sound_settings_desc">Отключите там собственный звук блокировки экрана телефона, чтобы оба звука не звучали одновременно.</string>
 </resources>

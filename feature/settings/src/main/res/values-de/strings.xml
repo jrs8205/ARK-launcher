@@ -104,4 +104,16 @@
     <string name="settings_step_decrease">Verringern</string>
     <string name="settings_step_increase">Erhöhen</string>
     <string name="settings_widget_tonal">Designbasierte Hintergründe für integrierte Widgets</string>
+    <string name="settings_sounds">Töne</string>
+    <string name="settings_lock_sounds">Sperr- und Entsperrtöne</string>
+    <string name="settings_lock_sounds_desc">Ein Ton deiner Wahl erklingt, wenn das Telefon gesperrt und entsperrt wird – nicht im Lautlos- oder Vibrationsmodus, bei „Bitte nicht stören“ oder während eines Anrufs.</string>
+    <string name="settings_lock_sound">Sperrton</string>
+    <string name="settings_unlock_sound">Entsperrton</string>
+    <string name="settings_sound_none">Kein Ton</string>
+    <string name="settings_sound_from_files">Datei auswählen</string>
+    <string name="settings_sound_from_phone">Töne des Telefons</string>
+    <string name="settings_sound_play">Abspielen</string>
+    <string name="settings_sound_picked">Ausgewählter Ton</string>
+    <string name="settings_phone_sound_settings">Toneinstellungen des Telefons</string>
+    <string name="settings_phone_sound_settings_desc">Schalte dort den eigenen Displaysperre-Ton des Telefons aus, damit nicht beide gleichzeitig erklingen.</string>
 </resources>

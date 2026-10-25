@@ -104,4 +104,16 @@
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
     <string name="settings_widget_tonal">Widgettien teematausta</string>
+    <string name="settings_sounds">Äänet</string>
+    <string name="settings_lock_sounds">Lukituksen ja avauksen äänet</string>
+    <string name="settings_lock_sounds_desc">Valitsemasi ääni soi, kun puhelin lukittuu ja kun se avataan – ei äänettömällä, värinällä, Älä häiritse -tilassa eikä puhelun aikana.</string>
+    <string name="settings_lock_sound">Lukitusääni</string>
+    <string name="settings_unlock_sound">Avausääni</string>
+    <string name="settings_sound_none">Ei ääntä</string>
+    <string name="settings_sound_from_files">Valitse tiedosto</string>
+    <string name="settings_sound_from_phone">Puhelimen äänet</string>
+    <string name="settings_sound_play">Toista</string>
+    <string name="settings_sound_picked">Valittu ääni</string>
+    <string name="settings_phone_sound_settings">Puhelimen ääniasetukset</string>
+    <string name="settings_phone_sound_settings_desc">Sammuta siellä puhelimen oma näytön lukitusääni, jotta äänet eivät soi päällekkäin.</string>
 </resources>
