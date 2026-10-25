@@ -68,6 +68,8 @@ val LocalIconChoices = staticCompositionLocalOf<IconChoices?> { null }
 /** A pack's drawable name as people read it: "google_maps" → "google maps". */
 internal fun iconLabel(drawable: String): String = drawable.replace('_', ' ')
 
+private const val SUGGESTED_KEY = "suggested"
+
 /**
  * Choosing an icon for an app or a folder, as in Nova Launcher and Lawnchair: the original icon
  * ([original] draws it), a picture from the gallery, or any icon of an installed icon pack — for an
@@ -211,18 +213,23 @@ private fun PackIcons(pack: IconPackChoice, app: AppItem?, onPick: (CustomIcon?)
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     )
     val all = icons.orEmpty()
-    val matching = if (query.isBlank()) all else all.filter { iconLabel(it).contains(query.trim(), ignoreCase = true) }
     val first = suggested?.takeIf { query.isBlank() && it in all }
+    // A pack lists thousands of icons: filtered again only when the search or the list changes.
+    val shown = remember(all, query, first) {
+        val term = query.trim()
+        all.filter { it != first && (term.isEmpty() || iconLabel(it).contains(term, ignoreCase = true)) }
+    }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(76.dp),
         modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
     ) {
         if (first != null) {
-            item(key = "suggested") {
+            item(key = SUGGESTED_KEY) {
                 PackIconTile(pack.packageName, first, stringResource(R.string.icon_suggested), highlighted = true, onPick)
             }
         }
-        items(matching.filter { it != first }, key = { it }) { name ->
+        // Keyed apart from the suggestion: a pack may well have a drawable named like its key.
+        items(shown, key = { "icon:$it" }) { name ->
             PackIconTile(pack.packageName, name, label = null, highlighted = false, onPick)
         }
     }

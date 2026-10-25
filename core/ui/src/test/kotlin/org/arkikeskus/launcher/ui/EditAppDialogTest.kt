@@ -100,6 +100,26 @@ class EditAppDialogTest {
         compose.onAllNodesWithContentDescription("google maps").fetchSemanticsNodes().let { assertThat(it).isEmpty() }
     }
 
+    /** The grid keys its tiles: a drawable named like the suggestion's own key must not clash with it. */
+    @Test fun aPackIconNamedLikeTheSuggestionsKeyStillShows() {
+        val packWithClash = object : IconChoices by choices {
+            override fun icons(pack: String) = listOf("google_chrome", "suggested")
+        }
+        compose.setContent {
+            CompositionLocalProvider(LocalIconChoices provides packWithClash) {
+                EditAppDialog(app = app, onSave = { _, _ -> }, onReset = {}, onDismiss = {})
+            }
+        }
+        compose.waitForIdle()
+
+        openPicker()
+        compose.onNodeWithText("Example Icons").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.icon_suggested)).assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("suggested")[0].assertExists()
+    }
+
     @Test fun theOriginalIconClearsAPickedOne() {
         show(app.copy(customIcon = CustomIcon.FromPack("com.example.pack", "calculator")))
 
