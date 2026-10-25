@@ -14,6 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowDialog
 
 /** The dialog the "Open with" import shows over the app that handed the file. */
 @RunWith(RobolectricTestRunner::class)
@@ -87,6 +88,16 @@ class BackupImportDialogTest {
         show(BackupImportState.Confirm)
 
         compose.onNode(scrollableWith(res.getString(R.string.backup_restore_confirm_msg))).assertExists()
+    }
+
+    /** The dialog replaces the layout on one tap, over another app: a touch that reaches it through an
+     *  overlay (tapjacking) is dropped, on every Android version. */
+    @Test fun touchesThroughAnOverlayAreDropped() {
+        show(BackupImportState.Confirm)
+        compose.waitForIdle()
+
+        val dialog = ShadowDialog.getLatestDialog()
+        assertThat(dialog.window!!.decorView.filterTouchesWhenObscured).isTrue()
     }
 
     @Test fun theOutcomeIsShownUntilOk() {

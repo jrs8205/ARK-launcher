@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher
 
+import android.os.Build
 import android.os.Bundle
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,10 +30,17 @@ class BackupImportActivity : ComponentActivity() {
             return
         }
         enableEdgeToEdge()
+        window.hideOtherAppsOverlays()
         setContent {
             LauncherTheme {
                 BackupImportScreen(uri = uri, onFinish = ::finish)
             }
         }
     }
+}
+
+/** From Android 12, hides other apps' overlays while this window is shown, so none can trick the
+ *  one-tap restore (tapjacking); the dialog itself also drops touches that come through an overlay. */
+internal fun Window.hideOtherAppsOverlays() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setHideOverlayWindows(true)
 }

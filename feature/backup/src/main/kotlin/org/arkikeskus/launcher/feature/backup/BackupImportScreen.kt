@@ -14,10 +14,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -165,6 +167,7 @@ internal fun BackupImportDialog(
 
 @Composable
 private fun Working() {
+    FilterObscuredTouches()
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         CircularProgressIndicator(Modifier.size(24.dp))
         Text(stringResource(R.string.backup_restoring))
@@ -175,5 +178,18 @@ private fun Working() {
  *  than the dialog allows, and its end is the part that says what to do instead. */
 @Composable
 private fun DialogText(text: String) {
+    FilterObscuredTouches()
     Text(text, Modifier.verticalScroll(rememberScrollState()))
+}
+
+/** Drops touches that reach the dialog's window through another app's overlay (tapjacking): the
+ *  dialog replaces the layout on one tap, over the app that handed the file. Every Android version;
+ *  from Android 12 the activity also hides such overlays outright. */
+@Composable
+private fun FilterObscuredTouches() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.rootView.filterTouchesWhenObscured = true
+        onDispose {}
+    }
 }

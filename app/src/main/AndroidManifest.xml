@@ -43,6 +43,11 @@
          it the uninstaller silently rejects the call ("does not have REQUEST_DELETE_PACKAGES"). -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
+    <!-- Hides other apps' overlays while the "Open with" backup import asks to replace the layout
+         (Window.setHideOverlayWindows, Android 12+), so an overlay cannot trick that tap. Normal
+         permission, granted at install. -->
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
+
     <!-- See which apps expose a launcher activity (for the app drawer). -->
     <queries>
         <intent>
