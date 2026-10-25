@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Byt namn</string>
     <string name="rename_label">Namn</string>
     <string name="rename_save">Spara</string>
     <string name="rename_cancel">Avbryt</string>
@@ -12,4 +11,17 @@
     <string name="folder_default_name">Mapp</string>
     <string name="popup_widgets">Widgetar</string>
     <string name="notice_work_apps_need_default">Ange ARK-launcher som startskärmsapp för att kunna pausa jobbappar.</string>
+    <string name="edit_title">Redigera</string>
+    <string name="edit_icon_hint">Tryck på ikonen för att byta den</string>
+    <string name="icon_change">Byt ikon</string>
+    <string name="icon_picker_title">Välj ikon</string>
+    <string name="icon_picker_close">Stäng</string>
+    <string name="icon_picker_back">Tillbaka</string>
+    <string name="icon_original">Ursprunglig ikon</string>
+    <string name="icon_from_gallery">Välj från galleriet</string>
+    <string name="icon_packs">Ikonpaket</string>
+    <string name="icon_packs_none">Inga ikonpaket installerade. Installera ett från appbutiken för att använda dess ikoner här.</string>
+    <string name="icon_search">Sök ikoner</string>
+    <string name="icon_suggested">Förslag</string>
+    <string name="icon_picture_failed">Den bilden kan inte användas som ikon.</string>
 </resources>

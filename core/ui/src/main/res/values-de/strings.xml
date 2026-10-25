@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Umbenennen</string>
     <string name="rename_label">Name</string>
     <string name="rename_save">Speichern</string>
     <string name="rename_cancel">Abbrechen</string>
@@ -12,4 +11,17 @@
     <string name="folder_default_name">Ordner</string>
     <string name="popup_widgets">Widgets</string>
     <string name="notice_work_apps_need_default">Lege ARK-launcher als Standard-Launcher fest, um geschäftliche Apps zu pausieren.</string>
+    <string name="edit_title">Bearbeiten</string>
+    <string name="edit_icon_hint">Tippe auf das Symbol, um es zu ändern</string>
+    <string name="icon_change">Symbol ändern</string>
+    <string name="icon_picker_title">Symbol auswählen</string>
+    <string name="icon_picker_close">Schließen</string>
+    <string name="icon_picker_back">Zurück</string>
+    <string name="icon_original">Originalsymbol</string>
+    <string name="icon_from_gallery">Aus der Galerie wählen</string>
+    <string name="icon_packs">Symbolpakete</string>
+    <string name="icon_packs_none">Keine Symbolpakete installiert. Installiere eines aus dem App-Store, um seine Symbole hier zu verwenden.</string>
+    <string name="icon_search">Symbole suchen</string>
+    <string name="icon_suggested">Vorschlag</string>
+    <string name="icon_picture_failed">Dieses Bild kann nicht als Symbol verwendet werden.</string>
 </resources>

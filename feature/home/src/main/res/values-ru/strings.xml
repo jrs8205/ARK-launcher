@@ -77,7 +77,7 @@
     <string name="dock_remove">Убрать с док-панели</string>
     <string name="app_info">О приложении</string>
     <string name="uninstall">Удалить</string>
-    <string name="rename">Переименовать</string>
+    <string name="rename">Изменить</string>
     <string name="rename_title">Переименовать</string>
     <string name="rename_reset">Вернуть исходное</string>
     <string name="cancel">Отмена</string>

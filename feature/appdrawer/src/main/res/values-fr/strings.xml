@@ -7,7 +7,7 @@
     <string name="remove_from_home">Retirer de l\'écran d\'accueil</string>
     <string name="app_info">Infos sur l\'application</string>
     <string name="hide_app">Masquer l\'application</string>
-    <string name="rename">Renommer</string>
+    <string name="rename">Modifier</string>
     <string name="uninstall">Désinstaller</string>
     <string name="folder_name_label">Nom du dossier</string>
     <string name="folder_add_apps">Ajouter des applications</string>

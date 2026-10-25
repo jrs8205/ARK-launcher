@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -105,6 +106,9 @@ class IconPackRepository @Inject constructor(
 
     /** Every icon the pack [pkg] offers for picking: its `drawable.xml` list (res/xml or assets),
      *  else the icons its appfilter maps; only names the pack really has. Cached. */
+    // An icon pack's icons exist only as named resources of another app: looking them up by name is
+    // the only way to reach them (as in every launcher that reads icon packs).
+    @SuppressLint("DiscouragedApi")
     fun iconNames(pkg: String): List<String> {
         synchronized(this) { names[pkg]?.let { return it } }
         val res = packResources(pkg) ?: return emptyList()
@@ -118,6 +122,7 @@ class IconPackRepository @Inject constructor(
     /** The pack [pkg]'s own match for [component] (its appfilter), to show first in the picker. */
     fun suggestion(pkg: String, component: ComponentName): String? = get(pkg)?.drawableName(component)
 
+    @SuppressLint("DiscouragedApi")
     private fun readDrawableList(pkg: String, res: Resources): List<String> {
         val xmlId = res.getIdentifier("drawable", "xml", pkg)
         if (xmlId != 0) return res.getXml(xmlId).use(::parseDrawableList)
@@ -128,6 +133,7 @@ class IconPackRepository @Inject constructor(
 
     /** The drawable [name] of the installed pack [pkg] — an icon picked from it for one app or
      *  folder — or null when the pack or the drawable is gone. */
+    @SuppressLint("DiscouragedApi")
     fun drawable(pkg: String, name: String): Drawable? = runCatching {
         val res = packResources(pkg) ?: return null
         val id = res.getIdentifier(name, "drawable", pkg).takeIf { it != 0 } ?: return null

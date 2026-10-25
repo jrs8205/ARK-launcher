@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Rename</string>
     <string name="rename_label">Name</string>
     <string name="rename_save">Save</string>
     <string name="rename_cancel">Cancel</string>
@@ -12,4 +11,17 @@
     <string name="notice_work_apps_need_default">Set ARK-launcher as your default launcher to pause work apps.</string>
     <string name="folder_default_name">Folder</string>
     <string name="popup_widgets">Widgets</string>
+    <string name="edit_title">Edit</string>
+    <string name="edit_icon_hint">Tap the icon to change it</string>
+    <string name="icon_change">Change icon</string>
+    <string name="icon_picker_title">Choose icon</string>
+    <string name="icon_picker_close">Close</string>
+    <string name="icon_picker_back">Back</string>
+    <string name="icon_original">Original icon</string>
+    <string name="icon_from_gallery">Choose from gallery</string>
+    <string name="icon_packs">Icon packs</string>
+    <string name="icon_packs_none">No icon packs installed. Install one from your app store to use its icons here.</string>
+    <string name="icon_search">Search icons</string>
+    <string name="icon_suggested">Suggested</string>
+    <string name="icon_picture_failed">That picture can\'t be used as an icon.</string>
 </resources>

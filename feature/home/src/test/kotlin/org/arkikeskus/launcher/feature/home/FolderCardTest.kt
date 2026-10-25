@@ -178,7 +178,7 @@ class FolderCardTest {
         release("Mail")
 
         compose.onNodeWithText("App info").assertIsDisplayed()
-        compose.onNodeWithText("Rename").assertIsDisplayed()
+        compose.onNodeWithText("Edit").assertIsDisplayed()
         compose.onNodeWithText("Remove from folder").assertIsDisplayed()
         compose.onNodeWithText("Uninstall").assertIsDisplayed()
         assertThat(removed).isEmpty()
@@ -264,7 +264,7 @@ class FolderCardTest {
 
         hold("Maps")
         release("Maps")
-        compose.onNodeWithText("Rename").performClick()
+        compose.onNodeWithText("Edit").performClick()
         compose.waitForIdle()
         assertThat(renamed).containsExactly(maps)
     }

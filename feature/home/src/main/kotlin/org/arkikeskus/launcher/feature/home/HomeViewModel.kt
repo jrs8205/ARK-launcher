@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -180,6 +181,7 @@ class HomeViewModel @Inject constructor(
     private val homeLayoutRepository: HomeLayoutRepository,
     notificationBadgeRepository: NotificationBadgeRepository,
     private val signalMonitor: org.arkikeskus.launcher.launcher.system.SignalMonitor,
+    private val customIcons: CustomIconStore,
 ) : ViewModel() {
 
     private val _notices = Channel<HomeNotice>(Channel.BUFFERED)
@@ -702,6 +704,22 @@ class HomeViewModel @Inject constructor(
 
     fun renameFolder(folderId: Long, name: String) =
         viewModelScope.launch { homeLayoutRepository.renameFolder(folderId, name) }
+
+    /** The icon picked for a home folder (null = back to its preview). */
+    fun setFolderIcon(folderId: Long, icon: CustomIcon?) =
+        viewModelScope.launch { customIcons.setFolderIcon(FolderIconKey.home(folderId), icon) }
+
+    /** "Edit" saved for [app]: its name and its icon (null = the app's own). */
+    fun editApp(app: AppItem, name: String, icon: CustomIcon?) = viewModelScope.launch {
+        settingsRepository.setCustomLabel(app.key, name)
+        customIcons.setAppIcon(app.key, icon)
+    }
+
+    /** "Reset to default" in Edit: the app's own name and icon again. */
+    fun resetApp(app: AppItem) = viewModelScope.launch {
+        settingsRepository.setCustomLabel(app.key, null)
+        customIcons.setAppIcon(app.key, null)
+    }
 
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */
     fun setCustomLabel(key: String, label: String?) =

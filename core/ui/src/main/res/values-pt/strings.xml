@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Renomear</string>
     <string name="rename_label">Nome</string>
     <string name="rename_save">Salvar</string>
     <string name="rename_cancel">Cancelar</string>
@@ -12,4 +11,17 @@
     <string name="folder_default_name">Pasta</string>
     <string name="popup_widgets">Widgets</string>
     <string name="notice_work_apps_need_default">Defina o ARK-launcher como tela inicial padrão para pausar os apps de trabalho.</string>
+    <string name="edit_title">Editar</string>
+    <string name="edit_icon_hint">Toque no ícone para alterá-lo</string>
+    <string name="icon_change">Alterar ícone</string>
+    <string name="icon_picker_title">Escolher ícone</string>
+    <string name="icon_picker_close">Fechar</string>
+    <string name="icon_picker_back">Voltar</string>
+    <string name="icon_original">Ícone original</string>
+    <string name="icon_from_gallery">Escolher da galeria</string>
+    <string name="icon_packs">Pacotes de ícones</string>
+    <string name="icon_packs_none">Nenhum pacote de ícones instalado. Instale um na sua loja de aplicativos para usar os ícones dele aqui.</string>
+    <string name="icon_search">Pesquisar ícones</string>
+    <string name="icon_suggested">Sugerido</string>
+    <string name="icon_picture_failed">Essa imagem não pode ser usada como ícone.</string>
 </resources>

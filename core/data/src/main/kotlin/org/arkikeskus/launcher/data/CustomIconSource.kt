@@ -9,10 +9,10 @@ import android.graphics.ImageDecoder
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.drawable.AdaptiveIconDrawable
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
 import coil3.ImageLoader
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
@@ -43,7 +43,7 @@ class CustomIconSource @Inject constructor(
 
     fun drawable(icon: CustomIcon): Drawable? = when (icon) {
         is CustomIcon.FromPack -> iconPacks.drawable(icon.pack, icon.drawable)
-        is CustomIcon.FromFile -> files.load(icon)?.let { BitmapDrawable(context.resources, it) }
+        is CustomIcon.FromFile -> files.load(icon)?.toDrawable(context.resources)
     }
 }
 
@@ -60,9 +60,9 @@ class CustomIconFiles(context: Context) {
         val picture = decodePicture(context, uri) ?: return null
         val side = minOf(picture.width, picture.height)
         val crop = Rect((picture.width - side) / 2, (picture.height - side) / 2, (picture.width + side) / 2, (picture.height + side) / 2)
-        val icon = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
+        val icon = createBitmap(SIZE, SIZE)
         val canvas = Canvas(icon)
-        val shape = AdaptiveIconDrawable(ColorDrawable(Color.BLACK), null).apply { setBounds(0, 0, SIZE, SIZE) }.iconMask
+        val shape = AdaptiveIconDrawable(Color.BLACK.toDrawable(), null).apply { setBounds(0, 0, SIZE, SIZE) }.iconMask
         canvas.clipPath(shape)
         canvas.drawBitmap(picture, crop, Rect(0, 0, SIZE, SIZE), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
         save(icon)

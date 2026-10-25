@@ -21,14 +21,20 @@ import org.arkikeskus.launcher.feature.home.APPWIDGET_HOST_ID
 import org.arkikeskus.launcher.feature.home.LocalAppWidgetHost
 import org.arkikeskus.launcher.feature.home.LocalOrphanWidgetConfigResult
 import org.arkikeskus.launcher.feature.home.LocalWidgetConfigLauncher
+import org.arkikeskus.launcher.model.IconChoices
 import org.arkikeskus.launcher.ui.AppLaunchSources
 import org.arkikeskus.launcher.ui.LauncherShell
 import org.arkikeskus.launcher.ui.LauncherShellViewModel
 import org.arkikeskus.launcher.ui.LocalAppLaunchSources
+import org.arkikeskus.launcher.ui.LocalIconChoices
 import org.arkikeskus.launcher.ui.component.LocalIconEpochs
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class LauncherActivity : ComponentActivity() {
+    /** The icon picker's packs and gallery import (Edit on an app, a folder's icon). */
+    @Inject
+    lateinit var iconChoices: IconChoices
 
     /** Emits on every HOME intent (onNewIntent). The payload is Launcher3's "alreadyOnHome": true
      *  when HOME was pressed while the launcher was already the foreground app (→ snap the workspace
@@ -71,6 +77,7 @@ class LauncherActivity : ComponentActivity() {
                     LocalOrphanWidgetConfigResult provides orphanConfigResult,
                     LocalIconEpochs provides iconEpochs,
                     LocalAppLaunchSources provides launchSources,
+                    LocalIconChoices provides iconChoices,
                 ) {
                     LauncherShell(
                         homeSignals = homeSignals,

@@ -7,7 +7,7 @@
     <string name="remove_from_home">Убрать с главного экрана</string>
     <string name="app_info">О приложении</string>
     <string name="hide_app">Скрыть приложение</string>
-    <string name="rename">Переименовать</string>
+    <string name="rename">Изменить</string>
     <string name="uninstall">Удалить</string>
     <string name="folder_name_label">Название папки</string>
     <string name="folder_add_apps">Добавить приложения</string>

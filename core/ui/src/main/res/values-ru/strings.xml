@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Переименовать</string>
     <string name="rename_label">Название</string>
     <string name="rename_save">Сохранить</string>
     <string name="rename_cancel">Отмена</string>
@@ -12,4 +11,17 @@
     <string name="folder_default_name">Папка</string>
     <string name="popup_widgets">Виджеты</string>
     <string name="notice_work_apps_need_default">Сделайте ARK-launcher лаунчером по умолчанию, чтобы приостановить рабочие приложения.</string>
+    <string name="edit_title">Изменить</string>
+    <string name="edit_icon_hint">Нажмите на значок, чтобы изменить его</string>
+    <string name="icon_change">Изменить значок</string>
+    <string name="icon_picker_title">Выбрать значок</string>
+    <string name="icon_picker_close">Закрыть</string>
+    <string name="icon_picker_back">Назад</string>
+    <string name="icon_original">Исходный значок</string>
+    <string name="icon_from_gallery">Выбрать из галереи</string>
+    <string name="icon_packs">Наборы значков</string>
+    <string name="icon_packs_none">Наборы значков не установлены. Установите набор из магазина приложений, чтобы использовать его значки.</string>
+    <string name="icon_search">Поиск значков</string>
+    <string name="icon_suggested">Предложение</string>
+    <string name="icon_picture_failed">Это изображение нельзя использовать как значок.</string>
 </resources>

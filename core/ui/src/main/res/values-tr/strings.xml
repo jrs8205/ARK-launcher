@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Yeniden adlandır</string>
     <string name="rename_label">Ad</string>
     <string name="rename_save">Kaydet</string>
     <string name="rename_cancel">İptal</string>
@@ -12,4 +11,17 @@
     <string name="folder_default_name">Klasör</string>
     <string name="popup_widgets">Widget\'lar</string>
     <string name="notice_work_apps_need_default">İş uygulamalarını duraklatmak için ARK-launcher\'ı varsayılan başlatıcınız yapın.</string>
+    <string name="edit_title">Düzenle</string>
+    <string name="edit_icon_hint">Değiştirmek için simgeye dokunun</string>
+    <string name="icon_change">Simgeyi değiştir</string>
+    <string name="icon_picker_title">Simge seçin</string>
+    <string name="icon_picker_close">Kapat</string>
+    <string name="icon_picker_back">Geri</string>
+    <string name="icon_original">Orijinal simge</string>
+    <string name="icon_from_gallery">Galeriden seçin</string>
+    <string name="icon_packs">Simge paketleri</string>
+    <string name="icon_packs_none">Yüklü simge paketi yok. Simgelerini burada kullanmak için uygulama mağazanızdan bir paket yükleyin.</string>
+    <string name="icon_search">Simge ara</string>
+    <string name="icon_suggested">Öneri</string>
+    <string name="icon_picture_failed">Bu resim simge olarak kullanılamaz.</string>
 </resources>

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -95,6 +96,7 @@ class AppDrawerViewModel @Inject constructor(
     private val searchAggregator: SearchAggregator,
     private val appUsageRepository: org.arkikeskus.launcher.data.AppUsageRepository,
     private val workProfileRepository: WorkProfileRepository,
+    private val customIcons: CustomIconStore,
 ) : ViewModel() {
 
     private val _notices = Channel<HomeNotice>(Channel.BUFFERED)
@@ -295,6 +297,22 @@ class AppDrawerViewModel @Inject constructor(
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */
     fun setCustomLabel(key: String, label: String?) =
         viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
+
+    /** "Edit" saved for [app]: its name and its icon (null = the app's own). */
+    fun editApp(app: AppItem, name: String, icon: CustomIcon?) = viewModelScope.launch {
+        settingsRepository.setCustomLabel(app.key, name)
+        customIcons.setAppIcon(app.key, icon)
+    }
+
+    /** "Reset to default" in Edit: the app's own name and icon again. */
+    fun resetApp(app: AppItem) = viewModelScope.launch {
+        settingsRepository.setCustomLabel(app.key, null)
+        customIcons.setAppIcon(app.key, null)
+    }
+
+    /** The icon picked for a drawer folder (null = back to its preview). */
+    fun setDrawerFolderIcon(id: Long, icon: CustomIcon?) =
+        viewModelScope.launch { customIcons.setFolderIcon(FolderIconKey.drawer(id), icon) }
 
     // --- Drawer folders --------------------------------------------------------------------------
     fun renameDrawerFolder(id: Long, name: String) =

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="rename_title">Muokkaa nimeä</string>
     <string name="rename_label">Nimi</string>
     <string name="rename_save">Tallenna</string>
     <string name="rename_cancel">Peruuta</string>
@@ -12,4 +11,17 @@
     <string name="notice_work_apps_need_default">Aseta ARK-launcher oletuskäynnistimeksi, jotta voit keskeyttää työsovellukset.</string>
     <string name="folder_default_name">Kansio</string>
     <string name="popup_widgets">Widgetit</string>
+    <string name="edit_title">Muokkaa</string>
+    <string name="edit_icon_hint">Vaihda kuvake napauttamalla sitä</string>
+    <string name="icon_change">Vaihda kuvake</string>
+    <string name="icon_picker_title">Valitse kuvake</string>
+    <string name="icon_picker_close">Sulje</string>
+    <string name="icon_picker_back">Takaisin</string>
+    <string name="icon_original">Alkuperäinen kuvake</string>
+    <string name="icon_from_gallery">Valitse galleriasta</string>
+    <string name="icon_packs">Kuvakepaketit</string>
+    <string name="icon_packs_none">Kuvakepaketteja ei ole asennettu. Asenna jokin sovelluskaupasta, niin voit valita sen kuvakkeita tästä.</string>
+    <string name="icon_search">Hae kuvakkeita</string>
+    <string name="icon_suggested">Ehdotus</string>
+    <string name="icon_picture_failed">Kuvaa ei voi käyttää kuvakkeena.</string>
 </resources>

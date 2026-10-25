@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -92,12 +93,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
+import org.arkikeskus.launcher.ui.EditAppDialog
+import org.arkikeskus.launcher.ui.FolderIconButton
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -105,7 +109,6 @@ import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.LongPressDelay
 import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.R as UiR
-import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.PickedIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
@@ -296,10 +299,10 @@ fun AppDrawerScreen(
     }
 
     renameTarget?.let { app ->
-        RenameDialog(
-            initialName = app.label,
-            onConfirm = { viewModel.setCustomLabel(app.key, it) },
-            onReset = { viewModel.setCustomLabel(app.key, null) },
+        EditAppDialog(
+            app = app,
+            onSave = { name, icon -> viewModel.editApp(app, name, icon) },
+            onReset = { viewModel.resetApp(app) },
             onDismiss = { renameTarget = null },
         )
     }
@@ -317,6 +320,7 @@ fun AppDrawerScreen(
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
             onRename = { viewModel.renameDrawerFolder(openFolder.id, it) },
+            onSetIcon = { viewModel.setDrawerFolderIcon(openFolder.id, it) },
             onAppClick = { app ->
                 if (viewModel.onAppClick(app, launchSources?.take(app))) {
                     openFolderId = null
@@ -682,28 +686,8 @@ private fun DrawerFolderTile(
         // EVERYTHING inside scales with the tile — padding and gaps included. A fixed padding/gap
         // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 drawer columns on a
         // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
-        val scale = tileSize / 56.dp
         Box(contentAlignment = Alignment.TopEnd) {
-            // A picked icon replaces the preview of the first apps.
-            if (folder.icon != null) PickedIcon(folder.icon, tileSize, contentDescription = folder.name)
-            else Box(
-                modifier = Modifier
-                    .size(tileSize)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
-                    .padding(7.dp * scale),
-                contentAlignment = Alignment.Center,
-            ) {
-                val mini = 18.dp * scale
-                val gap = 2.dp * scale
-                Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                        FolderSlot(folder.apps.getOrNull(0), mini); FolderSlot(folder.apps.getOrNull(1), mini)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                        FolderSlot(folder.apps.getOrNull(2), mini); FolderSlot(folder.apps.getOrNull(3), mini)
-                    }
-                }
-            }
+            DrawerFolderGlyph(folder, folder.icon, tileSize)
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         if (showLabel) {
@@ -717,6 +701,37 @@ private fun DrawerFolderTile(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
+        }
+    }
+}
+
+/** A drawer folder's picture: the [icon] picked for it, else a rounded 2×2 preview of its first apps.
+ *  EVERYTHING inside scales with the tile — padding and gaps included: a fixed padding/gap with
+ *  linearly scaled icons inverted the margin below ~45dp tiles (6–7 drawer columns on a narrow
+ *  screen), squeezing the preview asymmetrically out of its card. */
+@Composable
+private fun DrawerFolderGlyph(folder: DrawerFolderUi, icon: CustomIcon?, tileSize: Dp) {
+    if (icon != null) {
+        PickedIcon(icon, tileSize, contentDescription = folder.name)
+        return
+    }
+    val scale = tileSize / 56.dp
+    Box(
+        modifier = Modifier
+            .size(tileSize)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+            .padding(7.dp * scale),
+        contentAlignment = Alignment.Center,
+    ) {
+        val mini = 18.dp * scale
+        val gap = 2.dp * scale
+        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                FolderSlot(folder.apps.getOrNull(0), mini); FolderSlot(folder.apps.getOrNull(1), mini)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                FolderSlot(folder.apps.getOrNull(2), mini); FolderSlot(folder.apps.getOrNull(3), mini)
+            }
         }
     }
 }
@@ -740,6 +755,7 @@ private fun DrawerFolderSheet(
     badgeShowCount: Boolean,
     badgeScale: Float,
     onRename: (String) -> Unit,
+    onSetIcon: (CustomIcon?) -> Unit,
     onAppClick: (AppItem) -> Unit,
     onRemoveApp: (AppItem) -> Unit,
     onAddApps: (List<String>) -> Unit,
@@ -757,13 +773,22 @@ private fun DrawerFolderSheet(
                 .padding(bottom = 16.dp),
         ) {
             var name by remember(folder.id) { mutableStateOf(folder.name) }
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it; onRename(it) },
-                singleLine = true,
-                label = { Text(stringResource(R.string.folder_name_label)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
+                FolderIconButton(
+                    icon = folder.icon,
+                    preview = { icon, size -> DrawerFolderGlyph(folder, icon, size) },
+                    onPick = onSetIcon,
+                )
+                Spacer(Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it; onRename(it) },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.folder_name_label)) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
             if (folder.apps.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(

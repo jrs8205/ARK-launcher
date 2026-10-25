@@ -93,6 +93,7 @@ import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.EditAppDialog
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconMenuItem
 import org.arkikeskus.launcher.ui.IconMenuPopup
@@ -100,7 +101,6 @@ import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.R as UiR
-import org.arkikeskus.launcher.ui.RenameDialog
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
@@ -709,6 +709,7 @@ fun HomeScreen(
                 locked = settings.desktopLocked,
                 dragController = dragController,
                 onRename = { viewModel.renameFolder(openFolder.id, it) },
+                onSetIcon = { viewModel.setFolderIcon(openFolder.id, it) },
                 onAppClick = launchApp,
                 onRenameApp = { renameTarget = it },
                 onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id) },
@@ -904,10 +905,10 @@ fun HomeScreen(
     }
 
     renameTarget?.let { app ->
-        RenameDialog(
-            initialName = app.label,
-            onConfirm = { viewModel.setCustomLabel(app.key, it) },
-            onReset = { viewModel.setCustomLabel(app.key, null) },
+        EditAppDialog(
+            app = app,
+            onSave = { name, icon -> viewModel.editApp(app, name, icon) },
+            onReset = { viewModel.resetApp(app) },
             onDismiss = { renameTarget = null },
         )
     }

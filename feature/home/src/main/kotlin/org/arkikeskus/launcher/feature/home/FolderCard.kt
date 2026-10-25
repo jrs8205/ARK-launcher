@@ -10,12 +10,14 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
@@ -72,11 +74,13 @@ import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.unit.toSize
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
+import org.arkikeskus.launcher.ui.FolderIconButton
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
@@ -129,6 +133,8 @@ internal fun FolderCard(
     onDismiss: () -> Unit,
     /** The menu's Widgets row (an app with home-screen widgets); null hides it, e.g. a locked desktop. */
     onWidgets: ((AppItem) -> Unit)? = null,
+    /** The icon picked for the folder beside its name (null = back to the preview of its apps). */
+    onSetIcon: (CustomIcon?) -> Unit = {},
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -218,13 +224,35 @@ internal fun FolderCard(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 var name by remember(folder.id) { mutableStateOf(folder.name) }
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it; onRename(it) },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.folder_name_label)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
+                    FolderIconButton(
+                        icon = folder.icon,
+                        preview = { icon, size ->
+                            // The home tile's see-through backing vanishes on the card: give the preview one.
+                            Box(
+                                Modifier.background(
+                                    if (icon == null) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                                    RoundedCornerShape(15.dp),
+                                ),
+                            ) {
+                                FolderIcon(
+                                    name = folder.name, apps = folder.apps, showLabel = false, badgeCount = 0,
+                                    badgeShowCount = false, size = size, customIcon = icon,
+                                )
+                            }
+                        },
+                        onPick = onSetIcon,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it; onRename(it) },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.folder_name_label)) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
 
                 // The icon follows the user's icon-size setting, capped by the slot like the drawer.

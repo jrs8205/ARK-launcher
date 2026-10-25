@@ -77,7 +77,7 @@
     <string name="dock_remove">Poista dockista</string>
     <string name="app_info">Sovelluksen tiedot</string>
     <string name="uninstall">Poista sovellus</string>
-    <string name="rename">Muokkaa nimeä</string>
+    <string name="rename">Muokkaa</string>
     <string name="rename_title">Muokkaa nimeä</string>
     <string name="rename_reset">Palauta oletus</string>
     <string name="cancel">Peruuta</string>

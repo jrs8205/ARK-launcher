@@ -77,7 +77,7 @@
     <string name="dock_remove">Ta bort från Dock</string>
     <string name="app_info">Appinformation</string>
     <string name="uninstall">Avinstallera</string>
-    <string name="rename">Byt namn</string>
+    <string name="rename">Redigera</string>
     <string name="rename_title">Byt namn</string>
     <string name="rename_reset">Återställ standardnamn</string>
     <string name="cancel">Avbryt</string>

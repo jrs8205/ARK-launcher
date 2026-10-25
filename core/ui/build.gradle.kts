@@ -14,6 +14,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.activity.compose)
 
     // JVM unit tests (pure icon/label sizing); Robolectric for the shortcut popup and LauncherApps calls.
     testImplementation(libs.junit)

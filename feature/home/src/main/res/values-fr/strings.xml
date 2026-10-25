@@ -77,7 +77,7 @@
     <string name="dock_remove">Retirer du dock</string>
     <string name="app_info">Infos sur l\'application</string>
     <string name="uninstall">Désinstaller</string>
-    <string name="rename">Renommer</string>
+    <string name="rename">Modifier</string>
     <string name="rename_title">Renommer</string>
     <string name="rename_reset">Réinitialiser</string>
     <string name="cancel">Annuler</string>

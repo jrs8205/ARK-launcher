@@ -18,6 +18,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.AppUsageRepository
+import org.arkikeskus.launcher.data.CustomIconSource
+import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.LauncherAppsSource
@@ -116,6 +118,7 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         settingsRepository.setOnboardingDone()
         return HomeViewModel(
             context, settingsRepository, appRepository, homeLayoutRepository, NotificationBadgeRepository(), SignalMonitor(context),
+            CustomIconStore(settingsRepository, CustomIconSource(context, IconPackRepository(context))),
         )
     }
 
