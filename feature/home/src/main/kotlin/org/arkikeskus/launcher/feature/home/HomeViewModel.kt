@@ -709,9 +709,9 @@ class HomeViewModel @Inject constructor(
     fun setFolderIcon(folderId: Long, icon: CustomIcon?) =
         viewModelScope.launch { customIcons.setFolderIcon(FolderIconKey.home(folderId), icon) }
 
-    /** "Edit" saved for [app]: its name and its icon (null = the app's own). */
-    fun editApp(app: AppItem, name: String, icon: CustomIcon?) = viewModelScope.launch {
-        settingsRepository.setCustomLabel(app.key, name)
+    /** "Edit" saved for [app]: its name (null = left as it was) and its icon (null = the app's own). */
+    fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launch {
+        if (name != null) settingsRepository.setCustomLabel(app.key, name)
         customIcons.setAppIcon(app.key, icon)
     }
 

@@ -37,14 +37,15 @@ import org.arkikeskus.launcher.ui.component.AppIcon
 
 /**
  * "Edit" on an app, as in Lawnchair and Nova Launcher: its icon — tap it to pick another (see
- * [IconPickerDialog]) — and its name. [onSave] gets the name and the icon (null = the app's own);
- * [onReset] brings back both of the app's own. A gallery picture imported here but not saved is
- * deleted again.
+ * [IconPickerDialog]) — and its name. [onSave] gets the name, or null when it was left as it was (so
+ * picking only an icon never pins the app's current name over a later one of its own), and the icon
+ * (null = the app's own); [onReset] brings back both of the app's own. A gallery picture imported
+ * here but not saved is deleted again.
  */
 @Composable
 fun EditAppDialog(
     app: AppItem,
-    onSave: (name: String, icon: CustomIcon?) -> Unit,
+    onSave: (name: String?, icon: CustomIcon?) -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -91,7 +92,7 @@ fun EditAppDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                onSave(name, icon)
+                onSave(name.takeIf { it.trim() != app.label }, icon)
                 leave(icon)
             }) { Text(stringResource(R.string.rename_save)) }
         },

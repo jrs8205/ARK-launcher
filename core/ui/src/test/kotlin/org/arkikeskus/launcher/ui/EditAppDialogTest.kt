@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
@@ -35,7 +36,7 @@ class EditAppDialogTest {
 
     private val res = RuntimeEnvironment.getApplication().resources
     private val app = AppItem("com.android.chrome", "Main", Process.myUserHandle(), 0L, "Chrome")
-    private val saved = mutableListOf<Pair<String, CustomIcon?>>()
+    private val saved = mutableListOf<Pair<String?, CustomIcon?>>()
     private var resets = 0
     private var dismissed = 0
 
@@ -83,7 +84,8 @@ class EditAppDialogTest {
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.rename_save)).performClick()
 
-        assertThat(saved).containsExactly("Chrome" to CustomIcon.FromPack("com.example.pack", "google_maps"))
+        // The name was left as it was: none is saved, so a later rename by the app still shows.
+        assertThat(saved).containsExactly(null to CustomIcon.FromPack("com.example.pack", "google_maps"))
         assertThat(dismissed).isEqualTo(1)
     }
 
@@ -120,6 +122,15 @@ class EditAppDialogTest {
         compose.onAllNodesWithContentDescription("suggested")[0].assertExists()
     }
 
+    @Test fun aTypedNameIsSaved() {
+        show()
+
+        compose.onNodeWithText("Chrome").performTextReplacement("Browser")
+        compose.onNodeWithText(text(R.string.rename_save)).performClick()
+
+        assertThat(saved).containsExactly("Browser" to null)
+    }
+
     @Test fun theOriginalIconClearsAPickedOne() {
         show(app.copy(customIcon = CustomIcon.FromPack("com.example.pack", "calculator")))
 
@@ -128,7 +139,7 @@ class EditAppDialogTest {
         compose.waitForIdle()
         compose.onNodeWithText(text(R.string.rename_save)).performClick()
 
-        assertThat(saved).containsExactly("Chrome" to null)
+        assertThat(saved).containsExactly(null to null)
     }
 
     @Test fun resetBringsBackTheOriginalNameAndIcon() {

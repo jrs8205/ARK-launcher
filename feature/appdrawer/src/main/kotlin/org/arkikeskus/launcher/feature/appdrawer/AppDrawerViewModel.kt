@@ -298,9 +298,9 @@ class AppDrawerViewModel @Inject constructor(
     fun setCustomLabel(key: String, label: String?) =
         viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
 
-    /** "Edit" saved for [app]: its name and its icon (null = the app's own). */
-    fun editApp(app: AppItem, name: String, icon: CustomIcon?) = viewModelScope.launch {
-        settingsRepository.setCustomLabel(app.key, name)
+    /** "Edit" saved for [app]: its name (null = left as it was) and its icon (null = the app's own). */
+    fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launch {
+        if (name != null) settingsRepository.setCustomLabel(app.key, name)
         customIcons.setAppIcon(app.key, icon)
     }
 
