@@ -1,7 +1,10 @@
 package org.arkikeskus.launcher
 
+import android.app.Activity
+import android.app.ActivityOptions
 import android.appwidget.AppWidgetHost
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -103,9 +106,40 @@ class LauncherActivity : ComponentActivity() {
      */
     private fun startWidgetConfig(appWidgetId: Int, onResult: (Boolean) -> Unit) {
         pendingConfigCallback = onResult
-        val launched = runCatching {
-            appWidgetHost.startAppWidgetConfigureActivityForResult(this, appWidgetId, 0, WIDGET_CONFIG_REQUEST, null)
-        }.isSuccess
+        // Android 14+ launches the configure activity through an IntentSender the SYSTEM creates
+        // (callingPackage "android"), not the launcher. Its BAL hardening blocks that start unless
+        // the sender opts in, so on strict OEMs (Samsung OneUI) the configuration screen never
+        // appears — the method returns normally but nothing starts. Opt in via ActivityOptions
+        // (the same fix Niagara Launcher uses). The options Bundle is forwarded to
+        // activity.startIntentSenderForResult(...). The 5-arg overload itself is API 34+, so on
+        // API 30-33 use the deprecated 4-arg overload, where BAL does not exist.
+        val launched = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val options = ActivityOptions
+                .makeBasic()
+                .setPendingIntentBackgroundActivityStartMode(
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
+                )
+                .toBundle()
+            runCatching {
+                appWidgetHost.startAppWidgetConfigureActivityForResult(
+                    this, appWidgetId, 0, WIDGET_CONFIG_REQUEST, options,
+                )
+            }.isSuccess
+        } else {
+            // API 30-33: the IntentSender overload does not exist at runtime there, and it is
+            // absent from the android-37 compile stub, so reach the pre-34 4-arg overload by
+            // reflection. Its signature is stable across every Android version.
+            runCatching {
+                val configure = AppWidgetHost::class.java.getMethod(
+                    "startAppWidgetConfigureActivityForResult",
+                    Activity::class.java,
+                    Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType,
+                    Bundle::class.java,
+                )
+                configure.invoke(appWidgetHost, this, appWidgetId, WIDGET_CONFIG_REQUEST, null)
+            }.isSuccess
+        }
         if (!launched) {
             pendingConfigCallback = null
             onResult(false)
