@@ -1,0 +1,10 @@
+Added
+- Edit on an app: give it your own icon (from an icon pack or a gallery picture) and name; folders get their own icon too.
+- Lock and unlock sounds you pick (Settings ▸ Sounds).
+- Apps open with a zoom from their icon.
+- Restore a backup with Open with or Share from another app.
+
+Changed
+- Status bar icons follow what is behind them; its darkness reads as a percent.
+- An icon's menu opens as the icon lifts, not on release.
+- A soft top edge on the app drawer.
