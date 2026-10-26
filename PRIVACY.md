@@ -1,7 +1,7 @@
 # ARK-launcher Privacy Policy
 
-*Last updated: 2026-10-03 · applies to ARK-launcher v0.8.3 and later
-([v0.8.2 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.8.2/PRIVACY.md))*
+*Last updated: 2026-10-26 · applies to ARK-launcher v0.9.3 and later
+([v0.9.2 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.md))*
 
 *Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
 
@@ -29,7 +29,14 @@ public, so every claim here can be verified:
 - **Home-screen layout** — icon, folder and widget placements; stored in a
   local database.
 - **Settings and preferences** — grid size, gestures, icon pack choice, hidden
-  apps, custom app labels, most-used ordering and similar; stored locally.
+  apps, custom app labels and icons, most-used ordering and similar; stored locally.
+- **Pictures and sounds you pick** — a gallery picture you choose as an app's or
+  a folder's icon is cut to icon size and saved as a small image in the launcher's
+  own storage; replacing or clearing the icon deletes the image, and it is not
+  included in backups (an icon chosen from an icon pack is, as a reference only).
+  For a lock or unlock sound the launcher keeps only a reference to the file or
+  system sound you picked, plus Android's permission to read it; both stay on
+  this phone and are excluded from backups.
 - **Notification data** — if you grant notification access, notifications are
   read to show dots/badges, status-bar icons and the optional notification and
   people widgets, including their open, reply and dismiss actions. Message text
@@ -87,6 +94,7 @@ to the server; the requests identify themselves with a generic
 | `INTERNET` | The weather requests described above |
 | `REQUEST_DELETE_PACKAGES` | The "uninstall" action in an icon's long-press menu |
 | `EXPAND_STATUS_BAR` | The swipe-down-for-notifications gesture |
+| `HIDE_OVERLAY_WINDOWS` | Hiding other apps' overlay windows while the restore dialog for a backup opened from another app is shown (Android 12+), so no overlay can cover or trick it |
 
 Calendar, contacts and phone-state data are read on demand for the features
 above, used on the device only, and never stored beyond in-memory caches or

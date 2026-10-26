@@ -1,7 +1,7 @@
 # ARK-launcherin tietosuojaseloste
 
-*Päivitetty: 3.10.2026 · koskee ARK-launcherin versiota 0.8.3 ja uudempia
-([version 0.8.2 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.8.2/PRIVACY.fi.md))*
+*Päivitetty: 26.10.2026 · koskee ARK-launcherin versiota 0.9.3 ja uudempia
+([version 0.9.2 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.fi.md))*
 
 *This policy in English: [PRIVACY.md](PRIVACY.md)*
 
@@ -31,8 +31,16 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
 - **Kotinäytön asettelu** — kuvakkeiden, kansioiden ja widgetien sijainnit;
   tallennetaan paikalliseen tietokantaan.
 - **Asetukset** — ruudukon koko, eleet, kuvakepaketti, piilotetut sovellukset,
-  omat sovellusnimet, käytetyimmät-järjestys ja vastaavat; tallennetaan
-  paikallisesti.
+  omat sovellusnimet ja -kuvakkeet, käytetyimmät-järjestys ja vastaavat;
+  tallennetaan paikallisesti.
+- **Valitsemasi kuvat ja äänet** — galleriasta sovelluksen tai kansion
+  kuvakkeeksi valitsemasi kuva rajataan kuvakkeen kokoon ja tallennetaan pienenä
+  kuvana launcherin omaan tallennustilaan; kuvakkeen vaihto tai poisto poistaa
+  kuvan, eikä sitä sisällytetä varmuuskopioihin
+  (kuvakepaketista valittu kuvake sisällytetään, mutta vain viitteenä).
+  Lukitus- ja avausäänestä launcher säilyttää vain viitteen valitsemaasi
+  tiedostoon tai järjestelmän ääneen sekä Androidin luvan lukea se; molemmat
+  pysyvät tässä puhelimessa eikä niitä sisällytetä varmuuskopioihin.
 - **Ilmoitustiedot** — jos myönnät ilmoitusten käyttöoikeuden, ilmoituksia
   luetaan pistemerkkien, tilarivin kuvakkeiden sekä valinnaisten ilmoitus- ja
   henkilöwidgettien näyttämiseen ja niiden avaus-, vastaus- ja poistotoimintoihin.
@@ -95,6 +103,7 @@ palvelimelle; pyynnöt tunnistautuvat yleisluontoisella
 | `INTERNET` | Yllä kuvatut sääpyynnöt |
 | `REQUEST_DELETE_PACKAGES` | Kuvakkeen pitkän painalluksen "poista asennus" -toiminto |
 | `EXPAND_STATUS_BAR` | Ilmoitusten avaus alaspyyhkäisyllä |
+| `HIDE_OVERLAY_WINDOWS` | Muiden sovellusten päällä näkyvien ikkunoiden piilotus, kun toisesta sovelluksesta avatun varmuuskopion palautusikkuna on näkyvissä (Android 12+), jotta mikään peittoikkuna ei voi peittää tai huijata sitä |
 
 Kalenteri-, yhteystieto- ja puhelintilatiedot luetaan tarvittaessa yllä
 kuvattuja ominaisuuksia varten, niitä käytetään vain laitteella, eikä niitä
