@@ -119,7 +119,8 @@ class CustomIconFiles(context: Context) {
 }
 
 class CustomIconKeyer : Keyer<CustomIconImage> {
-    override fun key(data: CustomIconImage, options: Options): String = "customicon:${data.icon.encode()}"
+    // The epoch keeps an updated pack's old drawable from being served out of the cache.
+    override fun key(data: CustomIconImage, options: Options): String = "customicon:${data.icon.encode()}:e=${data.epoch}"
 }
 
 /** Draws a [CustomIconImage] once into a bitmap, like [AppIconFetcher] does for app icons. */

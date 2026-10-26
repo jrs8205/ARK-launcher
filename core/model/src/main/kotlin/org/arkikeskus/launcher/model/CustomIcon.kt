@@ -35,8 +35,9 @@ sealed interface CustomIcon {
     }
 }
 
-/** Coil model for drawing a [CustomIcon] on its own: a folder's picked icon, the icon picker's grid. */
-data class CustomIconImage(val icon: CustomIcon)
+/** Coil model for drawing a [CustomIcon] on its own: a folder's picked icon, the icon picker's grid.
+ *  [epoch] is the [IconEpochs] token of the icon's pack, as [IconRequest.epoch] is of an app's. */
+data class CustomIconImage(val icon: CustomIcon, val epoch: Int = 0)
 
 /** An installed icon pack the picker offers. */
 data class IconPackChoice(val packageName: String, val label: String)

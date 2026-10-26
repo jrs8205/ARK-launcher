@@ -70,4 +70,13 @@ class CustomIconSourceTest {
         assertThat(CustomIconKeyer().key(CustomIconImage(CustomIcon.FromFile("a.png")), options))
             .isNotEqualTo(CustomIconKeyer().key(CustomIconImage(CustomIcon.FromFile("b.png")), options))
     }
+
+    /** An updated or reinstalled pack bumps the icon epoch: a folder's icon from it is fetched anew. */
+    @Test fun theIconEpochChangesAPickedIconsCacheKey() {
+        val options = Options(context)
+        val icon = CustomIcon.FromPack("p", "a")
+
+        assertThat(CustomIconKeyer().key(CustomIconImage(icon, epoch = 1), options))
+            .isNotEqualTo(CustomIconKeyer().key(CustomIconImage(icon, epoch = 0), options))
+    }
 }

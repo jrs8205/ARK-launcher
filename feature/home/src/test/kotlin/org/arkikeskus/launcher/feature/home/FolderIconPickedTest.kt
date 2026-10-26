@@ -3,6 +3,10 @@ package org.arkikeskus.launcher.feature.home
 import android.app.Application
 import android.graphics.Bitmap
 import android.os.Process
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -17,6 +21,8 @@ import coil3.fetch.ImageFetchResult
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.CustomIconImage
+import org.arkikeskus.launcher.model.IconEpochs
+import org.arkikeskus.launcher.ui.component.LocalIconEpochs
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -74,5 +80,33 @@ class FolderIconPickedTest {
         showFolder()
 
         compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Mail").fetchSemanticsNodes().size == 1 }
+    }
+
+    /** The uninstalled pack comes back: its new icon epoch loads the folder's icon again in place of the preview. */
+    @Test fun aPickedIconLoadsAgainWhenItsPackIsReinstalled() {
+        val installed = AtomicBoolean(false)
+        SingletonImageLoader.setUnsafe(
+            ImageLoader.Builder(RuntimeEnvironment.getApplication()).components {
+                add(Fetcher.Factory<CustomIconImage> { _, _, _ ->
+                    Fetcher {
+                        check(installed.get()) { "pack not installed" }
+                        ImageFetchResult(Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).asImage(), false, DataSource.MEMORY)
+                    }
+                })
+            }.build(),
+        )
+        var epochs by mutableStateOf(IconEpochs())
+        compose.setContent {
+            CompositionLocalProvider(LocalIconEpochs provides epochs) {
+                FolderIcon(name = "Tools", apps = apps, showLabel = true, badgeCount = 0, badgeShowCount = false, customIcon = icon)
+            }
+        }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Mail").fetchSemanticsNodes().size == 1 }
+
+        installed.set(true)
+        epochs = epochs.bumpGlobal()
+
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Mail").fetchSemanticsNodes().isEmpty() }
+        compose.onNodeWithContentDescription("Tools").assertExists()
     }
 }
