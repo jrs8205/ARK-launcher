@@ -48,6 +48,16 @@ class CustomIconSourceTest {
         assertThat(source.drawable(CustomIcon.FromPack("com.example.gone", "mail"))).isNull()
     }
 
+    /** A pack only reached through a picked icon (no global pack, so its appfilter was never read)
+     *  still counts as cached: its update or reinstall must refresh the icons drawn from it. */
+    @Test fun aPackReadOnlyForAPickedIconIsInvalidated() {
+        val packs = IconPackRepository(context)
+        assertThat(packs.drawable("com.example.gone", "mail")).isNull()
+
+        assertThat(packs.invalidate("com.example.gone")).isTrue()
+        assertThat(packs.invalidate("com.example.gone")).isFalse()
+    }
+
     /** The picked icon is part of the icon's cache key: picking one shows it at once, everywhere. */
     @Test fun aPickedIconChangesTheCacheKey() {
         val keyer = AppIconKeyer()

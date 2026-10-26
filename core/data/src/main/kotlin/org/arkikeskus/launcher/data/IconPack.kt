@@ -89,16 +89,16 @@ class IconPackRepository @Inject constructor(
         }.sortedBy { it.label.lowercase() }
     }
 
-    /** Drops [pkg]'s cached parse (the pack was updated/uninstalled) so the next [get] re-reads it.
-     *  Returns true if [pkg] was cached — incl. a cached negative — so the caller knows any already
-     *  rasterized icons may be stale. */
+    /** Drops [pkg]'s cached parse, resources and icon list (the pack was updated/uninstalled) so the
+     *  next use re-reads them. Returns true if any of them was cached — incl. a cached negative, and a
+     *  pack read only for a picked icon — so the caller knows any already rasterized icons may be stale. */
     @Synchronized
     fun invalidate(pkg: String): Boolean {
+        val wasCached = cache.containsKey(pkg) || resources.containsKey(pkg) || names.containsKey(pkg)
+        cache.remove(pkg)
         resources.remove(pkg)
         names.remove(pkg)
-        if (!cache.containsKey(pkg)) return false
-        cache.remove(pkg)
-        return true
+        return wasCached
     }
 
     // package -> every icon it offers in the picker (see [iconNames]).
