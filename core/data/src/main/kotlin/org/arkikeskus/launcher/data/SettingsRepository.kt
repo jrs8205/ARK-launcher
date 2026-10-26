@@ -37,6 +37,7 @@ data class DrawerFolder(val id: Long, val name: String, val appKeys: List<String
 object FolderIconKey {
     fun home(id: Long) = "home:$id"
     fun drawer(id: Long) = "drawer:$id"
+    fun isDrawer(key: String) = key.startsWith("drawer:")
 }
 
 /**
@@ -598,9 +599,13 @@ class SettingsRepository @Inject constructor(
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             // Gallery images are files on this phone (not in a backup): keep them for the apps and
-            // folders the backup picks no icon for.
+            // home folders the backup picks no icon for. Not for drawer folders: their ids come back
+            // (max + 1), so the folder the backup has under an id may not be the one with the picture.
+            // A picture left unused this way goes at the next start (CustomIconStore.deleteUnusedPictures).
             val localImages = ICON_PREFS.associateWith { name ->
-                parseIcons(prefs[stringPreferencesKey(name)]).filterValues { it is CustomIcon.FromFile }
+                parseIcons(prefs[stringPreferencesKey(name)]).filter { (key, icon) ->
+                    icon is CustomIcon.FromFile && !(name == Keys.FOLDER_ICONS.name && FolderIconKey.isDrawer(key))
+                }
             }
             prefs.clear()
             for ((name, value) in values) {

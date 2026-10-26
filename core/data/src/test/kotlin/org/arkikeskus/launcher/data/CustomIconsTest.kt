@@ -77,6 +77,25 @@ class CustomIconsTest {
         assertThat(phone.folderIcons.first()).containsExactly("home:7", photo)
     }
 
+    /** Drawer folder ids come back (max + 1): a picture kept by id could land on another folder. Backed
+     *  up with folder A (no icon), A deleted, B made in its place with a gallery picture, the backup
+     *  restored: A must not show B's picture. */
+    @Test
+    fun `a restore keeps no picture of a drawer folder whose id came back`() = runTest {
+        val phone = SettingsRepository(InMemoryDataStore())
+        val a = phone.createDrawerFolder("A")
+        val backup = phone.exportRaw()
+        phone.deleteDrawerFolder(a)
+        val b = phone.createDrawerFolder("B")
+        assertThat(b).isEqualTo(a)
+        phone.setFolderIcon(FolderIconKey.drawer(b), photo)
+
+        phone.importRaw(backup)
+
+        assertThat(phone.drawerFolders.first().map { it.name }).containsExactly("A")
+        assertThat(phone.folderIcons.first()).isEmpty()
+    }
+
     @Test
     fun `an app's icon follows its renamed launcher activity`() = runTest {
         val repo = SettingsRepository(InMemoryDataStore())
