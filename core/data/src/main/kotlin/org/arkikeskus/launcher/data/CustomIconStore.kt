@@ -3,7 +3,10 @@ package org.arkikeskus.launcher.data
 import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.data.di.ApplicationScope
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.IconChoices
@@ -37,6 +40,16 @@ class CustomIconStore @Inject constructor(
         dropReplaced(old, null)
     }
 
+    /** Deletes the saved pictures no app or folder uses — left by a process death, a restore, a picker
+     *  closed mid-import. Only those saved before [savedBefore] (the launcher's start): one saved since
+     *  may still be waiting in an open dialog. */
+    suspend fun deleteUnusedPictures(savedBefore: Long) {
+        val used = (settings.customIcons.first().values + settings.folderIcons.first().values)
+            .filterIsInstance<CustomIcon.FromFile>()
+            .mapTo(HashSet()) { it.name }
+        source.files.deleteUnused(used, savedBefore)
+    }
+
     private fun dropReplaced(old: CustomIcon?, new: CustomIcon?) {
         if (old is CustomIcon.FromFile && old != new) source.files.delete(old)
     }
@@ -48,6 +61,7 @@ class IconChoicesSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val iconPacks: IconPackRepository,
     private val source: CustomIconSource,
+    @ApplicationScope private val scope: CoroutineScope,
 ) : IconChoices {
     override fun packs(): List<IconPackChoice> = iconPacks.installedPacks().map { IconPackChoice(it.packageName, it.label) }
 
@@ -57,7 +71,8 @@ class IconChoicesSource @Inject constructor(
 
     override fun importImage(uri: Uri): CustomIcon? = source.files.import(context, uri)
 
+    /** Off the caller's thread and outside its scope: the dialog asking for it is going away. */
     override fun discard(icon: CustomIcon) {
-        if (icon is CustomIcon.FromFile) source.files.delete(icon)
+        if (icon is CustomIcon.FromFile) scope.launch { source.files.delete(icon) }
     }
 }

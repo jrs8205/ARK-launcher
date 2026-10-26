@@ -112,6 +112,13 @@ class CustomIconFiles(context: Context) {
         runCatching { File(dir, icon.name).delete() }
     }
 
+    /** Deletes every saved image not named in [used] and last written before [savedBefore]. */
+    fun deleteUnused(used: Set<String>, savedBefore: Long) {
+        dir.listFiles()?.forEach { file ->
+            if (file.isFile && file.name !in used && file.lastModified() < savedBefore) runCatching { file.delete() }
+        }
+    }
+
     companion object {
         /** Side of a saved icon image (px): as crisp as the launcher's own rasterized icons. */
         const val SIZE = 192

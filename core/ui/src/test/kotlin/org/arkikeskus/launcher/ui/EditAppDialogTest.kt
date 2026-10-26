@@ -3,15 +3,24 @@ package org.arkikeskus.launcher.ui
 import android.app.Application
 import android.net.Uri
 import android.os.Process
+import androidx.activity.compose.LocalActivityResultRegistryOwner
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.core.app.ActivityOptionsCompat
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
@@ -51,15 +60,27 @@ class EditAppDialogTest {
         }
     }
 
-    private fun show(target: AppItem = app) {
+    /** The system's photo picker, answering at once with one picture. */
+    private val photoPicker = object : ActivityResultRegistryOwner {
+        override val activityResultRegistry = object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(requestCode: Int, contract: ActivityResultContract<I, O>, input: I, options: ActivityOptionsCompat?) {
+                dispatchResult(requestCode, Uri.parse("content://media/picker/0/photo/1"))
+            }
+        }
+    }
+
+    /** [open] is the caller's own state: false takes the dialog away from outside, as HOME does. */
+    private fun show(target: AppItem = app, open: () -> Boolean = { true }) {
         compose.setContent {
-            CompositionLocalProvider(LocalIconChoices provides choices) {
-                EditAppDialog(
-                    app = target,
-                    onSave = { name, icon -> saved += name to icon },
-                    onReset = { resets++ },
-                    onDismiss = { dismissed++ },
-                )
+            CompositionLocalProvider(LocalIconChoices provides choices, LocalActivityResultRegistryOwner provides photoPicker) {
+                if (open()) {
+                    EditAppDialog(
+                        app = target,
+                        onSave = { name, icon -> saved += name to icon },
+                        onReset = { resets++ },
+                        onDismiss = { dismissed++ },
+                    )
+                }
             }
         }
         compose.waitForIdle()
@@ -70,6 +91,38 @@ class EditAppDialogTest {
     private fun openPicker() {
         compose.onNodeWithContentDescription(text(R.string.icon_change)).performClick()
         compose.waitForIdle()
+    }
+
+    private fun pickFromGallery() {
+        openPicker()
+        compose.onNodeWithText(text(R.string.icon_from_gallery)).performClick()
+        compose.waitUntil(5_000) { compose.onAllNodesWithText(text(R.string.icon_from_gallery)).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /** A gallery picture picked but never saved — the dialog closed from outside, by HOME say — goes
+     *  with the dialog instead of staying on the phone unused. */
+    @Test fun aPictureLeftUnsavedGoesWithTheDialog() {
+        var open by mutableStateOf(true)
+        show { open }
+        pickFromGallery()
+
+        open = false
+        compose.waitForIdle()
+
+        assertThat(choices.discarded).containsExactly(CustomIcon.FromFile("imported.png"))
+    }
+
+    @Test fun aSavedPictureStaysWhenTheDialogGoes() {
+        var open by mutableStateOf(true)
+        show { open }
+        pickFromGallery()
+
+        compose.onNodeWithText(text(R.string.rename_save)).performClick()
+        open = false
+        compose.waitForIdle()
+
+        assertThat(saved).containsExactly(null to CustomIcon.FromFile("imported.png"))
+        assertThat(choices.discarded).isEmpty()
     }
 
     @Test fun savingKeepsTheNameAndAPackIconPicked() {

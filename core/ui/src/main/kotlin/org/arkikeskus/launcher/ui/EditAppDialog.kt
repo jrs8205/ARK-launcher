@@ -13,11 +13,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -29,8 +30,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.ui.component.AppIcon
@@ -40,7 +39,7 @@ import org.arkikeskus.launcher.ui.component.AppIcon
  * [IconPickerDialog]) — and its name. [onSave] gets the name, or null when it was left as it was (so
  * picking only an icon never pins the app's current name over a later one of its own), and the icon
  * (null = the app's own); [onReset] brings back both of the app's own. A gallery picture imported
- * here but not saved is deleted again.
+ * here but not saved is deleted again when the dialog goes — by its buttons or from outside (HOME).
  */
 @Composable
 fun EditAppDialog(
@@ -49,15 +48,19 @@ fun EditAppDialog(
     onReset: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val choices = LocalIconChoices.current
-    val scope = rememberCoroutineScope()
+    val choices by rememberUpdatedState(LocalIconChoices.current)
     var name by rememberSaveable(app.key) { mutableStateOf(app.label) }
     var icon by remember(app.key) { mutableStateOf(app.customIcon) }
     var picking by remember { mutableStateOf(false) }
     val imported = remember { mutableStateListOf<CustomIcon>() }
-    fun leave(kept: CustomIcon?) {
-        val unused = imported.filter { it != kept }
-        if (choices != null && unused.isNotEmpty()) scope.launch(Dispatchers.IO) { unused.forEach(choices::discard) }
+    var kept by remember { mutableStateOf(app.customIcon) }
+    // On leaving the composition, not in a button's handler: the home screen also takes the dialog
+    // away without a word to it (HOME pressed), and a scope of the dialog's own would die with it.
+    DisposableEffect(Unit) {
+        onDispose { choices?.let { c -> imported.filter { it != kept }.forEach(c::discard) } }
+    }
+    fun leave(keep: CustomIcon?) {
+        kept = keep
         onDismiss()
     }
     AlertDialog(

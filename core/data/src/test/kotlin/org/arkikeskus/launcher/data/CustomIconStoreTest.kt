@@ -4,6 +4,8 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.model.CustomIcon
@@ -13,6 +15,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.io.File
 
 /** A gallery image replaced or cleared is deleted from the phone; nothing else uses its file. */
 @RunWith(RobolectricTestRunner::class)
@@ -82,10 +85,32 @@ class CustomIconStoreTest {
         assertThat(settings.folderIcons.first()).isEmpty()
     }
 
+    /** At start-up, saved pictures no app or folder uses — left by a process death, a restore, a picker
+     *  closed mid-import — are deleted; the ones in use stay, and so does one saved since the start (a
+     *  dialog may still be holding it). */
+    @Test fun theStartUpSweepDeletesOnlyPicturesNothingUses() = runTest {
+        val appPicture = image()
+        val folderPicture = image()
+        val unused = image()
+        store.setAppIcon("com.mail/Main/0", appPicture)
+        store.setFolderIcon(FolderIconKey.home(3), folderPicture)
+        for (old in listOf(appPicture, folderPicture, unused)) {
+            File(context.filesDir, "custom_icons/${old.name}").setLastModified(1_000L)
+        }
+        val fresh = image()
+
+        store.deleteUnusedPictures(savedBefore = 2_000L)
+
+        assertThat(source.drawable(unused)).isNull()
+        assertThat(source.drawable(appPicture)).isNotNull()
+        assertThat(source.drawable(folderPicture)).isNotNull()
+        assertThat(source.drawable(fresh)).isNotNull()
+    }
+
     /** An image imported in the picker and then left unused (the dialog cancelled) is deleted. */
     @Test fun anImportedImageLeftUnusedIsDiscarded() {
         val picture = image()
-        val choices = IconChoicesSource(context, IconPackRepository(context), source)
+        val choices = IconChoicesSource(context, IconPackRepository(context), source, CoroutineScope(Dispatchers.Unconfined))
 
         choices.discard(picture)
         choices.discard(pack)
