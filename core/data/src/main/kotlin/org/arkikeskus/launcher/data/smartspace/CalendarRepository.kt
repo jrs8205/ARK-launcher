@@ -112,7 +112,7 @@ class CalendarRepository @Inject constructor(
             uri, projection, selection, null, "${CalendarContract.Instances.BEGIN} ASC",
         )?.use { c ->
             val zone = TimeZone.getDefault()
-            while (c.moveToNext() && list.size < MAX_INSTANCES) {
+            while (list.size < MAX_INSTANCES && c.moveToNext()) {
                 val isAllDay = c.getInt(4) == 1
                 var begin = c.getLong(2)
                 var end = c.getLong(3)
@@ -122,6 +122,9 @@ class CalendarRepository @Inject constructor(
                     begin -= zone.getOffset(begin)
                     end -= zone.getOffset(end)
                 }
+                // The widened all-day window also returns yesterday's instances: ended, never shown,
+                // and they must not fill the load's size limit ahead of today's event.
+                if (end <= now) continue
                 list += CalendarEvent(c.getLong(0), c.getString(1).orEmpty(), begin, end, isAllDay)
             }
         }
