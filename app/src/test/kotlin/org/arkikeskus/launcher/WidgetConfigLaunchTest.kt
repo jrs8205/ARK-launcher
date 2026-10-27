@@ -16,17 +16,19 @@ import org.robolectric.annotation.Config
  * launcher is in front whenever the user adds a widget, so the grant is its to give.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(application = Application::class)
 class WidgetConfigLaunchTest {
+    @Config(sdk = [34])
     @Test fun fromAndroid14TheLauncherGrantsTheStart() {
-        val options = widgetConfigLaunchOptions(sdkInt = 34)
+        val options = widgetConfigLaunchOptions()
 
         assertThat(options).isNotNull()
         assertThat(options!!.pendingIntentBackgroundActivityStartMode)
             .isEqualTo(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
     }
 
+    @Config(sdk = [33])
     @Test fun before14ThereIsNothingToGrant() {
-        assertThat(widgetConfigLaunchOptions(sdkInt = 33)).isNull()
+        assertThat(widgetConfigLaunchOptions()).isNull()
     }
 }

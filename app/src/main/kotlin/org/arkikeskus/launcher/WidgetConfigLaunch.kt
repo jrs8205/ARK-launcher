@@ -15,8 +15,9 @@ import android.os.Build
  * Android 16 deprecates this mode in favour of ALLOW_ALWAYS but still maps it to the same full
  * grant, so one mode keeps 14–15 and 16+ on the same path, as the notification taps already do.
  */
-internal fun widgetConfigLaunchOptions(sdkInt: Int = Build.VERSION.SDK_INT): ActivityOptions? {
-    if (sdkInt < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+internal fun widgetConfigLaunchOptions(): ActivityOptions? {
+    // Read right here: lint's NewApi check recognises only a direct comparison as the version guard.
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
     @Suppress("DEPRECATION")
     return ActivityOptions.makeBasic()
         .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
