@@ -12,7 +12,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,6 +106,7 @@ import org.arkikeskus.launcher.data.ReorderPlanner
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.dragPointer
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -591,17 +591,17 @@ internal fun Workspace(
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 val dragStartPx = IconPress.DragStartThreshold.toPx()
                 try {
-                    val completed = drag(down.id) { change ->
+                    val completed = dragPointer(down.id) { change ->
                         val delta = change.positionChange()
                         change.consume()
-                        if (!dragController.owns(token)) return@drag
+                        if (!dragController.owns(token)) return@dragPointer
                         localDragPos += delta
                         // Same drag-start threshold as an app icon: a wobbling hold opens the folder / menu.
                         if (!localMoving && IconPress.startsDrag(change.position, holdPos, dragStartPx)) {
                             localMoving = true
                             if (removable) dragController.localDragging = true
                         }
-                        if (!localMoving) return@drag
+                        if (!localMoving) return@dragPointer
                         // Publish root coords so the remove zone can highlight + hit-test this local drag.
                         if (removable) dragController.update(dragController.gridBounds.topLeft + localDragPos)
                         val cx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
@@ -1184,21 +1184,21 @@ internal fun Workspace(
                                             }
                                             val dragStartPx = IconPress.DragStartThreshold.toPx()
                                             try {
-                                                // DRAG — drag() reports every pixel, so a lifted icon only
+                                                // DRAG — dragPointer reports every pixel, so a lifted icon only
                                                 // starts moving once pulled past the drag-start threshold;
                                                 // a hold that merely wobbles still releases into the menu
                                                 // instead of nudging the icon into a neighbouring cell.
-                                                val completed = drag(down.id) { change ->
+                                                val completed = dragPointer(down.id) { change ->
                                                     val delta = change.positionChange()
                                                     change.consume()
-                                                    if (!dragController.owns(token)) return@drag
+                                                    if (!dragController.owns(token)) return@dragPointer
                                                     dragPos += delta
                                                     if (!dragController.moving &&
                                                         IconPress.startsDrag(change.position, holdPos, dragStartPx)
                                                     ) {
                                                         dragController.beginMove()
                                                     }
-                                                    if (!dragController.moving) return@drag
+                                                    if (!dragController.moving) return@dragPointer
                                                     dragController.update(
                                                         dragController.gridBounds.topLeft + dragPos,
                                                     )

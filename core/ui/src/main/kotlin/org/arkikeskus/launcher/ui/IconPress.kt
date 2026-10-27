@@ -3,7 +3,10 @@ package org.arkikeskus.launcher.ui
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.positionChangedIgnoreConsumed
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
@@ -79,4 +82,23 @@ suspend fun AwaitPointerEventScope.awaitIconPress(down: PointerInputChange): Ico
         ended
     }
     return ended ?: IconPressOutcome.Held(holdPos)
+}
+
+/**
+ * The move phase of a lifted icon: [onDrag] for every move of the pointer [pointerId], until it
+ * rises (true) or something consumes it (false: the HOME key, a cancel). Unlike Compose's drag(),
+ * this never hands the gesture over to another finger pressed on the same node when the tracked one
+ * lifts: that finger could otherwise carry on moving the first finger's app, and drop it wherever it
+ * rose. Shared by the home icons, the folder and shortcut drags, the dock and the folder card.
+ */
+suspend fun AwaitPointerEventScope.dragPointer(
+    pointerId: PointerId,
+    onDrag: (PointerInputChange) -> Unit,
+): Boolean {
+    while (true) {
+        val change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId } ?: return false
+        if (change.isConsumed) return false
+        if (change.changedToUpIgnoreConsumed()) return true
+        if (change.positionChangedIgnoreConsumed()) onDrag(change)
+    }
 }

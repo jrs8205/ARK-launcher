@@ -45,11 +45,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
-import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChangedIgnoreConsumed
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -82,6 +79,7 @@ import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.FolderIconButton
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.dragPointer
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -508,24 +506,6 @@ internal fun folderSlotIndex(
     val col = (local.x / slotWidth).toInt().coerceIn(0, columns - 1)
     val row = (rows.lastOrNull { it.top <= local.y } ?: rows.first()).row
     return (row * columns + col).coerceIn(0, (count - 1).coerceAtLeast(0))
-}
-
-/**
- * The move phase of a lifted icon: [onDrag] for every move of the pointer [pointerId], until it
- * rises (true) or something consumes it (false — the HOME key, a cancel). Unlike Compose's drag(),
- * this never hands the gesture over to another finger resting in the grid when the tracked one
- * lifts: that finger could otherwise carry on moving the first finger's app, and drop it.
- */
-private suspend fun AwaitPointerEventScope.dragPointer(
-    pointerId: PointerId,
-    onDrag: (PointerInputChange) -> Unit,
-): Boolean {
-    while (true) {
-        val change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId } ?: return false
-        if (change.isConsumed) return false
-        if (change.changedToUpIgnoreConsumed()) return true
-        if (change.positionChangedIgnoreConsumed()) onDrag(change)
-    }
 }
 
 /**

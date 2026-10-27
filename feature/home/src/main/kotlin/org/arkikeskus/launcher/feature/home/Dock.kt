@@ -3,7 +3,6 @@ package org.arkikeskus.launcher.feature.home
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.dragPointer
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.appLaunchTouch
 import org.arkikeskus.launcher.ui.component.AppIcon
@@ -209,14 +209,14 @@ fun Dock(
                                     onAppMenu(currentApp, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
                                 }
                                 try {
-                                    val completed = drag(down.id) { change ->
+                                    val completed = dragPointer(down.id) { change ->
                                         // Accumulate the delta BEFORE consuming: positionChange() returns
                                         // Offset.Zero once the change is consumed, which silently zeroed
                                         // dragOffsetX and broke in-dock reordering (the drag-out path still
                                         // worked because it uses the absolute change.position below).
                                         val dx = change.positionChange().x
                                         change.consume()
-                                        if (!dragController.owns(token)) return@drag
+                                        if (!dragController.owns(token)) return@dragPointer
                                         dragOffsetX += dx
                                         // Only promote to a real move once the finger is pulled past the
                                         // drag-start threshold FROM WHERE IT WAS PICKED UP. A drift during a
