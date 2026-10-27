@@ -26,6 +26,17 @@ private const val LOOKAHEAD_MS = 7L * 24 * 60 * 60 * 1000
  *  front of the window, and bucketing keeps a wall of all-day rows from starving a real meeting. */
 private const val MAX_INSTANCES = 50
 
+private const val DAY_MS = 24L * 60 * 60 * 1000
+
+/**
+ * Where the provider's instance window begins. All-day instances are stored as UTC midnights and
+ * the provider compares the window against those raw values: west of UTC, today's all-day event
+ * "ends" at 19:00 (New York) or 16:00 (Los Angeles) local time and fell out of a window starting
+ * now, hours before the day was over. The all-day bucket starts a day earlier; [NextEventPicker]
+ * drops what has really ended after the local shift.
+ */
+internal fun instanceWindowStart(now: Long, allDay: Boolean): Long = if (allDay) now - DAY_MS else now
+
 /**
  * Calendar-event instances for the smartspace widget: the next [LOOKAHEAD_MS] window from the
  * calendar provider, re-queried when the calendar data changes (ContentObserver) or [refresh] is
@@ -80,7 +91,7 @@ class CalendarRepository @Inject constructor(
     private fun queryInstances(allDay: Boolean): List<CalendarEvent> {
         val now = System.currentTimeMillis()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
-            .appendPath(now.toString())
+            .appendPath(instanceWindowStart(now, allDay).toString())
             .appendPath((now + LOOKAHEAD_MS).toString())
             .build()
         val projection = arrayOf(
