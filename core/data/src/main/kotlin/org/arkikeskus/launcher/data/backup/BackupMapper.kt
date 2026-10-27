@@ -161,7 +161,9 @@ object BackupMapper {
         // drag and remove) and the folder's cell stays empty.
         val childCounts = kept.filter { it.containerId != HomeItemEntity.HOME }
             .groupingBy { it.containerId }.eachCount()
-        val homeAppKeys = kept.filter { it.containerId == HomeItemEntity.HOME && it.isApp }.map { it.key }.toSet()
+        // Grows as children are promoted: two dissolving folders holding the same app would otherwise
+        // both put it on home, and two HOME rows of one app break drag and remove.
+        val homeAppKeys = kept.filter { it.containerId == HomeItemEntity.HOME && it.isApp }.mapTo(HashSet()) { it.key }
         val dissolving = HashMap<Long, HomeItemEntity>()
         val dropped = HashSet<Long>()
         for (folder in kept) {
@@ -176,7 +178,7 @@ object BackupMapper {
             val folder = dissolving[e.containerId]
             when {
                 e.folderName != null && (e.id in dropped || e.id in dissolving) -> null
-                folder != null && e.key in homeAppKeys -> { skipped++; null }
+                folder != null && !homeAppKeys.add(e.key) -> { skipped++; null }
                 folder != null ->
                     e.copy(containerId = HomeItemEntity.HOME, page = folder.page, cellX = folder.cellX, cellY = folder.cellY)
                 else -> e

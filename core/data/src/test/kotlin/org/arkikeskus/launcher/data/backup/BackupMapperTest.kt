@@ -330,6 +330,24 @@ class BackupMapperTest {
     }
 
     @Test
+    fun toEntities_dissolve_promotes_an_app_held_by_two_dissolving_folders_only_once() {
+        // Two folders each hold Chrome plus one app the restore target lacks: both dissolve, and
+        // Chrome was not on home before, so each child would have become a HOME row of its own.
+        val items = listOf(
+            BackupItem(10, -1, "Tools", "", "", true, null, 0, 0, 0),
+            BackupItem(11, 10, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(12, 10, null, "com.gone", "G", true, null, 0, 1, 0),
+            BackupItem(20, -1, "Web", "", "", true, null, 0, 1, 0),
+            BackupItem(21, 20, null, "com.a", "A", true, null, 0, 0, 0),
+            BackupItem(22, 20, null, "com.gone2", "G2", true, null, 0, 1, 0),
+        )
+        val mapping = toEntities(items, installedAppKeys = setOf("com.a/A"), installedPackages = setOf("com.a"))
+        val home = mapping.entities.filter { it.containerId == HomeItemEntity.HOME }
+        assertThat(home.map { it.packageName }).containsExactly("com.a")
+        assertThat(mapping.skipped).isEqualTo(5) // two missing children, two folders, the duplicate
+    }
+
+    @Test
     fun toEntities_compacts_folder_children_so_addToFolder_cannot_collide() {
         // The middle child is not installed on the restore target. Left as [0, 2, 3] the next
         // addToFolder (childCount 3 as the new index) hit the unique cell index and crashed.
