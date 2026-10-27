@@ -17,4 +17,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
     testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.launcher.system
 
+import android.net.Network
+import android.net.NetworkRequest
 import android.app.AlarmManager
 import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
@@ -65,6 +67,9 @@ class SystemFlagsMonitor @Inject constructor(
             addAction(LocationManager.MODE_CHANGED_ACTION)
             addAction(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
             addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            // Data Saver (registered-only broadcast); the flag was otherwise re-read only when
+            // some other flag changed, so a toggle from the shade did not show for minutes.
+            addAction(ConnectivityManager.ACTION_RESTRICT_BACKGROUND_CHANGED)
         }
         // EXPORTED on purpose: all five actions are protected system broadcasts (only the platform
         // can send them, so spoofing is impossible and onReceive only re-reads live state anyway).
@@ -72,11 +77,26 @@ class SystemFlagsMonitor @Inject constructor(
         // permission that only system-uid senders bypass — NFC state changes come from the separate
         // com.android.nfc process, so they were silently dropped and the NFC flag froze there.
         ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        // A VPN coming up or going away, for the key: no broadcast announces it, the network does.
+        val vpnCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) = emit()
+            override fun onLost(network: Network) = emit()
+        }
+        val vpnRegistered = runCatching {
+            connectivityManager?.registerNetworkCallback(
+                NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_VPN)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+                    .build(),
+                vpnCallback,
+            )
+        }.isSuccess
 
         emit()
         awaitClose {
             context.contentResolver.unregisterContentObserver(observer)
             context.unregisterReceiver(receiver)
+            if (vpnRegistered) runCatching { connectivityManager?.unregisterNetworkCallback(vpnCallback) }
         }
     }.distinctUntilChanged()
 
