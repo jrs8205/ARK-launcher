@@ -702,11 +702,15 @@ private fun LeftSwipeAppPicker(
 }
 
 /** One runtime permission's live status; tap requests it. When Android suppresses the dialog
- *  (permanently denied), the only remaining path is the app's system settings page — opened
- *  automatically on a dialog-less denial. Re-checked on resume so a grant/revoke made in the
- *  system settings shows the moment the user comes back (the v0.6.7 notif-access pattern). */
+ *  (permanently denied), the only remaining path is the app's system settings page — opened on a
+ *  dialog-less denial. A dialog the user merely backed out of answers the same (no grant, no
+ *  rationale), so the first such answer counts as a dismissal; only a repeat opens the system
+ *  page. Re-checked on resume so a grant/revoke made in the system settings shows the moment the
+ *  user comes back (the v0.6.7 notif-access pattern). */
 @Composable
-private fun PermissionRow(label: String, permission: String) {
+internal fun PermissionRow(label: String, permission: String) {
+    // Whether this row already asked once: the second dialog-less "no" is the permanent one.
+    var asked by rememberSaveable(permission) { mutableStateOf(false) }
     val context = LocalContext.current
     var granted by remember {
         mutableStateOf(
@@ -720,7 +724,7 @@ private fun PermissionRow(label: String, permission: String) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
         granted = result
         val activity = context.findActivity()
-        if (!result && activity != null &&
+        if (!result && asked && activity != null &&
             !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
         ) {
             openAppDetailsSettings(context)
@@ -733,6 +737,7 @@ private fun PermissionRow(label: String, permission: String) {
         ),
     ) {
         if (!granted) launcher.launch(permission)
+        asked = true
     }
 }
 
