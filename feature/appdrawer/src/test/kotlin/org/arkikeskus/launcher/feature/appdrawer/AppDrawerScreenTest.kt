@@ -66,11 +66,12 @@ class AppDrawerScreenTest {
         }
     }
 
-    /** The ViewModel's stores (Room, DataStore) answer from their own threads: waits, bounded, for
-     *  [text] to be on screen instead of assuming a fixed number of idle rounds is enough. */
-    private fun awaitText(text: String) {
+    /** The ViewModel's stores (Room, DataStore) and the search (Dispatchers.Default) answer from
+     *  their own threads: waits, bounded, for [text] to be on screen instead of assuming a fixed
+     *  number of idle rounds is enough. */
+    private fun awaitText(text: String, unmerged: Boolean = false) {
         val deadline = System.currentTimeMillis() + 10_000
-        while (compose.onAllNodesWithText(text).fetchSemanticsNodes().isEmpty()) {
+        while (compose.onAllNodesWithText(text, useUnmergedTree = unmerged).fetchSemanticsNodes().isEmpty()) {
             check(System.currentTimeMillis() < deadline) { "Timed out waiting for '$text'" }
             Thread.sleep(20)
             shadowOf(Looper.getMainLooper()).idle()
@@ -104,10 +105,10 @@ class AppDrawerScreenTest {
         assertThat(viewModel.uiState.value.query).isEqualTo("c")
         compose.onNodeWithText(noResults, useUnmergedTree = true).assertDoesNotExist()
 
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
-        settle()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500)) // the debounce elapses; the search runs on its own thread
+        awaitText(noResults, unmerged = true) // no app is called "c" on the test device
 
-        compose.onNodeWithText(noResults, useUnmergedTree = true).assertExists() // no app is called "c" on the test device
+        assertThat(viewModel.uiState.value.searchPending).isFalse()
     }
 
     /** The focus goes the same way as on HOME (the keyboard with it); the query is what a test can see. */
