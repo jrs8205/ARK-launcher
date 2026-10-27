@@ -52,7 +52,9 @@ import javax.inject.Inject
 fun backupImportUri(context: Context, intent: Intent): Uri? {
     val uri = when (intent.action) {
         Intent.ACTION_VIEW -> intent.data
-        Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+        // The sender's extras are unparcelled here, in the home screen's process: a class the launcher
+        // does not have would throw out of onCreate and take the home screen down, so it is refused.
+        Intent.ACTION_SEND -> runCatching { IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java) }.getOrNull()
         else -> null
     } ?: return null
     if (uri.scheme != ContentResolver.SCHEME_CONTENT) return null

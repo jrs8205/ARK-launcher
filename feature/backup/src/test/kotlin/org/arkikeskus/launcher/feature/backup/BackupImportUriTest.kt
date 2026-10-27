@@ -3,6 +3,8 @@ package org.arkikeskus.launcher.feature.backup
 import android.content.Intent
 import android.content.pm.ProviderInfo
 import android.net.Uri
+import android.os.BadParcelableException
+import android.os.Parcelable
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +43,21 @@ class BackupImportUriTest {
 
     @Test fun aShareWithoutAFileIsRefused() {
         val intent = Intent(Intent.ACTION_SEND).setType("application/json").putExtra(Intent.EXTRA_TEXT, """{"format":3}""")
+
+        assertThat(backupImportUri(context, intent)).isNull()
+    }
+
+    /** A sharer's extras are unparcelled in the launcher's own process: a class the launcher does not
+     *  have must end the import quietly, not take the home screen down with it. */
+    @Test fun aStreamThatCannotBeUnparcelledIsRefused() {
+        val intent = object : Intent(ACTION_SEND) {
+            override fun <T : Any?> getParcelableExtra(name: String?, clazz: Class<T>): T? =
+                throw BadParcelableException("ClassNotFoundException when unmarshalling: com.example.Hostile")
+
+            @Deprecated("Deprecated in Java")
+            override fun <T : Parcelable?> getParcelableExtra(name: String?): T? =
+                throw BadParcelableException("ClassNotFoundException when unmarshalling: com.example.Hostile")
+        }.setType("application/json")
 
         assertThat(backupImportUri(context, intent)).isNull()
     }
