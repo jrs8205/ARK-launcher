@@ -34,9 +34,16 @@ fun ContactAvatar(name: String, photoUri: String?, modifier: Modifier = Modifier
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = name.firstOrNull()?.uppercase() ?: "?",
+                text = initialOf(name),
                 color = Color.White, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Medium,
             )
         }
     }
+}
+
+/** The avatar's letter: the first whole character of [name], upper-cased. An emoji or any other
+ *  character outside the basic plane is two UTF-16 units, and its first unit alone drew as a box. */
+internal fun initialOf(name: String): String {
+    if (name.isEmpty()) return "?"
+    return String(Character.toChars(name.codePointAt(0))).uppercase()
 }
