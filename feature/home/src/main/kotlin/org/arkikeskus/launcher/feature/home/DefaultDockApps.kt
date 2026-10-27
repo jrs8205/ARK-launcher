@@ -17,24 +17,28 @@ import org.arkikeskus.launcher.model.AppItem
 fun resolveDefaultDockKeys(context: Context, apps: List<AppItem>): List<String> {
     val pm = context.packageManager
 
-    fun defaultPackageFor(intent: Intent): String? =
+    /** The default handler's (package, activity); the activity tells the handler's entries apart. */
+    fun defaultFor(intent: Intent): Pair<String, String?>? =
         pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            ?.activityInfo?.packageName
+            ?.activityInfo?.let { it.packageName to it.name }
             // "android" is the chooser/resolver — there is no single default app to pin.
-            ?.takeIf { it != "android" }
+            ?.takeIf { it.first != "android" }
 
     val slots = listOf(
-        defaultPackageFor(Intent(Intent.ACTION_DIAL)),
-        runCatching { Telephony.Sms.getDefaultSmsPackage(context) }.getOrNull(),
-        defaultPackageFor(Intent(Settings.ACTION_SETTINGS)),
-        defaultPackageFor(Intent(Intent.ACTION_VIEW, Uri.parse("http://www.example.com"))),
-        defaultPackageFor(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)),
+        defaultFor(Intent(Intent.ACTION_DIAL)),
+        runCatching { Telephony.Sms.getDefaultSmsPackage(context) }.getOrNull()?.let { it to null },
+        defaultFor(Intent(Settings.ACTION_SETTINGS)),
+        defaultFor(Intent(Intent.ACTION_VIEW, Uri.parse("http://www.example.com"))),
+        defaultFor(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)),
     )
     return slots
-        .mapNotNull { pkg ->
-            pkg?.let { p ->
+        .mapNotNull { slot ->
+            slot?.let { (p, activity) ->
                 // The dock stores drawer-app keys; prefer the main profile's entry of the package.
-                apps.filter { it.packageName == p }.minByOrNull { it.userSerial }?.key
+                // A package with several launcher entries (a dialer that also holds Contacts) gives
+                // the entry the intent resolved to, not the alphabetically first one.
+                val entries = apps.filter { it.packageName == p }
+                (entries.firstOrNull { it.className == activity } ?: entries.minByOrNull { it.userSerial })?.key
             }
         }
         .distinct()
