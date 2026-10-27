@@ -211,7 +211,7 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, viewModel::setDockEnabled)
                 StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, viewModel::setDockColumns)
                 SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, viewModel::setShowDockLabels)
-                SliderRow(stringResource(R.string.settings_dock_bg), s.dockBackgroundOpacity, viewModel::setDockBackgroundOpacity)
+                DockBackgroundRow(s.dockBackgroundOpacity, viewModel::setDockBackgroundOpacity)
                 DockPreview(opacity = s.dockBackgroundOpacity, icon = previewIcon)
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_drawer))
@@ -1005,6 +1005,21 @@ private fun SliderRow(
         shape = RoundedCornerShape(20.dp),
         shadowElevation = p.shadow,
         modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+/** The dock background darkness as a percent of black, in 5 % steps with a tick of haptic feedback
+ *  on each and a chip back to the default — the same slider as the status bar's. */
+@Composable
+internal fun DockBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_dock_bg),
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = 0f..1f,
+        valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
+        default = LauncherSettings.DEFAULT_DOCK_BACKGROUND,
+    )
+}
+
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(label)

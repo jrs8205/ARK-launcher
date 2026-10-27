@@ -14,7 +14,7 @@ data class LauncherSettings(
     val showDockLabels: Boolean = false,
     val showHomeLabels: Boolean = true,
     val showDrawerLabels: Boolean = true,
-    val dockBackgroundOpacity: Float = 0.35f,
+    val dockBackgroundOpacity: Float = DEFAULT_DOCK_BACKGROUND,
     val showPageIndicator: Boolean = true,
     /** How the page dots mark the home page: a ring around its dot ([MARKER_RING]) or a house glyph
      *  in place of the dot ([MARKER_HOUSE]). */
@@ -124,5 +124,8 @@ data class LauncherSettings(
         /** [statusBarScrimOpacity] out of the box: 60 % black keeps white status text readable even
          *  over a white wallpaper, without the band looking heavy. */
         const val DEFAULT_STATUS_BAR_SCRIM = 0.6f
+
+        /** [dockBackgroundOpacity] out of the box: a light tint that sets the dock off the wallpaper. */
+        const val DEFAULT_DOCK_BACKGROUND = 0.35f
     }
 }
