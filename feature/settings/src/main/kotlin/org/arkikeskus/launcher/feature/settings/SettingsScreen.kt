@@ -107,20 +107,28 @@ fun SettingsScreen(
     // Size multipliers read as whole percents, so 100 is the default and the number is easy to come back to.
     val percentText: (Float) -> String = { resources.getString(R.string.settings_percent, scalePercent(it)) }
     val previewIcon = rememberLauncherIconBitmap()
-    var showHiddenManager by remember { mutableStateOf(false) }
-    var showLeftSwipePicker by remember { mutableStateOf(false) }
-    var showIconPackPicker by remember { mutableStateOf(false) }
-    var showCountStylePicker by remember { mutableStateOf(false) }
-    var showHomeMarkerPicker by remember { mutableStateOf(false) }
-    var showPeoplePrivacyPicker by remember { mutableStateOf(false) }
-    var showBatchTimesEditor by remember { mutableStateOf(false) }
-    var showBackup by remember { mutableStateOf(false) }
+    // Saveable: the activity is recreated on rotation and on a theme switch, and that can happen
+    // under the Backup page's file picker — a page that forgot it was open never received the
+    // picker's result (an empty file in Downloads, no message).
+    var showHiddenManager by rememberSaveable { mutableStateOf(false) }
+    var showLeftSwipePicker by rememberSaveable { mutableStateOf(false) }
+    var showIconPackPicker by rememberSaveable { mutableStateOf(false) }
+    var showCountStylePicker by rememberSaveable { mutableStateOf(false) }
+    var showHomeMarkerPicker by rememberSaveable { mutableStateOf(false) }
+    var showPeoplePrivacyPicker by rememberSaveable { mutableStateOf(false) }
+    var showBatchTimesEditor by rememberSaveable { mutableStateOf(false) }
+    var showBackup by rememberSaveable { mutableStateOf(false) }
     // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
     // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
     // list and forget the position — the "settings always restart at the top" complaint). Saveable so
     // it also survives activity recreation; a fresh Settings open still starts at the top.
     val mainScrollState = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
     var isDefaultLauncher by remember { mutableStateOf(DefaultLauncher.isDefault(context)) }
+    // The home app can also change in the system settings while this screen is behind them.
+    LifecycleResumeEffect(Unit) {
+        isDefaultLauncher = DefaultLauncher.isDefault(context)
+        onPauseOrDispose { }
+    }
     // Re-check after the user returns from the system "default home app" / role chooser.
     val setDefaultLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -729,6 +737,7 @@ internal fun PermissionRow(label: String, permission: String) {
         ) {
             openAppDetailsSettings(context)
         }
+        asked = true
     }
     ExpressiveActionRow(
         label = label,
@@ -737,7 +746,6 @@ internal fun PermissionRow(label: String, permission: String) {
         ),
     ) {
         if (!granted) launcher.launch(permission)
-        asked = true
     }
 }
 
@@ -997,19 +1005,6 @@ internal fun StatusBarScrimRow(value: Float, onValueChange: (Float) -> Unit) {
     )
 }
 
-@Composable
-private fun SliderRow(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-) {
-    val p = LocalExpressivePalette.current
-    Surface(
-        color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
 /** The dock background darkness as a percent of black, in 5 % steps with a tick of haptic feedback
  *  on each and a chip back to the default — the same slider as the status bar's. */
 @Composable
@@ -1025,6 +1020,19 @@ internal fun DockBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
     )
 }
 
+@Composable
+private fun SliderRow(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(label)
