@@ -36,6 +36,13 @@ data class CurrentWeather(
     val cityFromNetwork: Boolean = false,
 )
 
+/** How old a reading may get while every refresh fails before it is dropped: morning weather is
+ *  not the evening's. */
+internal const val WEATHER_MAX_AGE_MS = 3L * 60 * 60 * 1000
+
+/** Whether [cached] is too old to show at [now]; a clock set back never expires a reading. */
+internal fun weatherExpired(cached: CurrentWeather, now: Long): Boolean = now - cached.fetchedAt > WEATHER_MAX_AGE_MS
+
 /**
  * Current weather from the keyless Open-Meteo API for the smartspace widget. Needs a (coarse)
  * location permission; without one it emits null and never touches the network. Results are cached
@@ -82,6 +89,8 @@ class WeatherRepository @Inject constructor(
             _weather.value = null
             return
         }
+        // A reading no refresh has managed to replace for hours is dropped rather than shown as current.
+        _weather.value?.takeIf { weatherExpired(it, System.currentTimeMillis()) }?.let { _weather.compareAndSet(it, null) }
         val cached = _weather.value
         // Captured once: the geocoders, the cache key and the freshness stamp must all use the SAME
         // language even if the user switches languages while this fetch is running.
