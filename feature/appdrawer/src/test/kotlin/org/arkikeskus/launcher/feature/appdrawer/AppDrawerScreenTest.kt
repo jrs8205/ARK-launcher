@@ -5,6 +5,7 @@ import android.os.Looper
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -65,11 +66,24 @@ class AppDrawerScreenTest {
         }
     }
 
+    /** The ViewModel's stores (Room, DataStore) answer from their own threads: waits, bounded, for
+     *  [text] to be on screen instead of assuming a fixed number of idle rounds is enough. */
+    private fun awaitText(text: String) {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (compose.onAllNodesWithText(text).fetchSemanticsNodes().isEmpty()) {
+            check(System.currentTimeMillis() < deadline) { "Timed out waiting for '$text'" }
+            Thread.sleep(20)
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.waitForIdle()
+        }
+    }
+
     private fun addApps() = context.getString(R.string.folder_add_apps)
 
     @Test fun homeTakesTheFolderSheetWithTheDrawer() {
         runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
+        awaitText("Tools")
         compose.onNodeWithText("Tools").performClick()
         settle()
         compose.onNodeWithText(addApps()).assertExists()

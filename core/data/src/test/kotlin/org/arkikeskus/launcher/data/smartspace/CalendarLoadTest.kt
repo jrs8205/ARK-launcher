@@ -22,6 +22,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.TimeZone
 
 /**
@@ -65,7 +68,9 @@ class CalendarLoadTest {
         TimeZone.setDefault(TimeZone.getTimeZone("Europe/Helsinki"))
         shadowOf(context).grantPermissions(Manifest.permission.READ_CALENDAR)
         val day = 24 * 60 * 60 * 1000L
-        val todayUtc = System.currentTimeMillis() / day * day // today's UTC midnight
+        // Today's LOCAL date as the provider stores an all-day instance: its UTC midnight. (The
+        // UTC date is yesterday's between Helsinki midnight and the UTC day change.)
+        val todayUtc = LocalDate.now(ZoneId.of("Europe/Helsinki")).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         FakeCalendar.rows = List(50) { Triple("Yesterday $it", todayUtc - day, todayUtc) } + Triple("Today", todayUtc, todayUtc + day)
         Robolectric.buildContentProvider(FakeCalendar::class.java).create(ProviderInfo().apply { authority = CalendarContract.AUTHORITY })
         val repository = CalendarRepository(context, scope)
