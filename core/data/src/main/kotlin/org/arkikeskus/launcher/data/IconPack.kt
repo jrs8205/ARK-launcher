@@ -72,8 +72,11 @@ class IconPackRepository internal constructor(
 
     // package -> parsed pack (or null when it has no usable appfilter); LinkedHashMap for a stable order.
     private val cache = HashMap<String, IconPack?>()
-    // Bumped by every invalidation: a parse that overlapped one is stale and is not cached.
+    // Bumped by every invalidation: a parse that overlapped one is stale and is read again.
     private val generation = AtomicInteger()
+    // package -> parses in progress outside the monitor; they count as cached for [invalidate], so a
+    // package event during a parse still bumps the icon epochs and the stale icons are fetched again.
+    private val loading = HashMap<String, Int>()
     // package -> its resources, for single drawables picked from it (see [drawable]).
     private val resources = HashMap<String, Resources?>()
 
@@ -101,7 +104,8 @@ class IconPackRepository internal constructor(
      *  pack read only for a picked icon — so the caller knows any already rasterized icons may be stale. */
     @Synchronized
     fun invalidate(pkg: String): Boolean {
-        val wasCached = cache.containsKey(pkg) || resources.containsKey(pkg) || names.containsKey(pkg)
+        val wasCached = cache.containsKey(pkg) || resources.containsKey(pkg) || names.containsKey(pkg) ||
+            (loading[pkg] ?: 0) > 0
         cache.remove(pkg)
         resources.remove(pkg)
         names.remove(pkg)
@@ -155,22 +159,44 @@ class IconPackRepository internal constructor(
 
     /** Loads + parses [pkg] (cached, including a cached "no pack" result). The parse runs OUTSIDE
      *  the monitor: a big pack takes seconds, and a package event on the main thread (which
-     *  invalidates) must not wait for it. A result that overlapped an invalidation is not kept. */
+     *  invalidates) must not wait for it. A parse that overlapped an invalidation (the pack was
+     *  updated meanwhile) is stale: it is neither cached nor returned, the pack is read again. */
     fun get(pkg: String): IconPack? {
         if (pkg.isBlank()) return null
-        synchronized(this) { if (cache.containsKey(pkg)) return cache[pkg] }
-        val before = generation.get()
-        val pack = runCatching { loader(pkg) }
-            .onFailure { android.util.Log.w("IconPack", "load($pkg) failed: $it") }
-            .getOrNull()
-        synchronized(this) {
-            if (cache.containsKey(pkg)) return cache[pkg]
-            if (generation.get() == before) cache[pkg] = pack
+        var pack: IconPack? = null
+        repeat(MAX_PARSE_ATTEMPTS) {
+            val before: Int
+            synchronized(this) {
+                if (cache.containsKey(pkg)) return cache[pkg]
+                before = generation.get()
+                loading[pkg] = (loading[pkg] ?: 0) + 1
+            }
+            pack = try {
+                runCatching { loader(pkg) }
+                    .onFailure { android.util.Log.w("IconPack", "load($pkg) failed: $it") }
+                    .getOrNull()
+            } finally {
+                synchronized(this) {
+                    val left = (loading[pkg] ?: 1) - 1
+                    if (left <= 0) loading.remove(pkg) else loading[pkg] = left
+                }
+            }
+            synchronized(this) {
+                if (cache.containsKey(pkg)) return cache[pkg]
+                if (generation.get() == before) {
+                    cache[pkg] = pack
+                    return pack
+                }
+            }
+            // The pack changed under the parse: read it again.
         }
-        return pack
+        return pack // updated over and over while parsing: the latest reading, not cached
     }
 
     private companion object {
+        /** How many times a parse is repeated when the pack keeps being updated under it. */
+        const val MAX_PARSE_ATTEMPTS = 3
+
         /** Theme identifiers packs declare as an intent ACTION (Nova/ADW/Go/Atom/Lawnchair). */
         val THEME_ACTIONS = listOf(
             "org.adw.launcher.THEMES",
