@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.feature.backup
 
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,6 +65,14 @@ fun BackupScreen(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) pendingImport = uri }
 
+    // A ROM without a documents UI has no handler for the pickers: launching one throws, and the
+    // backup screen runs in the home process. Say so instead.
+    val scope = rememberCoroutineScope()
+    val launchFailed = stringResource(R.string.backup_failed)
+    fun guarded(launch: () -> Unit) {
+        runCatching(launch).onFailure { scope.launch { snackbar.showSnackbar(launchFailed) } }
+    }
+
     // --- Event handler ---
     val resources by rememberUpdatedState(LocalResources.current)
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -92,11 +102,11 @@ fun BackupScreen(
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             val backupDefaultName = stringResource(R.string.backup_default_name)
             Button(
-                onClick = { createDoc.launch(backupFileName(backupDefaultName, LocalDateTime.now())) },
+                onClick = { guarded { createDoc.launch(backupFileName(backupDefaultName, LocalDateTime.now())) } },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_export)) }
             OutlinedButton(
-                onClick = { openDoc.launch(arrayOf("application/json")) },
+                onClick = { guarded { openDoc.launch(arrayOf("application/json")) } },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_import)) }
             if (localLastBackupMs > 0L) {
