@@ -197,6 +197,8 @@ internal fun Workspace(
     // update is dropped). Keyed by appWidgetId. [widgetScrollableById] mirrors per-id scrollability.
     widgetViews: Map<Int, android.appwidget.AppWidgetHostView> = emptyMap(),
     widgetScrollableById: Map<Int, Boolean> = emptyMap(),
+    /** Bumped on a provider change, so a widget whose provider info was missing is looked up again. */
+    widgetProviderGeneration: Int = 0,
     widgetSizeReporter: WidgetSizeReporter = remember { WidgetSizeReporter() },
     /** The app drawer is open (or sliding): the home screen is not at rest for [newItems]. */
     drawerOpen: Boolean = false,
@@ -1348,7 +1350,7 @@ internal fun Workspace(
                             is PlacedWidget -> {
                                 val widget = entry
                                 val ctx = LocalContext.current
-                                val info = remember(widget.appWidgetId) {
+                                val info = remember(widget.appWidgetId, widgetProviderGeneration) {
                                     AppWidgetManager.getInstance(ctx).getAppWidgetInfo(widget.appWidgetId)
                                 }
                                 // The persistent host view (created + kept alive in HomeScreen so its
@@ -1578,7 +1580,7 @@ internal fun Workspace(
                         val ctxE = LocalContext.current
                         // A built-in widget (appWidgetId == null) has no provider info: it resizes freely
                         // within the grid (with a sane minimum width) and has nothing to reconfigure.
-                        val info = remember(ew.appWidgetId) {
+                        val info = remember(ew.appWidgetId, widgetProviderGeneration) {
                             ew.appWidgetId?.let { AppWidgetManager.getInstance(ctxE).getAppWidgetInfo(it) }
                         }
                         // A built-in's min/default spans depend on its type (the notifications row is

@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.home
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
@@ -228,6 +229,12 @@ fun HomeScreen(
 
     val widgetHost = LocalAppWidgetHost.current
     val widgetConfigLauncher = LocalWidgetConfigLauncher.current
+    val widgetReconfigureLauncher = LocalWidgetReconfigureLauncher.current
+    // Bumped when the system reports a provider change: host views that could not be created (the
+    // provider info was missing while its app was being updated) are tried again.
+    val widgetProviderGeneration by (
+        (widgetHost as? LauncherWidgetHost)?.providerGeneration ?: remember { MutableStateFlow(0) }
+        ).collectAsStateWithLifecycle()
     val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     // The package an icon's Widgets row opened the picker on; null for the full gallery.
@@ -285,7 +292,7 @@ fun HomeScreen(
     val placedWidgetIds = remember(uiState.entries) {
         uiState.entries.filterIsInstance<PlacedWidget>().map { it.appWidgetId }.toSet()
     }
-    LaunchedEffect(placedWidgetIds, widgetHost) {
+    LaunchedEffect(placedWidgetIds, widgetHost, widgetProviderGeneration) {
         val host = widgetHost ?: return@LaunchedEffect
         placedWidgetIds.forEach { id ->
             if (widgetViews[id] == null) {
@@ -646,16 +653,23 @@ fun HomeScreen(
                     val info = appWidgetManager.getAppWidgetInfo(id)
                     val configure = info?.configure
                     if (configure != null) {
-                        runCatching {
-                            reconfigureLauncher.launch(
-                                android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
-                                    .setComponent(configure)
-                                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
-                            )
+                        // Through the host first: the system starts the activity on the provider's
+                        // behalf, so one that is not exported opens too (a raw intent is refused
+                        // there, and nothing opened). The raw intent stays as the fallback.
+                        val throughHost = widgetReconfigureLauncher?.invoke(id) == true
+                        if (!throughHost) {
+                            runCatching {
+                                reconfigureLauncher.launch(
+                                    android.content.Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                                        .setComponent(configure)
+                                        .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
+                                )
+                            }
                         }
                     }
                 },
                 widgetViews = widgetViews,
+                widgetProviderGeneration = widgetProviderGeneration,
                 widgetScrollableById = widgetScrollableById,
                 widgetSizeReporter = widgetSizeReporter,
                 drawerOpen = drawerOpen,

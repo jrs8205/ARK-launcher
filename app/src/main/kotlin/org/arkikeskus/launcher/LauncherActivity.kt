@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher
 
+import org.arkikeskus.launcher.feature.home.LauncherWidgetHost
+import org.arkikeskus.launcher.feature.home.LocalWidgetReconfigureLauncher
 import android.appwidget.AppWidgetHost
 import android.content.Intent
 import android.os.Bundle
@@ -56,7 +58,7 @@ class LauncherActivity : ComponentActivity() {
 
     // Use the Activity context (not applicationContext) for the host — Launcher3 does the same; a
     // collection widget's RemoteViewsAdapter and the host's listener callbacks register against this.
-    private val appWidgetHost by lazy { AppWidgetHost(this, APPWIDGET_HOST_ID) }
+    private val appWidgetHost by lazy { LauncherWidgetHost(this, APPWIDGET_HOST_ID) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -74,6 +76,11 @@ class LauncherActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalAppWidgetHost provides appWidgetHost,
                     LocalWidgetConfigLauncher provides ::startWidgetConfig,
+                    LocalWidgetReconfigureLauncher provides { id ->
+                        startWidgetReconfigure(id) { widgetId, requestCode, options ->
+                            appWidgetHost.startAppWidgetConfigureActivityForResult(this, widgetId, 0, requestCode, options)
+                        }
+                    },
                     LocalOrphanWidgetConfigResult provides orphanConfigResult,
                     LocalIconEpochs provides iconEpochs,
                     LocalAppLaunchSources provides launchSources,
@@ -118,7 +125,7 @@ class LauncherActivity : ComponentActivity() {
     @Deprecated("Required for AppWidgetHost.startAppWidgetConfigureActivityForResult (legacy result API)")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == WIDGET_CONFIG_REQUEST) {
+        if (isWidgetConfigResult(requestCode)) {
             val ok = resultCode == android.app.Activity.RESULT_OK
             val cb = pendingConfigCallback
             pendingConfigCallback = null
@@ -148,10 +155,5 @@ class LauncherActivity : ComponentActivity() {
         // Not hasWindowFocus() like Launcher3 — our Compose popups are separate windows and would
         // steal focus from the activity. See [wasForeground] for why not lifecycle.currentState.
         homeSignals.tryEmit(wasForeground)
-    }
-
-    private companion object {
-        /** Request code for the system-routed widget configuration activity. */
-        const val WIDGET_CONFIG_REQUEST = 0x4357
     }
 }

@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.feature.home
 
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetProviderInfo
 import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE
@@ -14,6 +16,31 @@ const val APPWIDGET_HOST_ID = 0x41524B31
 
 /** The Activity-owned AppWidgetHost (start/stop tied to the Activity lifecycle); null outside the launcher. */
 val LocalAppWidgetHost = staticCompositionLocalOf<AppWidgetHost?> { null }
+
+/**
+ * The launcher's AppWidgetHost: it reports the system's "providers changed" as a generation, so a
+ * widget whose provider info was missing when the host views were built (its app was being updated
+ * at that moment) gets another try instead of staying "Widget unavailable" until the widget set
+ * changes, as Launcher3 does.
+ */
+open class LauncherWidgetHost(context: Context, hostId: Int) : AppWidgetHost(context, hostId) {
+    private val _providerGeneration = MutableStateFlow(0)
+
+    /** Bumped on every provider change; a key for the host-view creation and the provider lookups. */
+    val providerGeneration: StateFlow<Int> = _providerGeneration.asStateFlow()
+
+    override fun onProvidersChanged() {
+        super.onProvidersChanged()
+        _providerGeneration.value++
+    }
+}
+
+/**
+ * Starts a placed widget's configuration activity AGAIN through the host (the system starts it on
+ * the provider's behalf, so a configuration activity that is not exported opens too); false when the
+ * host refused, so the caller falls back to a plain intent. Provided by LauncherActivity; null outside it.
+ */
+val LocalWidgetReconfigureLauncher = staticCompositionLocalOf<((appWidgetId: Int) -> Boolean)?> { null }
 
 /**
  * Launches a placed widget's configuration activity via the SYSTEM (Activity-routed
