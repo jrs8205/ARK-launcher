@@ -57,6 +57,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -415,42 +416,31 @@ private fun rememberNotifIcon(n: StatusNotification): ImageBitmap? {
     }
 }
 
-/** Current time, formatted per the device's 12/24h setting, refreshed periodically AND re-formatted
- *  live when the user flips the system 12/24-hour, time-zone or locale setting (the formatter was
- *  previously captured once, so the change didn't show until the process/view was recreated). */
+/**
+ * The time of day in the phone's own format ([rememberTimeFormat]: 12/24 h, zone and locale changes
+ * re-format it at once). It turns with the minute on the system's own tick, and a resume re-reads
+ * it: the screen going off stops the activity, and the 15-second poll this used to run slept with
+ * the phone, so after a wake the bar showed the time of its last tick until the timer caught up —
+ * and even awake it ran up to 15 s behind the system clock right above it. [now] is the clock, for
+ * tests.
+ */
 @Composable
-private fun rememberClock(): String {
+internal fun rememberClock(now: () -> Long = System::currentTimeMillis): String {
     val context = LocalContext.current
-    // Bumped by a receiver + observer below; re-fetches the formatter when the format could change.
-    var formatEpoch by remember { mutableStateOf(0) }
-    DisposableEffect(context) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context?, i: Intent?) { formatEpoch++ }
+    val fmt = rememberTimeFormat()
+    var time by remember(fmt) { mutableStateOf(fmt.format(Date(now()))) }
+    DisposableEffect(context, fmt) {
+        val tick = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, i: Intent?) { time = fmt.format(Date(now())) }
         }
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_TIME_CHANGED)
-            addAction(Intent.ACTION_TIMEZONE_CHANGED)
-            addAction(Intent.ACTION_LOCALE_CHANGED)
-        }
-        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) { formatEpoch++ }
-        }
-        context.contentResolver.registerContentObserver(
-            Settings.System.getUriFor(Settings.System.TIME_12_24), false, observer,
+        ContextCompat.registerReceiver(
+            context, tick, IntentFilter(Intent.ACTION_TIME_TICK), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        onDispose {
-            runCatching { context.unregisterReceiver(receiver) }
-            context.contentResolver.unregisterContentObserver(observer)
-        }
+        onDispose { runCatching { context.unregisterReceiver(tick) } }
     }
-    val fmt = remember(formatEpoch) { android.text.format.DateFormat.getTimeFormat(context) }
-    var time by remember(fmt) { mutableStateOf(fmt.format(Date())) }
-    LaunchedEffect(fmt) {
-        while (true) {
-            time = fmt.format(Date())
-            delay(15_000)
-        }
+    LifecycleResumeEffect(fmt) {
+        time = fmt.format(Date(now()))
+        onPauseOrDispose { }
     }
     return time
 }

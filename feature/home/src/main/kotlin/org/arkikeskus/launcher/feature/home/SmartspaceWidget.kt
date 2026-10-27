@@ -161,8 +161,8 @@ fun SmartspaceWidget(
         ActivityResultContracts.RequestPermission(),
     ) { viewModel.refresh() }
 
-    val timeFormat = remember(now / 3_600_000) { android.text.format.DateFormat.getTimeFormat(context) }
-    val timeText = remember(now) { timeFormat.format(Date(now)) }
+    val timeFormat = rememberTimeFormat()
+    val timeText = remember(now, timeFormat) { timeFormat.format(Date(now)) }
     val dateText = remember(now) {
         DateUtils.formatDateTime(
             context, now,
@@ -249,7 +249,7 @@ fun SmartspaceWidget(
             context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock?.triggerTime
         }
         val alarmText = if (nextAlarm != null) {
-            remember(nextAlarm) {
+            remember(nextAlarm, timeFormat) {
                 buildString {
                     if (!DateUtils.isToday(nextAlarm)) {
                         append(
@@ -379,7 +379,7 @@ fun SmartspaceWidget(
                     },
             )
             event != null -> {
-                val eventText = remember(event, now) {
+                val eventText = remember(event, now, timeFormat) {
                     buildString {
                         if (!DateUtils.isToday(event.begin)) {
                             append(
