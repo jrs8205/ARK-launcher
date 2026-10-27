@@ -164,6 +164,11 @@ class LauncherAppsSource @Inject constructor(
         return try {
             val user = um.getUserForSerialNumber(userSerial) ?: return false // the profile was removed for good
             if (um.isQuietModeEnabled(user) || !um.isUserUnlocked(user)) return true
+            // Archived (Android 15+): the app is "not installed" to the package manager, but the
+            // launcher still lists it, LauncherApps reports it enabled, and a tap restores it — its
+            // home icon and folder place must survive, as they do in Launcher3. Only an archived
+            // package is enabled while uninstalled, so this cannot keep a truly removed app.
+            if (Build.VERSION.SDK_INT >= 35 && launcherApps.isPackageEnabled(packageName, user)) return true
             // Unmounted storage: the package manager still knows the app (with uninstalled packages
             // included) but can't launch it — Launcher3's "app on SD card" check.
             val info = launcherApps.getApplicationInfo(packageName, PackageManager.MATCH_UNINSTALLED_PACKAGES, user)
