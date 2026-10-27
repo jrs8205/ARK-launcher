@@ -465,6 +465,16 @@ class SettingsRepository @Inject constructor(
         p[Keys.DOCK_FAVORITES] = current.joinToString("\n")
     }
 
+    /** Drops every dock favourite of (package, profile): the app was uninstalled. */
+    suspend fun removeDockPackage(packageName: String, userSerial: Long) = edit { p ->
+        val current = currentFavorites(p)
+        val kept = current.filterNot { key ->
+            val parts = key.split('/')
+            parts.size == 3 && parts[0] == packageName && parts[2].toLongOrNull() == userSerial
+        }
+        if (kept.size != current.size) p[Keys.DOCK_FAVORITES] = kept.joinToString("\n")
+    }
+
     /**
      * Inserts [key] into the dock favorites at [index] (clamped), used when an icon is dragged into
      * the dock. Any existing occurrence is removed first, so this also re-positions a key already in

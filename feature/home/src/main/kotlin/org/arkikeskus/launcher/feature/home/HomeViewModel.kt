@@ -281,11 +281,18 @@ class HomeViewModel @Inject constructor(
         // was destroyed behind Settings — and by then the app can be back: reinstalled, with a
         // shortcut pinned through the confirmation, which runs without a ViewModel. So rows go only
         // while the app is still gone; the check is fail-safe (an app it cannot judge keeps its rows).
+        // The dock favourite goes with the rows (Launcher3 drops hotseat items on uninstall too): a
+        // favourite kept for a gone app showed as an empty slot the user then filled, and when the
+        // app came back the list ran past the column cap: the last icon fell off the dock, and off
+        // home. Never pruned at start-up: a restored phone holds favourites Play has yet to install.
         viewModelScope.launch {
             appRepository.packageRemovals.collect { removed ->
                 removed.forEach { (pkg, serial) ->
                     val stillGone = withContext(Dispatchers.IO) { !appRepository.isAppInstalled(pkg, serial) }
-                    if (stillGone) homeLayoutRepository.removeAppRowsForPackage(pkg, serial)
+                    if (stillGone) {
+                        homeLayoutRepository.removeAppRowsForPackage(pkg, serial)
+                        settingsRepository.removeDockPackage(pkg, serial)
+                    }
                 }
             }
         }

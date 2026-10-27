@@ -6,6 +6,7 @@ import android.content.pm.LauncherApps
 import android.os.Looper
 import android.os.Process
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
@@ -65,6 +66,45 @@ class HomeViewModelPackageRemovalTest {
             val viewModel = wiring.homeViewModel()
             awaitUntil("the rows gone") { wiring.dao.getContainer(HOME).isEmpty() }
 
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /** The dock keeps a favourite whose app is gone: it showed an empty slot, the user filled it, and
+     *  when the app came back the list ran past the column cap and the last icon fell off the dock
+     *  (and off home). A favourite goes with its app's rows while the app is still gone. */
+    @Test fun aRemovalOfAnAppStillGoneDropsItsDockFavourite() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            wiring.settingsRepository.seedDock(listOf("com.a/A/0", "com.b/B/0", "com.gone/G/0", "com.c/C/0"))
+            launcherApps.notifyPackageRemoved("com.gone")
+            shadowOf(Looper.getMainLooper()).idle()
+
+            val viewModel = wiring.homeViewModel()
+            awaitUntil("the favourite gone") {
+                wiring.settingsRepository.dockFavorites.first() == listOf("com.a/A/0", "com.b/B/0", "com.c/C/0")
+            }
+
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    @Test fun aRemovalHandledAfterTheAppCameBackKeepsItsDockFavourite() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            wiring.settingsRepository.seedDock(listOf("com.a/A/0", "com.chat/Main/0"))
+            launcherApps.notifyPackageRemoved("com.chat")
+            shadowOf(Looper.getMainLooper()).idle()
+            installed("com.chat")
+
+            val viewModel = wiring.homeViewModel()
+            settle()
+
+            assertThat(wiring.settingsRepository.dockFavorites.first()).containsExactly("com.a/A/0", "com.chat/Main/0").inOrder()
             wiring.clear(viewModel)
         } finally {
             wiring.close()
