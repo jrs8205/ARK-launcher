@@ -432,6 +432,21 @@ fun SettingsScreen(
                     label = stringResource(R.string.settings_feedback_telegram),
                     description = stringResource(R.string.settings_feedback_telegram_desc),
                 ) { openLink(context, TELEGRAM_URL) }
+
+                // The installed build, last of all, so a glance here answers "which version is this"
+                // without the system's app info — and compares with the newest release above.
+                val installedVersion = remember(context) { installedVersionLabel(context) }
+                if (installedVersion != null) {
+                    Text(
+                        text = installedVersion,
+                        color = palette.dim,
+                        fontSize = 12.5.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 28.dp, bottom = 4.dp),
+                    )
+                }
             }
         }
 
