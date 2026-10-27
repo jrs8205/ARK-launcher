@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -983,7 +985,7 @@ internal fun LazyGridScope.appCells(
             badgeShowCount = badgeShowCount,
             badgeScale = badgeScale,
             modifier = Modifier
-                .onGloballyPositioned { bounds = it.boundsInRoot() }
+                .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
                 // One unified gesture (like Workspace/Dock) but non-consuming until the
                 // long-press fires, so a quick drag still scrolls the grid: quick tap
                 // launches; a still long-press lifts → drag out to home/dock, or with no
@@ -991,7 +993,14 @@ internal fun LazyGridScope.appCells(
                 .pointerInput(app.key, locked) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
+        // The gesture below lives as long as the key (a label or icon change does not restart it)
+        // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
+        // time showed the old icon and saving a name wiped a picture picked a moment earlier.
+        val currentApp by rememberUpdatedState(app)
+        // [bounds] anchors the popup and is clipped by the grid; [origin] is the cell's real top-left,
+        // which a cell half scrolled under the grid's top edge still needs for the finger's position.
                         val slop = viewConfiguration.touchSlop
+        var origin by remember { mutableStateOf(Offset.Zero) }
                         // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
                         var outcome = 0
                         // The lift starts where the finger is when the hold completes.
@@ -1033,7 +1042,7 @@ internal fun LazyGridScope.appCells(
                         }
                         when (outcome) {
                             1 -> {
-                                onAppClick(app)
+                                onAppClick(currentApp)
                                 return@awaitEachGesture
                             }
                             2 -> return@awaitEachGesture
@@ -1047,13 +1056,13 @@ internal fun LazyGridScope.appCells(
                         // the drag, so its local coordinate space stays put and this stays
                         // accurate.
                         val token = Any()
-                        if (!dragController.start(app, DragSource.Drawer, bounds.topLeft + holdPos, token)) {
+                        if (!dragController.start(currentApp, DragSource.Drawer, origin + holdPos, token)) {
                             return@awaitEachGesture
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         // The menu opens now, by the icon, under the still-held finger (issue #12);
                         // pulling the icon on closes it (DismissWhenDragMoves) and the drag goes on.
-                        onAppLongClick(app, bounds)
+                        onAppLongClick(currentApp, bounds)
                         val dragStartPx = IconPress.DragStartThreshold.toPx()
                         try {
                             val completed = drag(down.id) { change ->
@@ -1069,7 +1078,7 @@ internal fun LazyGridScope.appCells(
                                     onDragOutStart()
                                 }
                                 if (dragController.moving) {
-                                    dragController.update(bounds.topLeft + change.position)
+                                    dragController.update(origin + change.position)
                                 }
                             }
                             // Nothing on release once HOME cancelled the lift.
@@ -1078,10 +1087,10 @@ internal fun LazyGridScope.appCells(
                                 val root = dragController.rootPosition
                                 when {
                                     dragController.isOverDock(root) && dragController.dockHasSpace ->
-                                        onDropOnDock(app)
+                                        onDropOnDock(currentApp)
                                     dragController.isOverGrid(root) -> {
                                         val (page, cx, cy) = dragController.cellAt(root)
-                                        onDropOnHome(app, page, cx, cy)
+                                        onDropOnHome(currentApp, page, cx, cy)
                                     }
                                 }
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
