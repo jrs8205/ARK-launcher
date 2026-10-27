@@ -1,13 +1,32 @@
 package org.arkikeskus.launcher.data
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import java.io.IOException
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
 class AppUsageRepositoryTest {
 
     private val half = AppUsageRepository.HALF_LIFE_MS
+
+    @Test
+    fun `recordLaunch survives a write the storage refuses`() = runTest {
+        // Internal storage full: DataStore throws from edit. The record is fire-and-forget on the
+        // application scope, where an escaping exception would kill the home process after each launch.
+        val refusing = object : DataStore<Preferences> {
+            override val data: Flow<Preferences> = flowOf(emptyPreferences())
+            override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+                throw IOException("No space left on device")
+        }
+
+        AppUsageRepository(refusing).recordLaunch("com.a/A/0")
+    }
 
     @Test
     fun `currentScore halves across one half-life`() {

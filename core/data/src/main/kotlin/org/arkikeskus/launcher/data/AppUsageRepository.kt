@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.pow
@@ -25,12 +26,18 @@ class AppUsageRepository @Inject constructor(
 ) {
     val usage: Flow<Map<String, UsageStat>> = dataStore.data.map { parse(it[Keys.APP_USAGE]) }
 
-    /** Records a launch of [key] now: decays its stored score to now, then adds 1. */
+    /** Records a launch of [key] now: decays its stored score to now, then adds 1. Best effort: a
+     *  write the storage refuses (a full disk) is dropped — the caller fires this on the application
+     *  scope, where an escaping exception would kill the home process after every app launch. */
     suspend fun recordLaunch(key: String) {
-        dataStore.edit { p ->
-            val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
-            stats[key] = applyLaunch(stats[key], System.currentTimeMillis())
-            p[Keys.APP_USAGE] = serialize(stats)
+        try {
+            dataStore.edit { p ->
+                val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
+                stats[key] = applyLaunch(stats[key], System.currentTimeMillis())
+                p[Keys.APP_USAGE] = serialize(stats)
+            }
+        } catch (e: IOException) {
+            // Dropped: a usage score is not worth a crash, and the next launch records again.
         }
     }
 
