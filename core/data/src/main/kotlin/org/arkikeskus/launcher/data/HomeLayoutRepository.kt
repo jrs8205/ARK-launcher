@@ -315,6 +315,9 @@ class HomeLayoutRepository @Inject constructor(
      *  instead of inserting a duplicate child (duplicate keys crash the folder grid). */
     suspend fun addToFolder(appItem: AppItem, folderId: Long) {
         db.withTransaction {
+            // The folder may have dissolved between the drag's start and the drop (its other apps
+            // uninstalled meanwhile): a row moved into a container no folder owns shows nowhere.
+            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
             val row = dao.getByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
                 ?: return@withTransaction
             joinFolder(folderId, row, appItem)
@@ -601,6 +604,16 @@ class HomeLayoutRepository @Inject constructor(
             if (owners.any { (pkg, serial) -> resolver.isTemporarilyUnavailable(pkg, serial) }) {
                 return@withTransaction false
             }
+            // A pinned shortcut row goes only when the system says the shortcut is gone: while the
+            // launcher is not the default home (or the shortcut service is not ready) no shortcut
+            // renders, so a page of them looks empty although every one would show again.
+            val unconfirmed = rows.filter { it.containerId == HOME && it.shortcutId != null }
+                .groupBy { it.packageName to it.userSerial }
+                .any { (owner, shortcuts) ->
+                    val ids = shortcuts.map { it.shortcutId!! }
+                    !resolver.missingShortcuts(owner.first, owner.second, ids).containsAll(ids)
+                }
+            if (unconfirmed) return@withTransaction false
             if (folders.isNotEmpty()) dao.deleteByContainers(folders)
             dao.deleteOnPage(HOME, page)
         } else if (dao.countOnPage(HOME, page) > 0) {

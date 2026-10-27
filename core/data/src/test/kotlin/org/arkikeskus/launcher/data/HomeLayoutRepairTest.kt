@@ -320,6 +320,21 @@ class HomeLayoutRepairTest {
     }
 
     @Test
+    fun purgePage_keepsAPageWhoseShortcutsTheSystemHasNotConfirmedGone() = runTest {
+        // While the launcher is not the default home the system answers no shortcut query, so a
+        // page of pinned shortcuts looks empty; the rows go only when the system says they are gone.
+        shortcut("com.chat", "mia", x = 0).also { dao.moveById(it, HOME, 1, 0, 0) }
+        homeApp("b", x = 0).also { dao.moveById(it, HOME, 2, 0, 0) }
+
+        assertThat(repo.removeEmptyPage(1, purge = true)).isFalse()
+        assertThat(dao.getContainer(HOME).map { it.shortcutId to it.page }).containsExactly("mia" to 1, null to 2)
+
+        resolver.missing["com.chat"] = setOf("mia")
+        assertThat(repo.removeEmptyPage(1, purge = true)).isTrue()
+        assertThat(dao.getContainer(HOME).map { it.packageName to it.page }).containsExactly("b" to 1)
+    }
+
+    @Test
     fun purgePage_stillDeletesRowsThatCanNeverShow() = runTest {
         dao.insert(HomeItemEntity(packageName = "disabled", className = "d.Main", page = 1, cellX = 0, cellY = 0))
         homeApp("b", x = 0).also { dao.moveById(it, HOME, 2, 0, 0) }
@@ -352,5 +367,21 @@ class HomeLayoutRepairTest {
         repo.removeMissingShortcuts("com.chat", userSerial = 10L)
 
         assertThat(dao.getContainer(HOME).map { it.userSerial }).containsExactly(0L)
+    }
+
+    // --- A drop onto a folder that is gone ----------------------------------------------------
+
+    @Test
+    fun addToFolder_leavesTheIconOnHomeWhenTheFolderNoLongerExists() = runTest {
+        // The folder dissolved (its other apps uninstalled) between the drag's start and the drop:
+        // the app's row must not move into a container no folder row owns, where nothing shows it.
+        val a = homeApp("a", x = 0)
+        val f = folder(1, "b", "c")
+        dao.deleteByContainers(listOf(f))
+        dao.deleteById(f)
+
+        repo.addToFolder(app("a"), f)
+
+        assertThat(dao.getById(a)!!.containerId).isEqualTo(HOME)
     }
 }
