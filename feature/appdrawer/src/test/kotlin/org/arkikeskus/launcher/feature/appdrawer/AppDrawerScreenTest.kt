@@ -88,12 +88,12 @@ class AppDrawerScreenTest {
         compose.onNode(hasSetTextAction()).performTextInput("c")
         settle() // the query is on screen; the looper's clock stands still, so the debounce has not run
         assertThat(viewModel.uiState.value.query).isEqualTo("c")
-        compose.onNodeWithText(noResults).assertDoesNotExist()
+        compose.onNodeWithText(noResults, useUnmergedTree = true).assertDoesNotExist()
 
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500))
         settle()
 
-        compose.onNodeWithText(noResults).assertExists() // no app is called "c" on the test device
+        compose.onNodeWithText(noResults, useUnmergedTree = true).assertExists() // no app is called "c" on the test device
     }
 
     /** The focus goes the same way as on HOME (the keyboard with it); the query is what a test can see. */
