@@ -245,11 +245,24 @@ internal fun Workspace(
     // the page the user was on. Later home-page changes never move the pager — the page menu's
     // insert/remove rewrite the stored index while the user is on another page on purpose.
     var openedOnHome by rememberSaveable { mutableStateOf(false) }
+    // The page the user was on, saved with the pager. After the process died behind another app
+    // the activity is recreated with its saved state BEFORE the layout is known: the first frame
+    // measures the pager with the placeholder count (one page), which clamps the restored page to
+    // index 1 and writes that back. Once the rows arrive, the pager returns to the saved page.
+    var lastPage by rememberSaveable { mutableIntStateOf(pagerState.currentPage) }
     LaunchedEffect(homePage != null) {
         val target = homePage ?: return@LaunchedEffect
-        if (openedOnHome) return@LaunchedEffect
+        if (openedOnHome) {
+            val restored = lastPage.coerceIn(0, pageCount - 1)
+            if (pagerState.currentPage != restored) pagerState.scrollToPage(restored)
+            return@LaunchedEffect
+        }
         openedOnHome = true
         if (pagerState.currentPage != target) pagerState.scrollToPage(target.coerceIn(0, pageCount))
+    }
+    LaunchedEffect(pagerState, homePage != null) {
+        if (homePage == null) return@LaunchedEffect // the placeholder's clamp is not the user's page
+        snapshotFlow { pagerState.settledPage }.collect { lastPage = it }
     }
     // The pager's own count is the live bound: this collector never restarts, so the pageCount
     // parameter it closed over would be the first composition's.
