@@ -135,6 +135,9 @@ fun Dock(
                 val isDragging = index == draggingIndex
                 // The whole slot takes the tap; the launch zooms from the icon in it.
                 val launchOrigin = rememberAppLaunchOrigin()
+                // The gesture below outlives a label or icon change of the app (its keys do not
+                // change) and must act on the item as it is NOW, not as it was at the first touch.
+                val currentApp by rememberUpdatedState(app)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -181,7 +184,7 @@ fun Dock(
                                     }
                                 }
                                 if (tapped) {
-                                    onAppClick(app)
+                                    onAppClick(currentApp)
                                     return@awaitEachGesture
                                 }
                                 if (abandoned) return@awaitEachGesture
@@ -190,7 +193,7 @@ fun Dock(
                                 // LONG PRESS → lift (refused while another finger holds one)
                                 val token = Any()
                                 val itemRoot = itemRoots[index] ?: Offset.Zero
-                                if (!dragController.start(app, DragSource.Dock, itemRoot + holdPos, token)) {
+                                if (!dragController.start(currentApp, DragSource.Dock, itemRoot + holdPos, token)) {
                                     return@awaitEachGesture
                                 }
                                 liftToken = token
@@ -203,7 +206,7 @@ fun Dock(
                                 run {
                                     val slotW = if (apps.isNotEmpty()) rowWidthPx.toFloat() / apps.size else 0f
                                     val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
-                                    onAppMenu(app, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
+                                    onAppMenu(currentApp, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
                                 }
                                 try {
                                     val completed = drag(down.id) { change ->
@@ -234,13 +237,13 @@ fun Dock(
                                     if (live && dragController.moving) {
                                         val rootPos = dragController.rootPosition
                                         if (dragController.isOverRemove(rootPos)) {
-                                            onRemoveFromDock(app)
+                                            onRemoveFromDock(currentApp)
                                         } else if (dragController.isOverGrid(rootPos)) {
                                             val (page, cx, cy) = dragController.cellAt(rootPos)
-                                            onMoveToHome(app, page, cx, cy)
+                                            onMoveToHome(currentApp, page, cx, cy)
                                         } else {
                                             val current = latestApps
-                                            val from = current.indexOfFirst { it.key == app.key }
+                                            val from = current.indexOfFirst { it.key == currentApp.key }
                                             val slot = if (current.isNotEmpty()) rowWidthPx.toFloat() / current.size else 1f
                                             val shift = if (slot > 0f) (dragOffsetX / slot).roundToInt() else 0
                                             val target = (from + shift).coerceIn(0, (current.size - 1).coerceAtLeast(0))

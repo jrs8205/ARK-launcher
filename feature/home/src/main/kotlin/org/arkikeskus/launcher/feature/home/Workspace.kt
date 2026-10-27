@@ -1089,6 +1089,10 @@ internal fun Workspace(
                             }
                             is PlacedApp -> {
                             val placed = entry
+                            // The gesture below lives as long as the cell's keys and must act on the
+                            // item as it is NOW: with the first touch's item, Edit opened a second time
+                            // showed the old icon and saving a name wiped a just-picked picture.
+                            val currentPlaced by rememberUpdatedState(placed)
                             // The whole cell takes the tap; the launch zooms from the icon in it.
                             val launchOrigin = rememberAppLaunchOrigin()
                             Box(
@@ -1134,7 +1138,7 @@ internal fun Workspace(
                                             // finger is when the hold completes.
                                             val press = awaitIconPress(down)
                                             if (press is IconPressOutcome.Tap) {
-                                                onAppClick(placed.app)
+                                                onAppClick(currentPlaced.app)
                                                 return@awaitEachGesture
                                             }
                                             if (press !is IconPressOutcome.Held) return@awaitEachGesture
@@ -1149,7 +1153,7 @@ internal fun Workspace(
                                                 placed.cellY * cellH + holdPos.y,
                                             )
                                             if (!dragController.start(
-                                                    placed.app,
+                                                    currentPlaced.app,
                                                     DragSource.Home,
                                                     dragController.gridBounds.topLeft + pickup,
                                                     token,
@@ -1171,7 +1175,7 @@ internal fun Workspace(
                                                 val anchorX = dragController.gridBounds.left + placed.cellX * cellW + cellW / 2f
                                                 val anchorY = if (above) cellTop else cellTop + cellH
                                                 onAppMenu(
-                                                    placed.app,
+                                                    currentPlaced.app,
                                                     IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
                                                     above,
                                                 )
