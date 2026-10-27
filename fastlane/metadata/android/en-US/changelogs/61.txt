@@ -1,0 +1,12 @@
+Fixed
+- A widget's set-up screen opens on phones that enforce Android 14's background-start rule (thanks to photonsphere-org).
+- An archived app (Android 15+) keeps its home icon and folder place.
+- Edit on an app a second time no longer loses the icon you just picked.
+- The clocks turn with the minute and follow a time-zone change at once.
+- Home comes back on the page you left after the launcher restarted in the background.
+- Android 11 shows the Wi-Fi level and band; the VPN and Data Saver icons update on their own.
+- Smaller fixes in the drawer, dock, backup and settings.
+
+Changed
+- The dock background slider moves in 5 % steps with a percent readout.
+- The installed version is shown at the bottom of Settings.
