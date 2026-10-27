@@ -1,5 +1,9 @@
 package org.arkikeskus.launcher.ui
 
+import androidx.compose.foundation.layout.absolutePadding
+import androidx.compose.ui.AbsoluteAlignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import android.view.WindowManager.LayoutParams.FLAG_SPLIT_TOUCH
 import android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
 import androidx.annotation.DrawableRes
@@ -204,7 +208,6 @@ private fun ExpressivePopupCard(
     blockTouches: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val density = LocalDensity.current
     val windowWidthPx = LocalWindowInfo.current.containerSize.width.toFloat()
     val positionProvider = remember(anchor, preferAbove) {
         AnchoredPopupPositionProvider(anchor, preferAbove)
@@ -216,54 +219,76 @@ private fun ExpressivePopupCard(
         properties = PopupProperties(flags = FLAG_WATCH_OUTSIDE_TOUCH or FLAG_SPLIT_TOUCH),
     ) {
         ExpressiveTheme {
-            val palette = LocalExpressivePalette.current
-            val cardColor = palette.surfaceHi
-            val cardWidthPx = with(density) { CARD_WIDTH.toPx() }
-            val caretWidthPx = with(density) { 22.dp.toPx() }
-            val cardLeft = (anchor.x - cardWidthPx / 2f).coerceIn(
-                POPUP_MARGIN_PX.toFloat(),
-                (windowWidthPx - cardWidthPx - POPUP_MARGIN_PX).coerceAtLeast(POPUP_MARGIN_PX.toFloat()),
-            )
-            val caretStart = with(density) {
-                ((anchor.x - cardLeft) - caretWidthPx / 2f)
-                    .coerceIn(14f, cardWidthPx - caretWidthPx - 14f)
-                    .toDp()
-            }
-            Box {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    // Left-aligned caret so [caretStart] is a true offset from the card's left edge.
-                    if (showCaret && !preferAbove) Caret(pointingUp = true, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = cardColor,
-                        tonalElevation = 3.dp,
-                        shadowElevation = 10.dp,
-                        modifier = Modifier.width(CARD_WIDTH),
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .heightIn(max = 520.dp)
-                                .verticalScroll(rememberScrollState())
-                                .padding(vertical = 8.dp),
-                            content = content,
-                        )
-                    }
-                    if (showCaret && preferAbove) Caret(pointingUp = false, color = cardColor, modifier = Modifier.align(Alignment.Start).padding(start = caretStart))
-                }
-                // On top of the rows, so it is hit instead of them (siblings do not share touches).
-                if (blockTouches) {
-                    Box(
-                        Modifier.matchParentSize().pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) awaitPointerEvent().changes.forEach { it.consume() }
-                            }
-                        },
-                    )
-                }
-            }
+            PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, content)
         }
     }
 }
+
+/**
+ * The card of [ExpressivePopupCard] without its window: the caret, the rows and the touch cover.
+ * The caret sits [anchor]'s distance from the card's LEFT edge whatever the layout direction: under
+ * a right-to-left system language (the drawer is not locked to LTR) a start-aligned caret mirrored
+ * to the other side of the card, away from the icon.
+ */
+@Composable
+internal fun PopupCardContent(
+    anchor: IntOffset,
+    preferAbove: Boolean,
+    windowWidthPx: Float,
+    showCaret: Boolean = true,
+    blockTouches: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val density = LocalDensity.current
+    val palette = LocalExpressivePalette.current
+    val cardColor = palette.surfaceHi
+    val cardWidthPx = with(density) { CARD_WIDTH.toPx() }
+    val caretWidthPx = with(density) { 22.dp.toPx() }
+    val cardLeft = (anchor.x - cardWidthPx / 2f).coerceIn(
+        POPUP_MARGIN_PX.toFloat(),
+        (windowWidthPx - cardWidthPx - POPUP_MARGIN_PX).coerceAtLeast(POPUP_MARGIN_PX.toFloat()),
+    )
+    val caretStart = with(density) {
+        ((anchor.x - cardLeft) - caretWidthPx / 2f)
+            .coerceIn(14f, cardWidthPx - caretWidthPx - 14f)
+            .toDp()
+    }
+    Box {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (showCaret && !preferAbove) Caret(pointingUp = true, color = cardColor, modifier = caretModifier(caretStart))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = cardColor,
+                tonalElevation = 3.dp,
+                shadowElevation = 10.dp,
+                modifier = Modifier.width(CARD_WIDTH),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 520.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 8.dp),
+                    content = content,
+                )
+            }
+            if (showCaret && preferAbove) Caret(pointingUp = false, color = cardColor, modifier = caretModifier(caretStart))
+        }
+        // On top of the rows, so it is hit instead of them (siblings do not share touches).
+        if (blockTouches) {
+            Box(
+                Modifier.matchParentSize().pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                },
+            )
+        }
+    }
+}
+
+/** The caret [caretStart] from the card's LEFT edge, absolute: a layout direction never mirrors it. */
+private fun ColumnScope.caretModifier(caretStart: Dp): Modifier =
+    Modifier.align(AbsoluteAlignment.Left).absolutePadding(left = caretStart).testTag("popup-caret")
 
 /**
  * A shortcut row: the shortcut's own icon, then [label] when it fits on one line, else [shortLabel]
