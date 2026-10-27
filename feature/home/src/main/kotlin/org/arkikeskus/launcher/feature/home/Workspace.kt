@@ -668,7 +668,11 @@ internal fun Workspace(
             localMoving = false
             targetCell = null
             editingWidget = null
-            if (alreadyOnHome && pagerState.currentPage != homeIndex) pagerState.animateScrollToPage(homeIndex)
+            // In [scope], not here: this effect restarts when the page count changes, and a turn
+            // cancelled half way left the pager stranded between two pages until the next touch.
+            if (alreadyOnHome && pagerState.currentPage != homeIndex) {
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(homeIndex) }
+            }
         }
     }
 
