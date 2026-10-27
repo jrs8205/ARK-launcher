@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.os.Process
 import android.os.UserManager
@@ -38,6 +39,17 @@ class ArchivedAppTest {
 
         assertThat(source.isAppInstalled("com.archived", 0L)).isFalse()
         assertThat(source.isTemporarilyUnavailable("com.archived", 0L)).isTrue()
+    }
+
+    /** The purge of an empty-looking page asks this without an install check first: an installed,
+     *  enabled app (which LauncherApps also reports enabled) must not read as archived. */
+    @Test fun anInstalledEnabledAppIsNotHiddenForNow() {
+        val user = Process.myUserHandle()
+        launcherApps.addApplicationInfo(user, "com.installed", ApplicationInfo().also { it.packageName = "com.installed" })
+        launcherApps.addEnabledPackage(user, "com.installed")
+
+        assertThat(source.isAppInstalled("com.installed", 0L)).isTrue()
+        assertThat(source.isTemporarilyUnavailable("com.installed", 0L)).isFalse()
     }
 
     @Test fun anUninstalledAppIsGoneForGood() {

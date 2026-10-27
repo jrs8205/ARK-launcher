@@ -167,8 +167,11 @@ class LauncherAppsSource @Inject constructor(
             // Archived (Android 15+): the app is "not installed" to the package manager, but the
             // launcher still lists it, LauncherApps reports it enabled, and a tap restores it — its
             // home icon and folder place must survive, as they do in Launcher3. Only an archived
-            // package is enabled while uninstalled, so this cannot keep a truly removed app.
-            if (Build.VERSION.SDK_INT >= 35 && launcherApps.isPackageEnabled(packageName, user)) return true
+            // package is enabled while NOT installed; an installed app is enabled too, and the
+            // page purge asks here without an install check first, so both halves are checked.
+            if (Build.VERSION.SDK_INT >= 35 && !isInstalledNow(packageName, user) &&
+                launcherApps.isPackageEnabled(packageName, user)
+            ) return true
             // Unmounted storage: the package manager still knows the app (with uninstalled packages
             // included) but can't launch it — Launcher3's "app on SD card" check.
             val info = launcherApps.getApplicationInfo(packageName, PackageManager.MATCH_UNINSTALLED_PACKAGES, user)
@@ -178,6 +181,14 @@ class LauncherAppsSource @Inject constructor(
         } catch (e: Exception) {
             true
         }
+    }
+
+    /** Whether the package manager returns [packageName] as installed for [user] right now. */
+    private fun isInstalledNow(packageName: String, user: UserHandle): Boolean = try {
+        launcherApps.getApplicationInfo(packageName, 0, user)
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
     }
 
     override fun ownUserSerial(): Long? =
