@@ -178,12 +178,26 @@ fun AppDrawerScreen(
                 .forEach { it.scrollToItem(0) }
         }
     }
+    // Any way of closing the drawer — a pull-down, Back, an app launched from the results — drops the
+    // search focus (which hides the soft keyboard, otherwise left standing over the home screen) and
+    // the query, so the drawer reopens on the A–Z list. Not during a drag-out: [drawerOpen] stays
+    // true until the drag ends (the drawer-swipe rule), so a lift from the results keeps them.
+    LaunchedEffect(drawerOpen) {
+        if (!drawerOpen) {
+            focusManager.clearFocus()
+            viewModel.onQueryChange("")
+        }
+    }
 
-    // HOME pressed → dismiss the popup, drop search focus (which hides the soft keyboard) and reset the
-    // query, so the keyboard never lingers after the drawer slides away and the drawer reopens fresh.
+    // HOME pressed → dismiss the popup and every window of the drawer's own (the Edit dialog with its
+    // icon picker, a folder's sheet with its Add-apps dialog: separate windows that the drawer sliding
+    // away would leave standing over the home screen), drop search focus (which hides the soft
+    // keyboard) and reset the query, so the drawer reopens fresh.
     LaunchedEffect(homeSignals) {
         homeSignals.collect {
             menuTarget = null
+            renameTarget = null
+            openFolderId = null
             focusManager.clearFocus()
             viewModel.onQueryChange("")
         }
@@ -239,6 +253,7 @@ fun AppDrawerScreen(
         calc = uiState.calc,
         settingResults = uiState.settingResults,
         contactResults = uiState.contactResults,
+        searchPending = uiState.searchPending,
         locked = uiState.desktopLocked,
         gridState = gridState,
         workApps = uiState.workApps,
@@ -366,6 +381,7 @@ private fun AppDrawerContent(
     onDropOnDock: (AppItem) -> Unit,
     showLabels: Boolean,
     calc: SearchResult.Calculation?,
+    searchPending: Boolean,
     settingResults: List<SearchResult.Setting>,
     contactResults: List<SearchResult.Contact>,
     locked: Boolean,
@@ -579,8 +595,10 @@ private fun AppDrawerContent(
                         }
                     }
                     // No app, setting, contact or calculator hit: say so — a silently empty grid
-                    // under the search box was indistinguishable from a stuck drawer.
-                    if (calc == null && apps.isEmpty() && settingResults.isEmpty() && contactResults.isEmpty()) {
+                    // under the search box was indistinguishable from a stuck drawer. Not while the
+                    // results are still the previous query's: that flashed "No results" on the first
+                    // letter of every search.
+                    if (!searchPending && calc == null && apps.isEmpty() && settingResults.isEmpty() && contactResults.isEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "empty" }) {
                             Text(
                                 text = stringResource(R.string.search_no_results),
@@ -975,7 +993,14 @@ internal fun LazyGridScope.appCells(
     locked: Boolean,
 ) {
     items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
+        // The gesture below lives as long as the key (a label or icon change does not restart it)
+        // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
+        // time showed the old icon and saving a name wiped a picture picked a moment earlier.
+        val currentApp by rememberUpdatedState(app)
+        // [bounds] anchors the popup and is clipped by the grid; [origin] is the cell's real top-left,
+        // which a cell half scrolled under the grid's top edge still needs for the finger's position.
         var bounds by remember { mutableStateOf(Rect.Zero) }
+        var origin by remember { mutableStateOf(Offset.Zero) }
         AppIcon(
             appItem = app,
             labelColor = MaterialTheme.colorScheme.onSurface,
@@ -993,14 +1018,7 @@ internal fun LazyGridScope.appCells(
                 .pointerInput(app.key, locked) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-        // The gesture below lives as long as the key (a label or icon change does not restart it)
-        // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
-        // time showed the old icon and saving a name wiped a picture picked a moment earlier.
-        val currentApp by rememberUpdatedState(app)
-        // [bounds] anchors the popup and is clipped by the grid; [origin] is the cell's real top-left,
-        // which a cell half scrolled under the grid's top edge still needs for the finger's position.
                         val slop = viewConfiguration.touchSlop
-        var origin by remember { mutableStateOf(Offset.Zero) }
                         // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
                         var outcome = 0
                         // The lift starts where the finger is when the hold completes.

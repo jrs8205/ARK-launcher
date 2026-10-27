@@ -74,6 +74,9 @@ data class AppDrawerUiState(
     val useThemedIcons: Boolean = false,
     val iconPackPackage: String = "",
     val calc: SearchResult.Calculation? = null,
+    /** The query on screen has no results yet (the debounce or the search is still running): the
+     *  lists are the previous query's, so "No results" must wait. */
+    val searchPending: Boolean = false,
     val settingResults: List<SearchResult.Setting> = emptyList(),
     val contactResults: List<SearchResult.Contact> = emptyList(),
     val desktopLocked: Boolean = false,
@@ -112,12 +115,14 @@ class AppDrawerViewModel @Inject constructor(
     private val query = MutableStateFlow("")
     private val selectedTabFlow = MutableStateFlow(DrawerTab.Personal)
 
+    /** The results, tagged with the query they answer: the raw query reaches the state at once, the
+     *  results only after the debounce and the search, and the screen must tell the two apart. */
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    private val searchResults: Flow<SearchResults> = combine(
+    private val searchResults: Flow<Pair<String, SearchResults>> = combine(
         query.debounce { if (it.isBlank()) 0L else 200L }, // contacts hit ContentResolver; avoid per-keystroke
         appRepository.apps,                                 // install/uninstall/rename re-runs a live query
     ) { q, _ -> q }
-        .mapLatest { searchAggregator.search(it) }          // mapLatest cancels the previous run
+        .mapLatest { it to searchAggregator.search(it) }    // mapLatest cancels the previous run
 
     val uiState: StateFlow<AppDrawerUiState> = combine(
         appRepository.apps,
@@ -185,7 +190,7 @@ class AppDrawerViewModel @Inject constructor(
         }
     }.combine(settingsRepository.folderIcons) { state, icons ->
         if (icons.isEmpty()) state else state.copy(folders = state.folders.map { it.copy(icon = icons[FolderIconKey.drawer(it.id)]) })
-    }.combine(searchResults) { state, results ->
+    }.combine(searchResults) { state, (answered, results) ->
         if (state.query.isBlank()) {
             state // idle drawer: apps + folders already prepared above
         } else {
@@ -196,6 +201,7 @@ class AppDrawerViewModel @Inject constructor(
                 calc = results.calc,
                 settingResults = results.settings,
                 contactResults = results.contacts,
+                searchPending = answered != state.query,
             )
         }
     }.combine(appUsageRepository.usage) { state, usage ->
