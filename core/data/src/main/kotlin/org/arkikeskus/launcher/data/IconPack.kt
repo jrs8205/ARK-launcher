@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import java.util.concurrent.atomic.AtomicInteger
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
@@ -62,11 +63,17 @@ internal fun parseDrawableList(parser: XmlPullParser): List<String> {
  * feature for the picker list.
  */
 @Singleton
-class IconPackRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+class IconPackRepository internal constructor(
+    private val context: Context,
+    /** Reads and parses one pack's appfilter: slow for a big pack, so it runs outside the monitor. */
+    private val loader: (String) -> IconPack?,
 ) {
+    @Inject constructor(@ApplicationContext context: Context) : this(context, AppFilterLoader(context)::load)
+
     // package -> parsed pack (or null when it has no usable appfilter); LinkedHashMap for a stable order.
     private val cache = HashMap<String, IconPack?>()
+    // Bumped by every invalidation: a parse that overlapped one is stale and is not cached.
+    private val generation = AtomicInteger()
     // package -> its resources, for single drawables picked from it (see [drawable]).
     private val resources = HashMap<String, Resources?>()
 
@@ -98,6 +105,7 @@ class IconPackRepository @Inject constructor(
         cache.remove(pkg)
         resources.remove(pkg)
         names.remove(pkg)
+        generation.incrementAndGet()
         return wasCached
     }
 
@@ -145,19 +153,46 @@ class IconPackRepository @Inject constructor(
         runCatching { context.packageManager.getResourcesForApplication(pkg) }.getOrNull()
     }
 
-    /** Loads + parses [pkg] (cached, including a cached "no pack" result). */
-    @Synchronized
+    /** Loads + parses [pkg] (cached, including a cached "no pack" result). The parse runs OUTSIDE
+     *  the monitor: a big pack takes seconds, and a package event on the main thread (which
+     *  invalidates) must not wait for it. A result that overlapped an invalidation is not kept. */
     fun get(pkg: String): IconPack? {
         if (pkg.isBlank()) return null
-        if (cache.containsKey(pkg)) return cache[pkg]
-        val pack = runCatching { load(pkg) }
+        synchronized(this) { if (cache.containsKey(pkg)) return cache[pkg] }
+        val before = generation.get()
+        val pack = runCatching { loader(pkg) }
             .onFailure { android.util.Log.w("IconPack", "load($pkg) failed: $it") }
             .getOrNull()
-        cache[pkg] = pack
+        synchronized(this) {
+            if (cache.containsKey(pkg)) return cache[pkg]
+            if (generation.get() == before) cache[pkg] = pack
+        }
         return pack
     }
 
-    private fun load(pkg: String): IconPack? {
+    private companion object {
+        /** Theme identifiers packs declare as an intent ACTION (Nova/ADW/Go/Atom/Lawnchair). */
+        val THEME_ACTIONS = listOf(
+            "org.adw.launcher.THEMES",
+            "com.novalauncher.THEME",
+            "com.gau.go.launcherex.theme",
+            "com.dlto.atom.launcher.THEME",
+            "ch.deletescape.lawnchair.ICONPACK",
+            "app.lawnchair.icons.THEMED_ICON",
+        )
+
+        /** Theme identifiers packs declare as a CATEGORY on a MAIN activity (Apex/Tesla/Fede). */
+        val THEME_CATEGORIES = listOf(
+            "com.anddoes.launcher.THEME",
+            "com.teslacoilsw.launcher.THEME",
+            "com.fede.launcher.THEME_ICONPACK",
+        )
+    }
+}
+
+/** Reads a pack's `appfilter` (res/xml, else assets) into an [IconPack]; null when it has none. */
+private class AppFilterLoader(private val context: Context) {
+    fun load(pkg: String): IconPack? {
         val res = context.packageManager.getResourcesForApplication(pkg)
         // Prefer res/xml/appfilter, else assets/appfilter.xml (icon packs use one or the other).
         val xmlId = res.getIdentifier("appfilter", "xml", pkg)
@@ -194,24 +229,5 @@ class IconPackRepository @Inject constructor(
         if (raw == null) return null
         val inner = raw.substringAfter('{', "").substringBefore('}', "")
         return inner.takeIf { it.isNotEmpty() && '/' in inner }
-    }
-
-    private companion object {
-        /** Theme identifiers packs declare as an intent ACTION (Nova/ADW/Go/Atom/Lawnchair). */
-        val THEME_ACTIONS = listOf(
-            "org.adw.launcher.THEMES",
-            "com.novalauncher.THEME",
-            "com.gau.go.launcherex.theme",
-            "com.dlto.atom.launcher.THEME",
-            "ch.deletescape.lawnchair.ICONPACK",
-            "app.lawnchair.icons.THEMED_ICON",
-        )
-
-        /** Theme identifiers packs declare as a CATEGORY on a MAIN activity (Apex/Tesla/Fede). */
-        val THEME_CATEGORIES = listOf(
-            "com.anddoes.launcher.THEME",
-            "com.teslacoilsw.launcher.THEME",
-            "com.fede.launcher.THEME_ICONPACK",
-        )
     }
 }
