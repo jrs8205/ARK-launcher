@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
 class DefaultDockAppsTest {
     private val context: Application = RuntimeEnvironment.getApplication()
 
-    private fun app(cls: String, label: String) = AppItem("com.dialer", cls, Process.myUserHandle(), 0L, label)
+    private fun app(cls: String, label: String, serial: Long = 0L) = AppItem("com.dialer", cls, Process.myUserHandle(), serial, label)
 
     @Test fun thePhoneSlotTakesTheActivityTheDialIntentResolvesTo() {
         val phone = ResolveInfo().apply {
@@ -32,6 +32,24 @@ class DefaultDockAppsTest {
         }
         shadowOf(context.packageManager).addResolveInfoForIntent(Intent(Intent.ACTION_DIAL), phone)
         val apps = listOf(app("com.dialer.Contacts", "Contacts"), app("com.dialer.Phone", "Phone"))
+
+        val keys = resolveDefaultDockKeys(context, apps)
+
+        assertThat(keys.first()).isEqualTo("com.dialer/com.dialer.Phone/0")
+    }
+
+    /** A work-profile copy of the same activity, listed first (the list is sorted by label, and a
+     *  restored custom label can put it there), must not win over the own profile's entry. */
+    @Test fun theOwnProfilesEntryWinsOverAWorkCopyListedFirst() {
+        val phone = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply { packageName = "com.dialer"; name = "com.dialer.Phone" }
+        }
+        shadowOf(context.packageManager).addResolveInfoForIntent(Intent(Intent.ACTION_DIAL), phone)
+        val apps = listOf(
+            app("com.dialer.Phone", "Dialer (work)", serial = 10L),
+            app("com.dialer.Contacts", "Contacts"),
+            app("com.dialer.Phone", "Phone"),
+        )
 
         val keys = resolveDefaultDockKeys(context, apps)
 

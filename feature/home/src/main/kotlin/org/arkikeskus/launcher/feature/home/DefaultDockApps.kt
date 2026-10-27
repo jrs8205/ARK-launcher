@@ -34,11 +34,14 @@ fun resolveDefaultDockKeys(context: Context, apps: List<AppItem>): List<String> 
     return slots
         .mapNotNull { slot ->
             slot?.let { (p, activity) ->
-                // The dock stores drawer-app keys; prefer the main profile's entry of the package.
-                // A package with several launcher entries (a dialer that also holds Contacts) gives
+                // The dock stores drawer-app keys; the main profile's entries of the package come
+                // first (a work copy may be listed earlier: the list is sorted by label). Among them
+                // a package with several launcher entries (a dialer that also holds Contacts) gives
                 // the entry the intent resolved to, not the alphabetically first one.
                 val entries = apps.filter { it.packageName == p }
-                (entries.firstOrNull { it.className == activity } ?: entries.minByOrNull { it.userSerial })?.key
+                val own = entries.minOfOrNull { it.userSerial }
+                val inProfile = entries.filter { it.userSerial == own }
+                (inProfile.firstOrNull { it.className == activity } ?: inProfile.firstOrNull())?.key
             }
         }
         .distinct()
