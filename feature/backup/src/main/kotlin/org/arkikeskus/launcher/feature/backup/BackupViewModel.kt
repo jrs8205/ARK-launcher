@@ -67,8 +67,7 @@ class BackupViewModel @Inject constructor(
         runCatching {
             withContext(Dispatchers.IO) {
                 val doc = backupRepository.exportDocument(createdAt = System.currentTimeMillis(), appVersion = appVersion)
-                context.contentResolver.openOutputStream(uri)?.use { it.write(BackupCodec.encode(doc).toByteArray()) }
-                    ?: error("Could not open output stream")
+                context.contentResolver.writeDocument(uri, BackupCodec.encode(doc).toByteArray())
             }
         }.onSuccess {
             settings.setLocalLastBackup(System.currentTimeMillis())
