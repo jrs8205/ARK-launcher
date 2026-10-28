@@ -13,11 +13,14 @@ import androidx.compose.ui.test.up
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import com.google.common.truth.Truth.assertThat
@@ -242,6 +245,31 @@ class AppDrawerScreenTest {
         settle()
         compose.onNodeWithText(mailApp).performTouchInput { up() }
         settle()
+    }
+
+    /** Issue #17: the Add-apps picker filters its list by name as you type, and a pick survives
+     *  the filter. */
+    @Test fun theAddAppsPickerSearchesByName() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+        compose.onNodeWithText(addApps()).performClick()
+        settle()
+        assertThat(compose.onAllNodesWithTag(ADD_APPS_ROW_TAG).fetchSemanticsNodes()).hasSize(1)
+
+        compose.onNode(hasTestTag(ADD_APPS_SEARCH_TAG)).performTextInput("zq")
+        settle()
+        assertThat(compose.onAllNodesWithTag(ADD_APPS_ROW_TAG).fetchSemanticsNodes()).isEmpty()
+
+        compose.onNode(hasTestTag(ADD_APPS_SEARCH_TAG)).performTextClearance()
+        compose.onNode(hasTestTag(ADD_APPS_SEARCH_TAG)).performTextInput("MAIL")
+        settle()
+        compose.onAllNodesWithTag(ADD_APPS_ROW_TAG)[0].performClick()
+        compose.onNode(hasTestTag(ADD_APPS_SEARCH_TAG)).performTextInput("zq")
+        settle()
+        compose.onNodeWithText(context.getString(R.string.folder_add)).performClick()
+
+        awaitState("the app joined the folder") { it.folders.single().apps.map { a -> a.packageName } == listOf(mailApp) }
     }
 
     /** The app menu and the Edit dialog are windows of their own too: they go with the drawer. */

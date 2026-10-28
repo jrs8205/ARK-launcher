@@ -397,6 +397,9 @@ fun AppDrawerScreen(
 
 /** The test tag of the card a tap opens a drawer folder as. */
 internal const val DRAWER_FOLDER_CARD_TAG = "drawer-folder-card"
+/** Test tags of the Add-apps picker: its search field and each app row it lists. */
+internal const val ADD_APPS_SEARCH_TAG = "add-apps-search"
+internal const val ADD_APPS_ROW_TAG = "add-apps-row"
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1027,38 +1030,60 @@ private fun DrawerFolderSheet(
     }
 }
 
-/** Multi-select picker of apps to add to a drawer folder. */
+/** Multi-select picker of apps to add to a drawer folder. A search field narrows the list by name
+ *  (issue #17); the picks made so far survive the narrowing. */
 @Composable
 private fun AddAppsDialog(apps: List<AppItem>, onConfirm: (List<String>) -> Unit, onDismiss: () -> Unit) {
     val selected = remember { mutableStateListOf<String>() }
+    var query by remember { mutableStateOf("") }
+    val shown = remember(apps, query) {
+        val needle = query.trim()
+        if (needle.isEmpty()) apps else apps.filter { it.label.contains(needle, ignoreCase = true) }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.folder_add_apps)) },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                apps.forEach { app ->
-                    val checked = app.key in selected
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { if (checked) selected.remove(app.key) else selected.add(app.key) }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = checked,
-                            onCheckedChange = { if (it) selected.add(app.key) else selected.remove(app.key) },
-                        )
-                        AppIcon(appItem = app, labelColor = MaterialTheme.colorScheme.onSurface, showLabel = false, iconSize = 32.dp)
-                        Text(
-                            text = app.label,
-                            modifier = Modifier.padding(start = 12.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+            Column(modifier = Modifier.heightIn(max = 420.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    placeholder = { Text(stringResource(R.string.app_drawer_search_hint)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(ADD_APPS_SEARCH_TAG),
+                )
+                if (shown.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.search_no_results),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                    )
+                }
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    shown.forEach { app ->
+                        val checked = app.key in selected
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { if (checked) selected.remove(app.key) else selected.add(app.key) }
+                                .padding(vertical = 6.dp)
+                                .testTag(ADD_APPS_ROW_TAG),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { if (it) selected.add(app.key) else selected.remove(app.key) },
+                            )
+                            AppIcon(appItem = app, labelColor = MaterialTheme.colorScheme.onSurface, showLabel = false, iconSize = 32.dp)
+                            Text(
+                                text = app.label,
+                                modifier = Modifier.padding(start = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
             }
