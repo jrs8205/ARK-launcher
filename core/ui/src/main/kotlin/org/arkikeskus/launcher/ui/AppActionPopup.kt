@@ -110,7 +110,7 @@ fun AppActionPopup(
         )
     }
 
-    ExpressivePopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held) {
+    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held) {
         shortcuts.forEach { shortcut ->
             ShortcutPopupRow(
                 label = shortcut.label,
@@ -160,7 +160,7 @@ fun IconMenuPopup(
     items: List<IconMenuItem>,
     onDismiss: () -> Unit,
 ) {
-    ExpressivePopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, showCaret = false) {
+    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, showCaret = false) {
         items.forEach { item ->
             Row(
                 modifier = Modifier
@@ -192,20 +192,22 @@ fun IconMenuPopup(
 /**
  * Shared Version C popup chrome: an anchored, dismissible rounded card (with a caret pointing at the
  * icon) wrapped in [ExpressiveTheme] so it resolves the warm-orange dark/light palette regardless of
- * the caller. [content] is the scrollable column of rows; while [blockTouches] a cover over the card
- * takes every touch, so no row gets one.
+ * the caller. [content] is the scrollable column of rows, [width] the card's width (the menus' by
+ * default; a drawer folder's card is wider); while [blockTouches] a cover over the card takes every
+ * touch, so no row gets one.
  *
  * Both menus can open while a finger is still down on the launcher. Android 11–12L send a second
  * finger to the window the first is in unless the window it lands on splits touches, so without
  * [FLAG_SPLIT_TOUCH] a tap on a row reached the icons behind the menu instead.
  */
 @Composable
-private fun ExpressivePopupCard(
+fun AnchoredPopupCard(
     anchor: IntOffset,
     preferAbove: Boolean,
     onDismiss: () -> Unit,
     showCaret: Boolean = true,
     blockTouches: Boolean = false,
+    width: Dp = CARD_WIDTH,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val windowWidthPx = LocalWindowInfo.current.containerSize.width.toFloat()
@@ -219,13 +221,13 @@ private fun ExpressivePopupCard(
         properties = PopupProperties(flags = FLAG_WATCH_OUTSIDE_TOUCH or FLAG_SPLIT_TOUCH),
     ) {
         ExpressiveTheme {
-            PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, content)
+            PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, width, content)
         }
     }
 }
 
 /**
- * The card of [ExpressivePopupCard] without its window: the caret, the rows and the touch cover.
+ * The card of [AnchoredPopupCard] without its window: the caret, the rows and the touch cover.
  * The caret sits [anchor]'s distance from the card's LEFT edge whatever the layout direction: under
  * a right-to-left system language (the drawer is not locked to LTR) a start-aligned caret mirrored
  * to the other side of the card, away from the icon.
@@ -237,12 +239,13 @@ internal fun PopupCardContent(
     windowWidthPx: Float,
     showCaret: Boolean = true,
     blockTouches: Boolean = false,
+    width: Dp = CARD_WIDTH,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val density = LocalDensity.current
     val palette = LocalExpressivePalette.current
     val cardColor = palette.surfaceHi
-    val cardWidthPx = with(density) { CARD_WIDTH.toPx() }
+    val cardWidthPx = with(density) { width.toPx() }
     val caretWidthPx = with(density) { 22.dp.toPx() }
     val cardLeft = (anchor.x - cardWidthPx / 2f).coerceIn(
         POPUP_MARGIN_PX.toFloat(),
@@ -261,7 +264,7 @@ internal fun PopupCardContent(
                 color = cardColor,
                 tonalElevation = 3.dp,
                 shadowElevation = 10.dp,
-                modifier = Modifier.width(CARD_WIDTH),
+                modifier = Modifier.width(width),
             ) {
                 Column(
                     modifier = Modifier

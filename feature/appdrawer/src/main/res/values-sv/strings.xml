@@ -15,6 +15,7 @@
     <string name="folder_remove_hint">Tryck länge på en app för att ta bort den från mappen</string>
     <string name="folder_add">Lägg till</string>
     <string name="folder_cancel">Avbryt</string>
+    <string name="folder_card_empty">Tom mapp. Håll in den för att lägga till appar.</string>
     <string name="search_section_apps">Appar</string>
     <string name="search_section_settings">Inställningar</string>
     <string name="search_section_contacts">Kontakter</string>

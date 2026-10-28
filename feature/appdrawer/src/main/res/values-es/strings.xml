@@ -15,6 +15,7 @@
     <string name="folder_remove_hint">Mantén pulsada una aplicación para quitarla de la carpeta</string>
     <string name="folder_add">Agregar</string>
     <string name="folder_cancel">Cancelar</string>
+    <string name="folder_card_empty">Carpeta vacía. Mantenla pulsada para añadir apps.</string>
     <string name="search_section_apps">Aplicaciones</string>
     <string name="search_section_settings">Configuración</string>
     <string name="search_section_contacts">Contactos</string>

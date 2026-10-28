@@ -77,6 +77,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -97,6 +98,7 @@ import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
+import org.arkikeskus.launcher.ui.AnchoredPopupCard
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
@@ -160,7 +162,10 @@ fun AppDrawerScreen(
     // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
     DismissWhenDragMoves(dragController) { menuTarget = null }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
-    var openFolderId by remember { mutableStateOf<Long?>(null) }
+    // A tapped folder shows its apps in a card by the tile (id + the tile's root bounds); a
+    // long-pressed one opens its editor. Two surfaces, so a tap can never change the folder.
+    var folderCard by remember { mutableStateOf<Pair<Long, Rect>?>(null) }
+    var editFolderId by remember { mutableStateOf<Long?>(null) }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
     val focusManager = LocalFocusManager.current
     // The drawer stays composed while closed (translated off-screen), so its grid scroll persists
@@ -190,14 +195,15 @@ fun AppDrawerScreen(
     }
 
     // HOME pressed → dismiss the popup and every window of the drawer's own (the Edit dialog with its
-    // icon picker, a folder's sheet with its Add-apps dialog: separate windows that the drawer sliding
-    // away would leave standing over the home screen), drop search focus (which hides the soft
-    // keyboard) and reset the query, so the drawer reopens fresh.
+    // icon picker, a folder's card, a folder's sheet with its Add-apps dialog: separate windows that
+    // the drawer sliding away would leave standing over the home screen), drop search focus (which
+    // hides the soft keyboard) and reset the query, so the drawer reopens fresh.
     LaunchedEffect(homeSignals) {
         homeSignals.collect {
             menuTarget = null
             renameTarget = null
-            openFolderId = null
+            folderCard = null
+            editFolderId = null
             focusManager.clearFocus()
             viewModel.onQueryChange("")
         }
@@ -232,7 +238,8 @@ fun AppDrawerScreen(
         badgeScale = uiState.notificationDotScale,
         showSearch = uiState.showSearch,
         onQueryChange = viewModel::onQueryChange,
-        onFolderClick = { openFolderId = it.id },
+        onFolderClick = { folder, bounds -> folderCard = folder.id to bounds },
+        onFolderLongClick = { editFolderId = it.id },
         onAppClick = { app ->
             if (app.packageName == context.packageName) {
                 onOpenSettings()
@@ -324,11 +331,30 @@ fun AppDrawerScreen(
         )
     }
 
-    // Close the open folder sheet if its folder was deleted (or all members removed and it's gone).
-    LaunchedEffect(openFolderId, uiState.folders) {
-        if (openFolderId != null && uiState.folders.none { it.id == openFolderId }) openFolderId = null
+    // Close the folder's card/editor if its folder was deleted (or all members removed and it's gone).
+    LaunchedEffect(editFolderId, folderCard, uiState.folders) {
+        if (editFolderId != null && uiState.folders.none { it.id == editFolderId }) editFolderId = null
+        if (folderCard != null && uiState.folders.none { it.id == folderCard?.first }) folderCard = null
     }
-    val openFolder = openFolderId?.let { id -> uiState.folders.firstOrNull { it.id == id } }
+    val card = folderCard
+    val cardFolder = card?.let { (id, _) -> uiState.folders.firstOrNull { it.id == id } }
+    if (card != null && cardFolder != null) {
+        DrawerFolderCard(
+            folder = cardFolder,
+            bounds = card.second,
+            badges = badges,
+            badgeShowCount = uiState.notificationDotCount,
+            badgeScale = uiState.notificationDotScale,
+            onAppClick = { app ->
+                if (viewModel.onAppClick(app, launchSources?.take(app))) {
+                    folderCard = null
+                    onClose()
+                }
+            },
+            onDismiss = { folderCard = null },
+        )
+    }
+    val openFolder = editFolderId?.let { id -> uiState.folders.firstOrNull { it.id == id } }
     if (openFolder != null) {
         DrawerFolderSheet(
             folder = openFolder,
@@ -340,7 +366,7 @@ fun AppDrawerScreen(
             onSetIcon = { viewModel.setDrawerFolderIcon(openFolder.id, it) },
             onAppClick = { app ->
                 if (viewModel.onAppClick(app, launchSources?.take(app))) {
-                    openFolderId = null
+                    editFolderId = null
                     onClose()
                 }
             },
@@ -348,14 +374,17 @@ fun AppDrawerScreen(
             onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys) },
             onDelete = {
                 viewModel.deleteDrawerFolder(openFolder.id)
-                openFolderId = null
+                editFolderId = null
             },
-            onDismiss = { openFolderId = null },
+            onDismiss = { editFolderId = null },
         )
     }
     }
     }
 }
+
+/** The test tag of the card a tap opens a drawer folder as. */
+internal const val DRAWER_FOLDER_CARD_TAG = "drawer-folder-card"
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -370,7 +399,8 @@ private fun AppDrawerContent(
     badgeScale: Float,
     showSearch: Boolean,
     onQueryChange: (String) -> Unit,
-    onFolderClick: (DrawerFolderUi) -> Unit,
+    onFolderClick: (DrawerFolderUi, Rect) -> Unit,
+    onFolderLongClick: (DrawerFolderUi) -> Unit,
     onAppClick: (AppItem) -> Unit,
     onAppLongClick: (AppItem, Rect) -> Unit,
     onDrawerDrag: (Float) -> Unit,
@@ -543,7 +573,8 @@ private fun AppDrawerContent(
                             badgeCount = folder.apps.sumOf { badges[it.badgeKey] ?: 0 },
                             badgeShowCount = badgeShowCount,
                             badgeScale = badgeScale,
-                            onClick = { onFolderClick(folder) },
+                            onClick = { bounds -> onFolderClick(folder, bounds) },
+                            onLongClick = { onFolderLongClick(folder) },
                         )
                     }
                     appCells(apps, badges, badgeShowCount, badgeScale, showLabels, drawerIconSize, onAppClick,
@@ -676,28 +707,32 @@ private fun DragHandle() {
     }
 }
 
-/** A drawer folder tile: a rounded 2×2 preview of its first apps + label; tap (or long-press, which
- *  also ticks the haptic like an app long-press) opens the folder. */
+/** A drawer folder tile: a rounded 2×2 preview of its first apps + label. A tap opens the folder's
+ *  card ([onClick] gets the tile's root bounds to anchor it by); a long-press (with the haptic of an
+ *  app's) opens its editor. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerFolderTile(
     folder: DrawerFolderUi,
     showLabel: Boolean,
-    onClick: () -> Unit,
+    onClick: (Rect) -> Unit,
+    onLongClick: () -> Unit,
     tileSize: Dp = 56.dp,
     badgeCount: Int = 0,
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
 ) {
     val haptics = LocalHapticFeedback.current
+    var bounds by remember(folder.id) { mutableStateOf(Rect.Zero) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .onGloballyPositioned { bounds = it.boundsInRoot() }
             .combinedClickable(
-                onClick = onClick,
+                onClick = { onClick(bounds) },
                 onLongClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onClick()
+                    onLongClick()
                 },
             )
             .padding(vertical = 10.dp, horizontal = 4.dp),
@@ -769,6 +804,79 @@ private fun FolderSlot(app: AppItem?, size: Dp) {
         Spacer(Modifier.size(size))
     } else {
         AppIcon(appItem = app, labelColor = Color.Transparent, showLabel = false, iconSize = size)
+    }
+}
+
+private const val FOLDER_CARD_COLUMNS = 4
+private val FOLDER_CARD_WIDTH = 328.dp
+
+/**
+ * A tapped folder: its apps in a card by its tile, as the home screen opens a folder — the thumb
+ * stays where it was instead of travelling to a sheet at the bottom. A tap launches the app; nothing
+ * on the card changes the folder, that is the editor's (a long-press away), so ordinary use cannot
+ * rename, empty or delete a folder by accident.
+ */
+@Composable
+private fun DrawerFolderCard(
+    folder: DrawerFolderUi,
+    bounds: Rect,
+    badges: Map<String, Int>,
+    badgeShowCount: Boolean,
+    badgeScale: Float,
+    onAppClick: (AppItem) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val windowSize = LocalWindowInfo.current.containerSize
+    // Anchored like the app menu: below a tile in the upper half of the window, above one lower down.
+    val preferAbove = bounds.center.y > windowSize.height / 2
+    val anchor = IntOffset(bounds.center.x.roundToInt(), (if (preferAbove) bounds.top else bounds.bottom).roundToInt())
+    val width = with(LocalDensity.current) { minOf(FOLDER_CARD_WIDTH, windowSize.width.toDp() - 16.dp) }
+    val iconSize = 56.dp * LocalIconScale.current
+    val palette = LocalExpressivePalette.current
+    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+                .testTag(DRAWER_FOLDER_CARD_TAG),
+        ) {
+            Text(
+                text = folder.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = palette.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+            if (folder.apps.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.folder_card_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.dim,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
+            folder.apps.chunked(FOLDER_CARD_COLUMNS).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEach { app ->
+                        AppIcon(
+                            appItem = app,
+                            labelColor = palette.text,
+                            iconSize = iconSize,
+                            showLabel = true,
+                            badgeCount = badges[app.badgeKey] ?: 0,
+                            badgeShowCount = badgeShowCount,
+                            badgeScale = badgeScale,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onAppClick(app) }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                        )
+                    }
+                    repeat(FOLDER_CARD_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
     }
 }
 

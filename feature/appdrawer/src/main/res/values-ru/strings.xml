@@ -15,6 +15,7 @@
     <string name="folder_remove_hint">Нажмите и удерживайте приложение, чтобы убрать его из папки</string>
     <string name="folder_add">Добавить</string>
     <string name="folder_cancel">Отмена</string>
+    <string name="folder_card_empty">Пустая папка. Удерживайте её, чтобы добавить приложения.</string>
     <string name="search_section_apps">Приложения</string>
     <string name="search_section_settings">Настройки</string>
     <string name="search_section_contacts">Контакты</string>

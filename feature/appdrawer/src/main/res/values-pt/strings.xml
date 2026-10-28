@@ -15,6 +15,7 @@
     <string name="folder_remove_hint">Toque e segure um app para removê-lo da pasta</string>
     <string name="folder_add">Adicionar</string>
     <string name="folder_cancel">Cancelar</string>
+    <string name="folder_card_empty">Pasta vazia. Toque e segure para adicionar apps.</string>
     <string name="search_section_apps">Apps</string>
     <string name="search_section_settings">Configurações</string>
     <string name="search_section_contacts">Contatos</string>

@@ -5,10 +5,13 @@ import android.os.Looper
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
@@ -81,11 +84,47 @@ class AppDrawerScreenTest {
 
     private fun addApps() = context.getString(R.string.folder_add_apps)
 
-    @Test fun homeTakesTheFolderSheetWithTheDrawer() {
-        runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+    private fun showWithFolder(name: String = "Tools") {
+        runBlocking { wiring.settingsRepository.createDrawerFolder(name) }
         show()
-        awaitText("Tools")
+        awaitText(name)
+    }
+
+    /** A tap shows the folder's apps in a card by its icon — nothing on it changes the folder. */
+    @Test fun aTapShowsTheFolderWithoutItsEditor() {
+        showWithFolder()
         compose.onNodeWithText("Tools").performClick()
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+        compose.onNodeWithText(addApps()).assertDoesNotExist()
+    }
+
+    /** The editor (name, members, Add apps, Delete) is a long-press away, never a tap. */
+    @Test fun aLongPressOpensTheFolderEditor() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+
+        compose.onNodeWithText(addApps()).assertExists()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test fun homeTakesTheFolderCardWithTheDrawer() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+
+        compose.runOnIdle { homeSignals.tryEmit(true) }
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test fun homeTakesTheFolderSheetWithTheDrawer() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
         settle()
         compose.onNodeWithText(addApps()).assertExists()
 

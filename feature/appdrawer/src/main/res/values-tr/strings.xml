@@ -15,6 +15,7 @@
     <string name="folder_remove_hint">Klasörden çıkarmak için uygulamayı basılı tutun</string>
     <string name="folder_add">Ekle</string>
     <string name="folder_cancel">İptal</string>
+    <string name="folder_card_empty">Boş klasör. Uygulama eklemek için basılı tutun.</string>
     <string name="search_section_apps">Uygulamalar</string>
     <string name="search_section_settings">Ayarlar</string>
     <string name="search_section_contacts">Kişiler</string>
