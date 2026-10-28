@@ -8,6 +8,8 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.up
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -45,6 +47,9 @@ class AppDrawerScreenTest {
 
     private val context: Application = RuntimeEnvironment.getApplication()
     private val testScope = TestScope()
+    // Before the wiring: its app list is queried eagerly. Robolectric resolves a fake app's label to
+    // its package name, so the drawer shows this app as "com.mail".
+    private val mailApp = "com.mail".also { installFakeApp(context, it, "Mail") }
     private val wiring = DrawerWiring(context, testScope)
     private val viewModel = wiring.viewModel()
     private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
@@ -221,6 +226,59 @@ class AppDrawerScreenTest {
         }
     }
 
+    private fun appInfo() = context.getString(R.string.app_info)
+    private fun editTitle() = context.getString(org.arkikeskus.launcher.ui.R.string.edit_title)
+
+    /** The drawer on screen with its one app listed. */
+    private fun showWithApp() {
+        show()
+        awaitText(mailApp)
+    }
+
+    /** The drawer's own long-press: a still hold until the icon lifts (the menu opens then), release. */
+    private fun holdIcon() {
+        compose.onNodeWithText(mailApp).performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(1_000)
+        settle()
+        compose.onNodeWithText(mailApp).performTouchInput { up() }
+        settle()
+    }
+
+    /** The app menu and the Edit dialog are windows of their own too: they go with the drawer. */
+    @Test fun closingTheDrawerTakesTheAppMenu() {
+        showWithApp()
+        holdIcon()
+        compose.onNodeWithText(appInfo()).assertExists()
+
+        drawerOpen.value = false
+        settle()
+
+        compose.onNodeWithText(appInfo()).assertDoesNotExist()
+    }
+
+    @Test fun closingTheDrawerTakesTheEditDialog() {
+        showWithApp()
+        holdIcon()
+        compose.onNodeWithText(context.getString(R.string.rename)).performClick()
+        settle()
+        compose.onNodeWithText(editTitle()).assertExists()
+
+        drawerOpen.value = false
+        settle()
+
+        compose.onNodeWithText(editTitle()).assertDoesNotExist()
+    }
+
+    @Test fun aClosingDrawerOpensNoAppMenu() {
+        showWithApp()
+        drawerOpen.value = false
+        settle()
+
+        holdIcon()
+
+        compose.onNodeWithText(appInfo()).assertDoesNotExist()
+    }
+
     /** The drawer stays composed while it slides away, so a tap can still land on a tile then: no
      *  card may open over the home screen (the card is a window of its own, it would stay). */
     @Test fun aClosingDrawerOpensNoFolderCard() {
@@ -275,13 +333,13 @@ class AppDrawerScreenTest {
     @Test fun noResultsWaitsForTheResults() {
         show()
         val noResults = context.getString(R.string.search_no_results)
-        compose.onNode(hasSetTextAction()).performTextInput("c")
+        compose.onNode(hasSetTextAction()).performTextInput("zq")
         settle() // the query is on screen; the looper's clock stands still, so the debounce has not run
-        assertThat(viewModel.uiState.value.query).isEqualTo("c")
+        assertThat(viewModel.uiState.value.query).isEqualTo("zq")
         compose.onNodeWithText(noResults, useUnmergedTree = true).assertDoesNotExist()
 
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500)) // the debounce elapses; the search runs on its own thread
-        awaitText(noResults, unmerged = true) // no app is called "c" on the test device
+        awaitText(noResults, unmerged = true) // nothing on the test device matches "zq"
 
         assertThat(viewModel.uiState.value.searchPending).isFalse()
     }

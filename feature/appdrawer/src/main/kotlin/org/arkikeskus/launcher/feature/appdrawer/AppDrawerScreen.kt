@@ -187,13 +187,15 @@ fun AppDrawerScreen(
     // search focus (which hides the soft keyboard, otherwise left standing over the home screen) and
     // the query, so the drawer reopens on the A–Z list. Not during a drag-out: [drawerOpen] stays
     // true until the drag ends (the drawer-swipe rule), so a lift from the results keeps them.
-    // Also the folder's card and editor: windows of their own, so a tap on a tile while the drawer
-    // was still sliding away ([drawerOpen] holds until the slide ends) would leave the card standing
-    // over the home screen.
+    // Also every window of the drawer's own (the app menu, the Edit dialog, a folder's card and
+    // editor): a press while the drawer was still sliding away ([drawerOpen] holds until the slide
+    // ends) would otherwise leave the window standing over the home screen.
     LaunchedEffect(drawerOpen) {
         if (!drawerOpen) {
             focusManager.clearFocus()
             viewModel.onQueryChange("")
+            menuTarget = null
+            renameTarget = null
             folderCard = null
             editFolderId = null
         }
@@ -261,7 +263,7 @@ fun AppDrawerScreen(
         onFolderClick = { folder, bounds -> if (drawerOpen) folderCard = folder.id to bounds },
         onFolderLongClick = { if (drawerOpen) editFolderId = it.id },
         onAppClick = { openApp(it) },
-        onAppLongClick = { app, bounds -> menuTarget = app to bounds },
+        onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = app to bounds },
         onDrawerDrag = onDrawerDrag,
         onDrawerSettle = onDrawerSettle,
         dragController = dragController,
