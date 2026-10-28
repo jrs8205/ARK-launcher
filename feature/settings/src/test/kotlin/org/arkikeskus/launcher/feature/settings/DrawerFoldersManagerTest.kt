@@ -2,10 +2,14 @@ package org.arkikeskus.launcher.feature.settings
 
 import android.app.Application
 import android.os.Process
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -128,6 +132,36 @@ class DrawerFoldersManagerTest {
         compose.onNode(hasTestTag(FOLDER_MANAGER_NAME_TAG)).performTextReplacement("Tools2")
 
         assertThat(renamed).containsExactly(1L to "Tools2")
+    }
+
+    /** A page open across process death: the restored page waits for the folders to load instead
+     *  of closing on the empty list the fresh process starts with. */
+    @Test fun aRestoredPageWaitsForTheFoldersToLoad() {
+        val tester = StateRestorationTester(compose)
+        var folders by mutableStateOf<List<DrawerFolder>?>(listOf(tools, chat))
+        tester.setContent {
+            DrawerFoldersManager(
+                folders = folders,
+                apps = listOf(mail, maps, secret, slack),
+                hiddenKeys = setOf(secret.key),
+                onCreate = { created++ },
+                onRename = { id, name -> renamed += id to name },
+                onDelete = { deleted += it },
+                onSetMember = { id, key, member -> members += Triple(id, key, member) },
+                onBack = {},
+            )
+        }
+        compose.onNodeWithText("Tools").performClick()
+        compose.waitForIdle()
+        appRow("Mail").assertIsOn()
+
+        folders = null
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        folders = listOf(tools, chat)
+        compose.waitForIdle()
+
+        appRow("Mail").assertIsOn()
     }
 
     @Test fun deletingAsksFirst() {

@@ -58,9 +58,10 @@ class SettingsViewModel @Inject constructor(
     /** Creates a new empty folder in the app drawer (named [name]); it's filled from the drawer. */
     fun createDrawerFolder(name: String) = update { repository.createDrawerFolder(name) }
 
-    /** The drawer's folders, for the Folders page. */
-    val drawerFolders: StateFlow<List<DrawerFolder>> = repository.drawerFolders
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** The drawer's folders, for the Folders page; null until the store has answered, so a folder's
+     *  page restored after process death is not closed on an empty list it never had. */
+    val drawerFolders: StateFlow<List<DrawerFolder>?> = repository.drawerFolders
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun renameDrawerFolder(id: Long, name: String) = update { repository.renameDrawerFolder(id, name) }
 

@@ -60,7 +60,8 @@ internal const val FOLDER_MANAGER_NAME_TAG = "folder-manager-name"
  */
 @Composable
 internal fun DrawerFoldersManager(
-    folders: List<DrawerFolder>,
+    /** Null while the folders are still loading: a page restored after process death waits for them. */
+    folders: List<DrawerFolder>?,
     apps: List<AppItem>,
     hiddenKeys: Set<String>,
     onCreate: () -> Unit,
@@ -72,16 +73,19 @@ internal fun DrawerFoldersManager(
 ) {
     val p = LocalExpressivePalette.current
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
-    val open = openId?.let { id -> folders.firstOrNull { it.id == id } }
-    // A folder deleted elsewhere (a restore, the drawer) takes its page with it.
+    val open = openId?.let { id -> folders?.firstOrNull { it.id == id } }
+    // A folder deleted elsewhere (a restore, the drawer) takes its page with it - once the list is
+    // known: the fresh process after process death has no folders yet, not none.
     LaunchedEffect(openId, folders) {
-        if (openId != null && open == null) openId = null
+        if (openId != null && folders != null && open == null) openId = null
     }
     BackHandler {
         if (openId != null) openId = null else onBack()
     }
     Surface(modifier = modifier, color = p.bg) {
-        if (open != null) {
+        if (folders == null) {
+            // Still loading: nothing to list, and no page to close.
+        } else if (open != null) {
             val otherMembers = remember(folders, open.id) {
                 folders.filter { it.id != open.id }.flatMapTo(HashSet()) { it.appKeys }
             }

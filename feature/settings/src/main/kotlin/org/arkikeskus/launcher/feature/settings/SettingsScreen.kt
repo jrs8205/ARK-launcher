@@ -254,7 +254,7 @@ fun SettingsScreen(
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_drawer_folders),
                     description = pluralStringResource(
-                        R.plurals.settings_drawer_folders_count, drawerFolders.size, drawerFolders.size,
+                        R.plurals.settings_drawer_folders_count, drawerFolders.orEmpty().size, drawerFolders.orEmpty().size,
                     ),
                 ) { showFolderManager = true }
                 val newFolderName = stringResource(R.string.drawer_folder_default)
