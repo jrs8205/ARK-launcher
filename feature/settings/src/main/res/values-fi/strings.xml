@@ -64,6 +64,8 @@
     <string name="settings_new_drawer_folder_desc">Luo tyhjä kansio, johon voit siirtää sovelluksia</string>
     <string name="settings_drawer_folder_created">Kansio luotu sovellusvalikkoon</string>
     <string name="drawer_folder_default">Kansio</string>
+    <string name="settings_sort_drawer_folders">Järjestä kansiot aakkosittain</string>
+    <string name="settings_sort_drawer_folders_desc">Sovellusvalikon kansiot aakkosjärjestyksessä. Pois päältä säilyttää oman järjestyksesi.</string>
     <string name="settings_icons">Kuvakkeet</string>
     <string name="settings_themed_icons">Teemakuvakkeet (Material You)</string>
     <string name="settings_icon_pack">Ikonipaketti</string>

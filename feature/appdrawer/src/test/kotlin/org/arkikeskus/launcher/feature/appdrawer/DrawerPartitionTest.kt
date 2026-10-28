@@ -36,7 +36,7 @@ class DrawerPartitionTest {
     private val chatFolder = DrawerFolder(id = 1, name = "Chat", appKeys = listOf(slack.key, mail.key))
 
     @Test fun withoutAWorkSerialEverythingIsPersonalAsBefore() {
-        val p = partitionDrawer(all, hidden = emptySet(), folders = emptyList(), workSerial = null)
+        val p = partitionDrawer(all, hidden = emptySet(), folders = emptyList(), workSerial = null, sortFolders = false)
 
         assertThat(p.personal).isEqualTo(all)
         assertThat(p.work).isEmpty()
@@ -45,21 +45,21 @@ class DrawerPartitionTest {
     }
 
     @Test fun workAppsLeaveThePersonalGridAndFillTheWorkGrid() {
-        val p = partitionDrawer(all, hidden = emptySet(), folders = emptyList(), workSerial = 10)
+        val p = partitionDrawer(all, hidden = emptySet(), folders = emptyList(), workSerial = 10, sortFolders = false)
 
         assertThat(p.personal).containsExactly(mail, maps).inOrder()
         assertThat(p.work).containsExactly(slack, teams).inOrder()
     }
 
     @Test fun hiddenAppsAreGoneFromBothGrids() {
-        val p = partitionDrawer(all, hidden = setOf(maps.key, teams.key), folders = emptyList(), workSerial = 10)
+        val p = partitionDrawer(all, hidden = setOf(maps.key, teams.key), folders = emptyList(), workSerial = 10, sortFolders = false)
 
         assertThat(p.personal).containsExactly(mail)
         assertThat(p.work).containsExactly(slack)
     }
 
     @Test fun aFolderKeepsItsWorkMemberAndTheWorkGridListsItToo() {
-        val p = partitionDrawer(all, hidden = emptySet(), folders = listOf(chatFolder), workSerial = 10)
+        val p = partitionDrawer(all, hidden = emptySet(), folders = listOf(chatFolder), workSerial = 10, sortFolders = false)
 
         assertThat(p.folders).containsExactly(DrawerFolderUi(1, "Chat", listOf(slack, mail)))
         assertThat(p.personal).containsExactly(maps)
@@ -67,9 +67,23 @@ class DrawerPartitionTest {
     }
 
     @Test fun folderCandidatesAreTheUnfolderedAppsOfBothProfiles() {
-        val p = partitionDrawer(all, hidden = emptySet(), folders = listOf(chatFolder), workSerial = 10)
+        val p = partitionDrawer(all, hidden = emptySet(), folders = listOf(chatFolder), workSerial = 10, sortFolders = false)
 
         assertThat(p.folderCandidates).containsExactly(maps, teams).inOrder()
+    }
+
+    /** The folders come in the order the user keeps them (creation, then moves) unless asked for
+     *  A–Z, which ignores case like the app list. */
+    @Test fun foldersFollowTheStoredOrderUnlessSortedByName() {
+        val tools = DrawerFolder(id = 2, name = "Tools", appKeys = emptyList())
+        val games = DrawerFolder(id = 3, name = "games", appKeys = emptyList())
+        val stored = listOf(tools, games, chatFolder)
+
+        val kept = partitionDrawer(all, hidden = emptySet(), folders = stored, workSerial = null, sortFolders = false)
+        val sorted = partitionDrawer(all, hidden = emptySet(), folders = stored, workSerial = null, sortFolders = true)
+
+        assertThat(kept.folders.map { it.name }).containsExactly("Tools", "games", "Chat").inOrder()
+        assertThat(sorted.folders.map { it.name }).containsExactly("Chat", "games", "Tools").inOrder()
     }
 
     @Test fun pausedProfileWithNoVisibleAppsStillHasATab() {

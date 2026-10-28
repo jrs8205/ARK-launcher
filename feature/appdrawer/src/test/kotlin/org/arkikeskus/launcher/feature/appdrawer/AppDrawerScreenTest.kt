@@ -135,6 +135,20 @@ class AppDrawerScreenTest {
         awaitState("the folder is gone") { it.folders.isEmpty() }
     }
 
+    /** The setting sorts the folders by name, case aside; off, they keep the user's order. */
+    @Test fun foldersSortByNameWhenTheSettingIsOn() {
+        runBlocking {
+            wiring.settingsRepository.createDrawerFolder("Tools")
+            wiring.settingsRepository.createDrawerFolder("games")
+        }
+        show()
+        awaitState("both folders are listed") { it.folders.size == 2 }
+        assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools", "games").inOrder()
+
+        runBlocking { wiring.settingsRepository.setSortDrawerFolders(true) }
+        awaitState("the folders are sorted") { it.folders.map { f -> f.name } == listOf("games", "Tools") }
+    }
+
     private fun awaitState(what: String, condition: (AppDrawerUiState) -> Boolean) {
         val deadline = System.currentTimeMillis() + 10_000
         while (!condition(viewModel.uiState.value)) {

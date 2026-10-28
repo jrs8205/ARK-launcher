@@ -243,6 +243,12 @@ fun SettingsScreen(
                     viewModel.createDrawerFolder(newFolderName)
                     android.widget.Toast.makeText(context, folderCreatedMsg, android.widget.Toast.LENGTH_SHORT).show()
                 }
+                SwitchRow(
+                    stringResource(R.string.settings_sort_drawer_folders),
+                    stringResource(R.string.settings_sort_drawer_folders_desc),
+                    s.sortDrawerFolders,
+                    viewModel::setSortDrawerFolders,
+                )
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_home))
                 StepperRow(stringResource(R.string.settings_columns), s.homeColumns, 3, 7, viewModel::setHomeColumns)

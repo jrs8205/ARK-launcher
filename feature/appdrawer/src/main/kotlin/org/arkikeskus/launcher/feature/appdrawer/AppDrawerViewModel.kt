@@ -87,6 +87,8 @@ data class AppDrawerUiState(
     /** Labels may wrap onto a second line (Settings ▸ App drawer ▸ Two-line labels). */
     val twoLineLabels: Boolean = true,
     val drawerOpensAtTop: Boolean = true,
+    /** The folders listed A-Z rather than in the user's order; the editor hides its moves then. */
+    val sortDrawerFolders: Boolean = false,
 )
 
 @HiltViewModel
@@ -158,6 +160,7 @@ class AppDrawerViewModel @Inject constructor(
             iconScale = settings.iconScale,
             twoLineLabels = settings.twoLineDrawerLabels,
             drawerOpensAtTop = settings.drawerOpensAtTop,
+            sortDrawerFolders = settings.sortDrawerFolders,
         )
     }.combine(notificationBadgeRepository.badges) { state, badges ->
         state.copy(badges = badges)
@@ -177,6 +180,7 @@ class AppDrawerViewModel @Inject constructor(
                 hidden = hidden,
                 folders = if (state.query.isNotBlank()) emptyList() else folders,
                 workSerial = profile?.userSerial,
+                sortFolders = state.sortDrawerFolders,
             )
             state.copy(
                 apps = partition.personal,

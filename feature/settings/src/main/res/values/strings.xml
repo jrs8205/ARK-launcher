@@ -64,6 +64,8 @@
     <string name="settings_new_drawer_folder_desc">Creates an empty folder you can move apps into</string>
     <string name="settings_drawer_folder_created">Folder created in app drawer</string>
     <string name="drawer_folder_default">Folder</string>
+    <string name="settings_sort_drawer_folders">Sort folders A–Z</string>
+    <string name="settings_sort_drawer_folders_desc">App drawer folders in alphabetical order. Off keeps your own order.</string>
     <string name="settings_icons">Icons</string>
     <string name="settings_themed_icons">Themed icons (Material You)</string>
     <string name="settings_icon_pack">Icon pack</string>

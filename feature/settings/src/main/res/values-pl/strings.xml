@@ -66,6 +66,8 @@
     <string name="settings_new_drawer_folder_desc">Tworzy pusty folder, do którego możesz przenieść aplikacje</string>
     <string name="settings_drawer_folder_created">Utworzono folder w szufladzie aplikacji</string>
     <string name="drawer_folder_default">Folder</string>
+    <string name="settings_sort_drawer_folders">Sortuj foldery A–Z</string>
+    <string name="settings_sort_drawer_folders_desc">Foldery w szufladzie aplikacji w kolejności alfabetycznej. Wyłączone zachowuje własną kolejność.</string>
     <string name="settings_icons">Ikony</string>
     <string name="settings_themed_icons">Ikony z motywem (Material You)</string>
     <string name="settings_icon_pack">Pakiet ikon</string>

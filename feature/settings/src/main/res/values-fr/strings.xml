@@ -65,6 +65,8 @@
     <string name="settings_new_drawer_folder_desc">Crée un dossier vide dans lequel vous pouvez déplacer des applications</string>
     <string name="settings_drawer_folder_created">Dossier créé dans la liste des applications</string>
     <string name="drawer_folder_default">Dossier</string>
+    <string name="settings_sort_drawer_folders">Trier les dossiers A–Z</string>
+    <string name="settings_sort_drawer_folders_desc">Dossiers de la liste des applications par ordre alphabétique. Désactivé, votre ordre est conservé.</string>
     <string name="settings_icons">Icônes</string>
     <string name="settings_themed_icons">Icônes à thème (Material You)</string>
     <string name="settings_icon_pack">Pack d\'icônes</string>

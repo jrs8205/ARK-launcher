@@ -65,6 +65,8 @@
     <string name="settings_new_drawer_folder_desc">Cria uma pasta vazia para onde você pode mover apps</string>
     <string name="settings_drawer_folder_created">Pasta criada na gaveta de apps</string>
     <string name="drawer_folder_default">Pasta</string>
+    <string name="settings_sort_drawer_folders">Ordenar pastas A–Z</string>
+    <string name="settings_sort_drawer_folders_desc">Pastas da gaveta de apps em ordem alfabética. Desligado mantém a sua ordem.</string>
     <string name="settings_icons">Ícones</string>
     <string name="settings_themed_icons">Ícones com tema (Material You)</string>
     <string name="settings_icon_pack">Pacote de ícones</string>

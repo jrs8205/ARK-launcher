@@ -24,19 +24,23 @@ internal data class DrawerPartition(
 /**
  * Splits [apps] (already A–Z) for the idle drawer: hidden apps leave everything, the apps of the
  * profile with [workSerial] go to the Work grid, the rest to the Personal grid minus the members
- * of [folders]. With no work profile ([workSerial] null) the result is the 0.9.1 drawer.
+ * of [folders]. With no work profile ([workSerial] null) the result is the 0.9.1 drawer. The folders
+ * keep their stored order (the user's: creation, then moves) unless [sortFolders] asks for A–Z,
+ * case aside like the app list.
  */
 internal fun partitionDrawer(
     apps: List<AppItem>,
     hidden: Set<String>,
     folders: List<DrawerFolder>,
     workSerial: Long?,
+    sortFolders: Boolean,
 ): DrawerPartition {
     val visible = if (hidden.isEmpty()) apps else apps.filterNot { it.key in hidden }
     val (work, personal) = visible.partition { workSerial != null && it.userSerial == workSerial }
     if (folders.isEmpty()) return DrawerPartition(personal, work, emptyList(), visible)
     val byKey = visible.associateBy { it.key }
-    val folderUis = folders.map { f -> DrawerFolderUi(f.id, f.name, f.appKeys.mapNotNull { byKey[it] }) }
+    val ordered = if (sortFolders) folders.sortedBy { it.name.lowercase() } else folders
+    val folderUis = ordered.map { f -> DrawerFolderUi(f.id, f.name, f.appKeys.mapNotNull { byKey[it] }) }
     val inFolder = folders.flatMapTo(HashSet()) { it.appKeys }
     return DrawerPartition(
         personal = personal.filterNot { it.key in inFolder },

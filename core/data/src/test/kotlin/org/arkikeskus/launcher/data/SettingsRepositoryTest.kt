@@ -486,6 +486,20 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `sortDrawerFolders defaults to false, round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().sortDrawerFolders).isFalse()
+
+        repo.setSortDrawerFolders(true)
+        assertThat(repo.settings.first().sortDrawerFolders).isTrue()
+        assertThat(repo.exportRaw()["sort_drawer_folders"]).isEqualTo(true)
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("sort_drawer_folders" to true))
+        assertThat(restored.settings.first().sortDrawerFolders).isTrue()
+    }
+
+    @Test
     fun `twoLineDrawerLabels defaults to true and round-trips`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().twoLineDrawerLabels).isTrue()

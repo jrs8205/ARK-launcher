@@ -66,6 +66,8 @@
     <string name="settings_new_drawer_folder_desc">Создает пустую папку, в которую можно перенести приложения</string>
     <string name="settings_drawer_folder_created">Папка создана в списке приложений</string>
     <string name="drawer_folder_default">Папка</string>
+    <string name="settings_sort_drawer_folders">Сортировать папки по алфавиту</string>
+    <string name="settings_sort_drawer_folders_desc">Папки в списке приложений по алфавиту. Выключено — ваш порядок сохраняется.</string>
     <string name="settings_icons">Значки</string>
     <string name="settings_themed_icons">Тематические значки (Material You)</string>
     <string name="settings_icon_pack">Набор значков</string>

@@ -46,6 +46,8 @@ data class LauncherSettings(
     /** Reopen the app drawer scrolled back to the top (Pixel-style) rather than remembering the last
      *  scroll position — keeps the "most used" row and A–Z start visible on every open. */
     val drawerOpensAtTop: Boolean = true,
+    /** List the app drawer's folders A–Z (case aside) instead of in the user's own order. */
+    val sortDrawerFolders: Boolean = false,
     /** Size multiplier for app icon labels across home/dock/drawer/folders (1.0 = the default 11sp). */
     val appLabelTextScale: Float = 1.0f,
     /** Size multiplier for app icons across home/dock/drawer/folders (1.0 = each surface's nominal size;
