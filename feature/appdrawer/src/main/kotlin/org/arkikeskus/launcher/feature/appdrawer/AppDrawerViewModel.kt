@@ -66,6 +66,8 @@ data class AppDrawerUiState(
     val dockColumns: Int = 4,
     val homeKeys: Set<String> = emptySet(),
     val showLabels: Boolean = true,
+    /** The name under a folder tile (issue #17); labels off hide it too. */
+    val showFolderNames: Boolean = true,
     val showSearch: Boolean = true,
     val badges: Map<String, Int> = emptyMap(),
     val showNotificationDots: Boolean = true,
@@ -148,6 +150,7 @@ class AppDrawerViewModel @Inject constructor(
                 .map { it.key }
                 .toSet(),
             showLabels = settings.showDrawerLabels,
+            showFolderNames = settings.showDrawerFolderNames,
             showSearch = settings.showDrawerSearch,
             showNotificationDots = settings.showNotificationDots,
             notificationDotCount = settings.notificationDotCount,

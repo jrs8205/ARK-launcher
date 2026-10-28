@@ -98,6 +98,8 @@ class SettingsViewModel @Inject constructor(
     fun setShowDockLabels(value: Boolean) = update { repository.setShowDockLabels(value) }
     fun setShowHomeLabels(value: Boolean) = update { repository.setShowHomeLabels(value) }
     fun setShowDrawerLabels(value: Boolean) = update { repository.setShowDrawerLabels(value) }
+    fun setShowHomeFolderNames(value: Boolean) = update { repository.setShowHomeFolderNames(value) }
+    fun setShowDrawerFolderNames(value: Boolean) = update { repository.setShowDrawerFolderNames(value) }
     fun setDockBackgroundOpacity(value: Float) = update { repository.setDockBackgroundOpacity(value) }
     fun setShowPageIndicator(value: Boolean) = update { repository.setShowPageIndicator(value) }
     fun setHomePageMarker(value: String) = update { repository.setHomePageMarker(value) }

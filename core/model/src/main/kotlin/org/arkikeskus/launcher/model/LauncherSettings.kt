@@ -14,6 +14,10 @@ data class LauncherSettings(
     val showDockLabels: Boolean = false,
     val showHomeLabels: Boolean = true,
     val showDrawerLabels: Boolean = true,
+    /** The name under a home folder's tile (issue #17); off keeps the tile alone. Labels off hide it too. */
+    val showHomeFolderNames: Boolean = true,
+    /** The name under an app-drawer folder's tile; off keeps the tile alone. Labels off hide it too. */
+    val showDrawerFolderNames: Boolean = true,
     val dockBackgroundOpacity: Float = DEFAULT_DOCK_BACKGROUND,
     val showPageIndicator: Boolean = true,
     /** How the page dots mark the home page: a ring around its dot ([MARKER_RING]) or a house glyph

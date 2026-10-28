@@ -19,6 +19,7 @@
     <string name="settings_rows">Строки</string>
     <string name="settings_show_labels">Показывать подписи</string>
     <string name="settings_two_line_labels">Подписи в две строки</string>
+    <string name="settings_show_folder_names">Показывать названия папок</string>
     <string name="settings_dock_bg">Непрозрачность фона док-панели</string>
     <string name="settings_page_indicator">Индикатор страниц</string>
     <string name="settings_home_page_marker">Отметка главной страницы</string>

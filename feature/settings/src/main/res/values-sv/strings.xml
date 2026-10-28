@@ -19,6 +19,7 @@
     <string name="settings_rows">Rader</string>
     <string name="settings_show_labels">Visa appnamn</string>
     <string name="settings_two_line_labels">Appnamn på två rader</string>
+    <string name="settings_show_folder_names">Visa mappnamn</string>
     <string name="settings_dock_bg">Bakgrundsopacitet för Dock</string>
     <string name="settings_page_indicator">Sidprickar</string>
     <string name="settings_home_page_marker">Markering av startsidan</string>

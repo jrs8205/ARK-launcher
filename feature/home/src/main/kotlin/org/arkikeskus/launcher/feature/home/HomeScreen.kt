@@ -602,6 +602,7 @@ fun HomeScreen(
                 badgeShowCount = badgeShowCount,
                 badgeScale = badgeScale,
                 showLabels = settings.showHomeLabels,
+                showFolderNames = settings.showHomeFolderNames,
                 labelColor = Color(settings.appLabelColor),
                 showPageIndicator = settings.showPageIndicator,
                 homePageMarker = settings.homePageMarker,

@@ -19,6 +19,7 @@
     <string name="settings_rows">Linhas</string>
     <string name="settings_show_labels">Mostrar nomes</string>
     <string name="settings_two_line_labels">Nomes em duas linhas</string>
+    <string name="settings_show_folder_names">Mostrar nomes das pastas</string>
     <string name="settings_dock_bg">Opacidade do fundo do dock</string>
     <string name="settings_page_indicator">Indicador de página</string>
     <string name="settings_home_page_marker">Marcador da página inicial</string>

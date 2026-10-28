@@ -244,6 +244,7 @@ fun SettingsScreen(
                 StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
                 SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, viewModel::setShowDrawerLabels)
                 SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineDrawerLabels, viewModel::setTwoLineDrawerLabels)
+                SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, viewModel::setShowDrawerFolderNames)
                 SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
                 SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
                 SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
@@ -279,6 +280,7 @@ fun SettingsScreen(
                 StepperRow(stringResource(R.string.settings_rows), s.homeRows, 5, 8, viewModel::setHomeRows)
                 SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, viewModel::setShowHomeLabels)
                 SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineHomeLabels, viewModel::setTwoLineHomeLabels)
+                SwitchRow(stringResource(R.string.settings_show_folder_names), s.showHomeFolderNames, viewModel::setShowHomeFolderNames)
                 SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, viewModel::setShowPageIndicator)
                 if (s.showPageIndicator) {
                     ExpressiveActionRow(

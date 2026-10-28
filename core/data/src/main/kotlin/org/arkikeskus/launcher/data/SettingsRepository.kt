@@ -98,6 +98,8 @@ class SettingsRepository @Inject constructor(
             showDockLabels = p[Keys.SHOW_DOCK_LABELS] ?: false,
             showHomeLabels = p[Keys.SHOW_HOME_LABELS] ?: true,
             showDrawerLabels = p[Keys.SHOW_DRAWER_LABELS] ?: true,
+            showHomeFolderNames = p[Keys.SHOW_HOME_FOLDER_NAMES] ?: true,
+            showDrawerFolderNames = p[Keys.SHOW_DRAWER_FOLDER_NAMES] ?: true,
             dockBackgroundOpacity = (p[Keys.DOCK_OPACITY] ?: 0.35f).coerceIn(0f, 1f),
             showPageIndicator = p[Keys.SHOW_PAGE_INDICATOR] ?: true,
             homePageMarker = (p[Keys.HOME_PAGE_MARKER] ?: LauncherSettings.MARKER_RING)
@@ -396,6 +398,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setShowDockLabels(value: Boolean) = edit { it[Keys.SHOW_DOCK_LABELS] = value }
     suspend fun setShowHomeLabels(value: Boolean) = edit { it[Keys.SHOW_HOME_LABELS] = value }
     suspend fun setShowDrawerLabels(value: Boolean) = edit { it[Keys.SHOW_DRAWER_LABELS] = value }
+    suspend fun setShowHomeFolderNames(value: Boolean) = edit { it[Keys.SHOW_HOME_FOLDER_NAMES] = value }
+    suspend fun setShowDrawerFolderNames(value: Boolean) = edit { it[Keys.SHOW_DRAWER_FOLDER_NAMES] = value }
     suspend fun setDockBackgroundOpacity(value: Float) = edit { it[Keys.DOCK_OPACITY] = value.coerceIn(0f, 1f) }
     suspend fun setShowPageIndicator(value: Boolean) = edit { it[Keys.SHOW_PAGE_INDICATOR] = value }
     /** Home-page marker style of the page dots (see LauncherSettings.MARKER_*). */
@@ -709,6 +713,8 @@ class SettingsRepository @Inject constructor(
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
         val SHOW_DRAWER_LABELS = booleanPreferencesKey("show_drawer_labels")
+        val SHOW_HOME_FOLDER_NAMES = booleanPreferencesKey("show_home_folder_names")
+        val SHOW_DRAWER_FOLDER_NAMES = booleanPreferencesKey("show_drawer_folder_names")
         val DOCK_OPACITY = floatPreferencesKey("dock_opacity")
         val SHOW_PAGE_INDICATOR = booleanPreferencesKey("show_page_indicator")
         val HOME_PAGE_MARKER = stringPreferencesKey("home_page_marker")
@@ -802,6 +808,7 @@ class SettingsRepository @Inject constructor(
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
+            "show_home_folder_names", "show_drawer_folder_names",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

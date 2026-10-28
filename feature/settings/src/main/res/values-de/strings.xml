@@ -19,6 +19,7 @@
     <string name="settings_rows">Zeilen</string>
     <string name="settings_show_labels">Beschriftungen anzeigen</string>
     <string name="settings_two_line_labels">Zweizeilige Beschriftungen</string>
+    <string name="settings_show_folder_names">Ordnernamen anzeigen</string>
     <string name="settings_dock_bg">Deckkraft des Dock-Hintergrunds</string>
     <string name="settings_page_indicator">Seitenpunkte</string>
     <string name="settings_home_page_marker">Markierung der Startseite</string>

@@ -499,6 +499,27 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().sortDrawerFolders).isTrue()
     }
 
+    /** Issue #17: folder names show by default; each surface's switch round-trips and restores. */
+    @Test
+    fun `folder names show by default, each surface's switch round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().showHomeFolderNames).isTrue()
+        assertThat(repo.settings.first().showDrawerFolderNames).isTrue()
+
+        repo.setShowHomeFolderNames(false)
+        assertThat(repo.settings.first().showHomeFolderNames).isFalse()
+        assertThat(repo.settings.first().showDrawerFolderNames).isTrue()
+        repo.setShowDrawerFolderNames(false)
+        assertThat(repo.settings.first().showDrawerFolderNames).isFalse()
+        assertThat(repo.exportRaw()["show_home_folder_names"]).isEqualTo(false)
+        assertThat(repo.exportRaw()["show_drawer_folder_names"]).isEqualTo(false)
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("show_home_folder_names" to false, "show_drawer_folder_names" to false))
+        assertThat(restored.settings.first().showHomeFolderNames).isFalse()
+        assertThat(restored.settings.first().showDrawerFolderNames).isFalse()
+    }
+
     @Test
     fun `moveDrawerFolder swaps a folder with its neighbour and stops at the ends`() = runTest {
         val repo = newRepository()

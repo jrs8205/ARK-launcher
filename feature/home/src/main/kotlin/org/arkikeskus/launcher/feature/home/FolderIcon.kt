@@ -25,7 +25,8 @@ import org.arkikeskus.launcher.ui.component.PickedIcon
 /**
  * A home-screen folder: a rounded tile showing a 2×2 preview of the first four contained app icons
  * — or the [customIcon] the user picked for it instead — an optional label, and a notification badge
- * (aggregated from its contents).
+ * (aggregated from its contents). With [showName] off the label block stays (the tile keeps its place
+ * beside the app icons) but shows no name (issue #17).
  */
 @Composable
 fun FolderIcon(
@@ -39,6 +40,7 @@ fun FolderIcon(
     size: Dp = 52.dp,
     modifier: Modifier = Modifier,
     customIcon: CustomIcon? = null,
+    showName: Boolean = true,
 ) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.TopEnd) {
@@ -51,7 +53,7 @@ fun FolderIcon(
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         // Home-only tile in a fixed centred cell: reserve the full label block (see AppLabel).
-        if (showLabel) AppLabel(name, labelColor, reserveLines = true)
+        if (showLabel) AppLabel(if (showName) name else "", labelColor, reserveLines = true)
     }
 }
 

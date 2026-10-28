@@ -19,6 +19,7 @@
     <string name="settings_rows">Satırlar</string>
     <string name="settings_show_labels">Etiketleri göster</string>
     <string name="settings_two_line_labels">İki satırlı etiketler</string>
+    <string name="settings_show_folder_names">Klasör adlarını göster</string>
     <string name="settings_dock_bg">Dock arka plan opaklığı</string>
     <string name="settings_page_indicator">Sayfa noktaları</string>
     <string name="settings_home_page_marker">Ana sayfa işareti</string>

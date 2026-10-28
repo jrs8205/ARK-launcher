@@ -271,6 +271,7 @@ fun AppDrawerScreen(
         onDropOnHome = { app, page, cellX, cellY -> viewModel.addToHomeAt(app, page, cellX, cellY, defaultFolderName) },
         onDropOnDock = { app -> viewModel.addToDock(app) },
         showLabels = uiState.showLabels,
+        showFolderNames = uiState.showFolderNames,
         calc = uiState.calc,
         settingResults = uiState.settingResults,
         contactResults = uiState.contactResults,
@@ -425,6 +426,7 @@ private fun AppDrawerContent(
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
     onDropOnDock: (AppItem) -> Unit,
     showLabels: Boolean,
+    showFolderNames: Boolean,
     calc: SearchResult.Calculation?,
     searchPending: Boolean,
     settingResults: List<SearchResult.Setting>,
@@ -581,7 +583,7 @@ private fun AppDrawerContent(
                     items(items = folders, key = { "folder-${it.id}" }, contentType = { "folder" }) { folder ->
                         DrawerFolderTile(
                             folder = folder,
-                            showLabel = showLabels,
+                            showLabel = showLabels && showFolderNames,
                             tileSize = drawerIconSize,
                             // Aggregated like the home-screen FolderIcon: members left the flat A–Z
                             // grid, so without this their unread badges vanished from the drawer.

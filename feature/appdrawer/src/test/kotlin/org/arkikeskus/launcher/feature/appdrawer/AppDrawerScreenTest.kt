@@ -219,6 +219,22 @@ class AppDrawerScreenTest {
         compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).assertDoesNotExist()
     }
 
+    /** Issue #17: with "Show folder names" off the drawer's folder tiles carry no name. */
+    @Test fun theFolderTileHidesItsNameWhenTheSettingIsOff() {
+        runBlocking {
+            wiring.settingsRepository.setShowDrawerFolderNames(false)
+            wiring.settingsRepository.createDrawerFolder("Tools")
+        }
+        show()
+        awaitState("the folder is listed without its name") { it.folders.size == 1 && !it.showFolderNames }
+        settle()
+
+        compose.onNodeWithText("Tools").assertDoesNotExist()
+
+        runBlocking { wiring.settingsRepository.setShowDrawerFolderNames(true) }
+        awaitText("Tools")
+    }
+
     private fun awaitState(what: String, condition: (AppDrawerUiState) -> Boolean) {
         val deadline = System.currentTimeMillis() + 10_000
         while (!condition(viewModel.uiState.value)) {
