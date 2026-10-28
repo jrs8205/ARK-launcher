@@ -16,6 +16,9 @@
     <string name="folder_add">Agregar</string>
     <string name="folder_cancel">Cancelar</string>
     <string name="folder_card_empty">Carpeta vacía. Mantenla pulsada para añadir apps.</string>
+    <string name="folder_delete_title">¿Eliminar la carpeta?</string>
+    <string name="folder_delete_text">«%1$s» se eliminará. Sus apps seguirán en la lista de apps.</string>
+    <string name="folder_delete_confirm">Eliminar</string>
     <string name="search_section_apps">Aplicaciones</string>
     <string name="search_section_settings">Configuración</string>
     <string name="search_section_contacts">Contactos</string>

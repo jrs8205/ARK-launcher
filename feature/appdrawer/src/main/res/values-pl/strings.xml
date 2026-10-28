@@ -16,6 +16,9 @@
     <string name="folder_add">Dodaj</string>
     <string name="folder_cancel">Anuluj</string>
     <string name="folder_card_empty">Pusty folder. Przytrzymaj go, aby dodać aplikacje.</string>
+    <string name="folder_delete_title">Usunąć folder?</string>
+    <string name="folder_delete_text">„%1$s” zostanie usunięty. Jego aplikacje pozostaną na liście aplikacji.</string>
+    <string name="folder_delete_confirm">Usuń</string>
     <string name="search_section_apps">Aplikacje</string>
     <string name="search_section_settings">Ustawienia</string>
     <string name="search_section_contacts">Kontakty</string>

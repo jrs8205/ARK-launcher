@@ -16,6 +16,9 @@
     <string name="folder_add">Ajouter</string>
     <string name="folder_cancel">Annuler</string>
     <string name="folder_card_empty">Dossier vide. Appuyez longuement dessus pour ajouter des applis.</string>
+    <string name="folder_delete_title">Supprimer le dossier ?</string>
+    <string name="folder_delete_text">« %1$s » sera supprimé. Ses applis resteront dans la liste.</string>
+    <string name="folder_delete_confirm">Supprimer</string>
     <string name="search_section_apps">Applications</string>
     <string name="search_section_settings">Paramètres</string>
     <string name="search_section_contacts">Contacts</string>

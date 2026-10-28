@@ -16,6 +16,9 @@
     <string name="folder_add">Hinzufügen</string>
     <string name="folder_cancel">Abbrechen</string>
     <string name="folder_card_empty">Leerer Ordner. Halte ihn gedrückt, um Apps hinzuzufügen.</string>
+    <string name="folder_delete_title">Ordner löschen?</string>
+    <string name="folder_delete_text">„%1$s“ wird gelöscht. Die Apps bleiben in der App-Liste.</string>
+    <string name="folder_delete_confirm">Löschen</string>
     <string name="search_section_apps">Apps</string>
     <string name="search_section_settings">Einstellungen</string>
     <string name="search_section_contacts">Kontakte</string>

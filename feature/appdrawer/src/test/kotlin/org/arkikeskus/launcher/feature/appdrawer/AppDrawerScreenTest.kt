@@ -122,6 +122,29 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
     }
 
+    /** The editor's Delete asks first: the folder stays until the question's own Delete. */
+    @Test fun deletingAFolderAsksFirst() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+        compose.onNodeWithText(context.getString(R.string.folder_delete)).performClick()
+        settle()
+
+        assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools")
+        compose.onNodeWithText(context.getString(R.string.folder_delete_confirm)).performClick()
+        awaitState("the folder is gone") { it.folders.isEmpty() }
+    }
+
+    private fun awaitState(what: String, condition: (AppDrawerUiState) -> Boolean) {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!condition(viewModel.uiState.value)) {
+            check(System.currentTimeMillis() < deadline) { "Timed out waiting until $what" }
+            Thread.sleep(20)
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.waitForIdle()
+        }
+    }
+
     @Test fun homeTakesTheFolderSheetWithTheDrawer() {
         showWithFolder()
         compose.onNodeWithText("Tools").performTouchInput { longClick() }

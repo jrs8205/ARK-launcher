@@ -880,7 +880,7 @@ private fun DrawerFolderCard(
     }
 }
 
-/** The open-folder sheet: rename, member apps (tap launches, long-press removes), add apps, delete. */
+/** The folder editor sheet: rename, member apps (tap launches, long-press removes), add apps, delete (asked first). */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerFolderSheet(
@@ -898,6 +898,7 @@ private fun DrawerFolderSheet(
     onDismiss: () -> Unit,
 ) {
     var showAdd by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     // The sheet is its own window: re-apply the long-press delay setting for the members' long-press.
     ModalBottomSheet(onDismissRequest = onDismiss) { LongPressDelay {
         Column(
@@ -958,10 +959,28 @@ private fun DrawerFolderSheet(
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { showAdd = true }) { Text(stringResource(R.string.folder_add_apps)) }
-                TextButton(onClick = onDelete) { Text(stringResource(R.string.folder_delete)) }
+                TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.folder_delete)) }
             }
         }
     } }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.folder_delete_title)) },
+            text = { Text(stringResource(R.string.folder_delete_text, folder.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                ) { Text(stringResource(R.string.folder_delete_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.folder_cancel)) }
+            },
+        )
+    }
     if (showAdd) {
         AddAppsDialog(
             apps = candidateApps,
