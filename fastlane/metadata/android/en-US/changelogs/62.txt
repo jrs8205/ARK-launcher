@@ -1,0 +1,9 @@
+New
+- Drawer folders: a tap opens the folder as a card by its icon, a long-press its editor; folders can be listed A-Z or moved by hand; deleting asks first.
+- Settings > App drawer > Folders lists and edits the drawer's folders; the Add apps picker has a search field.
+- "Show folder names" switches for the home screen and the app drawer.
+
+Fixed
+- A widget's set-up screen (the gear) opens again also when it is not exported; a widget whose app was not ready at start appears once it is.
+- A lifted icon drops where the finger that lifted it rises, also with a second finger down.
+- The menu caret in right-to-left layouts, icon packs updated while being read, drawer windows closing with the drawer.
