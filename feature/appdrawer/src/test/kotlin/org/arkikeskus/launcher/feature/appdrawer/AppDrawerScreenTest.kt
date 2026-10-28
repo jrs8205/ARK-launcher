@@ -221,6 +221,43 @@ class AppDrawerScreenTest {
         }
     }
 
+    /** The drawer stays composed while it slides away, so a tap can still land on a tile then: no
+     *  card may open over the home screen (the card is a window of its own, it would stay). */
+    @Test fun aClosingDrawerOpensNoFolderCard() {
+        showWithFolder()
+        drawerOpen.value = false
+        settle()
+
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
+    }
+
+    @Test fun aClosingDrawerOpensNoFolderEditor() {
+        showWithFolder()
+        drawerOpen.value = false
+        settle()
+
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+
+        compose.onNodeWithText(addApps()).assertDoesNotExist()
+    }
+
+    /** A card already open goes with the drawer, whatever closed it. */
+    @Test fun closingTheDrawerTakesTheFolderCard() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+
+        drawerOpen.value = false
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
+    }
+
     @Test fun homeTakesTheFolderSheetWithTheDrawer() {
         showWithFolder()
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
