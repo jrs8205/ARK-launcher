@@ -21,6 +21,8 @@
     <string name="folder_delete_confirm">Usuń</string>
     <string name="folder_move_earlier">Przesuń folder wcześniej</string>
     <string name="folder_move_later">Przesuń folder później</string>
+    <string name="folder_edit">Edytuj folder</string>
+    <string name="folder_move_label">Przenieś folder</string>
     <string name="search_section_apps">Aplikacje</string>
     <string name="search_section_settings">Ustawienia</string>
     <string name="search_section_contacts">Kontakty</string>

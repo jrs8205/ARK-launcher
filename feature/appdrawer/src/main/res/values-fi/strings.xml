@@ -21,6 +21,8 @@
     <string name="folder_delete_confirm">Poista</string>
     <string name="folder_move_earlier">Siirrä kansiota aiemmaksi</string>
     <string name="folder_move_later">Siirrä kansiota myöhemmäksi</string>
+    <string name="folder_edit">Muokkaa kansiota</string>
+    <string name="folder_move_label">Siirrä kansiota</string>
     <string name="search_section_apps">Sovellukset</string>
     <string name="search_section_settings">Asetukset</string>
     <string name="search_section_contacts">Yhteystiedot</string>

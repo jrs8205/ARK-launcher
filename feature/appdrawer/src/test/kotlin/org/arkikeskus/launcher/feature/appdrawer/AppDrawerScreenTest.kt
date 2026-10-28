@@ -3,6 +3,10 @@ package org.arkikeskus.launcher.feature.appdrawer
 import android.app.Application
 import android.os.Looper
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -132,9 +136,22 @@ class AppDrawerScreenTest {
         compose.onNodeWithText(context.getString(R.string.folder_delete)).performClick()
         settle()
 
+        compose.onNodeWithText(context.getString(R.string.folder_delete_title)).assertExists()
         assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools")
         compose.onNodeWithText(context.getString(R.string.folder_delete_confirm)).performClick()
         awaitState("the folder is gone") { it.folders.isEmpty() }
+    }
+
+    /** The long-press is the only way to the editor, so TalkBack must say what it does. */
+    @Test fun theFolderTileTellsTalkBackWhatALongPressDoes() {
+        showWithFolder()
+        val editFolder = context.getString(R.string.folder_edit)
+
+        compose.onNodeWithText("Tools").assert(
+            SemanticsMatcher("long-press labelled '$editFolder'") {
+                it.config.getOrNull(SemanticsActions.OnLongClick)?.label == editFolder
+            },
+        )
     }
 
     /** The setting sorts the folders by name, case aside; off, they keep the user's order. */
@@ -162,10 +179,24 @@ class AppDrawerScreenTest {
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
         settle()
 
+        compose.onNodeWithText(context.getString(R.string.folder_move_label)).assertExists()
         compose.onNodeWithContentDescription(context.getString(R.string.folder_move_earlier)).assertIsNotEnabled()
         compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).performClick()
 
         awaitState("Tools follows Games") { it.folders.map { f -> f.name } == listOf("Games", "Tools") }
+        settle()
+        compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).assertIsNotEnabled()
+    }
+
+    /** One folder has nowhere to go: no move row at all. */
+    @Test fun theEditorOffersNoMovesForASingleFolder() {
+        showWithFolder()
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+
+        compose.onNodeWithText(addApps()).assertExists()
+        compose.onNodeWithText(context.getString(R.string.folder_move_label)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).assertDoesNotExist()
     }
 
     /** Sorted A-Z the order is not the user's to change, so the editor offers no moves. */

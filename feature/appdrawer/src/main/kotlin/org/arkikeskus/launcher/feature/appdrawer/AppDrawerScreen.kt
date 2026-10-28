@@ -217,6 +217,21 @@ fun AppDrawerScreen(
 
     val badges = if (uiState.showNotificationDots) uiState.badges else emptyMap()
 
+    // The grid's, the card's and the editor's app tap: the launcher's own icon opens Settings, any
+    // other app launches. True when the tap was handled (the drawer closed behind a launch); a failed
+    // launch keeps the drawer, and the surface the tap came from, open with the ViewModel's notice.
+    val openApp: (AppItem) -> Boolean = { app ->
+        if (app.packageName == context.packageName) {
+            onOpenSettings()
+            true
+        } else if (viewModel.onAppClick(app, launchSources?.take(app))) {
+            onClose()
+            true
+        } else {
+            false
+        }
+    }
+
     // All app icons in the drawer (grid, folder sheet, popup) honour the themed-icons setting and the
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
@@ -240,15 +255,7 @@ fun AppDrawerScreen(
         onQueryChange = viewModel::onQueryChange,
         onFolderClick = { folder, bounds -> folderCard = folder.id to bounds },
         onFolderLongClick = { editFolderId = it.id },
-        onAppClick = { app ->
-            if (app.packageName == context.packageName) {
-                onOpenSettings()
-            } else if (viewModel.onAppClick(app, launchSources?.take(app))) {
-                // Keep the drawer open if the launch failed, so the user isn't dumped back to home
-                // with no explanation.
-                onClose()
-            }
-        },
+        onAppClick = { openApp(it) },
         onAppLongClick = { app, bounds -> menuTarget = app to bounds },
         onDrawerDrag = onDrawerDrag,
         onDrawerSettle = onDrawerSettle,
@@ -345,12 +352,7 @@ fun AppDrawerScreen(
             badges = badges,
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
-            onAppClick = { app ->
-                if (viewModel.onAppClick(app, launchSources?.take(app))) {
-                    folderCard = null
-                    onClose()
-                }
-            },
+            onAppClick = { if (openApp(it)) folderCard = null },
             onDismiss = { folderCard = null },
         )
     }
@@ -364,16 +366,15 @@ fun AppDrawerScreen(
             badgeScale = uiState.notificationDotScale,
             onRename = { viewModel.renameDrawerFolder(openFolder.id, it) },
             onSetIcon = { viewModel.setDrawerFolderIcon(openFolder.id, it) },
-            onAppClick = { app ->
-                if (viewModel.onAppClick(app, launchSources?.take(app))) {
-                    editFolderId = null
-                    onClose()
-                }
-            },
+            onAppClick = { if (openApp(it)) editFolderId = null },
             onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key) },
             onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys) },
-            // Sorted A-Z the order is not the user's to change: no moves then.
-            onMove = if (uiState.sortDrawerFolders) null else { by -> viewModel.moveDrawerFolder(openFolder.id, by) },
+            // Sorted A-Z the order is not the user's to change, and one folder has nowhere to go.
+            onMove = if (uiState.sortDrawerFolders || uiState.folders.size < 2) {
+                null
+            } else {
+                { by -> viewModel.moveDrawerFolder(openFolder.id, by) }
+            },
             canMoveEarlier = uiState.folders.indexOf(openFolder) > 0,
             canMoveLater = uiState.folders.indexOf(openFolder) < uiState.folders.lastIndex,
             onDelete = {
@@ -726,18 +727,17 @@ private fun DrawerFolderTile(
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
 ) {
-    val haptics = LocalHapticFeedback.current
     var bounds by remember(folder.id) { mutableStateOf(Rect.Zero) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .onGloballyPositioned { bounds = it.boundsInRoot() }
+            // combinedClickable ticks the long-press haptic itself (as an app's does). The label is
+            // what TalkBack reads for the hold: the editor has no other way in.
             .combinedClickable(
                 onClick = { onClick(bounds) },
-                onLongClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
+                onLongClickLabel = stringResource(R.string.folder_edit),
+                onLongClick = onLongClick,
             )
             .padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -835,7 +835,8 @@ private fun DrawerFolderCard(
     val preferAbove = bounds.center.y > windowSize.height / 2
     val anchor = IntOffset(bounds.center.x.roundToInt(), (if (preferAbove) bounds.top else bounds.bottom).roundToInt())
     val width = with(LocalDensity.current) { minOf(FOLDER_CARD_WIDTH, windowSize.width.toDp() - 16.dp) }
-    val iconSize = 56.dp * LocalIconScale.current
+    // The grid's rule: the icon shrinks to its cell when the icon-size setting would overflow it.
+    val iconSize = iconSizeForCell((width - 16.dp) / FOLDER_CARD_COLUMNS, 56.dp * LocalIconScale.current)
     val palette = LocalExpressivePalette.current
     AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width) {
         Column(
@@ -966,15 +967,19 @@ private fun DrawerFolderSheet(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { showAdd = true }) { Text(stringResource(R.string.folder_add_apps)) }
                 TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.folder_delete)) }
-                if (onMove != null) {
-                    Spacer(Modifier.weight(1f))
+            }
+            // A row of its own: beside the two text buttons the chevrons overflowed the sheet in
+            // Finnish and French (and in English at a large font scale).
+            if (onMove != null) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.folder_move_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
                     IconButton(onClick = { onMove(-1) }, enabled = canMoveEarlier) {
                         Icon(painterResource(LauncherIcons.ChevronLeft), contentDescription = stringResource(R.string.folder_move_earlier))
                     }

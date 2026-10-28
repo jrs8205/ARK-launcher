@@ -21,6 +21,8 @@
     <string name="folder_delete_confirm">Sil</string>
     <string name="folder_move_earlier">Klasörü öne taşı</string>
     <string name="folder_move_later">Klasörü arkaya taşı</string>
+    <string name="folder_edit">Klasörü düzenle</string>
+    <string name="folder_move_label">Klasörü taşı</string>
     <string name="search_section_apps">Uygulamalar</string>
     <string name="search_section_settings">Ayarlar</string>
     <string name="search_section_contacts">Kişiler</string>

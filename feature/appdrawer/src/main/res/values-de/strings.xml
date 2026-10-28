@@ -21,6 +21,8 @@
     <string name="folder_delete_confirm">Löschen</string>
     <string name="folder_move_earlier">Ordner nach vorne verschieben</string>
     <string name="folder_move_later">Ordner nach hinten verschieben</string>
+    <string name="folder_edit">Ordner bearbeiten</string>
+    <string name="folder_move_label">Ordner verschieben</string>
     <string name="search_section_apps">Apps</string>
     <string name="search_section_settings">Einstellungen</string>
     <string name="search_section_contacts">Kontakte</string>

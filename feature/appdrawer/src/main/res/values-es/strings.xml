@@ -21,6 +21,8 @@
     <string name="folder_delete_confirm">Eliminar</string>
     <string name="folder_move_earlier">Mover la carpeta hacia delante</string>
     <string name="folder_move_later">Mover la carpeta hacia atrás</string>
+    <string name="folder_edit">Editar carpeta</string>
+    <string name="folder_move_label">Mover carpeta</string>
     <string name="search_section_apps">Aplicaciones</string>
     <string name="search_section_settings">Configuración</string>
     <string name="search_section_contacts">Contactos</string>
