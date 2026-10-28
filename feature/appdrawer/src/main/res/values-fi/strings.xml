@@ -19,6 +19,8 @@
     <string name="folder_delete_title">Poistetaanko kansio?</string>
     <string name="folder_delete_text">”%1$s” poistetaan. Sen sovellukset jäävät sovellusluetteloon.</string>
     <string name="folder_delete_confirm">Poista</string>
+    <string name="folder_move_earlier">Siirrä kansiota aiemmaksi</string>
+    <string name="folder_move_later">Siirrä kansiota myöhemmäksi</string>
     <string name="search_section_apps">Sovellukset</string>
     <string name="search_section_settings">Asetukset</string>
     <string name="search_section_contacts">Yhteystiedot</string>

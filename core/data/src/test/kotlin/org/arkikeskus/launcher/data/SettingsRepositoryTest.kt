@@ -500,6 +500,26 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `moveDrawerFolder swaps a folder with its neighbour and stops at the ends`() = runTest {
+        val repo = newRepository()
+        val a = repo.createDrawerFolder("A")
+        val b = repo.createDrawerFolder("B")
+        val c = repo.createDrawerFolder("C")
+        suspend fun order() = repo.drawerFolders.first().map { it.id }
+
+        repo.moveDrawerFolder(c, by = -1)
+        assertThat(order()).containsExactly(a, c, b).inOrder()
+
+        repo.moveDrawerFolder(a, by = -1) // already first
+        repo.moveDrawerFolder(b, by = 1) // already last
+        repo.moveDrawerFolder(99L, by = 1) // no such folder
+        assertThat(order()).containsExactly(a, c, b).inOrder()
+
+        repo.moveDrawerFolder(a, by = 1)
+        assertThat(order()).containsExactly(c, a, b).inOrder()
+    }
+
+    @Test
     fun `twoLineDrawerLabels defaults to true and round-trips`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().twoLineDrawerLabels).isTrue()

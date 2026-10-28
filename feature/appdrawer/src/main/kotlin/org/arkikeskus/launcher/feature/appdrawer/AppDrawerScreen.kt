@@ -372,6 +372,10 @@ fun AppDrawerScreen(
             },
             onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key) },
             onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys) },
+            // Sorted A-Z the order is not the user's to change: no moves then.
+            onMove = if (uiState.sortDrawerFolders) null else { by -> viewModel.moveDrawerFolder(openFolder.id, by) },
+            canMoveEarlier = uiState.folders.indexOf(openFolder) > 0,
+            canMoveLater = uiState.folders.indexOf(openFolder) < uiState.folders.lastIndex,
             onDelete = {
                 viewModel.deleteDrawerFolder(openFolder.id)
                 editFolderId = null
@@ -880,7 +884,9 @@ private fun DrawerFolderCard(
     }
 }
 
-/** The folder editor sheet: rename, member apps (tap launches, long-press removes), add apps, delete (asked first). */
+/** The folder editor sheet: rename, member apps (tap launches, long-press removes), add apps, delete
+ *  (asked first) and, when the order is the user's ([onMove] given), a step earlier or later among
+ *  the folders. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerFolderSheet(
@@ -896,6 +902,9 @@ private fun DrawerFolderSheet(
     onAddApps: (List<String>) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    onMove: ((by: Int) -> Unit)? = null,
+    canMoveEarlier: Boolean = false,
+    canMoveLater: Boolean = false,
 ) {
     var showAdd by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -957,9 +966,22 @@ private fun DrawerFolderSheet(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Button(onClick = { showAdd = true }) { Text(stringResource(R.string.folder_add_apps)) }
                 TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.folder_delete)) }
+                if (onMove != null) {
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = { onMove(-1) }, enabled = canMoveEarlier) {
+                        Icon(painterResource(LauncherIcons.ChevronLeft), contentDescription = stringResource(R.string.folder_move_earlier))
+                    }
+                    IconButton(onClick = { onMove(1) }, enabled = canMoveLater) {
+                        Icon(painterResource(LauncherIcons.ChevronRight), contentDescription = stringResource(R.string.folder_move_later))
+                    }
+                }
             }
         }
     } }

@@ -19,6 +19,8 @@
     <string name="folder_delete_title">Ta bort mappen?</string>
     <string name="folder_delete_text">”%1$s” tas bort. Dess appar finns kvar i applistan.</string>
     <string name="folder_delete_confirm">Ta bort</string>
+    <string name="folder_move_earlier">Flytta mappen framåt</string>
+    <string name="folder_move_later">Flytta mappen bakåt</string>
     <string name="search_section_apps">Appar</string>
     <string name="search_section_settings">Inställningar</string>
     <string name="search_section_contacts">Kontakter</string>

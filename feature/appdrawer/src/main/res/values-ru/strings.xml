@@ -19,6 +19,8 @@
     <string name="folder_delete_title">Удалить папку?</string>
     <string name="folder_delete_text">«%1$s» будет удалена. Её приложения останутся в списке приложений.</string>
     <string name="folder_delete_confirm">Удалить</string>
+    <string name="folder_move_earlier">Переместить папку вперёд</string>
+    <string name="folder_move_later">Переместить папку назад</string>
     <string name="search_section_apps">Приложения</string>
     <string name="search_section_settings">Настройки</string>
     <string name="search_section_contacts">Контакты</string>

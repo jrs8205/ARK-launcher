@@ -19,6 +19,8 @@
     <string name="folder_delete_title">Klasör silinsin mi?</string>
     <string name="folder_delete_text">“%1$s” silinecek. Uygulamaları uygulama listesinde kalır.</string>
     <string name="folder_delete_confirm">Sil</string>
+    <string name="folder_move_earlier">Klasörü öne taşı</string>
+    <string name="folder_move_later">Klasörü arkaya taşı</string>
     <string name="search_section_apps">Uygulamalar</string>
     <string name="search_section_settings">Ayarlar</string>
     <string name="search_section_contacts">Kişiler</string>

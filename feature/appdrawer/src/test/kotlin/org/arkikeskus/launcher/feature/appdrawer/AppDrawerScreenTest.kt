@@ -3,10 +3,12 @@ package org.arkikeskus.launcher.feature.appdrawer
 import android.app.Application
 import android.os.Looper
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -147,6 +149,35 @@ class AppDrawerScreenTest {
 
         runBlocking { wiring.settingsRepository.setSortDrawerFolders(true) }
         awaitState("the folders are sorted") { it.folders.map { f -> f.name } == listOf("games", "Tools") }
+    }
+
+    /** The editor moves its folder a step among the folders; the first cannot go earlier. */
+    @Test fun theEditorMovesAFolderLater() {
+        runBlocking {
+            wiring.settingsRepository.createDrawerFolder("Tools")
+            wiring.settingsRepository.createDrawerFolder("Games")
+        }
+        show()
+        awaitState("both folders are listed") { it.folders.size == 2 }
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+
+        compose.onNodeWithContentDescription(context.getString(R.string.folder_move_earlier)).assertIsNotEnabled()
+        compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).performClick()
+
+        awaitState("Tools follows Games") { it.folders.map { f -> f.name } == listOf("Games", "Tools") }
+    }
+
+    /** Sorted A-Z the order is not the user's to change, so the editor offers no moves. */
+    @Test fun theEditorHidesMovesWhileFoldersSortByName() {
+        runBlocking { wiring.settingsRepository.setSortDrawerFolders(true) }
+        showWithFolder()
+        awaitState("the setting reached the drawer") { it.sortDrawerFolders }
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+
+        compose.onNodeWithText(addApps()).assertExists()
+        compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).assertDoesNotExist()
     }
 
     private fun awaitState(what: String, condition: (AppDrawerUiState) -> Boolean) {

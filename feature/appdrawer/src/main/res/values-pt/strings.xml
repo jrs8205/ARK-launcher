@@ -19,6 +19,8 @@
     <string name="folder_delete_title">Eliminar pasta?</string>
     <string name="folder_delete_text">“%1$s” será eliminada. As suas apps continuam na lista de apps.</string>
     <string name="folder_delete_confirm">Eliminar</string>
+    <string name="folder_move_earlier">Mover pasta para a frente</string>
+    <string name="folder_move_later">Mover pasta para trás</string>
     <string name="search_section_apps">Apps</string>
     <string name="search_section_settings">Configurações</string>
     <string name="search_section_contacts">Contatos</string>

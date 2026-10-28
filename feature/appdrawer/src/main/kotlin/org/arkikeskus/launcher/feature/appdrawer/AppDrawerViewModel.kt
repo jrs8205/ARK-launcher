@@ -336,4 +336,8 @@ class AppDrawerViewModel @Inject constructor(
 
     fun removeAppFromDrawerFolder(id: Long, key: String) =
         viewModelScope.launch { settingsRepository.removeAppFromDrawerFolder(id, key) }
+
+    /** Moves a drawer folder one place earlier ([by] = -1) or later (+1) among the folders. */
+    fun moveDrawerFolder(id: Long, by: Int) =
+        viewModelScope.launch { settingsRepository.moveDrawerFolder(id, by) }
 }

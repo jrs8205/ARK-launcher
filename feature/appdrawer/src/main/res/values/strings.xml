@@ -19,6 +19,8 @@
     <string name="folder_delete_title">Delete folder?</string>
     <string name="folder_delete_text">“%1$s” is deleted. Its apps stay in the app list.</string>
     <string name="folder_delete_confirm">Delete</string>
+    <string name="folder_move_earlier">Move folder earlier</string>
+    <string name="folder_move_later">Move folder later</string>
     <string name="search_section_apps">Apps</string>
     <string name="search_section_settings">Settings</string>
     <string name="search_section_contacts">Contacts</string>

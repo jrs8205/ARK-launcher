@@ -356,6 +356,14 @@ class SettingsRepository @Inject constructor(
         folders.map { f -> if (f.id == id) f.copy(appKeys = f.appKeys - key) else f }
     }
 
+    /** Moves a drawer folder [by] places among the folders (negative = earlier), stopping at the ends. */
+    suspend fun moveDrawerFolder(id: Long, by: Int) = editFolders { folders ->
+        val from = folders.indexOfFirst { it.id == id }
+        if (from < 0) return@editFolders folders
+        val to = (from + by).coerceIn(0, folders.lastIndex)
+        if (to == from) folders else folders.toMutableList().apply { add(to, removeAt(from)) }
+    }
+
     private suspend fun editFolders(block: (List<DrawerFolder>) -> List<DrawerFolder>) = edit { p ->
         p[Keys.DRAWER_FOLDERS] = serializeFolders(block(parseFolders(p[Keys.DRAWER_FOLDERS])))
     }
