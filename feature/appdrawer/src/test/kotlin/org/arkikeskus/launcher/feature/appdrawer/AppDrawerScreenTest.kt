@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.up
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -230,9 +232,12 @@ class AppDrawerScreenTest {
         settle()
 
         compose.onNodeWithText("Tools").assertDoesNotExist()
+        // Only the visible text goes: TalkBack still gets the name from the tile.
+        compose.onNodeWithContentDescription("Tools").assertExists()
 
         runBlocking { wiring.settingsRepository.setShowDrawerFolderNames(true) }
         awaitText("Tools")
+        compose.onAllNodesWithContentDescription("Tools").assertCountEquals(0)
     }
 
     private fun awaitState(what: String, condition: (AppDrawerUiState) -> Boolean) {

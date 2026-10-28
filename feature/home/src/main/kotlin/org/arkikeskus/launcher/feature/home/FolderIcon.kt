@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.model.AppItem
@@ -26,7 +28,8 @@ import org.arkikeskus.launcher.ui.component.PickedIcon
  * A home-screen folder: a rounded tile showing a 2×2 preview of the first four contained app icons
  * — or the [customIcon] the user picked for it instead — an optional label, and a notification badge
  * (aggregated from its contents). With [showName] off the label block stays (the tile keeps its place
- * beside the app icons) but shows no name (issue #17).
+ * beside the app icons) but shows no name (issue #17); the preview then carries the name for TalkBack,
+ * so hiding the text never hides the folder from an accessibility user.
  */
 @Composable
 fun FolderIcon(
@@ -42,13 +45,16 @@ fun FolderIcon(
     customIcon: CustomIcon? = null,
     showName: Boolean = true,
 ) {
+    // The label speaks the name while it is on screen; without one (names or labels off) the preview
+    // does, once. A picked icon describes itself (PickedIcon), its fallback preview like any other.
+    val spokenName = if (showLabel && showName) null else name
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.TopEnd) {
             if (customIcon != null) {
                 // Its pack uninstalled or its picture gone: the preview again, never a blank tile.
-                PickedIcon(customIcon, size, contentDescription = name, fallback = { FolderPreview(apps, size) })
+                PickedIcon(customIcon, size, contentDescription = name, fallback = { FolderPreview(apps, size, spokenName) })
             } else {
-                FolderPreview(apps, size)
+                FolderPreview(apps, size, spokenName)
             }
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
@@ -57,9 +63,9 @@ fun FolderIcon(
     }
 }
 
-/** The folder's 2×2 preview of its first four apps. */
+/** The folder's 2×2 preview of its first four apps, described as [contentDescription] when given. */
 @Composable
-private fun FolderPreview(apps: List<AppItem>, size: Dp) {
+private fun FolderPreview(apps: List<AppItem>, size: Dp, contentDescription: String?) {
     // EVERYTHING inside scales with the tile — padding and gap included. A fixed padding/gap
     // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 columns on a
     // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
@@ -67,6 +73,7 @@ private fun FolderPreview(apps: List<AppItem>, size: Dp) {
     Box(
         modifier = Modifier
             .size(size)
+            .then(if (contentDescription == null) Modifier else Modifier.semantics { this.contentDescription = contentDescription })
             .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(15.dp))
             .padding(6.dp * scale),
         contentAlignment = Alignment.Center,

@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.emptyFlow
@@ -34,6 +35,25 @@ class FolderIconNameTest {
 
         compose.onNodeWithText("Tools").assertDoesNotExist()
         compose.onAllNodesWithContentDescription("Mail").assertCountEquals(1)
+    }
+
+    /** Only the visible text goes: TalkBack still gets the folder's name from the tile. */
+    @Test fun aHiddenNameStaysInTheTilesDescription() {
+        compose.setContent {
+            FolderIcon(name = "Tools", apps = apps, showLabel = true, showName = false, badgeCount = 0, badgeShowCount = false)
+        }
+
+        compose.onNodeWithContentDescription("Tools").assertExists()
+    }
+
+    /** With the label on screen the name is read from it, not a second time from a description. */
+    @Test fun aShownNameIsNotRepeatedAsADescription() {
+        compose.setContent {
+            FolderIcon(name = "Tools", apps = apps, showLabel = true, showName = true, badgeCount = 0, badgeShowCount = false)
+        }
+
+        compose.onNodeWithText("Tools").assertExists()
+        compose.onAllNodesWithContentDescription("Tools").assertCountEquals(0)
     }
 
     @Test fun theWorkspacePassesTheSettingToItsFolders() {
@@ -74,6 +94,7 @@ class FolderIconNameTest {
         }
 
         compose.onNodeWithText("Tools").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Tools").assertExists()
         compose.onAllNodesWithContentDescription("Mail").assertCountEquals(1)
     }
 }

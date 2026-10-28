@@ -80,6 +80,8 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -758,7 +760,9 @@ private fun DrawerFolderTile(
         // with linearly scaled icons inverted the margin below ~45dp tiles (6–7 drawer columns on a
         // narrow screen), squeezing the 2×2 preview asymmetrically out of its card.
         Box(contentAlignment = Alignment.TopEnd) {
-            DrawerFolderGlyph(folder, folder.icon, tileSize)
+            // The label speaks the name while it is on screen; without one (names or labels off)
+            // the preview does, once (a picked icon already describes itself).
+            DrawerFolderGlyph(folder, folder.icon, tileSize, spokenName = if (showLabel) null else folder.name)
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
         }
         if (showLabel) {
@@ -776,14 +780,15 @@ private fun DrawerFolderTile(
     }
 }
 
-/** A drawer folder's picture: the [icon] picked for it, else a rounded 2×2 preview of its first apps. */
+/** A drawer folder's picture: the [icon] picked for it, else a rounded 2×2 preview of its first apps,
+ *  described as [spokenName] when the tile shows no label. */
 @Composable
-private fun DrawerFolderGlyph(folder: DrawerFolderUi, icon: CustomIcon?, tileSize: Dp) {
+private fun DrawerFolderGlyph(folder: DrawerFolderUi, icon: CustomIcon?, tileSize: Dp, spokenName: String?) {
     if (icon != null) {
         // Its pack uninstalled or its picture gone: the preview again, never a blank tile.
-        PickedIcon(icon, tileSize, contentDescription = folder.name, fallback = { DrawerFolderPreview(folder, tileSize) })
+        PickedIcon(icon, tileSize, contentDescription = folder.name, fallback = { DrawerFolderPreview(folder, tileSize, spokenName) })
     } else {
-        DrawerFolderPreview(folder, tileSize)
+        DrawerFolderPreview(folder, tileSize, spokenName)
     }
 }
 
@@ -792,11 +797,12 @@ private fun DrawerFolderGlyph(folder: DrawerFolderUi, icon: CustomIcon?, tileSiz
  *  below ~45dp tiles (6–7 drawer columns on a narrow screen), squeezing the preview asymmetrically
  *  out of its card. */
 @Composable
-private fun DrawerFolderPreview(folder: DrawerFolderUi, tileSize: Dp) {
+private fun DrawerFolderPreview(folder: DrawerFolderUi, tileSize: Dp, contentDescription: String?) {
     val scale = tileSize / 56.dp
     Box(
         modifier = Modifier
             .size(tileSize)
+            .then(if (contentDescription == null) Modifier else Modifier.semantics { this.contentDescription = contentDescription })
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
             .padding(7.dp * scale),
         contentAlignment = Alignment.Center,
@@ -935,7 +941,8 @@ private fun DrawerFolderSheet(
                 // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
                 FolderIconButton(
                     icon = folder.icon,
-                    preview = { icon, size -> DrawerFolderGlyph(folder, icon, size) },
+                    // The name field beside it speaks the name: the preview needs no description.
+                    preview = { icon, size -> DrawerFolderGlyph(folder, icon, size, spokenName = null) },
                     onPick = onSetIcon,
                 )
                 Spacer(Modifier.width(8.dp))
