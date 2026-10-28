@@ -66,6 +66,24 @@
     <string name="drawer_folder_default">Mapp</string>
     <string name="settings_sort_drawer_folders">Sortera mappar A–Ö</string>
     <string name="settings_sort_drawer_folders_desc">Mappar i applådan i bokstavsordning. Av behåller din egen ordning.</string>
+    <string name="settings_drawer_folders">Mappar i applådan</string>
+    <string name="settings_drawer_folders_empty">Inga mappar ännu</string>
+    <string name="settings_folder_name">Mappnamn</string>
+    <string name="settings_folder_search">Sök appar</string>
+    <string name="settings_folder_no_results">Inga appar matchar</string>
+    <string name="settings_folder_delete">Radera mapp</string>
+    <string name="settings_folder_delete_title">Radera mappen?</string>
+    <string name="settings_folder_delete_text">”%1$s” raderas. Dess appar finns kvar i applistan.</string>
+    <string name="settings_folder_delete_confirm">Radera</string>
+    <string name="settings_folder_cancel">Avbryt</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d mapp</item>
+        <item quantity="other">%d mappar</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d appar</item>
+    </plurals>
     <string name="settings_icons">Ikoner</string>
     <string name="settings_themed_icons">Ikoner med tema (Material You)</string>
     <string name="settings_icon_pack">Ikonpaket</string>

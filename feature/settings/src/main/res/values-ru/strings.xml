@@ -68,6 +68,28 @@
     <string name="drawer_folder_default">Папка</string>
     <string name="settings_sort_drawer_folders">Сортировать папки по алфавиту</string>
     <string name="settings_sort_drawer_folders_desc">Папки в списке приложений по алфавиту. Выключено — ваш порядок сохраняется.</string>
+    <string name="settings_drawer_folders">Папки в списке приложений</string>
+    <string name="settings_drawer_folders_empty">Папок пока нет</string>
+    <string name="settings_folder_name">Название папки</string>
+    <string name="settings_folder_search">Поиск приложений</string>
+    <string name="settings_folder_no_results">Нет подходящих приложений</string>
+    <string name="settings_folder_delete">Удалить папку</string>
+    <string name="settings_folder_delete_title">Удалить папку?</string>
+    <string name="settings_folder_delete_text">«%1$s» будет удалена. Её приложения останутся в списке приложений.</string>
+    <string name="settings_folder_delete_confirm">Удалить</string>
+    <string name="settings_folder_cancel">Отмена</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d папка</item>
+        <item quantity="few">%d папки</item>
+        <item quantity="many">%d папок</item>
+        <item quantity="other">%d папки</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d приложение</item>
+        <item quantity="few">%d приложения</item>
+        <item quantity="many">%d приложений</item>
+        <item quantity="other">%d приложения</item>
+    </plurals>
     <string name="settings_icons">Значки</string>
     <string name="settings_themed_icons">Тематические значки (Material You)</string>
     <string name="settings_icon_pack">Набор значков</string>

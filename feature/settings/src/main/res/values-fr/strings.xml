@@ -67,6 +67,26 @@
     <string name="drawer_folder_default">Dossier</string>
     <string name="settings_sort_drawer_folders">Trier les dossiers A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Dossiers de la liste des applications par ordre alphabétique. Désactivé, votre ordre est conservé.</string>
+    <string name="settings_drawer_folders">Dossiers de la liste des applications</string>
+    <string name="settings_drawer_folders_empty">Aucun dossier pour l’instant</string>
+    <string name="settings_folder_name">Nom du dossier</string>
+    <string name="settings_folder_search">Rechercher des applications</string>
+    <string name="settings_folder_no_results">Aucune application ne correspond</string>
+    <string name="settings_folder_delete">Supprimer le dossier</string>
+    <string name="settings_folder_delete_title">Supprimer le dossier ?</string>
+    <string name="settings_folder_delete_text">« %1$s » sera supprimé. Ses applications resteront dans la liste.</string>
+    <string name="settings_folder_delete_confirm">Supprimer</string>
+    <string name="settings_folder_cancel">Annuler</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d dossier</item>
+        <item quantity="many">%d dossiers</item>
+        <item quantity="other">%d dossiers</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d application</item>
+        <item quantity="many">%d applications</item>
+        <item quantity="other">%d applications</item>
+    </plurals>
     <string name="settings_icons">Icônes</string>
     <string name="settings_themed_icons">Icônes à thème (Material You)</string>
     <string name="settings_icon_pack">Pack d\'icônes</string>

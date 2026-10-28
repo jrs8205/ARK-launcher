@@ -68,6 +68,28 @@
     <string name="drawer_folder_default">Folder</string>
     <string name="settings_sort_drawer_folders">Sortuj foldery A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Foldery w szufladzie aplikacji w kolejności alfabetycznej. Wyłączone zachowuje własną kolejność.</string>
+    <string name="settings_drawer_folders">Foldery w szufladzie aplikacji</string>
+    <string name="settings_drawer_folders_empty">Nie ma jeszcze folderów</string>
+    <string name="settings_folder_name">Nazwa folderu</string>
+    <string name="settings_folder_search">Szukaj aplikacji</string>
+    <string name="settings_folder_no_results">Brak pasujących aplikacji</string>
+    <string name="settings_folder_delete">Usuń folder</string>
+    <string name="settings_folder_delete_title">Usunąć folder?</string>
+    <string name="settings_folder_delete_text">„%1$s” zostanie usunięty. Jego aplikacje pozostaną na liście aplikacji.</string>
+    <string name="settings_folder_delete_confirm">Usuń</string>
+    <string name="settings_folder_cancel">Anuluj</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d folder</item>
+        <item quantity="few">%d foldery</item>
+        <item quantity="many">%d folderów</item>
+        <item quantity="other">%d folderu</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d aplikacja</item>
+        <item quantity="few">%d aplikacje</item>
+        <item quantity="many">%d aplikacji</item>
+        <item quantity="other">%d aplikacji</item>
+    </plurals>
     <string name="settings_icons">Ikony</string>
     <string name="settings_themed_icons">Ikony z motywem (Material You)</string>
     <string name="settings_icon_pack">Pakiet ikon</string>

@@ -66,6 +66,24 @@
     <string name="drawer_folder_default">Kansio</string>
     <string name="settings_sort_drawer_folders">Järjestä kansiot aakkosittain</string>
     <string name="settings_sort_drawer_folders_desc">Sovellusvalikon kansiot aakkosjärjestyksessä. Pois päältä säilyttää oman järjestyksesi.</string>
+    <string name="settings_drawer_folders">Sovellusvalikon kansiot</string>
+    <string name="settings_drawer_folders_empty">Ei vielä kansioita</string>
+    <string name="settings_folder_name">Kansion nimi</string>
+    <string name="settings_folder_search">Hae sovelluksia</string>
+    <string name="settings_folder_no_results">Ei osuvia sovelluksia</string>
+    <string name="settings_folder_delete">Poista kansio</string>
+    <string name="settings_folder_delete_title">Poistetaanko kansio?</string>
+    <string name="settings_folder_delete_text">”%1$s” poistetaan. Sen sovellukset jäävät sovellusluetteloon.</string>
+    <string name="settings_folder_delete_confirm">Poista</string>
+    <string name="settings_folder_cancel">Peruuta</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d kansio</item>
+        <item quantity="other">%d kansiota</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d sovellus</item>
+        <item quantity="other">%d sovellusta</item>
+    </plurals>
     <string name="settings_icons">Kuvakkeet</string>
     <string name="settings_themed_icons">Teemakuvakkeet (Material You)</string>
     <string name="settings_icon_pack">Ikonipaketti</string>

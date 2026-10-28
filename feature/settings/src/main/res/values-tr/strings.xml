@@ -66,6 +66,24 @@
     <string name="drawer_folder_default">Klasör</string>
     <string name="settings_sort_drawer_folders">Klasörleri A–Z sırala</string>
     <string name="settings_sort_drawer_folders_desc">Uygulama çekmecesindeki klasörler alfabetik sırada. Kapalıyken kendi sıranız korunur.</string>
+    <string name="settings_drawer_folders">Uygulama çekmecesindeki klasörler</string>
+    <string name="settings_drawer_folders_empty">Henüz klasör yok</string>
+    <string name="settings_folder_name">Klasör adı</string>
+    <string name="settings_folder_search">Uygulama ara</string>
+    <string name="settings_folder_no_results">Eşleşen uygulama yok</string>
+    <string name="settings_folder_delete">Klasörü sil</string>
+    <string name="settings_folder_delete_title">Klasör silinsin mi?</string>
+    <string name="settings_folder_delete_text">“%1$s” silinecek. Uygulamaları uygulama listesinde kalır.</string>
+    <string name="settings_folder_delete_confirm">Sil</string>
+    <string name="settings_folder_cancel">İptal</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d klasör</item>
+        <item quantity="other">%d klasör</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d uygulama</item>
+        <item quantity="other">%d uygulama</item>
+    </plurals>
     <string name="settings_icons">Simgeler</string>
     <string name="settings_themed_icons">Temalı simgeler (Material You)</string>
     <string name="settings_icon_pack">Simge paketi</string>

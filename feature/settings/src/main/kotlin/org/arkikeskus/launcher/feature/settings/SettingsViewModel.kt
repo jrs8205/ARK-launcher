@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
+import org.arkikeskus.launcher.data.CustomIconStore
+import org.arkikeskus.launcher.data.DrawerFolder
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.data.IconPackRepository
@@ -26,6 +28,7 @@ class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val homeLayoutRepository: HomeLayoutRepository,
     private val iconPackRepository: IconPackRepository,
+    private val customIcons: CustomIconStore,
     appRepository: AppRepository,
 ) : ViewModel() {
 
@@ -54,6 +57,19 @@ class SettingsViewModel @Inject constructor(
 
     /** Creates a new empty folder in the app drawer (named [name]); it's filled from the drawer. */
     fun createDrawerFolder(name: String) = update { repository.createDrawerFolder(name) }
+
+    /** The drawer's folders, for the Folders page. */
+    val drawerFolders: StateFlow<List<DrawerFolder>> = repository.drawerFolders
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun renameDrawerFolder(id: Long, name: String) = update { repository.renameDrawerFolder(id, name) }
+
+    /** Deletes the folder and the icon picked for it (see CustomIconStore.deleteDrawerFolder). */
+    fun deleteDrawerFolder(id: Long) = update { customIcons.deleteDrawerFolder(id) }
+
+    fun setAppInDrawerFolder(id: Long, key: String, member: Boolean) = update {
+        if (member) repository.addAppsToDrawerFolder(id, listOf(key)) else repository.removeAppFromDrawerFolder(id, key)
+    }
 
     fun setSwipeUp(value: Boolean) = update { repository.setSwipeUpForDrawer(value) }
     fun setSwipeDown(value: Boolean) = update { repository.setSwipeDownForNotifications(value) }

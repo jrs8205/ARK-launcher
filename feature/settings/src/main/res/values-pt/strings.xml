@@ -67,6 +67,26 @@
     <string name="drawer_folder_default">Pasta</string>
     <string name="settings_sort_drawer_folders">Ordenar pastas A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Pastas da gaveta de apps em ordem alfabética. Desligado mantém a sua ordem.</string>
+    <string name="settings_drawer_folders">Pastas da gaveta de apps</string>
+    <string name="settings_drawer_folders_empty">Ainda não há pastas</string>
+    <string name="settings_folder_name">Nome da pasta</string>
+    <string name="settings_folder_search">Pesquisar apps</string>
+    <string name="settings_folder_no_results">Nenhum app corresponde</string>
+    <string name="settings_folder_delete">Excluir pasta</string>
+    <string name="settings_folder_delete_title">Excluir pasta?</string>
+    <string name="settings_folder_delete_text">“%1$s” será excluída. Seus apps continuam na lista de apps.</string>
+    <string name="settings_folder_delete_confirm">Excluir</string>
+    <string name="settings_folder_cancel">Cancelar</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d pasta</item>
+        <item quantity="many">%d pastas</item>
+        <item quantity="other">%d pastas</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d app</item>
+        <item quantity="many">%d apps</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
     <string name="settings_icons">Ícones</string>
     <string name="settings_themed_icons">Ícones com tema (Material You)</string>
     <string name="settings_icon_pack">Pacote de ícones</string>

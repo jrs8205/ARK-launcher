@@ -101,6 +101,7 @@ fun SettingsScreen(
     val s by viewModel.settings.collectAsStateWithLifecycle()
     val allApps by viewModel.apps.collectAsStateWithLifecycle()
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
+    val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources = context.resources
@@ -111,6 +112,7 @@ fun SettingsScreen(
     // under the Backup page's file picker — a page that forgot it was open never received the
     // picker's result (an empty file in Downloads, no message).
     var showHiddenManager by rememberSaveable { mutableStateOf(false) }
+    var showFolderManager by rememberSaveable { mutableStateOf(false) }
     var showLeftSwipePicker by rememberSaveable { mutableStateOf(false) }
     var showIconPackPicker by rememberSaveable { mutableStateOf(false) }
     var showCountStylePicker by rememberSaveable { mutableStateOf(false) }
@@ -160,6 +162,22 @@ fun SettingsScreen(
                 hiddenKeys = hiddenKeys,
                 onSetHidden = viewModel::setAppHidden,
                 onBack = { showHiddenManager = false },
+                modifier = modifier.fillMaxSize(),
+            )
+            return@CompositionLocalProvider
+        }
+
+        if (showFolderManager) {
+            val newFolderName = stringResource(R.string.drawer_folder_default)
+            DrawerFoldersManager(
+                folders = drawerFolders,
+                apps = allApps,
+                hiddenKeys = hiddenKeys,
+                onCreate = { viewModel.createDrawerFolder(newFolderName) },
+                onRename = viewModel::renameDrawerFolder,
+                onDelete = viewModel::deleteDrawerFolder,
+                onSetMember = viewModel::setAppInDrawerFolder,
+                onBack = { showFolderManager = false },
                 modifier = modifier.fillMaxSize(),
             )
             return@CompositionLocalProvider
@@ -233,6 +251,12 @@ fun SettingsScreen(
                     label = stringResource(R.string.settings_hidden_apps),
                     description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
                 ) { showHiddenManager = true }
+                ExpressiveActionRow(
+                    label = stringResource(R.string.settings_drawer_folders),
+                    description = pluralStringResource(
+                        R.plurals.settings_drawer_folders_count, drawerFolders.size, drawerFolders.size,
+                    ),
+                ) { showFolderManager = true }
                 val newFolderName = stringResource(R.string.drawer_folder_default)
                 val folderCreatedMsg = stringResource(R.string.settings_drawer_folder_created)
                 ExpressiveActionRow(

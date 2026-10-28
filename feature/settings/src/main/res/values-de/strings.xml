@@ -66,6 +66,24 @@
     <string name="drawer_folder_default">Ordner</string>
     <string name="settings_sort_drawer_folders">Ordner A–Z sortieren</string>
     <string name="settings_sort_drawer_folders_desc">Ordner im App-Drawer alphabetisch. Aus behält deine eigene Reihenfolge.</string>
+    <string name="settings_drawer_folders">Ordner im App-Drawer</string>
+    <string name="settings_drawer_folders_empty">Noch keine Ordner</string>
+    <string name="settings_folder_name">Ordnername</string>
+    <string name="settings_folder_search">Apps suchen</string>
+    <string name="settings_folder_no_results">Keine passenden Apps</string>
+    <string name="settings_folder_delete">Ordner löschen</string>
+    <string name="settings_folder_delete_title">Ordner löschen?</string>
+    <string name="settings_folder_delete_text">„%1$s“ wird gelöscht. Die Apps bleiben in der App-Liste.</string>
+    <string name="settings_folder_delete_confirm">Löschen</string>
+    <string name="settings_folder_cancel">Abbrechen</string>
+    <plurals name="settings_drawer_folders_count">
+        <item quantity="one">%d Ordner</item>
+        <item quantity="other">%d Ordner</item>
+    </plurals>
+    <plurals name="settings_folder_apps_count">
+        <item quantity="one">%d App</item>
+        <item quantity="other">%d Apps</item>
+    </plurals>
     <string name="settings_icons">Symbole</string>
     <string name="settings_themed_icons">Designbasierte Symbole (Material You)</string>
     <string name="settings_icon_pack">Symbolpaket</string>
