@@ -43,6 +43,8 @@ data class LauncherSettings(
     val searchContacts: Boolean = false,
     /** App key launched by the left-edge home swipe (Settings ▸ Eleet); blank = gesture disabled. */
     val leftSwipeAppKey: String = "",
+    /** App key opened by a tap on the smartspace weather line (Settings > Home); blank = plain text. */
+    val weatherAppKey: String = "",
     /** Lock the desktop layout: when true, home + dock items can't be moved, removed, or added. */
     val desktopLocked: Boolean = false,
     /** Show a "most used" row (top apps by decayed launch frequency) above the drawer's app list. */

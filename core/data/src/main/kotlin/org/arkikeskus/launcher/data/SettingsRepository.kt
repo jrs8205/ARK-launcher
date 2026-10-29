@@ -113,6 +113,7 @@ class SettingsRepository @Inject constructor(
             iconPackPackage = p[Keys.ICON_PACK] ?: "",
             searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
+            weatherAppKey = p[Keys.WEATHER_APP_KEY] ?: "",
             desktopLocked = p[Keys.DESKTOP_LOCKED] ?: false,
             showFrequentApps = p[Keys.SHOW_FREQUENT_APPS] ?: false,
             drawerOpensAtTop = p[Keys.DRAWER_OPENS_AT_TOP] ?: true,
@@ -422,6 +423,9 @@ class SettingsRepository @Inject constructor(
     /** Sets (or, for a blank/null [key], clears) the app launched by the left-edge home swipe. */
     suspend fun setLeftSwipeAppKey(key: String?) = edit { it[Keys.LEFT_SWIPE_APP_KEY] = key?.trim().orEmpty() }
 
+    /** Sets (or, for a blank/null [key], clears) the app a tap on the weather line opens. */
+    suspend fun setWeatherAppKey(key: String?) = edit { it[Keys.WEATHER_APP_KEY] = key?.trim().orEmpty() }
+
     /** Locks/unlocks the desktop layout (blocks moving/removing/adding home + dock items). */
     suspend fun setDesktopLocked(value: Boolean) = edit { it[Keys.DESKTOP_LOCKED] = value }
 
@@ -728,6 +732,7 @@ class SettingsRepository @Inject constructor(
         val ICON_PACK = stringPreferencesKey("icon_pack_package")
         val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
+        val WEATHER_APP_KEY = stringPreferencesKey("weather_app_key")
         val DESKTOP_LOCKED = booleanPreferencesKey("desktop_locked")
         val DOUBLE_TAP_LOCK = booleanPreferencesKey("double_tap_lock")
         val LOCK_SOUNDS_ENABLED = booleanPreferencesKey("lock_sounds_enabled")
@@ -812,7 +817,7 @@ class SettingsRepository @Inject constructor(
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
-            "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "home_page_marker",
+            "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
             "custom_icons", "folder_icons",
         )
@@ -830,12 +835,14 @@ class SettingsRepository @Inject constructor(
             icons.entries.joinToString("\n") { "${it.key}\t${it.value.encode()}" }
 
         /** Preferences whose values hold app keys ("package/class/userSerial", AppItem.key). */
-        val APP_KEY_PREFS = setOf("dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key")
+        val APP_KEY_PREFS = setOf(
+            "dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key", "weather_app_key",
+        )
 
         /**
          * Rewrites each app key inside the value [raw] of the [APP_KEY_PREFS] preference [name] with
          * [transform]; null drops that entry (a dock or hidden entry, a label line, a drawer-folder
-         * member, the left-swipe app). Duplicates a rewrite creates collapse into the first one.
+         * member, the left-swipe or weather app). Duplicates a rewrite creates collapse into the first one.
          * Folders that end up empty stay (an empty drawer folder is a normal state), and any other
          * preference comes back unchanged.
          */
@@ -853,7 +860,7 @@ class SettingsRepository @Inject constructor(
                     else (fields.take(2) + fields.drop(2).filter { it.isNotEmpty() }.mapNotNull(transform).distinct())
                         .joinToString("\t")
                 }
-                "left_swipe_app_key" -> if (raw.isBlank()) raw else transform(raw.trim()).orEmpty()
+                "left_swipe_app_key", "weather_app_key" -> if (raw.isBlank()) raw else transform(raw.trim()).orEmpty()
                 else -> raw
             }
         }

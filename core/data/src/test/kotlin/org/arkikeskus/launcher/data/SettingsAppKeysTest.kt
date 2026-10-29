@@ -33,6 +33,7 @@ class SettingsAppKeysTest {
         val folder = repo.createDrawerFolder("Tools")
         repo.addAppsToDrawerFolder(folder, listOf("a/a.Old/0", "x/x.M/0"))
         repo.setLeftSwipeAppKey("a/a.Old/0")
+        repo.setWeatherAppKey("a/a.Old/0")
         assertThat(repo.referencedAppKeys()).containsExactly("x/x.M/0", "a/a.Old/0", "a/a.New/0")
 
         repo.renameAppKeys(mapOf("a/a.Old/0" to "a/a.New/0"))
@@ -43,6 +44,7 @@ class SettingsAppKeysTest {
         assertThat(repo.customLabels.first()).containsExactly("a/a.New/0", "Mail", "x/x.M/0", "X")
         assertThat(repo.drawerFolders.first().single().appKeys).containsExactly("a/a.New/0", "x/x.M/0").inOrder()
         assertThat(repo.settings.first().leftSwipeAppKey).isEqualTo("a/a.New/0")
+        assertThat(repo.settings.first().weatherAppKey).isEqualTo("a/a.New/0")
     }
 
     @Test
@@ -54,6 +56,8 @@ class SettingsAppKeysTest {
         assertThat(SettingsRepository.rewriteAppKeys("drawer_folders", "1\tEmpty\n2\tF\tgone/G/0\tk/K/0", drop))
             .isEqualTo("1\tEmpty\n2\tF\tk/K/0")
         assertThat(SettingsRepository.rewriteAppKeys("left_swipe_app_key", "gone/G/0", drop)).isEmpty()
+        assertThat(SettingsRepository.rewriteAppKeys("weather_app_key", "gone/G/0", drop)).isEmpty()
+        assertThat(SettingsRepository.rewriteAppKeys("weather_app_key", "k/K/0", drop)).isEqualTo("k/K/0")
         assertThat(SettingsRepository.rewriteAppKeys("icon_pack_package", "gone/G/0", drop)).isEqualTo("gone/G/0")
     }
 }

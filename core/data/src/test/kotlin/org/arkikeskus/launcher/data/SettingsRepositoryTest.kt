@@ -236,6 +236,19 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `weatherAppKey defaults to blank and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().weatherAppKey).isEmpty()
+
+        repo.setWeatherAppKey(" com.weather/Main/0 ")
+        assertThat(repo.settings.first().weatherAppKey).isEqualTo("com.weather/Main/0")
+
+        // null clears back to blank: the weather line is plain text again.
+        repo.setWeatherAppKey(null)
+        assertThat(repo.settings.first().weatherAppKey).isEmpty()
+    }
+
+    @Test
     fun `desktopLocked defaults to false and round-trips`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().desktopLocked).isFalse()
