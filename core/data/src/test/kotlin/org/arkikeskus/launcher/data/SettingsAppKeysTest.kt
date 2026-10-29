@@ -33,10 +33,10 @@ class SettingsAppKeysTest {
         val folder = repo.createDrawerFolder("Tools")
         repo.addAppsToDrawerFolder(folder, listOf("a/a.Old/0", "x/x.M/0"))
         repo.setLeftSwipeAppKey("a/a.Old/0")
-        repo.setWeatherAppKey("a/a.Old/0")
-        assertThat(repo.referencedAppKeys()).containsExactly("x/x.M/0", "a/a.Old/0", "a/a.New/0")
+        repo.setWeatherAppKey("w/w.Old/0")
+        assertThat(repo.referencedAppKeys()).containsExactly("x/x.M/0", "a/a.Old/0", "a/a.New/0", "w/w.Old/0")
 
-        repo.renameAppKeys(mapOf("a/a.Old/0" to "a/a.New/0"))
+        repo.renameAppKeys(mapOf("a/a.Old/0" to "a/a.New/0", "w/w.Old/0" to "w/w.New/0"))
 
         // The dock already held the new key: the renamed entry collapses into it, nothing duplicates.
         assertThat(repo.dockFavorites.first()).containsExactly("x/x.M/0", "a/a.New/0").inOrder()
@@ -44,7 +44,7 @@ class SettingsAppKeysTest {
         assertThat(repo.customLabels.first()).containsExactly("a/a.New/0", "Mail", "x/x.M/0", "X")
         assertThat(repo.drawerFolders.first().single().appKeys).containsExactly("a/a.New/0", "x/x.M/0").inOrder()
         assertThat(repo.settings.first().leftSwipeAppKey).isEqualTo("a/a.New/0")
-        assertThat(repo.settings.first().weatherAppKey).isEqualTo("a/a.New/0")
+        assertThat(repo.settings.first().weatherAppKey).isEqualTo("w/w.New/0")
     }
 
     @Test

@@ -5,6 +5,9 @@ import android.os.Process
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
@@ -87,6 +90,26 @@ class SmartspaceWeatherTapTest {
     @Test fun withoutAChosenAppTheShortWidgetsWeatherLineStaysPlainText() {
         show(state(app = null), height = 120)
         weatherLine().assertHasNoClickAction()
+    }
+
+    @Test fun theTapFollowsTheSettingWhileTheWidgetIsOnScreen() {
+        val otherApp = weatherApp.copy(packageName = "com.other", className = "com.other.Main", label = "Other")
+        var state by mutableStateOf(state(weatherApp))
+        compose.setContent {
+            Box(Modifier.size(360.dp, 280.dp)) {
+                SmartspaceContent(state, onRefresh = {}, onOpenWeatherApp = { opened++ }, modifier = Modifier.fillMaxSize())
+            }
+        }
+        weatherLine().assertHasClickAction()
+
+        state = state(app = null)
+        compose.waitForIdle()
+        weatherLine().assertHasNoClickAction()
+
+        state = state(otherApp)
+        compose.waitForIdle()
+        weatherLine().assertHasClickAction().performClick()
+        assertThat(opened).isEqualTo(1)
     }
 
     @Test fun theChosenAppResolvesOnlyWhileItIsInstalled() {
