@@ -149,6 +149,16 @@ class SmartspaceTouchTargetTest {
         lines.forEach { assertThat(it.boundsInRoot.bottom).isAtMost(with(density) { 260.dp.toPx() } + 0.5f) }
     }
 
+    /** Natural heights that do not fit (a tight footprint with a huge font) must not spill over the
+     *  footprint onto the grid row below: the lines are cut to the room left, as the Column did. */
+    @Test fun linesThatDoNotFitStayInsideTheFootprint() {
+        seedAlarm()
+        show(height = 140, fontScale = 2f, shown = state.copy(hasLocationPermission = false))
+        val lines = tappables()
+        assertThat(lines.size).isAtLeast(4)
+        lines.forEach { assertThat(it.boundsInRoot.bottom).isAtMost(with(density) { 140.dp.toPx() } + 0.5f) }
+    }
+
     private fun seedAlarm() {
         val alarms = context.getSystemService(AlarmManager::class.java)
         val show = PendingIntent.getBroadcast(context, 0, Intent("alarm"), PendingIntent.FLAG_IMMUTABLE)

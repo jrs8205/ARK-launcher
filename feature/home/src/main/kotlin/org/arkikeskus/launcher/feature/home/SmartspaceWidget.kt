@@ -553,9 +553,10 @@ internal val TOUCH_TARGET = 44.dp
  * The clock and the lines under it, stacked and centred like a Column, with the lines' heights
  * budgeted from the room the footprint leaves after the clock: every line keeps at least its
  * natural height (a two-line event stays two lines), and the room left after that raises the
- * shortest lines first, all of them to the same level at most [TOUCH_TARGET] tall. The first
- * child is the clock, always at its natural height; a line's [lineGap] is the space above it,
- * outside its hit area and outside the budget.
+ * shortest lines first, all of them to the same level at most [TOUCH_TARGET] tall. Natural heights
+ * that do not fit are cut to the room left, top down, so the card never draws past its footprint.
+ * The first child is the clock, always at its natural height; a line's [lineGap] is the space
+ * above it, outside its hit area and outside the budget.
  */
 @Composable
 private fun BudgetedLines(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
@@ -567,7 +568,14 @@ private fun BudgetedLines(modifier: Modifier = Modifier, content: @Composable ()
         val gaps = lines.map { ((it.parentData as? LineGap)?.gap ?: 0.dp).roundToPx() }
         val natural = lines.map { it.minIntrinsicHeight(width) }
         val room = if (constraints.hasBoundedHeight) constraints.maxHeight - clock.height - gaps.sum() else 0
-        val heights = budgetedLineHeights(natural, room, TOUCH_TARGET.roundToPx())
+        val heights = if (constraints.hasBoundedHeight && natural.sum() > room) {
+            // More content than footprint (a tight footprint with a huge font): the lines are cut to
+            // the room left, top down, so nothing draws over the grid row below the widget.
+            var left = room
+            natural.map { h -> h.coerceAtMost(left.coerceAtLeast(0)).also { left -= it } }
+        } else {
+            budgetedLineHeights(natural, room, TOUCH_TARGET.roundToPx())
+        }
         val placeables = lines.mapIndexed { i, line ->
             line.measure(childConstraints.copy(minHeight = heights[i], maxHeight = heights[i]))
         }
