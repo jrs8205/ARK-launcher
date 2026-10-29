@@ -398,6 +398,10 @@ class SettingsRepositoryTest {
         repo.setHomeRows(7)
         assertThat(repo.settings.first().homeRows).isEqualTo(7)
 
+        // Ten rows pack a seven-column grid on a tall display (Telegram ask, 2026-10-29).
+        repo.setHomeRows(10)
+        assertThat(repo.settings.first().homeRows).isEqualTo(10)
+
         repo.setHomeRows(99)
         assertThat(repo.settings.first().homeRows).isEqualTo(SettingsRepository.MAX_ROWS)
 

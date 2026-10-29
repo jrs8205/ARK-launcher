@@ -780,7 +780,7 @@ class HomeLayoutRepository @Inject constructor(
     }
 
     companion object {
-        /** DEFAULT rows per home page — the live value is the user's homeRows setting (5..8);
+        /** DEFAULT rows per home page — the live value is the user's homeRows setting (5..10);
          *  this constant only backs default parameters and old backups without home_rows. */
         const val ROWS = 6
 

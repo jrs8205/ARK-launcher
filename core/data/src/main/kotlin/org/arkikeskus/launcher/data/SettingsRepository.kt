@@ -782,7 +782,7 @@ class SettingsRepository @Inject constructor(
 
         /** Valid range for the home-grid row count (mirrors the settings stepper). */
         const val MIN_ROWS = 5
-        const val MAX_ROWS = 8
+        const val MAX_ROWS = 10
 
         /** Valid range for the notification-dot scale slider. */
         const val MIN_DOT_SCALE = 0.6f
