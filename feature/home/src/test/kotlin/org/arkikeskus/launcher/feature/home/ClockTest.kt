@@ -102,6 +102,7 @@ class ClockTest {
             CalendarRepository(context, testScope.backgroundScope),
             WeatherRepository(context, testScope.backgroundScope),
             wiring.settingsRepository,
+            wiring.appRepository,
         )
         TimeZone.setDefault(TimeZone.getTimeZone("Europe/Helsinki"))
         val at = System.currentTimeMillis()

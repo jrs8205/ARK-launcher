@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.text.format.DateUtils
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -59,6 +60,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.smartspace.CalendarEvent
 import org.arkikeskus.launcher.data.smartspace.CalendarRepository
@@ -66,6 +68,7 @@ import org.arkikeskus.launcher.data.smartspace.CurrentWeather
 import org.arkikeskus.launcher.data.smartspace.NextEventPicker
 import org.arkikeskus.launcher.data.smartspace.WeatherCodes
 import org.arkikeskus.launcher.data.smartspace.WeatherRepository
+import org.arkikeskus.launcher.model.AppItem
 import kotlin.math.roundToInt
 import java.util.Date
 import javax.inject.Inject
@@ -75,6 +78,7 @@ class SmartspaceViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val weatherRepository: WeatherRepository,
     private val settingsRepository: SettingsRepository,
+    private val appRepository: AppRepository,
 ) : ViewModel() {
 
     val hasCalendarPermission = MutableStateFlow(calendarRepository.hasPermission())
@@ -122,10 +126,39 @@ class SmartspaceViewModel @Inject constructor(
         }
     }
 
+    /** The app a tap on the weather line opens (Settings > Home), only while it is installed. */
+    val weatherApp: StateFlow<AppItem?> =
+        combine(settingsRepository.settings, appRepository.apps) { s, apps -> weatherAppIn(apps, s.weatherAppKey) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Opens the chosen weather app; a no-op when none is chosen or it is no longer installed. */
+    fun openWeatherApp() {
+        viewModelScope.launch {
+            val key = settingsRepository.settings.first().weatherAppKey
+            weatherAppIn(appRepository.apps.first(), key)?.let { app ->
+                appRepository.launch(app).onFailure { Log.w("SmartspaceViewModel", "Failed to launch ${app.key}", it) }
+            }
+        }
+    }
+
     init {
         refresh()
     }
 }
+
+/** The app [key] names when it is among [apps]; a blank or unknown key resolves to nothing. */
+internal fun weatherAppIn(apps: List<AppItem>, key: String): AppItem? =
+    if (key.isBlank()) null else apps.firstOrNull { it.key == key }
+
+/** What the smartspace shows, read from [SmartspaceViewModel] (or built directly by a test). */
+internal data class SmartspaceState(
+    val hasCalendarPermission: Boolean,
+    val nextEvent: CalendarEvent?,
+    val hasLocationPermission: Boolean,
+    val showWeather: Boolean,
+    val weather: CurrentWeather?,
+    val weatherApp: AppItem?,
+)
 
 /**
  * The built-in smartspace widget: a large clock (12/24 h from the SYSTEM setting), the localized
@@ -137,12 +170,36 @@ fun SmartspaceWidget(
     modifier: Modifier = Modifier,
     viewModel: SmartspaceViewModel = hiltViewModel(),
 ) {
+    val state = SmartspaceState(
+        hasCalendarPermission = viewModel.hasCalendarPermission.collectAsStateWithLifecycle().value,
+        nextEvent = viewModel.nextEvent.collectAsStateWithLifecycle().value,
+        hasLocationPermission = viewModel.hasLocationPermission.collectAsStateWithLifecycle().value,
+        showWeather = viewModel.showWeather.collectAsStateWithLifecycle().value,
+        weather = viewModel.weather.collectAsStateWithLifecycle().value,
+        weatherApp = viewModel.weatherApp.collectAsStateWithLifecycle().value,
+    )
+    SmartspaceContent(state, onRefresh = viewModel::refresh, onOpenWeatherApp = viewModel::openWeatherApp, modifier = modifier)
+}
+
+/**
+ * The widget's layout. [onRefresh] re-reads the sources on resume and after a permission grant;
+ * [onOpenWeatherApp] runs when the weather line is tapped, and the line is tappable only while
+ * [SmartspaceState.weatherApp] resolves (no chosen app = plain text, no click action).
+ */
+@Composable
+internal fun SmartspaceContent(
+    state: SmartspaceState,
+    onRefresh: () -> Unit,
+    onOpenWeatherApp: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
-    val hasPermission by viewModel.hasCalendarPermission.collectAsStateWithLifecycle()
-    val nextEvent by viewModel.nextEvent.collectAsStateWithLifecycle()
-    val hasLocationPermission by viewModel.hasLocationPermission.collectAsStateWithLifecycle()
-    val showWeather by viewModel.showWeather.collectAsStateWithLifecycle()
-    val weather by viewModel.weather.collectAsStateWithLifecycle()
+    val hasPermission = state.hasCalendarPermission
+    val nextEvent = state.nextEvent
+    val hasLocationPermission = state.hasLocationPermission
+    val showWeather = state.showWeather
+    val weather = state.weather
+    val weatherApp = state.weatherApp
 
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -153,13 +210,13 @@ fun SmartspaceWidget(
     }
     LifecycleResumeEffect(Unit) {
         now = System.currentTimeMillis()
-        viewModel.refresh()
+        onRefresh()
         onPauseOrDispose { }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { viewModel.refresh() }
+    ) { onRefresh() }
 
     val timeFormat = rememberTimeFormat()
     val timeText = remember(now, timeFormat) { timeFormat.format(Date(now)) }
@@ -203,20 +260,28 @@ fun SmartspaceWidget(
                     val detail = when {
                         !hasPermission -> stringResource(R.string.smartspace_allow_calendar)
                         event != null -> event.title.ifBlank { stringResource(R.string.smartspace_no_title) }
-                        weather != null -> weather!!.temperatureC.roundToInt().toString() + "° " + WeatherCodes.emoji(weather!!.weatherCode)
+                        weather != null -> weather.temperatureC.roundToInt().toString() + "° " + WeatherCodes.emoji(weather.weatherCode)
                         else -> null
                     }
-                    if (detail != null) Text(detail, color = ink.copy(alpha = 0.85f),
-                        style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable(enabled = !hasPermission || event != null) {
-                            if (!hasPermission) permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-                            else if (event != null) runCatching {
+                    // Only a line that does something gets a click action: a disabled clickable
+                    // would still announce itself as a (disabled) control.
+                    val detailTap: (() -> Unit)? = when {
+                        !hasPermission -> ({ permissionLauncher.launch(Manifest.permission.READ_CALENDAR) })
+                        event != null -> ({
+                            runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW,
                                     ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId))
                                     .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
                                     .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end))
                             }
+                            Unit
                         })
+                        weather != null && weatherApp != null -> onOpenWeatherApp
+                        else -> null
+                    }
+                    if (detail != null) Text(detail, color = ink.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = if (detailTap != null) Modifier.clickable(onClick = detailTap) else Modifier)
                 }
             }
         }
@@ -291,7 +356,7 @@ fun SmartspaceWidget(
                         overflow = TextOverflow.Ellipsis,
                         // The city is the variable-length part — it alone gives way (ellipsis) when
                         // the merged row runs out of width; fill=false keeps the card content-hugging.
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.weight(1f, fill = false).weatherTap(weatherApp, noIndication, onOpenWeatherApp),
                     )
                     MiddleDot(scale, shadow)
                 }
@@ -331,6 +396,7 @@ fun SmartspaceWidget(
                     style = TextStyle(fontSize = (16 * scale).sp, shadow = shadow),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weatherTap(weatherApp, noIndication, onOpenWeatherApp),
                 )
             }
             Text(
@@ -425,7 +491,7 @@ fun SmartspaceWidget(
         if (showWeather && !hasLocationPermission) {
             val locationLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
-            ) { viewModel.refresh() }
+            ) { onRefresh() }
             Text(
                 text = stringResource(R.string.smartspace_allow_location),
                 color = widgetContentColor().copy(alpha = 0.85f),
@@ -442,6 +508,10 @@ fun SmartspaceWidget(
     }
     }
 }
+
+/** Makes the weather line open [app] on tap; without an app it stays plain text (no click action). */
+private fun Modifier.weatherTap(app: AppItem?, interactionSource: MutableInteractionSource, onOpen: () -> Unit): Modifier =
+    if (app == null) this else clickable(interactionSource = interactionSource, indication = null, onClick = onOpen)
 
 /** The separator between the merged middle-row parts (compact mode). */
 @Composable
