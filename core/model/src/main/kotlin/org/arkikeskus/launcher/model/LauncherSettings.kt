@@ -23,6 +23,9 @@ data class LauncherSettings(
     /** How the page dots mark the home page: a ring around its dot ([MARKER_RING]) or a house glyph
      *  in place of the dot ([MARKER_HOUSE]). */
     val homePageMarker: String = MARKER_RING,
+    /** How fast the home pager settles on a page (its snap and every programmatic page change):
+     *  [SPEED_NORMAL], [SPEED_FAST] or [SPEED_FASTEST] (issue #18). */
+    val pageSwitchSpeed: String = SPEED_NORMAL,
     /** Swiping past the last home page continues to the first one, and back from the first to the
      *  last (unless the left-edge app takes that swipe). Off keeps the bounce back from the end. */
     val infiniteScroll: Boolean = true,
@@ -122,6 +125,10 @@ data class LauncherSettings(
 
         const val MARKER_RING = "ring"
         const val MARKER_HOUSE = "house"
+
+        const val SPEED_NORMAL = "normal"
+        const val SPEED_FAST = "fast"
+        const val SPEED_FASTEST = "fastest"
 
         const val PRIVACY_ALL = "all"
         const val PRIVACY_SENDER = "sender"

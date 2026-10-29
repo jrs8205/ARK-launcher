@@ -104,6 +104,9 @@ class SettingsRepository @Inject constructor(
             showPageIndicator = p[Keys.SHOW_PAGE_INDICATOR] ?: true,
             homePageMarker = (p[Keys.HOME_PAGE_MARKER] ?: LauncherSettings.MARKER_RING)
                 .let { if (it == LauncherSettings.MARKER_HOUSE) it else LauncherSettings.MARKER_RING },
+            pageSwitchSpeed = (p[Keys.PAGE_SWITCH_SPEED] ?: LauncherSettings.SPEED_NORMAL).let {
+                if (it == LauncherSettings.SPEED_FAST || it == LauncherSettings.SPEED_FASTEST) it else LauncherSettings.SPEED_NORMAL
+            },
             infiniteScroll = p[Keys.INFINITE_SCROLL] ?: true,
             defaultReminderDismissed = p[Keys.DEFAULT_REMINDER_DISMISSED] ?: false,
             showNotificationDots = p[Keys.SHOW_NOTIF_DOTS] ?: true,
@@ -405,6 +408,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setShowPageIndicator(value: Boolean) = edit { it[Keys.SHOW_PAGE_INDICATOR] = value }
     /** Home-page marker style of the page dots (see LauncherSettings.MARKER_*). */
     suspend fun setHomePageMarker(style: String) = edit { it[Keys.HOME_PAGE_MARKER] = style }
+
+    /** How fast the home pager settles on a page ([LauncherSettings.SPEED_NORMAL] / FAST / FASTEST). */
+    suspend fun setPageSwitchSpeed(speed: String) = edit { it[Keys.PAGE_SWITCH_SPEED] = speed }
     suspend fun setInfiniteScroll(value: Boolean) = edit { it[Keys.INFINITE_SCROLL] = value }
     suspend fun setShowNotificationDots(value: Boolean) = edit { it[Keys.SHOW_NOTIF_DOTS] = value }
     suspend fun setNotificationDotCount(value: Boolean) = edit { it[Keys.NOTIF_DOT_COUNT] = value }
@@ -722,6 +728,7 @@ class SettingsRepository @Inject constructor(
         val DOCK_OPACITY = floatPreferencesKey("dock_opacity")
         val SHOW_PAGE_INDICATOR = booleanPreferencesKey("show_page_indicator")
         val HOME_PAGE_MARKER = stringPreferencesKey("home_page_marker")
+        val PAGE_SWITCH_SPEED = stringPreferencesKey("page_switch_speed")
         val INFINITE_SCROLL = booleanPreferencesKey("infinite_scroll")
         val SHOW_NOTIF_DOTS = booleanPreferencesKey("show_notif_dots")
         val NOTIF_DOT_COUNT = booleanPreferencesKey("notif_dot_count")
@@ -818,6 +825,7 @@ class SettingsRepository @Inject constructor(
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
+            "page_switch_speed",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
             "custom_icons", "folder_icons",
         )

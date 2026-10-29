@@ -434,6 +434,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `pageSwitchSpeed defaults to normal and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().pageSwitchSpeed).isEqualTo(LauncherSettings.SPEED_NORMAL)
+
+        repo.setPageSwitchSpeed(LauncherSettings.SPEED_FASTEST)
+        assertThat(repo.settings.first().pageSwitchSpeed).isEqualTo(LauncherSettings.SPEED_FASTEST)
+    }
+
+    @Test
+    fun `pageSwitchSpeed falls back to normal on an unknown stored value`() = runTest {
+        val repo = newRepository()
+        repo.setPageSwitchSpeed("garbage")
+        assertThat(repo.settings.first().pageSwitchSpeed).isEqualTo(LauncherSettings.SPEED_NORMAL)
+    }
+
+    @Test
+    fun `pageSwitchSpeed is exported and imported as a string preference`() = runTest {
+        val repo = newRepository()
+        repo.setPageSwitchSpeed(LauncherSettings.SPEED_FAST)
+        assertThat(repo.exportRaw()["page_switch_speed"]).isEqualTo(LauncherSettings.SPEED_FAST)
+
+        val other = newRepository()
+        other.importRaw(mapOf("page_switch_speed" to LauncherSettings.SPEED_FAST))
+        assertThat(other.settings.first().pageSwitchSpeed).isEqualTo(LauncherSettings.SPEED_FAST)
+    }
+
+    @Test
     fun `homePageMarker falls back to ring on an unknown stored value`() = runTest {
         val repo = newRepository()
         repo.setHomePageMarker("garbage")
