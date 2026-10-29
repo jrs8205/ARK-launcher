@@ -27,28 +27,39 @@ plugins {
 // single-module app never notices: the jars it leaves open are libraries nobody rewrites. Emptying
 // that cache when every build ends closes them; KSP opens what it needs again on its next run.
 abstract class CloseKspJarsAtBuildEnd : BuildService<BuildServiceParameters.None>, OperationCompletionListener, AutoCloseable {
-    override fun onFinish(event: FinishEvent) = Unit
+    // KSP 2.3.12 closes and CLEARS its loader cache in its own build service, and Gradle gives no
+    // order between the two services at build end: a loader seen only in close() may be gone by
+    // then. So every task completion snapshots the loaders alive at that moment, and close() empties
+    // ZipHandler in all of them (a closed URLClassLoader still returns the classes it has loaded).
+    private val seen = java.util.concurrent.ConcurrentHashMap.newKeySet<ClassLoader>()
+
+    override fun onFinish(event: FinishEvent) {
+        seen.addAll(kspLoaders())
+    }
 
     override fun close() {
         // Reflection, and no failure ever: a KSP version without these names only brings the lock back.
-        // KSP <= 2.3.9 kept the cache as a top-level val in KspAATask.kt; 2.3.12 moved it into the
-        // IsolatedClassLoaderCache object (and closes the loaders itself, which does not empty ZipHandler).
-        runCatching {
-            val pluginLoader = CloseKspJarsAtBuildEnd::class.java.classLoader
-            val loaders = runCatching {
-                Class.forName("com.google.devtools.ksp.gradle.IsolatedClassLoaderCache", false, pluginLoader)
-                    .let { it.getMethod("getCache").invoke(it.getField("INSTANCE").get(null)) } as Map<*, *>
-            }.getOrElse {
-                Class.forName("com.google.devtools.ksp.gradle.KspAATaskKt", false, pluginLoader)
-                    .getMethod("getIsolatedClassLoaderCache").invoke(null) as Map<*, *>
-            }
-            for (loader in loaders.values.filterIsInstance<ClassLoader>()) {
-                runCatching {
-                    loader.loadClass("ksp.com.intellij.openapi.vfs.impl.ZipHandler").getMethod("clearFileAccessorCache").invoke(null)
-                }
+        for (loader in seen + kspLoaders()) {
+            runCatching {
+                loader.loadClass("ksp.com.intellij.openapi.vfs.impl.ZipHandler").getMethod("clearFileAccessorCache").invoke(null)
             }
         }
+        seen.clear()
     }
+
+    /** The class loaders KSP keeps between builds; 2.3.12 moved them from a top-level val in
+     *  KspAATask.kt into the IsolatedClassLoaderCache object. Empty when neither shape exists. */
+    private fun kspLoaders(): List<ClassLoader> = runCatching {
+        val pluginLoader = CloseKspJarsAtBuildEnd::class.java.classLoader
+        val cache = runCatching {
+            Class.forName("com.google.devtools.ksp.gradle.IsolatedClassLoaderCache", false, pluginLoader)
+                .let { it.getMethod("getCache").invoke(it.getField("INSTANCE").get(null)) } as Map<*, *>
+        }.getOrElse {
+            Class.forName("com.google.devtools.ksp.gradle.KspAATaskKt", false, pluginLoader)
+                .getMethod("getIsolatedClassLoaderCache").invoke(null) as Map<*, *>
+        }
+        cache.values.filterIsInstance<ClassLoader>()
+    }.getOrDefault(emptyList())
 }
 
 interface BuildEvents {
