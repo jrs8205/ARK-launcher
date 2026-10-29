@@ -436,7 +436,8 @@ class WidgetPinSizingTest {
 
         assertThat(lostToBars(LauncherSettings(), bars)).isWithin(0.01f).of(24f + 48f)
         assertThat(lostToBars(LauncherSettings(hideSystemStatusBar = true), bars)).isWithin(0.01f).of(48f)
-        assertThat(lostToBars(LauncherSettings(dockEnabled = false), bars)).isWithin(0.01f).of(24f)
+        // Without the dock the workspace itself keeps clear of the navigation bar.
+        assertThat(lostToBars(LauncherSettings(dockEnabled = false), bars)).isWithin(0.01f).of(24f + 48f)
     }
 
     /** The themed bar counts at its tallest: under a shown system bar, that bar and its own two lines

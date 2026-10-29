@@ -235,9 +235,10 @@ class HomeCellSize {
 
         /** What HomeScreen's column gives the dock below the workspace: its row (the icons at their
          *  largest — their nominal size at the user's icon scale, before the slots cap them — and a
-         *  label line rounded up to whole pixels) with its padding, above the navigation bar. */
+         *  label line rounded up to whole pixels) with its padding, above the navigation bar. Without
+         *  the dock the workspace keeps clear of the navigation bar itself. */
         private fun dockZoneDp(chrome: WorkspaceChrome, home: HomeWindow, onePixelDp: Float): Float {
-            if (!chrome.dock) return 0f
+            if (!chrome.dock) return home.navigationBarDp
             val labels = if (chrome.dockLabelsDp > 0f) chrome.dockLabelsDp + onePixelDp else 0f
             val icon = DOCK_ICON_SIZE.value * chrome.iconScale
             val row = maxOf(DOCK_ROW_MIN_HEIGHT.value, 2 * DOCK_ROW_VERTICAL_PADDING.value + icon + labels)
