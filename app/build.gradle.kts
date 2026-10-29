@@ -19,6 +19,7 @@ android {
     testOptions.unitTests.isIncludeAndroidResources = true
 
     defaultConfig {
+        manifestPlaceholders["appLabel"] = "@string/app_name"
         applicationId = "org.arkikeskus.launcher"
         versionCode = 62
         versionName = "0.9.5"
@@ -53,6 +54,9 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
+            // Installed beside the release build on the test phones: a distinct app-list label keeps
+            // its own (separate) home screen from being taken for the release one.
+            manifestPlaceholders["appLabel"] = "ARK-launcher debug"
         }
         release {
             isMinifyEnabled = true
