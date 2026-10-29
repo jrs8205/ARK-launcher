@@ -289,7 +289,7 @@ class WidgetPinSizingTest {
                     onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
                     onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                     cellSize = cellSize, chrome = workspaceChrome(settings, pageCount, LocalDensity.current.fontScale, dockApps.size),
-                    modifier = Modifier.weight(1f).fillMaxWidth().homeWorkspacePadding(settings.showStatusBar),
+                    modifier = Modifier.weight(1f).fillMaxWidth().homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled),
                 )
                 if (settings.dockEnabled) {
                     Dock(

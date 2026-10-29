@@ -124,8 +124,13 @@ internal val STATUS_ZONE_MIN = 24.dp
  * when it is shown, otherwise the workspace does. No horizontal padding: the grid spans the full width
  * so a "full width" widget (spanX = columns at cellX 0) reaches both screen edges with no side gap.
  */
-internal fun Modifier.homeWorkspacePadding(showStatusBar: Boolean): Modifier =
-    then(if (showStatusBar) Modifier else Modifier.statusBarsPadding()).padding(vertical = WORKSPACE_VERTICAL_PADDING)
+internal fun Modifier.homeWorkspacePadding(showStatusBar: Boolean, dockShown: Boolean): Modifier =
+    then(if (showStatusBar) Modifier else Modifier.statusBarsPadding())
+        // Without the dock the workspace is the last thing in the column: it keeps itself above the
+        // navigation bar (the dock does that for both when it is shown), so the bottom row of icons
+        // never sits on the bar.
+        .then(if (dockShown) Modifier else Modifier.navigationBarsPadding())
+        .padding(vertical = WORKSPACE_VERTICAL_PADDING)
 
 /** The dock's place in the home column: above the navigation bar, with room all round. */
 internal fun Modifier.homeDockPadding(): Modifier = navigationBarsPadding().padding(DOCK_OUTER_PADDING)
@@ -679,7 +684,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .homeWorkspacePadding(settings.showStatusBar),
+                    .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled),
             )
 
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
