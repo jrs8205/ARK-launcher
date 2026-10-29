@@ -6,6 +6,7 @@
     <string name="settings_default_tap">Appuyez pour définir ARK-launcher comme application d\'accueil</string>
     <string name="settings_gestures">Gestes</string>
     <string name="settings_show_weather">Météo dans le widget</string>
+    <string name="settings_weather_app">Toucher la météo ouvre</string>
     <string name="settings_network_place_names">Nom du lieu via Internet</string>
     <string name="settings_network_place_names_desc">Si le téléphone ne trouve pas lui-même le nom de votre ville, celui-ci est recherché auprès de BigDataCloud. Ce service reçoit votre position approximative.</string>
     <string name="settings_swipe_up_drawer">Balayer vers le haut → applications</string>

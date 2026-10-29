@@ -114,6 +114,9 @@ class SettingsViewModel @Inject constructor(
     /** Sets (or clears, for null) the app launched by the left-edge home swipe. */
     fun setLeftSwipeAppKey(key: String?) = update { repository.setLeftSwipeAppKey(key) }
 
+    /** Sets (or clears, for null) the app a tap on the smartspace weather opens. */
+    fun setWeatherAppKey(key: String?) = update { repository.setWeatherAppKey(key) }
+
     fun setDesktopLocked(value: Boolean) = update { repository.setDesktopLocked(value) }
     fun setDoubleTapToLock(value: Boolean) = update { repository.setDoubleTapToLock(value) }
     fun setLockSoundsEnabled(value: Boolean) = update { repository.setLockSoundsEnabled(value) }

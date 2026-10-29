@@ -6,6 +6,7 @@
     <string name="settings_default_tap">Napauta asettaaksesi ARK-launcherin oletukseksi</string>
     <string name="settings_gestures">Eleet</string>
     <string name="settings_show_weather">Sää widgetissä</string>
+    <string name="settings_weather_app">Sään napautus avaa</string>
     <string name="settings_network_place_names">Paikkakunta verkosta</string>
     <string name="settings_network_place_names_desc">Jos puhelin ei itse tunnista paikkakuntaa, nimi haetaan BigDataCloud-palvelusta. Palveluun lähtee likimääräinen sijainti.</string>
     <string name="settings_swipe_up_drawer">Pyyhkäise ylös → sovellukset</string>

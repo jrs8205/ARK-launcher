@@ -6,6 +6,7 @@
     <string name="settings_default_tap">Dotknij, aby ustawić ARK-launcher jako aplikację ekranu głównego</string>
     <string name="settings_gestures">Gesty</string>
     <string name="settings_show_weather">Pogoda w widżecie</string>
+    <string name="settings_weather_app">Dotknięcie pogody otwiera</string>
     <string name="settings_network_place_names">Nazwa miejscowości z internetu</string>
     <string name="settings_network_place_names_desc">Jeśli telefon nie potrafi sam ustalić nazwy twojej miejscowości, zostanie ona sprawdzona w BigDataCloud. Usługa otrzymuje twoją przybliżoną lokalizację.</string>
     <string name="settings_swipe_up_drawer">Przesuń w górę → aplikacje</string>

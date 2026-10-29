@@ -114,6 +114,7 @@ fun SettingsScreen(
     var showHiddenManager by rememberSaveable { mutableStateOf(false) }
     var showFolderManager by rememberSaveable { mutableStateOf(false) }
     var showLeftSwipePicker by rememberSaveable { mutableStateOf(false) }
+    var showWeatherAppPicker by rememberSaveable { mutableStateOf(false) }
     var showIconPackPicker by rememberSaveable { mutableStateOf(false) }
     var showCountStylePicker by rememberSaveable { mutableStateOf(false) }
     var showHomeMarkerPicker by rememberSaveable { mutableStateOf(false) }
@@ -308,6 +309,9 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, viewModel::setWidgetTonalBackground)
                 WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
                 if (s.showWeather) {
+                    WeatherAppRow(appLabel = allApps.firstOrNull { it.key == s.weatherAppKey }?.label) {
+                        showWeatherAppPicker = true
+                    }
                     SwitchRow(
                         stringResource(R.string.settings_network_place_names),
                         stringResource(R.string.settings_network_place_names_desc),
@@ -491,13 +495,23 @@ fun SettingsScreen(
         }
 
         if (showLeftSwipePicker) {
-            LeftSwipeAppPicker(
+            SingleAppPicker(
                 apps = allApps,
                 onPick = { key ->
                     viewModel.setLeftSwipeAppKey(key)
                     showLeftSwipePicker = false
                 },
                 onDismiss = { showLeftSwipePicker = false },
+            )
+        }
+        if (showWeatherAppPicker) {
+            SingleAppPicker(
+                apps = allApps,
+                onPick = { key ->
+                    viewModel.setWeatherAppKey(key)
+                    showWeatherAppPicker = false
+                },
+                onDismiss = { showWeatherAppPicker = false },
             )
         }
         if (showIconPackPicker) {
@@ -694,9 +708,19 @@ private fun IconPackPicker(
     )
 }
 
-/** Single-select picker for the left-edge swipe app: a "None" entry on top, then every app. */
+/** Settings > Home: the app a tap on the smartspace weather opens, named under the label (None = plain text). */
 @Composable
-private fun LeftSwipeAppPicker(
+internal fun WeatherAppRow(appLabel: String?, onClick: () -> Unit) {
+    ExpressiveActionRow(
+        label = stringResource(R.string.settings_weather_app),
+        description = appLabel ?: stringResource(R.string.settings_left_edge_none),
+        onClick = onClick,
+    )
+}
+
+/** Single-select app picker (the left-edge swipe app, the weather app): a "None" entry on top, then every app. */
+@Composable
+private fun SingleAppPicker(
     apps: List<AppItem>,
     onPick: (String?) -> Unit,
     onDismiss: () -> Unit,

@@ -6,6 +6,7 @@
     <string name="settings_default_tap">Tippe, um ARK-launcher als Standard-Launcher festzulegen</string>
     <string name="settings_gestures">Gesten</string>
     <string name="settings_show_weather">Wetter im Widget</string>
+    <string name="settings_weather_app">Tippen auf das Wetter öffnet</string>
     <string name="settings_network_place_names">Ortsname aus dem Internet</string>
     <string name="settings_network_place_names_desc">Wenn dein Smartphone den Ortsnamen nicht selbst ermitteln kann, wird er bei BigDataCloud abgefragt. Der Dienst erhält dabei deinen ungefähren Standort.</string>
     <string name="settings_swipe_up_drawer">Nach oben wischen → Apps</string>

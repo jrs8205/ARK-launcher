@@ -6,6 +6,7 @@
     <string name="settings_default_tap">ARK-launcher\'ı ana ekran uygulamanız yapmak için dokunun</string>
     <string name="settings_gestures">Hareketler</string>
     <string name="settings_show_weather">Widget\'ta hava durumu</string>
+    <string name="settings_weather_app">Hava durumuna dokunma şunu açar</string>
     <string name="settings_network_place_names">İnternetten yer adı</string>
     <string name="settings_network_place_names_desc">Telefon bulunduğunuz yerin adını kendi başına belirleyemezse ad, BigDataCloud hizmetinden alınır. Bu hizmete yaklaşık konumunuz gönderilir.</string>
     <string name="settings_swipe_up_drawer">Yukarı kaydırma → uygulamalar</string>

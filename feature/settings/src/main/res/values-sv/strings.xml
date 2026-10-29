@@ -6,6 +6,7 @@
     <string name="settings_default_tap">Tryck för att ange ARK-launcher som startskärmsapp</string>
     <string name="settings_gestures">Rörelser</string>
     <string name="settings_show_weather">Väder i widgeten</string>
+    <string name="settings_weather_app">Tryck på vädret öppnar</string>
     <string name="settings_network_place_names">Ortnamn från internet</string>
     <string name="settings_network_place_names_desc">Om telefonen inte själv kan avgöra vilken ort du befinner dig på hämtas namnet från BigDataCloud. Tjänsten får då din ungefärliga plats.</string>
     <string name="settings_swipe_up_drawer">Svep uppåt → appar</string>

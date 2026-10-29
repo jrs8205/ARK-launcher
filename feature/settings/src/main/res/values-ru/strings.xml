@@ -6,6 +6,7 @@
     <string name="settings_default_tap">Нажмите, чтобы выбрать ARK-launcher для главного экрана</string>
     <string name="settings_gestures">Жесты</string>
     <string name="settings_show_weather">Погода в виджете</string>
+    <string name="settings_weather_app">Нажатие на погоду открывает</string>
     <string name="settings_network_place_names">Название города из интернета</string>
     <string name="settings_network_place_names_desc">Если телефон не может сам определить ваш город, название будет запрошено у BigDataCloud. Сервис получит ваше приблизительное местоположение.</string>
     <string name="settings_swipe_up_drawer">Свайп вверх → приложения</string>
