@@ -6,7 +6,7 @@ import org.gradle.tooling.events.OperationCompletionListener
 // language version AND a matching Compose compiler. See https://kotl.in/gradle/agp-built-in-kotlin
 buildscript {
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
     }
 }
 

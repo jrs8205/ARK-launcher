@@ -2,6 +2,7 @@ import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 
 /**
@@ -22,5 +23,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 targetCompatibility = JavaVersion.VERSION_21
             }
         }
+        // Unit-test JVM flags; configureEach runs after AGP has configured its test tasks.
+        tasks.withType(Test::class.java).configureEach { jvmArgs(robolectricJvmArgs) }
     }
 }
