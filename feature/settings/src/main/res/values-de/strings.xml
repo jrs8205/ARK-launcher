@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Deckkraft des Dock-Hintergrunds</string>
     <string name="settings_page_indicator">Seitenpunkte</string>
     <string name="settings_home_page_marker">Markierung der Startseite</string>
+    <string name="settings_page_switch_speed">Geschwindigkeit des Seitenwechsels</string>
+    <string name="settings_page_speed_normal">Normal</string>
+    <string name="settings_page_speed_fast">Schnell</string>
+    <string name="settings_page_speed_fastest">Am schnellsten</string>
     <string name="settings_home_page_marker_ring">Ring um den Punkt</string>
     <string name="settings_home_page_marker_house">Haus-Symbol</string>
     <string name="settings_infinite_scroll">Endloses Blättern</string>

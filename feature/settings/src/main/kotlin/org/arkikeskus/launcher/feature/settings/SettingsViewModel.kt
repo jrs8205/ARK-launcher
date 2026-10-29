@@ -117,6 +117,9 @@ class SettingsViewModel @Inject constructor(
     /** Sets (or clears, for null) the app a tap on the smartspace weather opens. */
     fun setWeatherAppKey(key: String?) = update { repository.setWeatherAppKey(key) }
 
+    /** How fast the home pager settles on a page (normal / fast / fastest). */
+    fun setPageSwitchSpeed(speed: String) = update { repository.setPageSwitchSpeed(speed) }
+
     fun setDesktopLocked(value: Boolean) = update { repository.setDesktopLocked(value) }
     fun setDoubleTapToLock(value: Boolean) = update { repository.setDoubleTapToLock(value) }
     fun setLockSoundsEnabled(value: Boolean) = update { repository.setLockSoundsEnabled(value) }

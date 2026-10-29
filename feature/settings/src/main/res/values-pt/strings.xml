@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Opacidade do fundo do dock</string>
     <string name="settings_page_indicator">Indicador de página</string>
     <string name="settings_home_page_marker">Marcador da página inicial</string>
+    <string name="settings_page_switch_speed">Velocidade de troca de página</string>
+    <string name="settings_page_speed_normal">Normal</string>
+    <string name="settings_page_speed_fast">Rápida</string>
+    <string name="settings_page_speed_fastest">Máxima</string>
     <string name="settings_home_page_marker_ring">Anel ao redor do ponto</string>
     <string name="settings_home_page_marker_house">Ícone de casa</string>
     <string name="settings_infinite_scroll">Rolagem infinita</string>

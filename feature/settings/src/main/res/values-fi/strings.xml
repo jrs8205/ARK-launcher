@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Dockin taustan läpinäkyvyys</string>
     <string name="settings_page_indicator">Sivupisteet</string>
     <string name="settings_home_page_marker">Kotisivun merkki</string>
+    <string name="settings_page_switch_speed">Sivunvaihdon nopeus</string>
+    <string name="settings_page_speed_normal">Normaali</string>
+    <string name="settings_page_speed_fast">Nopea</string>
+    <string name="settings_page_speed_fastest">Nopein</string>
     <string name="settings_home_page_marker_ring">Rengas pisteen ympärillä</string>
     <string name="settings_home_page_marker_house">Talo-ikoni</string>
     <string name="settings_infinite_scroll">Loputon selaus</string>

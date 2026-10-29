@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Dock background opacity</string>
     <string name="settings_page_indicator">Page dots</string>
     <string name="settings_home_page_marker">Home page marker</string>
+    <string name="settings_page_switch_speed">Page switch speed</string>
+    <string name="settings_page_speed_normal">Normal</string>
+    <string name="settings_page_speed_fast">Fast</string>
+    <string name="settings_page_speed_fastest">Fastest</string>
     <string name="settings_home_page_marker_ring">Ring around the dot</string>
     <string name="settings_home_page_marker_house">House icon</string>
     <string name="settings_infinite_scroll">Infinite scrolling</string>

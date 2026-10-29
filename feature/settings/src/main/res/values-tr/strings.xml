@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Dock arka plan opaklığı</string>
     <string name="settings_page_indicator">Sayfa noktaları</string>
     <string name="settings_home_page_marker">Ana sayfa işareti</string>
+    <string name="settings_page_switch_speed">Sayfa geçiş hızı</string>
+    <string name="settings_page_speed_normal">Normal</string>
+    <string name="settings_page_speed_fast">Hızlı</string>
+    <string name="settings_page_speed_fastest">En hızlı</string>
     <string name="settings_home_page_marker_ring">Noktanın etrafında halka</string>
     <string name="settings_home_page_marker_house">Ev simgesi</string>
     <string name="settings_infinite_scroll">Sonsuz kaydırma</string>

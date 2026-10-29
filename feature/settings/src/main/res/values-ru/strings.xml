@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Непрозрачность фона док-панели</string>
     <string name="settings_page_indicator">Индикатор страниц</string>
     <string name="settings_home_page_marker">Отметка главной страницы</string>
+    <string name="settings_page_switch_speed">Скорость перелистывания страниц</string>
+    <string name="settings_page_speed_normal">Обычная</string>
+    <string name="settings_page_speed_fast">Быстрая</string>
+    <string name="settings_page_speed_fastest">Максимальная</string>
     <string name="settings_home_page_marker_ring">Кольцо вокруг точки</string>
     <string name="settings_home_page_marker_house">Значок дома</string>
     <string name="settings_infinite_scroll">Бесконечная прокрутка</string>

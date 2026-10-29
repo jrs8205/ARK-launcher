@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Bakgrundsopacitet för Dock</string>
     <string name="settings_page_indicator">Sidprickar</string>
     <string name="settings_home_page_marker">Markering av startsidan</string>
+    <string name="settings_page_switch_speed">Hastighet för sidbyte</string>
+    <string name="settings_page_speed_normal">Normal</string>
+    <string name="settings_page_speed_fast">Snabb</string>
+    <string name="settings_page_speed_fastest">Snabbast</string>
     <string name="settings_home_page_marker_ring">Ring runt pricken</string>
     <string name="settings_home_page_marker_house">Husikon</string>
     <string name="settings_infinite_scroll">Oändlig rullning</string>

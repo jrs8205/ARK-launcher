@@ -24,6 +24,10 @@
     <string name="settings_dock_bg">Krycie tła Docka</string>
     <string name="settings_page_indicator">Kropki stron</string>
     <string name="settings_home_page_marker">Oznaczenie strony głównej</string>
+    <string name="settings_page_switch_speed">Szybkość zmiany strony</string>
+    <string name="settings_page_speed_normal">Normalna</string>
+    <string name="settings_page_speed_fast">Szybka</string>
+    <string name="settings_page_speed_fastest">Najszybsza</string>
     <string name="settings_home_page_marker_ring">Pierścień wokół kropki</string>
     <string name="settings_home_page_marker_house">Ikona domu</string>
     <string name="settings_infinite_scroll">Nieskończone przewijanie</string>

@@ -115,6 +115,7 @@ fun SettingsScreen(
     var showFolderManager by rememberSaveable { mutableStateOf(false) }
     var showLeftSwipePicker by rememberSaveable { mutableStateOf(false) }
     var showWeatherAppPicker by rememberSaveable { mutableStateOf(false) }
+    var showPageSpeedPicker by rememberSaveable { mutableStateOf(false) }
     var showIconPackPicker by rememberSaveable { mutableStateOf(false) }
     var showCountStylePicker by rememberSaveable { mutableStateOf(false) }
     var showHomeMarkerPicker by rememberSaveable { mutableStateOf(false) }
@@ -294,6 +295,7 @@ fun SettingsScreen(
                         ),
                     ) { showHomeMarkerPicker = true }
                 }
+                PageSwitchSpeedRow(selected = s.pageSwitchSpeed) { showPageSpeedPicker = true }
                 SwitchRow(
                     stringResource(R.string.settings_infinite_scroll),
                     stringResource(R.string.settings_infinite_scroll_desc),
@@ -504,6 +506,22 @@ fun SettingsScreen(
                 onDismiss = { showLeftSwipePicker = false },
             )
         }
+        if (showPageSpeedPicker) {
+            ChoicePicker(
+                title = R.string.settings_page_switch_speed,
+                options = listOf(
+                    LauncherSettings.SPEED_NORMAL to R.string.settings_page_speed_normal,
+                    LauncherSettings.SPEED_FAST to R.string.settings_page_speed_fast,
+                    LauncherSettings.SPEED_FASTEST to R.string.settings_page_speed_fastest,
+                ),
+                selected = s.pageSwitchSpeed,
+                onPick = { speed ->
+                    viewModel.setPageSwitchSpeed(speed)
+                    showPageSpeedPicker = false
+                },
+                onDismiss = { showPageSpeedPicker = false },
+            )
+        }
         if (showWeatherAppPicker) {
             SingleAppPicker(
                 apps = allApps,
@@ -705,6 +723,22 @@ private fun IconPackPicker(
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
         },
+    )
+}
+
+/** Settings > Home: how fast the home pager settles on a page (issue #18); the current choice sits under the label. */
+@Composable
+internal fun PageSwitchSpeedRow(selected: String, onClick: () -> Unit) {
+    ExpressiveActionRow(
+        label = stringResource(R.string.settings_page_switch_speed),
+        description = stringResource(
+            when (selected) {
+                LauncherSettings.SPEED_FAST -> R.string.settings_page_speed_fast
+                LauncherSettings.SPEED_FASTEST -> R.string.settings_page_speed_fastest
+                else -> R.string.settings_page_speed_normal
+            },
+        ),
+        onClick = onClick,
     )
 }
 
