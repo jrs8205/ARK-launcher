@@ -1,0 +1,8 @@
+New
+- Settings > Home > "Tap on weather opens": the app the smartspace weather line opens.
+- Settings > Home > "Page switch speed": normal, fast or fastest, for swipes, the Home button, drags and accessibility paging.
+- Up to ten home rows.
+
+Fixed
+- The smartspace's tappable lines are at least 44 dp tall when there is room; a large system font or a two-line event no longer pushes a line off the card.
+- Without the dock the home grid stays above the navigation bar.
