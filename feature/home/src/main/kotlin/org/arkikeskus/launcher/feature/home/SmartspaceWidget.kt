@@ -14,12 +14,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -242,20 +248,27 @@ internal fun SmartspaceContent(
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
     // A short widget changes layout instead of shrinking every label into unreadable text.
     if (maxHeight < 140.dp) {
+        // Its two lines share the footprint's height left after the card padding; each is a touch
+        // target up to TOUCH_TARGET tall when there is room (see the taller layouts below).
+        val lineMin = ((maxHeight - 24.dp) / 2).coerceIn(0.dp, TOUCH_TARGET)
         WidgetSurface(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+            Row(Modifier.padding(12.dp).height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium,
-                    maxLines = 1, modifier = Modifier.clickable {
-                        runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
-                    })
+                // The clock's hit area spans both lines.
+                TapTarget(minHeight = 0.dp, fillWidth = false, ripple = true, modifier = Modifier.fillMaxHeight(), onTap = {
+                    runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+                }) {
+                    Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium, maxLines = 1)
+                }
                 Column(Modifier.weight(1f)) {
-                    Text(dateText, color = ink, style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.clickable {
-                            val uri = CalendarContract.CONTENT_URI.buildUpon()
-                                .appendPath("time").appendPath(now.toString()).build()
-                            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-                        })
+                    TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = {
+                        val uri = CalendarContract.CONTENT_URI.buildUpon()
+                            .appendPath("time").appendPath(now.toString()).build()
+                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+                    }) {
+                        Text(dateText, color = ink, style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                     val event = nextEvent
                     val detail = when {
                         !hasPermission -> stringResource(R.string.smartspace_allow_calendar)
@@ -274,14 +287,14 @@ internal fun SmartspaceContent(
                                     .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
                                     .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end))
                             }
-                            Unit
                         })
                         weather != null && weatherApp != null -> onOpenWeatherApp
                         else -> null
                     }
-                    if (detail != null) Text(detail, color = ink.copy(alpha = 0.85f),
-                        style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = if (detailTap != null) Modifier.clickable(onClick = detailTap) else Modifier)
+                    if (detail != null) TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = detailTap) {
+                        Text(detail, color = ink.copy(alpha = 0.85f),
+                            style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
         }
@@ -290,8 +303,62 @@ internal fun SmartspaceContent(
     val scale = if (maxHeight >= 260.dp && maxWidth >= 300.dp) 1.15f else 0.9f
     val spacious = maxHeight >= 240.dp
     val expanded = maxHeight >= 260.dp
+    val w = weather
+    val event = nextEvent
+    val nextAlarm = remember(now) {
+        context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock?.triggerTime
+    }
+    val alarmText = if (nextAlarm != null) {
+        remember(nextAlarm, timeFormat) {
+            buildString {
+                if (!DateUtils.isToday(nextAlarm)) {
+                    append(
+                        DateUtils.formatDateTime(
+                            context, nextAlarm,
+                            DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY,
+                        ),
+                    )
+                    append(' ')
+                }
+                append(timeFormat.format(Date(nextAlarm)))
+            }
+        }
+    } else {
+        null
+    }
+    val openCalendarDay = {
+        val uri = CalendarContract.CONTENT_URI.buildUpon()
+            .appendPath("time").appendPath(now.toString()).build()
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+        Unit
+    }
+    val openAlarms = {
+        runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+        Unit
+    }
+    // The weather line opens the chosen app only while that app resolves; otherwise it is plain text.
+    val openWeather: (() -> Unit)? = if (weatherApp != null) onOpenWeatherApp else null
+    // The bottom line (the calendar event, or its tap-to-grant prompt) is what the compact mode
+    // makes room for: with it, weather + date + alarm share ONE middle row so the widget
+    // tops out at three rows; without it, they keep their own airy rows (user design).
+    val bottomLine = !hasPermission || event != null
+    val merged = !spacious && bottomLine
+    // Weather is on but can't run without a location — a tap-to-grant line. Independent of the
+    // calendar line: each launches its own dialog on tap, so nothing ever stacks two system
+    // prompts; a user who declines calendar must still be able to enable weather from here.
+    val locationLine = showWeather && !hasLocationPermission
+    // Touch targets (WCAG 2.5.5): the lines under the clock share the footprint's height left
+    // after the clock and the card padding, each growing to TOUCH_TARGET at most. A tight footprint
+    // keeps today's compact pitch; a tall one gets lines a finger can hit without aiming.
+    val lineCount = (if (merged) 1 else (if (w != null) 1 else 0) + 1 + (if (alarmText != null) 1 else 0)) +
+        (if (bottomLine) 1 else 0) + (if (locationLine) 1 else 0)
+    val clockHeight = (46 * scale * 1.3f).dp
+    val lineMin = ((maxHeight - clockHeight - (20 * scale).dp) / lineCount).coerceIn(0.dp, TOUCH_TARGET)
     Column(
         modifier = Modifier
+            // The lines fill the card's width so their hit areas do too; IntrinsicSize.Max keeps
+            // the card hugging its widest line instead of the whole footprint.
+            .width(IntrinsicSize.Max)
             // A soft translucent card behind the text so the widget reads as one element on any
             // wallpaper (user feedback; same idiom as the dock background and the restore tiles).
             .background(widgetSurfaceColor(), RoundedCornerShape(24.dp))
@@ -299,90 +366,59 @@ internal fun SmartspaceContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = timeText,
-            color = widgetContentColor(),
-            style = TextStyle(fontSize = (46 * scale).sp, fontWeight = FontWeight.Medium, shadow = shadow),
-            maxLines = 1,
-            modifier = Modifier.clickable(interactionSource = noIndication, indication = null) {
-                runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
-            },
-        )
-        val w = weather
-        val event = nextEvent
-        val nextAlarm = remember(now) {
-            context.getSystemService(android.app.AlarmManager::class.java)?.nextAlarmClock?.triggerTime
+        TapTarget(minHeight = 0.dp, onTap = openAlarms, interactionSource = noIndication) {
+            Text(
+                text = timeText,
+                color = widgetContentColor(),
+                style = TextStyle(fontSize = (46 * scale).sp, fontWeight = FontWeight.Medium, shadow = shadow),
+                maxLines = 1,
+            )
         }
-        val alarmText = if (nextAlarm != null) {
-            remember(nextAlarm, timeFormat) {
-                buildString {
-                    if (!DateUtils.isToday(nextAlarm)) {
-                        append(
-                            DateUtils.formatDateTime(
-                                context, nextAlarm,
-                                DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY,
-                            ),
-                        )
-                        append(' ')
-                    }
-                    append(timeFormat.format(Date(nextAlarm)))
-                }
-            }
-        } else {
-            null
-        }
-        val openCalendarDay = {
-            val uri = CalendarContract.CONTENT_URI.buildUpon()
-                .appendPath("time").appendPath(now.toString()).build()
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-            Unit
-        }
-        val openAlarms = {
-            runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
-            Unit
-        }
-        // The bottom line (the calendar event, or its tap-to-grant prompt) is what the compact
-        // mode makes room for: with it, weather + date + alarm share ONE middle row so the widget
-        // tops out at three rows; without it, they keep their own airy rows (user design).
-        if (!spacious && (!hasPermission || event != null)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        if (merged) {
+            Row(Modifier.heightIn(min = lineMin), verticalAlignment = Alignment.CenterVertically) {
                 if (w != null) {
                     val city = w.city?.let { " $it" }.orEmpty()
+                    // The city is the variable-length part — it alone gives way (ellipsis) when
+                    // the merged row runs out of width; fill=false keeps the card content-hugging.
+                    TapTarget(minHeight = lineMin, onTap = openWeather, fillWidth = false, interactionSource = noIndication,
+                        modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
+                            color = widgetContentColor(),
+                            style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    MiddleDot(scale, shadow)
+                }
+                TapTarget(minHeight = lineMin, onTap = openCalendarDay, fillWidth = false, interactionSource = noIndication) {
                     Text(
-                        text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
+                        text = dateText,
                         color = widgetContentColor(),
                         style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        // The city is the variable-length part — it alone gives way (ellipsis) when
-                        // the merged row runs out of width; fill=false keeps the card content-hugging.
-                        modifier = Modifier.weight(1f, fill = false).weatherTap(weatherApp, noIndication, onOpenWeatherApp),
                     )
-                    MiddleDot(scale, shadow)
                 }
-                Text(
-                    text = dateText,
-                    color = widgetContentColor(),
-                    style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
-                    maxLines = 1,
-                    modifier = Modifier.clickable(interactionSource = noIndication, indication = null, onClick = openCalendarDay),
-                )
                 if (alarmText != null) {
                     MiddleDot(scale, shadow)
-                    Icon(
-                        painter = painterResource(R.drawable.ic_status_alarm),
-                        contentDescription = stringResource(R.string.smartspace_next_alarm),
-                        tint = widgetContentColor().copy(alpha = 0.9f),
-                        modifier = Modifier.size((14 * scale).dp),
-                    )
-                    Spacer(Modifier.width((3 * scale).dp))
-                    Text(
-                        text = alarmText,
-                        color = widgetContentColor().copy(alpha = 0.9f),
-                        style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
-                        maxLines = 1,
-                        modifier = Modifier.clickable(interactionSource = noIndication, indication = null, onClick = openAlarms),
-                    )
+                    TapTarget(minHeight = lineMin, onTap = openAlarms, fillWidth = false, interactionSource = noIndication) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_status_alarm),
+                                contentDescription = stringResource(R.string.smartspace_next_alarm),
+                                tint = widgetContentColor().copy(alpha = 0.9f),
+                                modifier = Modifier.size((14 * scale).dp),
+                            )
+                            Spacer(Modifier.width((3 * scale).dp))
+                            Text(
+                                text = alarmText,
+                                color = widgetContentColor().copy(alpha = 0.9f),
+                                style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+                                maxLines = 1,
+                            )
+                        }
+                    }
                 }
             }
         } else {
@@ -390,60 +426,61 @@ internal fun SmartspaceContent(
             // riding on the date line).
             if (w != null) {
                 val city = w.city?.let { " $it" }.orEmpty()
+                TapTarget(minHeight = lineMin, onTap = openWeather, interactionSource = noIndication) {
+                    Text(
+                        text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
+                        color = widgetContentColor(),
+                        style = TextStyle(fontSize = (16 * scale).sp, shadow = shadow),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            TapTarget(minHeight = lineMin, onTap = openCalendarDay, interactionSource = noIndication) {
                 Text(
-                    text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
+                    text = dateText,
                     color = widgetContentColor(),
-                    style = TextStyle(fontSize = (16 * scale).sp, shadow = shadow),
+                    style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weatherTap(weatherApp, noIndication, onOpenWeatherApp),
                 )
             }
-            Text(
-                text = dateText,
-                color = widgetContentColor(),
-                style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clickable(interactionSource = noIndication, indication = null, onClick = openCalendarDay),
-            )
             // The next alarm (AlarmManager, no permission) gets its OWN row under the date.
             if (alarmText != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .clickable(interactionSource = noIndication, indication = null, onClick = openAlarms),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_status_alarm),
-                        contentDescription = stringResource(R.string.smartspace_next_alarm),
-                        tint = widgetContentColor().copy(alpha = 0.9f),
-                        modifier = Modifier.size((15 * scale).dp),
-                    )
-                    Spacer(Modifier.width((4 * scale).dp))
-                    Text(
-                        text = alarmText,
-                        color = widgetContentColor().copy(alpha = 0.9f),
-                        style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
-                        maxLines = 1,
-                    )
+                TapTarget(minHeight = lineMin, onTap = openAlarms, interactionSource = noIndication, modifier = Modifier.padding(top = 2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_status_alarm),
+                            contentDescription = stringResource(R.string.smartspace_next_alarm),
+                            tint = widgetContentColor().copy(alpha = 0.9f),
+                            modifier = Modifier.size((15 * scale).dp),
+                        )
+                        Spacer(Modifier.width((4 * scale).dp))
+                        Text(
+                            text = alarmText,
+                            color = widgetContentColor().copy(alpha = 0.9f),
+                            style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }
         when {
-            !hasPermission -> Text(
-                text = stringResource(R.string.smartspace_allow_calendar),
-                color = widgetContentColor().copy(alpha = 0.85f),
-                style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .clickable(interactionSource = noIndication, indication = null) {
-                        permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-                    },
-            )
+            !hasPermission -> TapTarget(
+                minHeight = lineMin,
+                onTap = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
+                interactionSource = noIndication,
+                modifier = Modifier.padding(top = 2.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.smartspace_allow_calendar),
+                    color = widgetContentColor().copy(alpha = 0.85f),
+                    style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             event != null -> {
                 val eventText = remember(event, now, timeFormat) {
                     buildString {
@@ -463,55 +500,90 @@ internal fun SmartspaceContent(
                         append(event.title)
                     }
                 }
-                Text(
-                    text = eventText.ifBlank { stringResource(R.string.smartspace_no_title) },
-                    color = widgetContentColor().copy(alpha = 0.92f),
-                    style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
-                    maxLines = if (expanded) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .clickable(interactionSource = noIndication, indication = null) {
-                            val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW, uri)
-                                        .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
-                                        .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end),
-                                )
-                            }
-                        },
-                )
+                TapTarget(
+                    minHeight = lineMin,
+                    onTap = {
+                        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, uri)
+                                    .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
+                                    .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end),
+                            )
+                        }
+                    },
+                    interactionSource = noIndication,
+                    modifier = Modifier.padding(top = 2.dp),
+                ) {
+                    Text(
+                        text = eventText.ifBlank { stringResource(R.string.smartspace_no_title) },
+                        color = widgetContentColor().copy(alpha = 0.92f),
+                        style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                        maxLines = if (expanded) 2 else 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             // No permission prompt needed and no event → clock + date only.
         }
-        // Weather is on but can't run without a location — a tap-to-grant line. Independent of the
-        // calendar line: each launches its own dialog on tap, so nothing ever stacks two system
-        // prompts; a user who declines calendar must still be able to enable weather from here.
-        if (showWeather && !hasLocationPermission) {
+        if (locationLine) {
             val locationLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { onRefresh() }
-            Text(
-                text = stringResource(R.string.smartspace_allow_location),
-                color = widgetContentColor().copy(alpha = 0.85f),
-                style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .clickable(interactionSource = noIndication, indication = null) {
-                        locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-                    },
-            )
+            TapTarget(
+                minHeight = lineMin,
+                onTap = { locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
+                interactionSource = noIndication,
+                modifier = Modifier.padding(top = 2.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.smartspace_allow_location),
+                    color = widgetContentColor().copy(alpha = 0.85f),
+                    style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
     }
 }
 
-/** Makes the weather line open [app] on tap; without an app it stays plain text (no click action). */
-private fun Modifier.weatherTap(app: AppItem?, interactionSource: MutableInteractionSource, onOpen: () -> Unit): Modifier =
-    if (app == null) this else clickable(interactionSource = interactionSource, indication = null, onClick = onOpen)
+/** WCAG 2.5.5 target size: a tappable line grows to at least this height when the footprint has room. */
+internal val TOUCH_TARGET = 44.dp
+
+/**
+ * A tappable line of the widget. Its hit area is at least [minHeight] tall with the content
+ * centred ([alignment]) in it and, with [fillWidth], as wide as the card, so a small label is as
+ * easy to hit as a button. Without [onTap] it is plain content with no click action. [ripple]
+ * keeps the default indication (the short layout on its surface); the wallpaper layouts pass their
+ * shared no-indication [interactionSource] instead.
+ */
+@Composable
+private fun TapTarget(
+    minHeight: Dp,
+    onTap: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    fillWidth: Boolean = true,
+    alignment: Alignment = Alignment.Center,
+    ripple: Boolean = false,
+    interactionSource: MutableInteractionSource? = null,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
+            .heightIn(min = minHeight)
+            .then(
+                when {
+                    onTap == null -> Modifier
+                    ripple -> Modifier.clickable(onClick = onTap)
+                    else -> Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onTap)
+                },
+            ),
+        contentAlignment = alignment,
+    ) { content() }
+}
 
 /** The separator between the merged middle-row parts (compact mode). */
 @Composable
