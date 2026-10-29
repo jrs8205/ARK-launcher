@@ -245,7 +245,9 @@ internal fun Workspace(
     // trailing page is hidden from the dots and the workspace snaps back off it when not dragging,
     // so it reads as a single page until an icon actually lands there.
     // The user's page-switch speed (Settings > Home): one spring for the snap and every page change.
-    val pageSpec = pageSwitchSpec(LocalPageSwitchSpeed.current)
+    // A State read at call time: the collectors and drag loops below outlive the composition that
+    // started them, and a plain value would keep the speed they were born with.
+    val pageSpec by rememberUpdatedState(pageSwitchSpec(LocalPageSwitchSpeed.current))
     val pagerState = rememberPagerState(initialPage = (homePage ?: 0).coerceIn(0, pageCount), pageCount = { pageCount + 1 })
     // Settings arrive a beat after the first frame: open on the home page once they are known.
     // Saved across recreation so a restored pager (rotation, locale change, process death) keeps
