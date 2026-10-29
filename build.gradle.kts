@@ -21,7 +21,7 @@ plugins {
 }
 
 // Windows can't rewrite a jar that a process has open. KSP keeps its compiler loaded in the Gradle
-// daemon from build to build (KspAATaskKt.isolatedClassLoaderCache), and the IntelliJ zip cache in
+// daemon from build to build (KSP's isolated class loader cache), and the IntelliJ zip cache in
 // it (ZipHandler) keeps up to 20 classpath jars open — the modules' own compile jars among them — so
 // the next build that recompiled a module failed on its jar ("used by another process"). A
 // single-module app never notices: the jars it leaves open are libraries nobody rewrites. Emptying
@@ -31,9 +31,17 @@ abstract class CloseKspJarsAtBuildEnd : BuildService<BuildServiceParameters.None
 
     override fun close() {
         // Reflection, and no failure ever: a KSP version without these names only brings the lock back.
+        // KSP <= 2.3.9 kept the cache as a top-level val in KspAATask.kt; 2.3.12 moved it into the
+        // IsolatedClassLoaderCache object (and closes the loaders itself, which does not empty ZipHandler).
         runCatching {
-            val loaders = Class.forName("com.google.devtools.ksp.gradle.KspAATaskKt", false, CloseKspJarsAtBuildEnd::class.java.classLoader)
-                .getMethod("getIsolatedClassLoaderCache").invoke(null) as Map<*, *>
+            val pluginLoader = CloseKspJarsAtBuildEnd::class.java.classLoader
+            val loaders = runCatching {
+                Class.forName("com.google.devtools.ksp.gradle.IsolatedClassLoaderCache", false, pluginLoader)
+                    .let { it.getMethod("getCache").invoke(it.getField("INSTANCE").get(null)) } as Map<*, *>
+            }.getOrElse {
+                Class.forName("com.google.devtools.ksp.gradle.KspAATaskKt", false, pluginLoader)
+                    .getMethod("getIsolatedClassLoaderCache").invoke(null) as Map<*, *>
+            }
             for (loader in loaders.values.filterIsInstance<ClassLoader>()) {
                 runCatching {
                     loader.loadClass("ksp.com.intellij.openapi.vfs.impl.ZipHandler").getMethod("clearFileAccessorCache").invoke(null)
