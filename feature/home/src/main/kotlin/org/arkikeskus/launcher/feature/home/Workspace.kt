@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -243,6 +244,8 @@ internal fun Workspace(
     // forced a pager relayout exactly as the drag began, making pickup stutter and miss moves. The
     // trailing page is hidden from the dots and the workspace snaps back off it when not dragging,
     // so it reads as a single page until an icon actually lands there.
+    // The user's page-switch speed (Settings > Home): one spring for the snap and every page change.
+    val pageSpec = pageSwitchSpec(LocalPageSwitchSpeed.current)
     val pagerState = rememberPagerState(initialPage = (homePage ?: 0).coerceIn(0, pageCount), pageCount = { pageCount + 1 })
     // Settings arrive a beat after the first frame: open on the home page once they are known.
     // Saved across recreation so a restored pager (rotation, locale change, process death) keeps
@@ -271,7 +274,7 @@ internal fun Workspace(
     // The pager's own count is the live bound: this collector never restarts, so the pageCount
     // parameter it closed over would be the first composition's.
     LaunchedEffect(pageRequests) {
-        pageRequests.collect { page -> pagerState.animateScrollToPage(page.coerceIn(0, pagerState.pageCount - 1)) }
+        pageRequests.collect { page -> pagerState.animateScrollToPage(page.coerceIn(0, pagerState.pageCount - 1), animationSpec = pageSpec) }
     }
     // The cell the dragged icon would drop into — shown as a placeholder while dragging.
     var targetCell by remember { mutableStateOf<IntOffset?>(null) }
@@ -538,7 +541,7 @@ internal fun Workspace(
                 val next = (pagerState.currentPage + direction).coerceIn(0, pageCount)
                 if (next == pagerState.currentPage) break
                 // In [scope]: a drop mid-flip restarts this effect, which must not strand the pager.
-                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(next) }
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(next, animationSpec = pageSpec) }
                 snapshotFlow { pagerState.isScrollInProgress }.first { !it }
             }
         }
@@ -675,7 +678,7 @@ internal fun Workspace(
             // In [scope], not here: this effect restarts when the page count changes, and a turn
             // cancelled half way left the pager stranded between two pages until the next touch.
             if (alreadyOnHome && pagerState.currentPage != homeIndex) {
-                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(homeIndex) }
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(homeIndex, animationSpec = pageSpec) }
             }
         }
     }
@@ -785,7 +788,7 @@ internal fun Workspace(
             val showing = if (tailCopy && pagerState.currentPage >= pageCount) 0 else pagerState.currentPage
             if (!userMovedOn && target != showing && target in 0 until pagerState.pageCount) {
                 try {
-                    pagerState.animateScrollToPage(target)
+                    pagerState.animateScrollToPage(target, animationSpec = pageSpec)
                 } catch (e: CancellationException) {
                     // The pager cancels the turn when the user starts dragging or another scroll
                     // (HOME on the home screen) takes over. This coroutine is still alive then, and
@@ -838,7 +841,7 @@ internal fun Workspace(
             if (target != null) {
                 // Not after a drag that just ended here: that drop page was the user's own choice.
                 if (!newPageLatched) pageEndBounces++
-                pagerState.animateScrollToPage(target)
+                pagerState.animateScrollToPage(target, animationSpec = pageSpec)
             }
         }
     }
@@ -880,7 +883,7 @@ internal fun Workspace(
                 delay(EDGE_FLIP_DWELL_MS)
                 val next = (pagerState.targetPage + direction).coerceIn(0, pageCount)
                 if (next == pagerState.targetPage) break
-                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(next) }
+                scope.launch(start = CoroutineStart.UNDISPATCHED) { pagerState.animateScrollToPage(next, animationSpec = pageSpec) }
                 snapshotFlow { pagerState.isScrollInProgress }.first { !it }
             }
         }
@@ -892,6 +895,7 @@ internal fun Workspace(
             HorizontalPager(
                 state = pagerState,
                 userScrollEnabled = pagerScrolls,
+                flingBehavior = PagerDefaults.flingBehavior(state = pagerState, snapAnimationSpec = pageSpec),
                 // While an item is MOVING, keep every page composed so flipping to another page can't
                 // dispose the dragged item's node (which would cancel the in-progress drag); this also
                 // covers a drawer/dock→home drag, so its target page renders as pages flip. A still
@@ -914,6 +918,7 @@ internal fun Workspace(
                     .fillMaxWidth()
                     // Paging with TalkBack or Switch Access does at an end what a swipe does there.
                     .wrapAroundPagingSemantics(
+                        pageSpec = pageSpec,
                         pagerState = pagerState,
                         pageCount = pageCount,
                         enabled = pagerScrolls,

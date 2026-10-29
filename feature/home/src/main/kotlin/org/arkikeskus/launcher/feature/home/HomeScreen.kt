@@ -513,6 +513,7 @@ fun HomeScreen(
         LocalIconPack provides settings.iconPackPackage,
         LocalAppLabelScale provides settings.appLabelTextScale,
         LocalIconScale provides settings.iconScale,
+        LocalPageSwitchSpeed provides settings.pageSwitchSpeed,
         LocalAppLabelLines provides if (settings.twoLineHomeLabels) 2 else 1,
         // Force the workspace left-to-right even in RTL locales (ar/he/fa/ur). The grid renders with
         // RTL-aware Modifier.offset {} but the drag/drop, drop-ring and popup-anchor math is all

@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.home
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.rememberOverscrollEffect
@@ -205,6 +206,7 @@ private class WrapAroundOverscroll(
  *   unless the left-edge app owns that end.
  */
 internal fun Modifier.wrapAroundPagingSemantics(
+    pageSpec: AnimationSpec<Float>,
     pagerState: PagerState,
     pageCount: Int,
     enabled: Boolean,
@@ -225,7 +227,7 @@ internal fun Modifier.wrapAroundPagingSemantics(
             maxValue = { lastPage * pagerState.stride() },
         )
         pageLeft {
-            if (pagerState.pageBack(scope)) return@pageLeft true
+            if (pagerState.pageBack(scope, pageSpec)) return@pageLeft true
             if (!leftEdgeAction) onEndReached()
             false
         }
@@ -235,7 +237,7 @@ internal fun Modifier.wrapAroundPagingSemantics(
                 onEndReached()
                 return@pageRight false
             }
-            scope.launch { pagerState.animateScrollToPage(next) }
+            scope.launch { pagerState.animateScrollToPage(next, animationSpec = pageSpec) }
             true
         }
     }
@@ -245,7 +247,7 @@ internal fun Modifier.wrapAroundPagingSemantics(
             maxValue = { (pageCount + 1) * pagerState.stride() },
         )
         pageLeft {
-            if (pagerState.pageBack(scope)) return@pageLeft true
+            if (pagerState.pageBack(scope, pageSpec)) return@pageLeft true
             val stride = pagerState.stride()
             if (stride <= 0f) return@pageLeft false
             scope.launch {
@@ -253,7 +255,7 @@ internal fun Modifier.wrapAroundPagingSemantics(
                     onWrap()
                     scrollBy(pageCount * stride)
                 }
-                pagerState.animateScrollToPage(pageCount - 1)
+                pagerState.animateScrollToPage(pageCount - 1, animationSpec = pageSpec)
             }
             true
         }
@@ -262,9 +264,9 @@ internal fun Modifier.wrapAroundPagingSemantics(
 }
 
 /** The pager's own page back: false on page 0. */
-private fun PagerState.pageBack(scope: CoroutineScope): Boolean {
+private fun PagerState.pageBack(scope: CoroutineScope, pageSpec: AnimationSpec<Float>): Boolean {
     if (!canScrollBackward) return false
-    scope.launch { animateScrollToPage(currentPage - 1) }
+    scope.launch { animateScrollToPage(currentPage - 1, animationSpec = pageSpec) }
     return true
 }
 
