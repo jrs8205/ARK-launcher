@@ -33,22 +33,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.ParentDataModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -352,18 +353,10 @@ internal fun SmartspaceContent(
     val locationLine = showWeather && !hasLocationPermission
     // Touch targets (WCAG 2.5.5): the lines under the clock share the footprint's height left
     // after the clock and the card padding, each growing to TOUCH_TARGET at most. A tight footprint
-    // keeps today's compact pitch; a tall one gets lines a finger can hit without aiming.
-    val lineCount = (if (merged) 1 else (if (w != null) 1 else 0) + 1 + (if (alarmText != null) 1 else 0)) +
-        (if (bottomLine) 1 else 0) + (if (locationLine) 1 else 0)
-    // The clock's real height once laid out (it grows with the system font size); the estimate only
-    // covers the first frame. The 2 dp gaps above the lower lines come off the budget as well, so the
-    // last line is never the one that pays for a short estimate.
-    val density = LocalDensity.current
-    var clockHeightPx by remember { mutableIntStateOf(0) }
-    val clockHeight = if (clockHeightPx > 0) with(density) { clockHeightPx.toDp() } else (46 * scale * 1.3f * density.fontScale).dp
-    val gaps = 2.dp * ((if (!merged && alarmText != null) 1 else 0) + (if (bottomLine) 1 else 0) + (if (locationLine) 1 else 0))
-    val lineMin = ((maxHeight - clockHeight - (20 * scale).dp - gaps) / lineCount).coerceIn(0.dp, TOUCH_TARGET)
-    Column(
+    // keeps today's compact pitch; a tall one gets lines a finger can hit without aiming. The lines
+    // are measured by [BudgetedLines], never by a Column: a Column hands each line what the lines
+    // above it left, so touch areas grown to 44 dp cut a two-line event to one line.
+    BudgetedLines(
         modifier = Modifier
             // The lines fill the card's width so their hit areas do too; IntrinsicSize.Max keeps
             // the card hugging its widest line instead of the whole footprint.
@@ -372,15 +365,8 @@ internal fun SmartspaceContent(
             // wallpaper (user feedback; same idiom as the dock background and the restore tiles).
             .background(widgetSurfaceColor(), RoundedCornerShape(24.dp))
             .padding(horizontal = (22 * scale).dp, vertical = (10 * scale).dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TapTarget(
-            minHeight = 0.dp,
-            onTap = openAlarms,
-            interactionSource = noIndication,
-            modifier = Modifier.onSizeChanged { clockHeightPx = it.height },
-        ) {
+        TapTarget(onTap = openAlarms, interactionSource = noIndication) {
             Text(
                 text = timeText,
                 color = widgetContentColor(),
@@ -389,12 +375,12 @@ internal fun SmartspaceContent(
             )
         }
         if (merged) {
-            Row(Modifier.heightIn(min = lineMin), verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 if (w != null) {
                     val city = w.city?.let { " $it" }.orEmpty()
                     // The city is the variable-length part — it alone gives way (ellipsis) when
                     // the merged row runs out of width; fill=false keeps the card content-hugging.
-                    TapTarget(minHeight = lineMin, onTap = openWeather, fillWidth = false, interactionSource = noIndication,
+                    TapTarget(onTap = openWeather, fillWidth = false, fillHeight = true, interactionSource = noIndication,
                         modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
@@ -406,7 +392,7 @@ internal fun SmartspaceContent(
                     }
                     MiddleDot(scale, shadow)
                 }
-                TapTarget(minHeight = lineMin, onTap = openCalendarDay, fillWidth = false, interactionSource = noIndication) {
+                TapTarget(onTap = openCalendarDay, fillWidth = false, fillHeight = true, interactionSource = noIndication) {
                     Text(
                         text = dateText,
                         color = widgetContentColor(),
@@ -416,7 +402,7 @@ internal fun SmartspaceContent(
                 }
                 if (alarmText != null) {
                     MiddleDot(scale, shadow)
-                    TapTarget(minHeight = lineMin, onTap = openAlarms, fillWidth = false, interactionSource = noIndication) {
+                    TapTarget(onTap = openAlarms, fillWidth = false, fillHeight = true, interactionSource = noIndication) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_status_alarm),
@@ -440,7 +426,7 @@ internal fun SmartspaceContent(
             // riding on the date line).
             if (w != null) {
                 val city = w.city?.let { " $it" }.orEmpty()
-                TapTarget(minHeight = lineMin, onTap = openWeather, interactionSource = noIndication) {
+                TapTarget(onTap = openWeather, interactionSource = noIndication) {
                     Text(
                         text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
                         color = widgetContentColor(),
@@ -450,7 +436,7 @@ internal fun SmartspaceContent(
                     )
                 }
             }
-            TapTarget(minHeight = lineMin, onTap = openCalendarDay, interactionSource = noIndication) {
+            TapTarget(onTap = openCalendarDay, interactionSource = noIndication) {
                 Text(
                     text = dateText,
                     color = widgetContentColor(),
@@ -461,7 +447,7 @@ internal fun SmartspaceContent(
             }
             // The next alarm (AlarmManager, no permission) gets its OWN row under the date.
             if (alarmText != null) {
-                TapTarget(minHeight = lineMin, onTap = openAlarms, interactionSource = noIndication, modifier = Modifier.padding(top = 2.dp)) {
+                TapTarget(onTap = openAlarms, interactionSource = noIndication, modifier = Modifier.lineGap(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             painter = painterResource(R.drawable.ic_status_alarm),
@@ -482,10 +468,9 @@ internal fun SmartspaceContent(
         }
         when {
             !hasPermission -> TapTarget(
-                minHeight = lineMin,
                 onTap = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
                 interactionSource = noIndication,
-                modifier = Modifier.padding(top = 2.dp),
+                modifier = Modifier.lineGap(2.dp),
             ) {
                 Text(
                     text = stringResource(R.string.smartspace_allow_calendar),
@@ -515,7 +500,6 @@ internal fun SmartspaceContent(
                     }
                 }
                 TapTarget(
-                    minHeight = lineMin,
                     onTap = {
                         val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId)
                         runCatching {
@@ -527,7 +511,7 @@ internal fun SmartspaceContent(
                         }
                     },
                     interactionSource = noIndication,
-                    modifier = Modifier.padding(top = 2.dp),
+                    modifier = Modifier.lineGap(2.dp),
                 ) {
                     Text(
                         text = eventText.ifBlank { stringResource(R.string.smartspace_no_title) },
@@ -545,10 +529,9 @@ internal fun SmartspaceContent(
                 ActivityResultContracts.RequestPermission(),
             ) { onRefresh() }
             TapTarget(
-                minHeight = lineMin,
                 onTap = { locationLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
                 interactionSource = noIndication,
-                modifier = Modifier.padding(top = 2.dp),
+                modifier = Modifier.lineGap(2.dp),
             ) {
                 Text(
                     text = stringResource(R.string.smartspace_allow_location),
@@ -567,18 +550,83 @@ internal fun SmartspaceContent(
 internal val TOUCH_TARGET = 44.dp
 
 /**
- * A tappable line of the widget. Its hit area is at least [minHeight] tall with the content
- * centred ([alignment]) in it and, with [fillWidth], as wide as the card, so a small label is as
- * easy to hit as a button. Without [onTap] it is plain content with no click action. [ripple]
- * keeps the default indication (the short layout on its surface); the wallpaper layouts pass their
- * shared no-indication [interactionSource] instead.
+ * The clock and the lines under it, stacked and centred like a Column, with the lines' heights
+ * budgeted from the room the footprint leaves after the clock: every line keeps at least its
+ * natural height (a two-line event stays two lines), and the room left after that raises the
+ * shortest lines first, all of them to the same level at most [TOUCH_TARGET] tall. The first
+ * child is the clock, always at its natural height; a line's [lineGap] is the space above it,
+ * outside its hit area and outside the budget.
+ */
+@Composable
+private fun BudgetedLines(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val childConstraints = Constraints(minWidth = constraints.minWidth, maxWidth = width)
+        val clock = measurables.first().measure(childConstraints)
+        val lines = measurables.drop(1)
+        val gaps = lines.map { ((it.parentData as? LineGap)?.gap ?: 0.dp).roundToPx() }
+        val natural = lines.map { it.minIntrinsicHeight(width) }
+        val room = if (constraints.hasBoundedHeight) constraints.maxHeight - clock.height - gaps.sum() else 0
+        val heights = budgetedLineHeights(natural, room, TOUCH_TARGET.roundToPx())
+        val placeables = lines.mapIndexed { i, line ->
+            line.measure(childConstraints.copy(minHeight = heights[i], maxHeight = heights[i]))
+        }
+        val layoutWidth = (placeables + clock).maxOf { it.width }.coerceIn(constraints.minWidth, constraints.maxWidth)
+        val layoutHeight = (clock.height + gaps.sum() + heights.sum()).coerceIn(constraints.minHeight, constraints.maxHeight)
+        layout(layoutWidth, layoutHeight) {
+            var y = 0
+            clock.placeRelative((layoutWidth - clock.width) / 2, y)
+            y += clock.height
+            placeables.forEachIndexed { i, p ->
+                y += gaps[i]
+                p.placeRelative((layoutWidth - p.width) / 2, y)
+                y += p.height
+            }
+        }
+    }
+}
+
+/**
+ * The heights of lines with [natural] content heights sharing [room] px: each at least natural,
+ * the leftover raising the shortest lines first to one common level, capped at [target].
+ */
+internal fun budgetedLineHeights(natural: List<Int>, room: Int, target: Int): List<Int> {
+    if (natural.isEmpty()) return natural
+    val sorted = natural.sorted()
+    var level = 0
+    var above = sorted.sum() // the natural heights of the lines still taller than the level
+    for (k in 1..sorted.size) {
+        above -= sorted[k - 1]
+        val candidate = (room - above) / k
+        if (candidate < sorted[k - 1]) break
+        level = candidate
+    }
+    level = level.coerceAtMost(target)
+    return natural.map { maxOf(it, level) }
+}
+
+/** The space above a line in [BudgetedLines]: outside its hit area and outside the budget. */
+private fun Modifier.lineGap(gap: Dp): Modifier = this.then(LineGap(gap))
+
+private data class LineGap(val gap: Dp) : ParentDataModifier {
+    override fun Density.modifyParentData(parentData: Any?): Any = this@LineGap
+}
+
+/**
+ * A tappable line of the widget. Its hit area is at least [minHeight] tall (or, with [fillHeight],
+ * as tall as its parent lets it be) with the content centred ([alignment]) in it and, with
+ * [fillWidth], as wide as the card, so a small label is as easy to hit as a button. Without
+ * [onTap] it is plain content with no click action. [ripple] keeps the default indication (the
+ * short layout on its surface); the wallpaper layouts pass their shared no-indication
+ * [interactionSource] instead.
  */
 @Composable
 private fun TapTarget(
-    minHeight: Dp,
     onTap: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    minHeight: Dp = 0.dp,
     fillWidth: Boolean = true,
+    fillHeight: Boolean = false,
     alignment: Alignment = Alignment.Center,
     ripple: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
@@ -587,6 +635,7 @@ private fun TapTarget(
     Box(
         modifier = modifier
             .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
+            .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
             .heightIn(min = minHeight)
             .then(
                 when {
