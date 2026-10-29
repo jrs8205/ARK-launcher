@@ -33,14 +33,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -352,8 +355,14 @@ internal fun SmartspaceContent(
     // keeps today's compact pitch; a tall one gets lines a finger can hit without aiming.
     val lineCount = (if (merged) 1 else (if (w != null) 1 else 0) + 1 + (if (alarmText != null) 1 else 0)) +
         (if (bottomLine) 1 else 0) + (if (locationLine) 1 else 0)
-    val clockHeight = (46 * scale * 1.3f).dp
-    val lineMin = ((maxHeight - clockHeight - (20 * scale).dp) / lineCount).coerceIn(0.dp, TOUCH_TARGET)
+    // The clock's real height once laid out (it grows with the system font size); the estimate only
+    // covers the first frame. The 2 dp gaps above the lower lines come off the budget as well, so the
+    // last line is never the one that pays for a short estimate.
+    val density = LocalDensity.current
+    var clockHeightPx by remember { mutableIntStateOf(0) }
+    val clockHeight = if (clockHeightPx > 0) with(density) { clockHeightPx.toDp() } else (46 * scale * 1.3f * density.fontScale).dp
+    val gaps = 2.dp * ((if (!merged && alarmText != null) 1 else 0) + (if (bottomLine) 1 else 0) + (if (locationLine) 1 else 0))
+    val lineMin = ((maxHeight - clockHeight - (20 * scale).dp - gaps) / lineCount).coerceIn(0.dp, TOUCH_TARGET)
     Column(
         modifier = Modifier
             // The lines fill the card's width so their hit areas do too; IntrinsicSize.Max keeps
@@ -366,7 +375,12 @@ internal fun SmartspaceContent(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TapTarget(minHeight = 0.dp, onTap = openAlarms, interactionSource = noIndication) {
+        TapTarget(
+            minHeight = 0.dp,
+            onTap = openAlarms,
+            interactionSource = noIndication,
+            modifier = Modifier.onSizeChanged { clockHeightPx = it.height },
+        ) {
             Text(
                 text = timeText,
                 color = widgetContentColor(),

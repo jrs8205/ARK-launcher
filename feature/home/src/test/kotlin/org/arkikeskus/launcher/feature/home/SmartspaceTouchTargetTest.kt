@@ -5,7 +5,9 @@ import android.os.Process
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
@@ -50,10 +52,13 @@ class SmartspaceTouchTargetTest {
         showWeather = true, weather = weather, weatherApp = weatherApp,
     )
 
-    private fun show(height: Int) {
+    private fun show(height: Int, fontScale: Float = 1f, shown: SmartspaceState = state) {
         compose.setContent {
-            Box(Modifier.size(360.dp, height.dp)) {
-                SmartspaceContent(state, onRefresh = {}, onOpenWeatherApp = {}, modifier = Modifier.fillMaxSize())
+            val base = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale)) {
+                Box(Modifier.size(360.dp, height.dp)) {
+                    SmartspaceContent(shown, onRefresh = {}, onOpenWeatherApp = {}, modifier = Modifier.fillMaxSize())
+                }
             }
         }
         compose.waitForIdle()
@@ -94,6 +99,18 @@ class SmartspaceTouchTargetTest {
         val lines = tappables().filterNot { isClock.matches(it) }
         assertThat(lines).hasSize(2)
         lines.forEach { assertThat(it.heightDp().value).isLessThan(30f) }
+    }
+
+    /** A bigger system font makes the clock taller than the budget's estimate used to assume; the
+     *  lines must still share the room evenly instead of the last one being squeezed off the card. */
+    @Test fun aLargeSystemFontKeepsEveryLineWithinTheFootprint() {
+        // Four lines under the clock: weather, date, the event and the location prompt.
+        show(height = 240, fontScale = 2f, shown = state.copy(hasLocationPermission = false))
+        val lines = tappables().filterNot { isClock.matches(it) }
+        assertThat(lines).hasSize(4)
+        val heights = lines.map { it.heightDp().value }
+        assertThat(heights.max() - heights.min()).isLessThan(1f)
+        lines.forEach { assertThat(it.boundsInRoot.bottom).isAtMost(with(density) { 240.dp.toPx() } + 0.5f) }
     }
 
     @Test fun theTappableLinesSpanTheCardsWidth() {
