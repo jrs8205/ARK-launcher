@@ -259,8 +259,23 @@ internal fun Modifier.wrapAroundPagingSemantics(
             }
             true
         }
+        // Paging on needs no wrap logic (the copy is a real page), but the pager's own action
+        // would run at its default speed: the user's speed applies here too.
+        pageRight { pagerState.pageOn(scope, pageSpec) }
     }
-    else -> this
+    // The copy at the tail with the left-edge app owning page 0's back: nothing to wrap, but the
+    // pager's own actions would ignore the user's speed.
+    else -> semantics {
+        pageLeft { pagerState.pageBack(scope, pageSpec) }
+        pageRight { pagerState.pageOn(scope, pageSpec) }
+    }
+}
+
+/** The pager's own page on at the user's speed: false at the pager's last page. */
+private fun PagerState.pageOn(scope: CoroutineScope, pageSpec: AnimationSpec<Float>): Boolean {
+    if (!canScrollForward) return false
+    scope.launch { animateScrollToPage(currentPage + 1, animationSpec = pageSpec) }
+    return true
 }
 
 /** The pager's own page back: false on page 0. */
