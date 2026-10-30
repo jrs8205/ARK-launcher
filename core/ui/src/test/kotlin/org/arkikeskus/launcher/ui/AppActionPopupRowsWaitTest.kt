@@ -2,11 +2,17 @@ package org.arkikeskus.launcher.ui
 
 import android.app.Application
 import android.os.Process
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.IntOffset
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CompletableDeferred
 import org.arkikeskus.launcher.model.AppItem
 import org.junit.Rule
@@ -56,6 +62,39 @@ class AppActionPopupRowsWaitTest {
 
         compose.onNodeWithText("Widgets").assertIsDisplayed()
         compose.onNodeWithText("App info").assertIsDisplayed()
+    }
+
+    /** BACK while the rows are still out has no popup window to land in: the menu must still go, for good. */
+    @Test fun backWhileTheRowsAreStillOutDismissesTheMenuForGood() {
+        val widgets = CompletableDeferred<Boolean>()
+        var shown by mutableStateOf(true)
+        var dismissed = 0
+        lateinit var back: OnBackPressedDispatcher
+        compose.setContent {
+            back = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
+            if (shown) {
+                AppActionPopup(
+                    app = app,
+                    anchor = IntOffset(200, 200),
+                    preferAbove = false,
+                    actions = listOf(PopupAction("App info") {}),
+                    onDismiss = { dismissed++; shown = false },
+                    onWidgets = {},
+                    hasWidgets = { widgets.await() },
+                )
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText("App info").assertDoesNotExist()
+
+        compose.runOnUiThread { back.onBackPressed() }
+        compose.waitForIdle()
+        assertThat(dismissed).isEqualTo(1)
+
+        widgets.complete(true)
+        compose.mainClock.advanceTimeBy(POPUP_ROWS_WAIT_MS + 50)
+        compose.waitForIdle()
+        compose.onNodeWithText("App info").assertDoesNotExist()
     }
 
     @Test fun aProbeThatNeverAnswersStillLetsTheCardShowAfterTheWait() {

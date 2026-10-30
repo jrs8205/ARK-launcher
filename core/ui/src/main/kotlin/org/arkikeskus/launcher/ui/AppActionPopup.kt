@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -123,7 +124,12 @@ fun AppActionPopup(
         delay(POPUP_ROWS_WAIT_MS)
         waited = true
     }
-    if (!waited && (shortcuts == null || widgets == null)) return
+    if (!waited && (shortcuts == null || widgets == null)) {
+        // No card yet, so no popup window to take BACK: without this the press fell through to the
+        // host and the menu still opened once the rows arrived.
+        BackHandler { onDismiss() }
+        return
+    }
 
     AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held) {
         shortcuts.orEmpty().forEach { shortcut ->
