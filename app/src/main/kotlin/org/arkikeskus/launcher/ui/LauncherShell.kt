@@ -68,6 +68,7 @@ fun LauncherShell(
     val iconStyle by shellViewModel.iconStyle.collectAsStateWithLifecycle()
     val longPressScale by shellViewModel.longPressScale.collectAsStateWithLifecycle()
     val statusBars by shellViewModel.statusBars.collectAsStateWithLifecycle()
+    val headsUpActive by shellViewModel.headsUpActive.collectAsStateWithLifecycle()
     val wallpaperDarkText = rememberWallpaperSupportsDarkText()
     // Full-screen surfaces over home (the widget picker, the first-run intro) report what is behind the bars.
     val barCovers = remember { SystemBarCovers() }
@@ -160,7 +161,10 @@ fun LauncherShell(
         progress = { currentProgress },
         heightPx = { shellHeightPx },
         covers = barCovers,
-        ownBarBacksDark = ownBarBacksDark(statusBars.ownBarShown, statusBars.scrimOpacity),
+        ownBarShown = statusBars.ownBarShown,
+        systemBarHidden = statusBars.systemBarHidden,
+        scrimOpacity = statusBars.scrimOpacity,
+        headsUpActive = headsUpActive,
         wallpaperDarkText = wallpaperDarkText,
         drawerOpacity = statusBars.drawerOpacity,
     )

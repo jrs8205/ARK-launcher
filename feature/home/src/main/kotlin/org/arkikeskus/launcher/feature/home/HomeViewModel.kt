@@ -50,7 +50,6 @@ import javax.inject.Inject
  *  heads-up notification after ~5 s (its default decay) plus a hide animation, and we have no
  *  un-pin signal, so we time it out past that. 6 s left the system bar's dismissal animation
  *  overlapping our re-shown bar for ~1 s on a real WhatsApp heads-up (Pixel 8a, Android 17). */
-private const val HEADS_UP_SUPPRESS_MS = 8_000L
 
 /** Default grid footprint of the built-in smartspace widget (clamped to the column count). */
 const val SMARTSPACE_DEFAULT_SPAN_X = 4
@@ -351,15 +350,7 @@ class HomeViewModel @Inject constructor(
      * during it so the two don't overlap (the reveal is not dispatched as a WindowInsets change, so this
      * NotificationListener-fed signal is the only way to detect it).
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val headsUpActive: StateFlow<Boolean> = notificationBadgeRepository.headsUp
-        .flatMapLatest { postedAt ->
-            // Compute the window from the timestamp so a value replayed on re-subscription (returning
-            // home) is already expired and never re-blanks the bar; only a still-fresh post keeps it on.
-            val remaining = postedAt + HEADS_UP_SUPPRESS_MS - SystemClock.elapsedRealtime()
-            if (postedAt == 0L || remaining <= 0L) flowOf(false)
-            else flow { emit(true); delay(remaining); emit(false) }
-        }
+    val headsUpActive: StateFlow<Boolean> = notificationBadgeRepository.headsUpActive
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), false)
 
     val uiState: StateFlow<HomeUiState> = combine(

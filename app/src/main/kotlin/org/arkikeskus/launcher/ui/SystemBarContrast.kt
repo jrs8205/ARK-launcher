@@ -82,31 +82,49 @@ internal fun navigationBarDarkIcons(
 }
 
 /**
- * Whether the drawer's background, at the user's [opacity] over what it lets through, is light enough
- * for dark glyphs: the surface's [surfaceLuminance] weighted by the opacity, what is behind the drawer
- * ([behindIsLight], taken as white or black) by the rest. Opaque, the surface decides as before;
- * see-through, what is behind does -- a light theme over a dark wallpaper drew dark glyphs on dark
- * once the drawer could be transparent (issue #21's opacity setting).
+ * ARK's own status bar is on screen: [ownBarShown] by the setting, unless home blanks it because the
+ * system bar it was to replace is still (or again) on top -- a permanent show that takes layout space
+ * ([statusBarPx] > 0 while [systemBarHidden]: freeform/desktop windowing, lock-task) or a heads-up
+ * notification's transient reveal ([headsUpActive]). The same rule as HomeScreen's suppressThemedBar;
+ * a blanked bar is no backing for the glyphs.
  */
-internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, behindIsLight: Boolean): Boolean {
-    val behindLuminance = if (behindIsLight) 1f else 0f
-    return surfaceLuminance * opacity + behindLuminance * (1f - opacity) > 0.5f
+internal fun ownBarVisible(ownBarShown: Boolean, systemBarHidden: Boolean, statusBarPx: Float, headsUpActive: Boolean): Boolean =
+    ownBarShown && !(systemBarHidden && (statusBarPx > 0f || headsUpActive))
+
+/**
+ * The luminance behind the status bar on home: the wallpaper's dark-text hint taken as white or black,
+ * under ARK's own bar's black scrim at [scrimOpacity] while the bar is on screen ([ownBarVisible]). The
+ * scrim counts only as strong as it is: the default 60 % over a white wallpaper leaves a mid grey, not
+ * black.
+ */
+internal fun behindStatusBarLuminance(ownBarVisible: Boolean, scrimOpacity: Float, wallpaperSupportsDarkText: Boolean): Float {
+    val wallpaper = if (wallpaperSupportsDarkText) 1f else 0f
+    return if (ownBarVisible) wallpaper * (1f - scrimOpacity.coerceIn(0f, 1f)) else wallpaper
 }
 
-/** [drawerSurfaceIsLight] over the status bar: behind a see-through drawer is ARK's own bar with its dark
- *  scrim when that backs the bar ([ownBarBacksDark]; home keeps drawing it under the drawer), else the
- *  wallpaper. A dark theme's transparent drawer over a light wallpaper with the own bar on drew dark glyphs
- *  on the scrim's black. */
+/**
+ * Whether the drawer's background, at the user's [opacity] over what it lets through, is light enough
+ * for dark glyphs: the surface's [surfaceLuminance] weighted by the opacity, [behindLuminance] by the
+ * rest. Opaque, the surface decides as before; see-through, what is behind does -- a light theme over a
+ * dark wallpaper drew dark glyphs on dark once the drawer could be transparent (issue #21's opacity
+ * setting).
+ */
+internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, behindLuminance: Float): Boolean =
+    surfaceLuminance * opacity + behindLuminance * (1f - opacity) > 0.5f
+
+/** [drawerSurfaceIsLight] over the status bar: behind a see-through drawer is home's top edge as it is,
+ *  [behindStatusBarLuminance] (the own bar's scrim, when on screen, over the wallpaper). */
 internal fun drawerIsLightOverStatusBar(
     surfaceLuminance: Float,
     opacity: Float,
-    ownBarBacksDark: Boolean,
+    ownBarVisible: Boolean,
+    scrimOpacity: Float,
     wallpaperSupportsDarkText: Boolean,
-): Boolean = drawerSurfaceIsLight(surfaceLuminance, opacity, behindIsLight = !ownBarBacksDark && wallpaperSupportsDarkText)
+): Boolean = drawerSurfaceIsLight(surfaceLuminance, opacity, behindStatusBarLuminance(ownBarVisible, scrimOpacity, wallpaperSupportsDarkText))
 
 /** [drawerSurfaceIsLight] over the navigation bar: behind a see-through drawer is the wallpaper. */
 internal fun drawerIsLightOverNavigationBar(surfaceLuminance: Float, opacity: Float, wallpaperSupportsDarkText: Boolean): Boolean =
-    drawerSurfaceIsLight(surfaceLuminance, opacity, behindIsLight = wallpaperSupportsDarkText)
+    drawerSurfaceIsLight(surfaceLuminance, opacity, if (wallpaperSupportsDarkText) 1f else 0f)
 
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
@@ -205,7 +223,12 @@ internal fun SystemBarContrast(
     progress: () -> Float,
     heightPx: () -> Float,
     covers: SystemBarCovers,
-    ownBarBacksDark: Boolean,
+    /** ARK's own status bar by the setting; whether it is on screen follows [ownBarVisible]. */
+    ownBarShown: Boolean,
+    systemBarHidden: Boolean,
+    /** The own bar's scrim opacity ([ownBarBacksDark], [behindStatusBarLuminance]). */
+    scrimOpacity: Float,
+    headsUpActive: Boolean,
     wallpaperDarkText: State<Boolean>,
     /** The app drawer's background opacity ([drawerSurfaceIsLight]). */
     drawerOpacity: Float = 1f,
@@ -217,7 +240,13 @@ internal fun SystemBarContrast(
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
     val surfaceLuminance = rememberUpdatedState(MaterialTheme.colorScheme.surface.luminance())
     val currentDrawerOpacity = rememberUpdatedState(drawerOpacity)
-    val ownBar = rememberUpdatedState(ownBarBacksDark)
+    val currentOwnBarShown = rememberUpdatedState(ownBarShown)
+    val currentSystemBarHidden = rememberUpdatedState(systemBarHidden)
+    val currentScrim = rememberUpdatedState(scrimOpacity)
+    val currentHeadsUp = rememberUpdatedState(headsUpActive)
+    val ownBarOnScreen = {
+        ownBarVisible(currentOwnBarShown.value, currentSystemBarHidden.value, statusBarPx.value, currentHeadsUp.value)
+    }
     val currentProgress = rememberUpdatedState(progress)
     val currentHeight = rememberUpdatedState(heightPx)
     val glyphs = remember {
@@ -227,13 +256,15 @@ internal fun SystemBarContrast(
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
             drawerIsLightOverStatusBar = {
-                drawerIsLightOverStatusBar(surfaceLuminance.value, currentDrawerOpacity.value, ownBar.value, wallpaperDarkText.value)
+                drawerIsLightOverStatusBar(
+                    surfaceLuminance.value, currentDrawerOpacity.value, ownBarOnScreen(), currentScrim.value, wallpaperDarkText.value,
+                )
             },
             drawerIsLightOverNavBar = {
                 drawerIsLightOverNavigationBar(surfaceLuminance.value, currentDrawerOpacity.value, wallpaperDarkText.value)
             },
             coverIsLight = { covers.coverIsLight },
-            ownBarBacksDark = { ownBar.value },
+            ownBarBacksDark = { ownBarBacksDark(ownBarOnScreen(), currentScrim.value) },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },
         )
     }

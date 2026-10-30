@@ -3,9 +3,15 @@ package org.arkikeskus.launcher.data
 import android.app.PendingIntent
 import android.graphics.drawable.Icon
 import android.os.SystemClock
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,6 +61,20 @@ class NotificationBadgeRepository @Inject constructor() {
     private val _headsUp = MutableStateFlow(0L)
     val headsUp: StateFlow<Long> = _headsUp.asStateFlow()
 
+    /**
+     * True for [HEADS_UP_SUPPRESS_MS] after a heads-up-worthy notification is posted, while the system
+     * transiently reveals its own status bar over the launcher. HomeScreen blanks the themed status bar
+     * during it so the two don't overlap, and the shell's system-bar contrast counts the bar as gone then.
+     * The window is computed from the timestamp so a value replayed on re-subscription (returning home)
+     * is already expired and never re-blanks the bar; only a still-fresh post keeps it on.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val headsUpActive: Flow<Boolean> = headsUp.flatMapLatest { postedAt ->
+        val remaining = postedAt + HEADS_UP_SUPPRESS_MS - SystemClock.elapsedRealtime()
+        if (postedAt == 0L || remaining <= 0L) flowOf(false)
+        else flow { emit(true); delay(remaining); emit(false) }
+    }
+
     /** Conversation-like notifications grouped by person (newest first), for the people widget.
      *  Like [icons], rebuilt from scratch on every listener snapshot and never persisted. */
     private val _people = MutableStateFlow<List<PersonTileState>>(emptyList())
@@ -93,3 +113,6 @@ class NotificationBadgeRepository @Inject constructor() {
         canceller.get()?.invoke(key)
     }
 }
+
+/** How long the system keeps a heads-up notification's bar reveal on screen (see [NotificationBadgeRepository.headsUpActive]). */
+const val HEADS_UP_SUPPRESS_MS = 8_000L

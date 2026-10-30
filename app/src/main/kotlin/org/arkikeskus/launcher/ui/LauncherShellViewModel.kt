@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.arkikeskus.launcher.data.LauncherAppsSource
+import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.IconEpochs
 import javax.inject.Inject
@@ -35,7 +36,13 @@ data class IconStyle(val iconPack: String = "", val themed: Boolean = false, val
 class LauncherShellViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
     launcherAppsSource: LauncherAppsSource,
+    notificationBadgeRepository: NotificationBadgeRepository,
 ) : ViewModel() {
+    /** A heads-up notification's bar reveal is on: home blanks its own status bar for the window (see
+     *  [NotificationBadgeRepository.headsUpActive]), so the bar is no dark backing for the glyphs then. */
+    val headsUpActive: StateFlow<Boolean> = notificationBadgeRepository.headsUpActive
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     val iconStyle: StateFlow<IconStyle> = settingsRepository.settings
         .map { IconStyle(it.iconPackPackage, it.useThemedIcons, it.iconScale) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IconStyle())
