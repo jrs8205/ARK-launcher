@@ -44,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -112,7 +113,6 @@ import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /** The space above and below the workspace in the home column. */
 internal val WORKSPACE_VERTICAL_PADDING = 12.dp
@@ -556,10 +556,14 @@ fun HomeScreen(
     // This Box's top-left in root coords: the floating copy of a dock folder below is placed from the
     // finger's root position, which the drag controller publishes.
     var homeOrigin by remember { mutableStateOf(Offset.Zero) }
+    var homeWidthPx by remember { mutableIntStateOf(0) }
     Box(
         modifier = modifier
             .fillMaxSize()
-            .onGloballyPositioned { homeOrigin = it.positionInRoot() }
+            .onGloballyPositioned {
+                homeOrigin = it.positionInRoot()
+                homeWidthPx = it.size.width
+            }
             // Root-level, Initial-pass swipe detector: a flick up/down anywhere on home (over icons,
             // folders, shortcuts or the dock — not just empty space) drives the drawer/notifications.
             .pixelHomeSwipe(
@@ -763,37 +767,17 @@ fun HomeScreen(
                     ?: uiState.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == id }
             }
         if (liftedDockFolder != null) {
-            val sizeDp = 56.dp * settings.iconScale
-            val halfPx = with(LocalDensity.current) { (sizeDp / 2).toPx() }
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            (dragController.rootPosition.x - homeOrigin.x - halfPx).roundToInt(),
-                            (dragController.rootPosition.y - homeOrigin.y - halfPx).roundToInt(),
-                        )
-                    }
-                    .size(sizeDp)
-                    .graphicsLayer {
-                        alpha = 0.92f
-                        scaleX = 1.1f
-                        scaleY = 1.1f
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                FolderIcon(
-                    name = liftedDockFolder.name,
-                    apps = liftedDockFolder.apps,
-                    // The copy looks like the tile it left: with its label on home, without in the dock.
-                    showLabel = liftedFolderSource == DragSource.Home && settings.showHomeLabels,
-                    showName = settings.showHomeFolderNames,
-                    labelColor = Color(settings.appLabelColor),
-                    badgeCount = 0,
-                    badgeShowCount = false,
-                    size = 52.dp * settings.iconScale,
-                    customIcon = liftedDockFolder.icon,
-                )
-            }
+            LiftedFolderImage(
+                folder = liftedDockFolder,
+                finger = { dragController.rootPosition - homeOrigin },
+                iconScale = settings.iconScale,
+                // The label's room: a grid cell's width (the workspace spans the host edge to edge).
+                tileWidth = with(LocalDensity.current) { (homeWidthPx / settings.homeColumns.coerceAtLeast(1)).toDp() },
+                // The copy looks like the tile it left: with its label on home, without in the dock.
+                showLabel = liftedFolderSource == DragSource.Home && settings.showHomeLabels,
+                showName = settings.showHomeFolderNames,
+                labelColor = Color(settings.appLabelColor),
+            )
         }
 
         // The open folder: a card in this window (so a drag can leave it for the home surfaces),
