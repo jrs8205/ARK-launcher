@@ -82,16 +82,31 @@ internal fun navigationBarDarkIcons(
 }
 
 /**
- * Whether the drawer's background, at the user's [opacity] over the wallpaper, is light enough for dark
- * glyphs: the surface's [surfaceLuminance] weighted by the opacity, the wallpaper's dark-text hint
- * (taken as white or black) by the rest. Opaque, the surface decides as before; see-through, the
- * wallpaper does -- a light theme over a dark wallpaper drew dark glyphs on dark once the drawer could
- * be transparent (issue #21's opacity setting).
+ * Whether the drawer's background, at the user's [opacity] over what it lets through, is light enough
+ * for dark glyphs: the surface's [surfaceLuminance] weighted by the opacity, what is behind the drawer
+ * ([behindIsLight], taken as white or black) by the rest. Opaque, the surface decides as before;
+ * see-through, what is behind does -- a light theme over a dark wallpaper drew dark glyphs on dark
+ * once the drawer could be transparent (issue #21's opacity setting).
  */
-internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, wallpaperSupportsDarkText: Boolean): Boolean {
-    val wallpaperLuminance = if (wallpaperSupportsDarkText) 1f else 0f
-    return surfaceLuminance * opacity + wallpaperLuminance * (1f - opacity) > 0.5f
+internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, behindIsLight: Boolean): Boolean {
+    val behindLuminance = if (behindIsLight) 1f else 0f
+    return surfaceLuminance * opacity + behindLuminance * (1f - opacity) > 0.5f
 }
+
+/** [drawerSurfaceIsLight] over the status bar: behind a see-through drawer is ARK's own bar with its dark
+ *  scrim when that backs the bar ([ownBarBacksDark]; home keeps drawing it under the drawer), else the
+ *  wallpaper. A dark theme's transparent drawer over a light wallpaper with the own bar on drew dark glyphs
+ *  on the scrim's black. */
+internal fun drawerIsLightOverStatusBar(
+    surfaceLuminance: Float,
+    opacity: Float,
+    ownBarBacksDark: Boolean,
+    wallpaperSupportsDarkText: Boolean,
+): Boolean = drawerSurfaceIsLight(surfaceLuminance, opacity, behindIsLight = !ownBarBacksDark && wallpaperSupportsDarkText)
+
+/** [drawerSurfaceIsLight] over the navigation bar: behind a see-through drawer is the wallpaper. */
+internal fun drawerIsLightOverNavigationBar(surfaceLuminance: Float, opacity: Float, wallpaperSupportsDarkText: Boolean): Boolean =
+    drawerSurfaceIsLight(surfaceLuminance, opacity, behindIsLight = wallpaperSupportsDarkText)
 
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
@@ -150,7 +165,10 @@ internal class SystemBarGlyphs(
     heightPx: () -> Float,
     statusBarPx: () -> Float,
     navBarPx: () -> Float,
-    surfaceIsLight: () -> Boolean,
+    /** The drawer, over the status bar, is light enough for dark glyphs ([drawerIsLightOverStatusBar]). */
+    drawerIsLightOverStatusBar: () -> Boolean,
+    /** The same over the navigation bar ([drawerIsLightOverNavigationBar]). */
+    drawerIsLightOverNavBar: () -> Boolean,
     coverIsLight: () -> Boolean?,
     ownBarBacksDark: () -> Boolean,
     wallpaperSupportsDarkText: () -> Boolean,
@@ -159,7 +177,7 @@ internal class SystemBarGlyphs(
     val darkStatus: State<Boolean> = derivedStateOf {
         statusBarDarkIcons(
             drawerCoversBar = drawerCoversStatusBar(progress(), heightPx(), statusBarPx()),
-            drawerSurfaceIsLight = surfaceIsLight(),
+            drawerSurfaceIsLight = drawerIsLightOverStatusBar(),
             coverIsLight = coverIsLight(),
             ownBarBacksDark = ownBarBacksDark(),
             wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
@@ -170,7 +188,7 @@ internal class SystemBarGlyphs(
     val darkNav: State<Boolean> = derivedStateOf {
         navigationBarDarkIcons(
             drawerCoversBar = drawerCoversNavigationBar(progress(), heightPx(), navBarPx()),
-            drawerSurfaceIsLight = surfaceIsLight(),
+            drawerSurfaceIsLight = drawerIsLightOverNavBar(),
             coverIsLight = coverIsLight(),
             wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
         )
@@ -208,7 +226,12 @@ internal fun SystemBarContrast(
             heightPx = { currentHeight.value() },
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
-            surfaceIsLight = { drawerSurfaceIsLight(surfaceLuminance.value, currentDrawerOpacity.value, wallpaperDarkText.value) },
+            drawerIsLightOverStatusBar = {
+                drawerIsLightOverStatusBar(surfaceLuminance.value, currentDrawerOpacity.value, ownBar.value, wallpaperDarkText.value)
+            },
+            drawerIsLightOverNavBar = {
+                drawerIsLightOverNavigationBar(surfaceLuminance.value, currentDrawerOpacity.value, wallpaperDarkText.value)
+            },
             coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { ownBar.value },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },

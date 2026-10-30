@@ -47,18 +47,46 @@ class SystemBarContrastTest {
             .isTrue()
     }
 
-    /** A see-through drawer leaves the wallpaper behind the bars: its hint decides, the surface only as opaque as it is. */
-    @Test fun aSeeThroughDrawerLetsTheWallpaperDecide() {
-        // Opaque: the surface as before, whatever the wallpaper.
-        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 1f, wallpaperSupportsDarkText = false)).isTrue()
-        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.01f, opacity = 1f, wallpaperSupportsDarkText = true)).isFalse()
-        // Fully transparent: the wallpaper's hint.
-        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0f, wallpaperSupportsDarkText = false)).isFalse()
-        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.01f, opacity = 0f, wallpaperSupportsDarkText = true)).isTrue()
+    /** A see-through drawer leaves what is behind it behind the bars: that decides, the surface only as opaque as it is. */
+    @Test fun aSeeThroughDrawerLetsWhatIsBehindItDecide() {
+        // Opaque: the surface as before, whatever is behind.
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 1f, behindIsLight = false)).isTrue()
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.01f, opacity = 1f, behindIsLight = true)).isFalse()
+        // Fully transparent: what is behind.
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0f, behindIsLight = false)).isFalse()
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.01f, opacity = 0f, behindIsLight = true)).isTrue()
         // Half: a light theme over a dark wallpaper is still dark enough for light glyphs ...
-        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0.4f, wallpaperSupportsDarkText = false)).isFalse()
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0.4f, behindIsLight = false)).isFalse()
         // ... and flips once the surface dominates.
-        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0.7f, wallpaperSupportsDarkText = false)).isTrue()
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0.7f, behindIsLight = false)).isTrue()
+    }
+
+    /** Behind a see-through drawer, over the status bar, is ARK's own bar with its dark scrim when that is on: a dark
+     *  theme's transparent drawer over a LIGHT wallpaper keeps light glyphs there (the scrim is black), while the
+     *  navigation bar, over the wallpaper, gets dark ones. */
+    @Test fun aSeeThroughDrawerOverTheOwnDarkBarKeepsLightStatusGlyphs() {
+        val darkTheme = 0.01f
+        assertThat(drawerIsLightOverStatusBar(darkTheme, opacity = 0f, ownBarBacksDark = true, wallpaperSupportsDarkText = true)).isFalse()
+        assertThat(drawerIsLightOverStatusBar(darkTheme, opacity = 0f, ownBarBacksDark = false, wallpaperSupportsDarkText = true)).isTrue()
+        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = true)).isTrue()
+        // Opaque, the own bar is covered: the surface decides as before.
+        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 1f, ownBarBacksDark = true, wallpaperSupportsDarkText = false)).isTrue()
+
+        // The whole decision, as the shell wires it: showStatusBar on, scrim 1.0, dark theme, drawer transparent and open.
+        val ownBar = ownBarBacksDark(ownBarShown = true, scrimOpacity = 1f)
+        val glyphs = SystemBarGlyphs(
+            progress = { 1f },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { drawerIsLightOverStatusBar(darkTheme, 0f, ownBar, wallpaperSupportsDarkText = true) },
+            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true) },
+            coverIsLight = { null },
+            ownBarBacksDark = { ownBar },
+            wallpaperSupportsDarkText = { true },
+        )
+        assertThat(glyphs.darkStatus.value).isFalse() // light glyphs on the own bar's black
+        assertThat(glyphs.darkNav.value).isTrue() // dark glyphs on the light wallpaper
     }
 
     @Test fun overTheDrawerItsSurfaceDecides() {
@@ -154,7 +182,8 @@ class SystemBarContrastTest {
             heightPx = { 2400f },
             statusBarPx = { statusBar.floatValue },
             navBarPx = { 60f },
-            surfaceIsLight = { true },
+            drawerIsLightOverStatusBar = { true },
+            drawerIsLightOverNavBar = { true },
             coverIsLight = { null },
             ownBarBacksDark = { false },
             wallpaperSupportsDarkText = { false },
