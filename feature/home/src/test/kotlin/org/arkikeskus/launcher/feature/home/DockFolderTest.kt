@@ -10,9 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
@@ -163,5 +165,14 @@ class DockFolderTest {
 
         assertThat(tileDrops).isEmpty()
         assertThat(reorders).containsExactly(listOf(7L, 1L))
+    }
+
+    @Test fun aDockFolderOpensFromTheAccessibilityClickAction() {
+        show()
+
+        compose.onNodeWithText("Tools").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+
+        assertThat(opened.map { it.id }).containsExactly(7L)
     }
 }

@@ -41,6 +41,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -471,6 +473,9 @@ private fun RowScope.DockFolderSlot(
     val currentOnOpen by rememberUpdatedState(onOpenFolder)
     Box(
         modifier = slot
+            // One node for accessibility services, named by the icon's description, whose click
+            // opens the folder: the pointer gesture below never reaches them.
+            .semantics(mergeDescendants = true) { onClick { currentOnOpen(currentFolder); true } }
             // The home grid's folder gesture: tap / still hold opens, a hold then a pull lifts the
             // folder into the shared controller for a move (reorder here, a free home cell, the
             // remove pill for a folder that shows no apps). The press phase follows the icons' rule.
