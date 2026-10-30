@@ -84,6 +84,12 @@
     <string name="save">Tallenna</string>
     <string name="folder_name_label">Kansion nimi</string>
     <string name="folder_remove_app">Poista kansiosta</string>
+    <string name="folder_edit">Muokkaa kansiota</string>
+    <string name="folder_done">Valmis</string>
+    <string name="folder_delete">Poista kansio</string>
+    <string name="folder_delete_title">Poistetaanko kansio?</string>
+    <string name="folder_delete_home_text">”%1$s” poistetaan kotinäytöltä. Sen sovellukset säilyvät sovellusvalikossa.</string>
+    <string name="folder_delete_confirm">Poista</string>
     <string name="home_options_widgets">Widgetit</string>
     <string name="home_options_settings">Aloitusnäyttö</string>
     <string name="home_options_wallpaper">Taustakuva</string>

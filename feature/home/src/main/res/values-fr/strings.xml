@@ -84,6 +84,12 @@
     <string name="save">Enregistrer</string>
     <string name="folder_name_label">Nom du dossier</string>
     <string name="folder_remove_app">Retirer du dossier</string>
+    <string name="folder_edit">Modifier le dossier</string>
+    <string name="folder_done">OK</string>
+    <string name="folder_delete">Supprimer le dossier</string>
+    <string name="folder_delete_title">Supprimer le dossier ?</string>
+    <string name="folder_delete_home_text">« %1$s » sera retiré de l’écran d’accueil. Ses applis resteront dans la liste des applications.</string>
+    <string name="folder_delete_confirm">Supprimer</string>
     <string name="home_options_widgets">Widgets</string>
     <string name="home_options_settings">Paramètres</string>
     <string name="home_options_wallpaper">Fond d\'écran</string>

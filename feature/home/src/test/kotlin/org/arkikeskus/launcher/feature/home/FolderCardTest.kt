@@ -30,6 +30,7 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.isRoot
@@ -82,6 +83,7 @@ class FolderCardTest {
     private val removeDrops = mutableListOf<AppItem>()
     private var dragOutEnds = 0
     private var dismissed = 0
+    private var deleted = 0
     private var behindClicks = 0
     private lateinit var backDispatcher: OnBackPressedDispatcher
     private var longPress = 0L
@@ -112,6 +114,7 @@ class FolderCardTest {
                         onDropOnRemove = { removeDrops += it },
                         onDragOutEnd = { dragOutEnds++ },
                         onDismiss = { dismissed++ },
+                        onDelete = { deleted++ },
                     )
                 }
             }
@@ -139,6 +142,56 @@ class FolderCardTest {
         assertThat(homeDrops).isEmpty()
         assertThat(dockDrops).isEmpty()
         assertThat(removeDrops).isEmpty()
+    }
+
+    /** Issue #20: the card opens to look at the folder, as the drawer's does; the editor (icon picker,
+     *  name field, delete) waits behind the pencil and the check brings the view back. */
+    @Test fun theCardOpensInViewModeAndThePencilOpensTheEditor() {
+        show()
+
+        compose.onNodeWithText("Tools").assertIsDisplayed()
+        compose.onNodeWithText("Folder name").assertDoesNotExist()
+        compose.onNodeWithText("Delete folder").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Edit folder").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Folder name").assertIsDisplayed()
+        compose.onNodeWithText("Delete folder").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Edit folder").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Done").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Folder name").assertDoesNotExist()
+        compose.onNodeWithText("Tools").assertIsDisplayed()
+    }
+
+    @Test fun aLockedDesktopHasNoPencil() {
+        show(locked = true)
+
+        compose.onNodeWithText("Tools").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Edit folder").assertDoesNotExist()
+    }
+
+    @Test fun deletingTheFolderAsksFirstAndThenReports() {
+        show()
+        compose.onNodeWithContentDescription("Edit folder").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Delete folder").performClick()
+        compose.waitForIdle()
+        assertThat(deleted).isEqualTo(0)
+        compose.onNodeWithText("Delete folder?").assertIsDisplayed()
+
+        compose.onNodeWithText("Cancel").performClick()
+        compose.waitForIdle()
+        assertThat(deleted).isEqualTo(0)
+        compose.onNodeWithText("Delete folder?").assertDoesNotExist()
+
+        compose.onNodeWithText("Delete folder").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Delete").performClick()
+        compose.waitForIdle()
+        assertThat(deleted).isEqualTo(1)
     }
 
     @Test fun aTapLaunchesTheAppAndClosesTheFolder() {

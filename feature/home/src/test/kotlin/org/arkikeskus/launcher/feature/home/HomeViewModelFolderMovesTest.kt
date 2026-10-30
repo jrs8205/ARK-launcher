@@ -147,6 +147,26 @@ class HomeViewModelFolderMovesTest {
     }
 
     /** Collects the notices as they arrive, on the thread that sends them. */
+    /** Issue #20: the card's "Delete folder" removes a folder WITH its apps (the drag path's
+     *  removeFolder keeps its empty-only guard). */
+    @Test fun deletingAFolderRemovesItWithItsApps() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val folderId = wiring.pairFolder()
+            val viewModel = wiring.homeViewModel()
+
+            viewModel.deleteFolder(folderId)
+
+            awaitUntil("the folder to go") { wiring.dao.getById(folderId) == null }
+            assertThat(wiring.dao.getContainerOrdered(folderId)).isEmpty()
+            assertThat(wiring.homeRow(a)).isNull()
+            assertThat(wiring.homeRow(b)).isNull()
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
     private fun TestScope.collectNotices(viewModel: HomeViewModel): List<HomeNotice> {
         val notices = mutableListOf<HomeNotice>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.notices.toList(notices) }

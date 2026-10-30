@@ -25,6 +25,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -55,12 +59,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -131,6 +138,8 @@ internal fun FolderCard(
     /** The gesture that left the card has ended (whatever the drop was): the host closes the folder. */
     onDragOutEnd: () -> Unit,
     onDismiss: () -> Unit,
+    /** The editor's "Delete folder", confirmed: the folder goes with every app in it. */
+    onDelete: () -> Unit = {},
     /** The menu's Widgets row (an app with home-screen widgets); null hides it, e.g. a locked desktop. */
     onWidgets: ((AppItem) -> Unit)? = null,
     /** The icon picked for the folder beside its name (null = back to the preview of its apps). */
@@ -151,6 +160,10 @@ internal fun FolderCard(
     val currentOnDropOnRemove by rememberUpdatedState(onDropOnRemove)
     val currentOnDragOutEnd by rememberUpdatedState(onDragOutEnd)
     val currentFolder by rememberUpdatedState(folder)
+
+    // The card opens to look (issue #20); the pencil turns the header into the editor.
+    var editing by remember(folder.id) { mutableStateOf(false) }
+    var confirmDelete by remember(folder.id) { mutableStateOf(false) }
 
     // Root-space bounds of the card: a lifted icon pulled past them leaves the folder for the home
     // screen. The card then fades out but STAYS COMPOSED until the gesture ends — removing the node
@@ -224,34 +237,53 @@ internal fun FolderCard(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 var name by remember(folder.id) { mutableStateOf(folder.name) }
+                // The home tile's see-through backing vanishes on the card: give the preview one.
+                val preview: @Composable (CustomIcon?, Dp) -> Unit = { icon, size ->
+                    Box(
+                        Modifier.background(
+                            if (icon == null) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+                            RoundedCornerShape(15.dp),
+                        ),
+                    ) {
+                        FolderIcon(
+                            name = folder.name, apps = folder.apps, showLabel = false, badgeCount = 0,
+                            badgeShowCount = false, size = size, customIcon = icon,
+                        )
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
-                    FolderIconButton(
-                        icon = folder.icon,
-                        preview = { icon, size ->
-                            // The home tile's see-through backing vanishes on the card: give the preview one.
-                            Box(
-                                Modifier.background(
-                                    if (icon == null) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                    RoundedCornerShape(15.dp),
-                                ),
-                            ) {
-                                FolderIcon(
-                                    name = folder.name, apps = folder.apps, showLabel = false, badgeCount = 0,
-                                    badgeShowCount = false, size = size, customIcon = icon,
-                                )
+                    if (editing) {
+                        // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
+                        FolderIconButton(icon = folder.icon, preview = preview, onPick = onSetIcon)
+                        Spacer(Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it; onRename(it) },
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.folder_name_label)) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { editing = false }) {
+                            Icon(painterResource(LauncherIcons.Check), contentDescription = stringResource(R.string.folder_done))
+                        }
+                    } else {
+                        // A look at the folder (issue #20): the name as text beside its preview, which the
+                        // text speaks for; the pencil opens the editor. A locked desktop edits nothing.
+                        Box(Modifier.padding(4.dp).clearAndSetSemantics { }) { preview(folder.icon, 48.dp) }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (!locked) {
+                            IconButton(onClick = { editing = true }) {
+                                Icon(painterResource(LauncherIcons.Edit), contentDescription = stringResource(R.string.folder_edit))
                             }
-                        },
-                        onPick = onSetIcon,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it; onRename(it) },
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.folder_name_label)) },
-                        modifier = Modifier.weight(1f),
-                    )
+                        }
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
 
@@ -441,8 +473,32 @@ internal fun FolderCard(
                         }
                     }
                 }
+                if (editing) {
+                    TextButton(onClick = { confirmDelete = true }, modifier = Modifier.align(Alignment.End)) {
+                        Text(stringResource(R.string.folder_delete))
+                    }
+                }
             }
         }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text(stringResource(R.string.folder_delete_title)) },
+            text = { Text(stringResource(R.string.folder_delete_home_text, folder.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        onDelete()
+                    },
+                ) { Text(stringResource(R.string.folder_delete_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 
     menu?.let { (app, bounds) ->

@@ -84,6 +84,12 @@
     <string name="save">Save</string>
     <string name="folder_name_label">Folder name</string>
     <string name="folder_remove_app">Remove from folder</string>
+    <string name="folder_edit">Edit folder</string>
+    <string name="folder_done">Done</string>
+    <string name="folder_delete">Delete folder</string>
+    <string name="folder_delete_title">Delete folder?</string>
+    <string name="folder_delete_home_text">“%1$s” will be removed from the home screen. Its apps stay in the app drawer.</string>
+    <string name="folder_delete_confirm">Delete</string>
     <string name="home_options_widgets">Widgets</string>
     <string name="home_options_settings">Launcher</string>
     <string name="home_options_wallpaper">Wallpaper</string>

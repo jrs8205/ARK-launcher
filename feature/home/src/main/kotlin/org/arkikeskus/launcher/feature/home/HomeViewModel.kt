@@ -543,6 +543,10 @@ class HomeViewModel @Inject constructor(
         if (folder != null && folder.apps.isEmpty()) homeLayoutRepository.removeFolder(folderId)
     }
 
+    /** The folder card's "Delete folder" (issue #20), confirmed there: the folder goes with every app
+     *  in it, which stay in the drawer. [removeFolder] above is the drag path's, for an empty folder only. */
+    fun deleteFolder(folderId: Long) = viewModelScope.launch { homeLayoutRepository.removeFolder(folderId) }
+
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
     fun removeShortcut(rowId: Long) = viewModelScope.launch {
         ShortcutPinLock.withLock {

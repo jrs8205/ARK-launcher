@@ -84,6 +84,12 @@
     <string name="save">Spara</string>
     <string name="folder_name_label">Mappnamn</string>
     <string name="folder_remove_app">Ta bort från mappen</string>
+    <string name="folder_edit">Redigera mapp</string>
+    <string name="folder_done">Klar</string>
+    <string name="folder_delete">Radera mapp</string>
+    <string name="folder_delete_title">Radera mappen?</string>
+    <string name="folder_delete_home_text">”%1$s” tas bort från hemskärmen. Dess appar finns kvar i applådan.</string>
+    <string name="folder_delete_confirm">Radera</string>
     <string name="home_options_widgets">Widgetar</string>
     <string name="home_options_settings">Startskärm</string>
     <string name="home_options_wallpaper">Bakgrund</string>

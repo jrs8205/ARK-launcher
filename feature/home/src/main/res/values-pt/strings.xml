@@ -84,6 +84,12 @@
     <string name="save">Salvar</string>
     <string name="folder_name_label">Nome da pasta</string>
     <string name="folder_remove_app">Remover da pasta</string>
+    <string name="folder_edit">Editar pasta</string>
+    <string name="folder_done">Concluído</string>
+    <string name="folder_delete">Excluir pasta</string>
+    <string name="folder_delete_title">Excluir pasta?</string>
+    <string name="folder_delete_home_text">“%1$s” será removida da tela inicial. Seus apps continuam na gaveta de apps.</string>
+    <string name="folder_delete_confirm">Excluir</string>
     <string name="home_options_widgets">Widgets</string>
     <string name="home_options_settings">Configurações da tela inicial</string>
     <string name="home_options_wallpaper">Plano de fundo</string>

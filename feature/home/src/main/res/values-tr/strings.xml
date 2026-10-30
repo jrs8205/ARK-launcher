@@ -84,6 +84,12 @@
     <string name="save">Kaydet</string>
     <string name="folder_name_label">Klasör adı</string>
     <string name="folder_remove_app">Klasörden kaldır</string>
+    <string name="folder_edit">Klasörü düzenle</string>
+    <string name="folder_done">Bitti</string>
+    <string name="folder_delete">Klasörü sil</string>
+    <string name="folder_delete_title">Klasör silinsin mi?</string>
+    <string name="folder_delete_home_text">“%1$s” ana ekrandan kaldırılacak. Uygulamaları uygulama çekmecesinde kalır.</string>
+    <string name="folder_delete_confirm">Sil</string>
     <string name="home_options_widgets">Widget\'lar</string>
     <string name="home_options_settings">Ana ekran ayarları</string>
     <string name="home_options_wallpaper">Duvar kağıdı</string>

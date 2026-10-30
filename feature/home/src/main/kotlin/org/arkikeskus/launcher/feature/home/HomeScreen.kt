@@ -810,6 +810,10 @@ fun HomeScreen(
                 onDropOnRemove = { viewModel.removeFromFolderEntirely(it, openFolder.id) },
                 // Whatever the drop was, a drag that left the card closed the folder.
                 onDragOutEnd = { openFolderId = null },
+                onDelete = {
+                    viewModel.deleteFolder(openFolder.id)
+                    openFolderId = null
+                },
                 // The card would cover the picker: close it first.
                 onWidgets = if (settings.desktopLocked) null else ({ app ->
                     openFolderId = null

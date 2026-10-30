@@ -84,6 +84,12 @@
     <string name="save">Сохранить</string>
     <string name="folder_name_label">Название папки</string>
     <string name="folder_remove_app">Убрать из папки</string>
+    <string name="folder_edit">Изменить папку</string>
+    <string name="folder_done">Готово</string>
+    <string name="folder_delete">Удалить папку</string>
+    <string name="folder_delete_title">Удалить папку?</string>
+    <string name="folder_delete_home_text">«%1$s» будет убрана с главного экрана. Её приложения останутся в списке приложений.</string>
+    <string name="folder_delete_confirm">Удалить</string>
     <string name="home_options_widgets">Виджеты</string>
     <string name="home_options_settings">Настройки лаунчера</string>
     <string name="home_options_wallpaper">Обои</string>
