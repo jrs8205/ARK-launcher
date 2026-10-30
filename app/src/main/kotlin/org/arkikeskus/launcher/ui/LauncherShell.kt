@@ -162,6 +162,7 @@ fun LauncherShell(
         covers = barCovers,
         ownBarBacksDark = ownBarBacksDark(statusBars.ownBarShown, statusBars.scrimOpacity),
         wallpaperDarkText = wallpaperDarkText,
+        drawerOpacity = statusBars.drawerOpacity,
     )
 
     LongPressDelay(longPressScale) {

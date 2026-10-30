@@ -81,6 +81,18 @@ internal fun navigationBarDarkIcons(
     else -> wallpaperSupportsDarkText
 }
 
+/**
+ * Whether the drawer's background, at the user's [opacity] over the wallpaper, is light enough for dark
+ * glyphs: the surface's [surfaceLuminance] weighted by the opacity, the wallpaper's dark-text hint
+ * (taken as white or black) by the rest. Opaque, the surface decides as before; see-through, the
+ * wallpaper does -- a light theme over a dark wallpaper drew dark glyphs on dark once the drawer could
+ * be transparent (issue #21's opacity setting).
+ */
+internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, wallpaperSupportsDarkText: Boolean): Boolean {
+    val wallpaperLuminance = if (wallpaperSupportsDarkText) 1f else 0f
+    return surfaceLuminance * opacity + wallpaperLuminance * (1f - opacity) > 0.5f
+}
+
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
     (1f - progress) * heightPx < barPx / 2f
@@ -177,13 +189,16 @@ internal fun SystemBarContrast(
     covers: SystemBarCovers,
     ownBarBacksDark: Boolean,
     wallpaperDarkText: State<Boolean>,
+    /** The app drawer's background opacity ([drawerSurfaceIsLight]). */
+    drawerOpacity: Float = 1f,
 ) {
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window } ?: return
     val density = LocalDensity.current
     val statusBarPx = rememberUpdatedState(WindowInsets.statusBars.getTop(density).toFloat())
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
-    val surfaceIsLight = rememberUpdatedState(MaterialTheme.colorScheme.surface.luminance() > 0.5f)
+    val surfaceLuminance = rememberUpdatedState(MaterialTheme.colorScheme.surface.luminance())
+    val currentDrawerOpacity = rememberUpdatedState(drawerOpacity)
     val ownBar = rememberUpdatedState(ownBarBacksDark)
     val currentProgress = rememberUpdatedState(progress)
     val currentHeight = rememberUpdatedState(heightPx)
@@ -193,7 +208,7 @@ internal fun SystemBarContrast(
             heightPx = { currentHeight.value() },
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
-            surfaceIsLight = { surfaceIsLight.value },
+            surfaceIsLight = { drawerSurfaceIsLight(surfaceLuminance.value, currentDrawerOpacity.value, wallpaperDarkText.value) },
             coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { ownBar.value },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },

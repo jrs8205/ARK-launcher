@@ -47,6 +47,20 @@ class SystemBarContrastTest {
             .isTrue()
     }
 
+    /** A see-through drawer leaves the wallpaper behind the bars: its hint decides, the surface only as opaque as it is. */
+    @Test fun aSeeThroughDrawerLetsTheWallpaperDecide() {
+        // Opaque: the surface as before, whatever the wallpaper.
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 1f, wallpaperSupportsDarkText = false)).isTrue()
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.01f, opacity = 1f, wallpaperSupportsDarkText = true)).isFalse()
+        // Fully transparent: the wallpaper's hint.
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0f, wallpaperSupportsDarkText = false)).isFalse()
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.01f, opacity = 0f, wallpaperSupportsDarkText = true)).isTrue()
+        // Half: a light theme over a dark wallpaper is still dark enough for light glyphs ...
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0.4f, wallpaperSupportsDarkText = false)).isFalse()
+        // ... and flips once the surface dominates.
+        assertThat(drawerSurfaceIsLight(surfaceLuminance = 0.98f, opacity = 0.7f, wallpaperSupportsDarkText = false)).isTrue()
+    }
+
     @Test fun overTheDrawerItsSurfaceDecides() {
         assertThat(statusBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = true, coverIsLight = null, ownBarBacksDark = true, wallpaperSupportsDarkText = false))
             .isTrue()

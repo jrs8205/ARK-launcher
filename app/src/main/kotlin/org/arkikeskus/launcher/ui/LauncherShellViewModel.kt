@@ -12,11 +12,13 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.IconEpochs
 import javax.inject.Inject
 
-/** ARK's own status bar is on, with its scrim at [scrimOpacity]; the system bar is hidden on home. */
+/** ARK's own status bar is on, with its scrim at [scrimOpacity]; the system bar is hidden on home; the app
+ *  drawer's background is [drawerOpacity] opaque (a see-through drawer leaves the wallpaper behind the bars). */
 data class StatusBarSettings(
     val ownBarShown: Boolean = false,
     val systemBarHidden: Boolean = false,
     val scrimOpacity: Float = 0.6f,
+    val drawerOpacity: Float = 1f,
 )
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
@@ -47,6 +49,7 @@ class LauncherShellViewModel @Inject constructor(
                 ownBarShown = it.showStatusBar,
                 systemBarHidden = it.hideSystemStatusBar,
                 scrimOpacity = it.statusBarScrimOpacity,
+                drawerOpacity = it.drawerBackgroundOpacity,
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())
