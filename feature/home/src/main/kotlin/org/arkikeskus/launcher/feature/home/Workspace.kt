@@ -105,6 +105,7 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.ReorderPlanner
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.dragPointer
@@ -175,8 +176,11 @@ internal fun Workspace(
     onAppMenu: (AppItem, IntOffset, Boolean) -> Unit,
     onMove: suspend (AppItem, Int, Int, Int) -> Boolean,
     onMoveFolder: suspend (Long, Int, Int, Int) -> Boolean,
-    onMoveToDock: (AppItem, Int) -> Unit,
+    /** A home icon released over the dock where it can land (see [HomeDragController.dockAccepts]). */
+    onDropOnDock: (AppItem, DockTarget) -> Unit,
     onRemoveFromHome: (AppItem) -> Unit,
+    /** A home folder released over the dock while it has room, at the slot index under the finger. */
+    onMoveFolderToDock: (folderId: Long, index: Int) -> Unit = { _, _ -> },
     onOpenFolder: (PlacedFolder) -> Unit,
     onLaunchShortcut: (PlacedShortcut) -> Unit,
     onRemoveShortcut: (Long) -> Unit,
@@ -587,8 +591,17 @@ internal fun Workspace(
                 // Desktop locked: long-press does nothing (no move/remove); tap (above) still opens.
                 if (pageLocked) return@awaitEachGesture
                 // PICK UP — refused while another finger holds a lift (see HomeDragController.claim).
+                // A folder lifts in the controller too (as a folder, not an app): the dock reads the
+                // lift to light up for it, and the shell still draws nothing for it.
                 val token = Any()
-                if (!dragController.claim(token)) return@awaitEachGesture
+                val folderId = (currentEntry as? PlacedFolder)?.id
+                val claimed = if (folderId != null) {
+                    val root = dragController.gridBounds.topLeft + Offset(entry.cellX * cellW + holdPos.x, entry.cellY * cellH + holdPos.y)
+                    dragController.startFolder(folderId, DragSource.Home, root, token)
+                } else {
+                    dragController.claim(token)
+                }
+                if (!claimed) return@awaitEachGesture
                 draggingLocal = currentEntry
                 localMoving = false
                 // Claim the gesture for this local entry so the root swipe-up detector (which runs in the
@@ -607,10 +620,14 @@ internal fun Workspace(
                         if (!localMoving && IconPress.startsDrag(change.position, holdPos, dragStartPx)) {
                             localMoving = true
                             if (removable) dragController.localDragging = true
+                            // A folder's move is "moving" in the controller without leaving its
+                            // source: nothing lights up on the grid for it, but the dock can.
+                            if (folderId != null) dragController.beginMove(leftSource = false)
                         }
                         if (!localMoving) return@dragPointer
-                        // Publish root coords so the remove zone can highlight + hit-test this local drag.
-                        if (removable) dragController.update(dragController.gridBounds.topLeft + localDragPos)
+                        // Publish root coords so the remove zone (a removable entry) and the dock (a
+                        // folder) can highlight + hit-test this local drag.
+                        if (removable || folderId != null) dragController.update(dragController.gridBounds.topLeft + localDragPos)
                         val cx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
                         val cy = (localDragPos.y / cellH).toInt().coerceIn(0, rows - 1)
                         val nc = IntOffset(cx, cy)
@@ -623,6 +640,12 @@ internal fun Workspace(
                     if (live && localMoving && removable && dragController.isOverRemove(rootPos)) {
                         currentOnRemove()
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    } else if (live && localMoving && folderId != null && dragController.isOverDock(rootPos)) {
+                        // A folder into the dock, between its tiles, while the dock has room.
+                        if (dragController.dockHasSpace) {
+                            onMoveFolderToDock(folderId, dragController.dockIndexAt(rootPos))
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
                     } else if (live && localMoving) {
                         val tx = (localDragPos.x / cellW).toInt().coerceIn(0, columns - 1)
                         val ty = (localDragPos.y / cellH).toInt().coerceIn(0, rows - 1)
@@ -648,7 +671,7 @@ internal fun Workspace(
                         dragController.localGestureActive = false
                         draggingLocal = null
                         localMoving = false
-                        dragController.release(token)
+                        dragController.stop(token)
                     }
                 }
             }
@@ -960,7 +983,9 @@ internal fun Workspace(
                                 dragController.isIncomingFrom(DragSource.Dock, DragSource.Drawer, DragSource.Folder) &&
                                     dragController.isOverGrid(dragController.rootPosition) -> {
                                     val (_, cx, cy) = dragController.cellAt(dragController.rootPosition)
-                                    IntOffset(cx, cy)
+                                    // A dock folder lands only on a free cell (folders never merge).
+                                    if (dragController.draggedFolderId != null && cellTaken(effectiveEntries, page, cx, cy)) null
+                                    else IntOffset(cx, cy)
                                 }
                                 else -> null
                             }
@@ -1235,15 +1260,14 @@ internal fun Workspace(
                                                             onRemoveFromHome(d.app)
                                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         }
-                                                        // Cross-surface: dropped on the dock.
+                                                        // Cross-surface: dropped on the dock — between
+                                                        // tiles while it has room, or onto a tile (a
+                                                        // folder with that app, or into that folder).
                                                         dragController.isOverDock(rootPos) -> {
-                                                            if (dragController.dockHasSpace) {
+                                                            if (dragController.dockAccepts(rootPos)) {
                                                                 // Hide from home until the flow drops it.
                                                                 removedKeys = removedKeys + d.app.key
-                                                                onMoveToDock(
-                                                                    d.app,
-                                                                    dragController.dockIndexAt(rootPos),
-                                                                )
+                                                                onDropOnDock(d.app, dragController.dockTargetAt(rootPos))
                                                                 haptics.performHapticFeedback(
                                                                     HapticFeedbackType.LongPress,
                                                                 )
@@ -2167,3 +2191,14 @@ private fun homeEntryKey(entry: HomeEntry): String = when (entry) {
     is PendingWidget -> "pending:${entry.rowId}"
     is PlacedBuiltin -> "builtin:${entry.rowId}"
 }
+
+/** True when something on [page] covers ([cellX], [cellY]): an icon, a folder, a shortcut, or a widget's footprint. */
+internal fun cellTaken(entries: List<HomeEntry>, page: Int, cellX: Int, cellY: Int): Boolean =
+    entries.any { e ->
+        e.page == page && when (e) {
+            is PlacedWidget -> cellX in e.cellX until e.cellX + e.spanX && cellY in e.cellY until e.cellY + e.spanY
+            is PendingWidget -> cellX in e.cellX until e.cellX + e.spanX && cellY in e.cellY until e.cellY + e.spanY
+            is PlacedBuiltin -> cellX in e.cellX until e.cellX + e.spanX && cellY in e.cellY until e.cellY + e.spanY
+            else -> e.cellX == cellX && e.cellY == cellY
+        }
+    }

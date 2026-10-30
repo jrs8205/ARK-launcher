@@ -68,7 +68,7 @@ class LaunchZoomCellTest {
                         onAppMenu = { _, _, _ -> },
                         onMove = { _, _, _, _ -> true },
                         onMoveFolder = { _, _, _, _ -> true },
-                        onMoveToDock = { _, _ -> },
+                        onDropOnDock = { _, _ -> },
                         onRemoveFromHome = {},
                         onOpenFolder = {},
                         onLaunchShortcut = {},
@@ -79,7 +79,7 @@ class LaunchZoomCellTest {
                         modifier = Modifier.size(300.dp, 300.dp),
                     )
                     Dock(
-                        apps = listOf(maps),
+                        entries = listOf(DockApp(1L, maps)),
                         badges = emptyMap(),
                         badgeShowCount = false,
                         badgeScale = 1f,

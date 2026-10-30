@@ -86,7 +86,7 @@ class WorkspaceInfiniteScrollTest {
                 onAppMenu = { _, _, _ -> },
                 onMove = { _, _, _, _ -> true },
                 onMoveFolder = { _, _, _, _ -> true },
-                onMoveToDock = { _, _ -> },
+                onDropOnDock = { _, _ -> },
                 onRemoveFromHome = {},
                 onOpenFolder = {},
                 onLaunchShortcut = {},

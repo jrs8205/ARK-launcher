@@ -68,7 +68,7 @@ class SecondFingerHandoverTest {
                     onAppMenu = { _, _, _ -> },
                     onMove = { _, page, x, y -> moves += Triple(page, x, y); true },
                     onMoveFolder = { _, _, _, _ -> true },
-                    onMoveToDock = { _, _ -> },
+                    onDropOnDock = { _, _ -> },
                     onRemoveFromHome = {},
                     onOpenFolder = {},
                     onLaunchShortcut = {},
@@ -79,7 +79,7 @@ class SecondFingerHandoverTest {
                     modifier = Modifier.size(300.dp, 320.dp),
                 )
                 Dock(
-                    apps = listOf(maps, phone),
+                    entries = listOf(DockApp(1L, maps), DockApp(2L, phone)),
                     badges = emptyMap(),
                     badgeShowCount = false,
                     badgeScale = 1f,
@@ -88,7 +88,7 @@ class SecondFingerHandoverTest {
                     locked = false,
                     dragController = drag,
                     onAppClick = {},
-                    onReorder = { reorders += it.map { app -> app.label } },
+                    onReorder = { reorders += it.map { e -> (e as DockApp).app.label } },
                     onMoveToHome = { _, _, _, _ -> },
                     modifier = Modifier.size(300.dp, 100.dp),
                     onAppMenu = { _, _ -> },

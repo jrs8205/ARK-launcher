@@ -107,7 +107,7 @@ class FolderCardTest {
                         onPinShortcut = {},
                         onReorder = { app, before -> reorders += app to before },
                         onDropOnHome = { app, page, cellX, cellY -> homeDrops += app to Triple(page, cellX, cellY) },
-                        onDropOnDock = { dockDrops += it },
+                        onDropOnDock = { app, _ -> dockDrops += app },
                         onDropOnRemove = { removeDrops += it },
                         onDragOutEnd = { dragOutEnds++ },
                         onDismiss = { dismissed++ },

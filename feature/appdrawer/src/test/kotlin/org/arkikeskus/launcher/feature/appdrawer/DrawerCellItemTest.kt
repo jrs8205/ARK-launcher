@@ -61,7 +61,7 @@ class DrawerCellItemTest {
                         apps = apps.value, badges = emptyMap(), badgeShowCount = true, badgeScale = 1f,
                         showLabels = true, iconSize = 56.dp, onAppClick = {}, onAppLongClick = { a, _ -> longClicked += a },
                         dragController = dragController, onDragOutStart = {}, onDropOnHome = { _, _, _, _ -> },
-                        onDropOnDock = {}, haptics = haptics, locked = false,
+                        onDropOnDock = { _, _ -> }, haptics = haptics, locked = false,
                     )
                 }
             }

@@ -130,7 +130,7 @@ class WidgetPinSizingTest {
                 locked = false, homeSignals = emptyFlow(), homePage = 0, dragController = drag,
                 widgetDragController = remember { WidgetDragController(drag) },
                 onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
-                onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onMoveToDock = { _, _ -> },
+                onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
                 onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
                 onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                 cellSize = cellSize,
@@ -285,7 +285,7 @@ class WidgetPinSizingTest {
                     homePageMarker = settings.homePageMarker, locked = false, homeSignals = emptyFlow(),
                     homePage = 0, dragController = drag, widgetDragController = remember { WidgetDragController(drag) },
                     onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
-                    onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onMoveToDock = { _, _ -> },
+                    onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
                     onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
                     onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                     cellSize = cellSize, chrome = workspaceChrome(settings, pageCount, LocalDensity.current.fontScale, dockApps.size),
@@ -293,7 +293,7 @@ class WidgetPinSizingTest {
                 )
                 if (settings.dockEnabled) {
                     Dock(
-                        apps = dockApps, badges = emptyMap(), badgeShowCount = false, badgeScale = 1f,
+                        entries = dockApps.mapIndexed { i, app -> DockApp(i + 1L, app) }, badges = emptyMap(), badgeShowCount = false, badgeScale = 1f,
                         showLabels = settings.showDockLabels, backgroundAlpha = 0.35f, locked = false,
                         dragController = drag, onAppClick = {}, onReorder = {}, onMoveToHome = { _, _, _, _ -> },
                         modifier = Modifier.fillMaxWidth().homeDockPadding(),

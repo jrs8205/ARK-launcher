@@ -70,7 +70,7 @@ class IconMenuWhileHeldTest {
                     onAppMenu = { app, _, _ -> homeMenus += app },
                     onMove = { _, page, x, y -> moves += Triple(page, x, y); true },
                     onMoveFolder = { _, _, _, _ -> true },
-                    onMoveToDock = { _, _ -> },
+                    onDropOnDock = { _, _ -> },
                     onRemoveFromHome = {},
                     onOpenFolder = {},
                     onLaunchShortcut = {},
@@ -81,7 +81,7 @@ class IconMenuWhileHeldTest {
                     modifier = Modifier.size(300.dp, 320.dp),
                 )
                 Dock(
-                    apps = listOf(maps),
+                    entries = (listOf(maps)).mapIndexed { i, app -> DockApp(i + 1L, app) },
                     badges = emptyMap(),
                     badgeShowCount = false,
                     badgeScale = 1f,

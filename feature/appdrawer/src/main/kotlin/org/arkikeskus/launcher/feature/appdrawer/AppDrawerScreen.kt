@@ -104,6 +104,7 @@ import org.arkikeskus.launcher.ui.AnchoredPopupCard
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
+import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.EditAppDialog
@@ -271,7 +272,7 @@ fun AppDrawerScreen(
         dragController = dragController,
         onDragOutStart = onDragOutStart,
         onDropOnHome = { app, page, cellX, cellY -> viewModel.addToHomeAt(app, page, cellX, cellY, defaultFolderName) },
-        onDropOnDock = { app -> viewModel.addToDock(app) },
+        onDropOnDock = { app, target -> viewModel.dropOnDock(app, target, defaultFolderName) },
         showLabels = uiState.showLabels,
         showFolderNames = uiState.showFolderNames,
         calc = uiState.calc,
@@ -426,7 +427,8 @@ private fun AppDrawerContent(
     dragController: HomeDragController,
     onDragOutStart: () -> Unit,
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
-    onDropOnDock: (AppItem) -> Unit,
+    /** An icon released over the dock where it can land (see [HomeDragController.dockAccepts]). */
+    onDropOnDock: (AppItem, DockTarget) -> Unit,
     showLabels: Boolean,
     showFolderNames: Boolean,
     calc: SearchResult.Calculation?,
@@ -1183,7 +1185,7 @@ internal fun LazyGridScope.appCells(
     dragController: HomeDragController,
     onDragOutStart: () -> Unit,
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
-    onDropOnDock: (AppItem) -> Unit,
+    onDropOnDock: (AppItem, DockTarget) -> Unit,
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
     locked: Boolean,
 ) {
@@ -1299,8 +1301,8 @@ internal fun LazyGridScope.appCells(
                             if (live && dragController.moving) {
                                 val root = dragController.rootPosition
                                 when {
-                                    dragController.isOverDock(root) && dragController.dockHasSpace ->
-                                        onDropOnDock(currentApp)
+                                    dragController.isOverDock(root) && dragController.dockAccepts(root) ->
+                                        onDropOnDock(currentApp, dragController.dockTargetAt(root))
                                     dragController.isOverGrid(root) -> {
                                         val (page, cx, cy) = dragController.cellAt(root)
                                         onDropOnHome(currentApp, page, cx, cy)

@@ -537,7 +537,9 @@ class HomeViewModel @Inject constructor(
      *  of them disabled or gone), which could otherwise never leave its cell. */
     fun removeFolder(folderId: Long) = viewModelScope.launch {
         // Re-checked against the current state: its apps may have come back since the drag began.
-        val folder = uiState.value.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == folderId }
+        val state = uiState.value
+        val folder = state.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == folderId }
+            ?: state.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == folderId }?.folder
         if (folder != null && folder.apps.isEmpty()) homeLayoutRepository.removeFolder(folderId)
     }
 
@@ -638,6 +640,10 @@ class HomeViewModel @Inject constructor(
 
     fun addToDock(appItem: AppItem) =
         viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
+
+    /** A drawer icon dropped between dock tiles at [index] (counted over the shown slots). */
+    fun addToDockAt(appItem: AppItem, index: Int) =
+        viewModelScope.launch { homeLayoutRepository.addToDockAt(appItem, index, shownDockKeys()) }
 
     fun removeFromDock(appItem: AppItem) =
         viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
@@ -759,10 +765,11 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-    /** Cross-surface: an app dragged out of its open folder into the dock — its child row becomes
-     *  a dock row (one transaction; NonCancellable so a ViewModel clear can't strand it). */
-    fun moveFolderAppToDock(appItem: AppItem, folderId: Long) = viewModelScope.launch {
-        withContext(NonCancellable) { homeLayoutRepository.moveChildToDock(appItem, folderId) }
+    /** Cross-surface: an app dragged out of its open folder into the dock at [index] (null = after
+     *  the last slot) — its child row becomes a dock row (one transaction; NonCancellable so a
+     *  ViewModel clear can't strand it). */
+    fun moveFolderAppToDock(appItem: AppItem, folderId: Long, index: Int? = null) = viewModelScope.launch {
+        withContext(NonCancellable) { homeLayoutRepository.moveChildToDock(appItem, folderId, index, shownDockKeys()) }
     }
 
     /** An app dragged out of its open folder onto the remove pill: it leaves the home screen entirely. */

@@ -75,6 +75,7 @@ import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
+import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.FolderIconButton
@@ -124,7 +125,8 @@ internal fun FolderCard(
     /** Release inside the grid at a new slot: [before] is the visible app that will follow, null = last. */
     onReorder: (app: AppItem, before: AppItem?) -> Unit,
     onDropOnHome: (app: AppItem, page: Int, cellX: Int, cellY: Int) -> Unit,
-    onDropOnDock: (AppItem) -> Unit,
+    /** Released over the dock where it can land (see [HomeDragController.dockAccepts]). */
+    onDropOnDock: (AppItem, DockTarget) -> Unit,
     onDropOnRemove: (AppItem) -> Unit,
     /** The gesture that left the card has ended (whatever the drop was): the host closes the folder. */
     onDragOutEnd: () -> Unit,
@@ -366,8 +368,8 @@ internal fun FolderCard(
                                             val root = dragController.rootPosition
                                             when {
                                                 dragController.isOverRemove(root) -> currentOnDropOnRemove(app)
-                                                dragController.isOverDock(root) && dragController.dockHasSpace ->
-                                                    currentOnDropOnDock(app)
+                                                dragController.isOverDock(root) && dragController.dockAccepts(root) ->
+                                                    currentOnDropOnDock(app, dragController.dockTargetAt(root))
                                                 dragController.isOverGrid(root) -> {
                                                     val (page, cx, cy) = dragController.cellAt(root)
                                                     currentOnDropOnHome(app, page, cx, cy)

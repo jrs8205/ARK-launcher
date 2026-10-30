@@ -18,6 +18,15 @@ import org.arkikeskus.launcher.model.AppItem
 /** Which surface an in-progress drag was picked up from. */
 enum class DragSource { Home, Dock, Drawer, Folder }
 
+/** Where a drop on the dock lands (see [HomeDragController.dockTargetAt]). */
+sealed interface DockTarget {
+    /** Onto the tile at [index] (its middle half): an app there folds with it, a folder takes it in. */
+    data class Onto(val index: Int) : DockTarget
+
+    /** Between tiles, before the tile at [index] (= the item count: after the last one). */
+    data class Between(val index: Int) : DockTarget
+}
+
 /**
  * Shared drag state hoisted to the launcher shell — the Compose equivalent of Launcher3's drag layer +
  * drag controller. Compose can't transfer a pointer gesture between nodes mid-drag, so the source
@@ -29,6 +38,15 @@ enum class DragSource { Home, Dock, Drawer, Folder }
  */
 class HomeDragController {
     var draggedApp by mutableStateOf<AppItem?>(null)
+        private set
+
+    /**
+     * The folder (its home_items id) a long-press lifted instead of an app: a dock folder on its way
+     * to the home grid, or a home folder on its way to the dock. Never set together with
+     * [draggedApp]. The shell draws no floating copy for it (that is the lifting surface's, or the
+     * home screen's, job); the drop cues follow [moving] / [leftSource] like an app's.
+     */
+    var draggedFolderId by mutableStateOf<Long?>(null)
         private set
     var source by mutableStateOf(DragSource.Home)
         private set
@@ -88,6 +106,10 @@ class HomeDragController {
     var dockItemCount by mutableStateOf(0)
     var dockHasSpace by mutableStateOf(false)
 
+    /** Root-space bounds of the dock's shown slots in order (published by the Dock), so a drop can
+     *  tell a tile from the gap beside it ([dockTargetAt]). Empty while the dock is hidden. */
+    var dockSlots by mutableStateOf<List<Rect>>(emptyList())
+
     /**
      * Root-space bounds of placed widgets whose content is internally scrollable (collection widgets:
      * a ListView/GridView/StackView fed by a RemoteViewsService, e.g. WhatsApp's conversation list),
@@ -98,7 +120,7 @@ class HomeDragController {
      */
     val scrollableWidgetRects = mutableStateMapOf<Long, Rect>()
 
-    val isDragging: Boolean get() = draggedApp != null
+    val isDragging: Boolean get() = draggedApp != null || draggedFolderId != null
 
     /** True if [p] (root coords) is inside a placed widget that scrolls its own content. */
     fun isOverScrollableWidget(p: Offset): Boolean =
@@ -129,6 +151,19 @@ class HomeDragController {
     fun start(app: AppItem, from: DragSource, root: Offset, token: Any): Boolean {
         if (!claim(token)) return false
         draggedApp = app
+        draggedFolderId = null
+        source = from
+        rootPosition = root
+        moving = false
+        leftSource = false
+        return true
+    }
+
+    /** Lift the folder [folderId] (long-press) for [token] — see [draggedFolderId]. False if refused. */
+    fun startFolder(folderId: Long, from: DragSource, root: Offset, token: Any): Boolean {
+        if (!claim(token)) return false
+        draggedApp = null
+        draggedFolderId = folderId
         source = from
         rootPosition = root
         moving = false
@@ -159,6 +194,7 @@ class HomeDragController {
     fun stop(token: Any) {
         if (owner !== token) return
         draggedApp = null
+        draggedFolderId = null
         moving = false
         leftSource = false
         owner = null
@@ -167,6 +203,7 @@ class HomeDragController {
     /** HOME: ends whatever lift is held; its gesture sees [owns] turn false and drops nothing. */
     fun cancel() {
         draggedApp = null
+        draggedFolderId = null
         moving = false
         leftSource = false
         localDragging = false
@@ -189,12 +226,30 @@ class HomeDragController {
         return Triple(currentPage, cx, cy)
     }
 
-    /** Dock insert index under [p] (root coords) — for a home→dock drop. */
+    /** Dock insert index under [p] (root coords) — for a home→dock drop: the slot whose middle the
+     *  finger has passed, from the published slots, or from the item count while none are published. */
     fun dockIndexAt(p: Offset): Int {
+        if (dockSlots.isNotEmpty()) return dockSlots.count { it.center.x < p.x }
         if (dockBounds.isEmpty || dockItemCount <= 0) return dockItemCount
         val slot = dockBounds.width / dockItemCount
         return ((p.x - dockBounds.left) / slot).toInt().coerceIn(0, dockItemCount)
     }
+
+    /** Where a drop at [p] (root coords) on the dock lands: onto the tile whose middle half holds the
+     *  finger (Launcher3's folder-creation zone), else between tiles at [dockIndexAt]. */
+    fun dockTargetAt(p: Offset): DockTarget {
+        dockSlots.forEachIndexed { i, r ->
+            if (r.isEmpty || !r.contains(p)) return@forEachIndexed
+            val margin = r.width / 4f
+            if (p.x >= r.left + margin && p.x <= r.right - margin) return DockTarget.Onto(i)
+        }
+        return DockTarget.Between(dockIndexAt(p))
+    }
+
+    /** True while a drop at [p] on the dock has somewhere to land: a gap while the dock has room,
+     *  or a tile (which takes an app in even when the dock is full). Only apps land on tiles. */
+    fun dockAccepts(p: Offset): Boolean =
+        isOverDock(p) && (dockHasSpace || (draggedApp != null && dockTargetAt(p) is DockTarget.Onto))
 }
 
 @Composable

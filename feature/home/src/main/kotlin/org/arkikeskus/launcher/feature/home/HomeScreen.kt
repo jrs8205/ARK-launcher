@@ -58,8 +58,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -93,6 +95,7 @@ import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
+import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.EditAppDialog
 import org.arkikeskus.launcher.ui.HomeDragController
@@ -109,6 +112,7 @@ import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** The space above and below the workspace in the home column. */
 internal val WORKSPACE_VERTICAL_PADDING = 12.dp
@@ -231,6 +235,29 @@ fun HomeScreen(
     // Page the workspace should show after a page was added or removed from the empty-area menu.
     val pageRequests = remember { MutableSharedFlow<Int>(extraBufferCapacity = 1) }
     val defaultFolderName = stringResource(UiR.string.folder_default_name)
+    /** An app dropped on the dock from [source]: onto a tile it folds with that app or joins that
+     *  folder; between tiles it takes the slot. Read from the state as it is NOW — the surfaces'
+     *  gesture detectors hold this lambda across recompositions. */
+    fun dropOnDock(app: AppItem, target: DockTarget, source: DragSource) {
+        val entries = viewModel.uiState.value.dockEntries
+        val from = viewModel.dockDropContainer(source, openFolderId)
+        val onto = (target as? DockTarget.Onto)?.let { entries.getOrNull(it.index) }
+        when (onto) {
+            is DockApp -> viewModel.createDockFolder(onto.app, app, from, defaultFolderName)
+            is DockFolder -> viewModel.addToDockFolder(app, onto.folder.id, from)
+            null -> {
+                val index = when (target) {
+                    is DockTarget.Between -> target.index
+                    is DockTarget.Onto -> target.index
+                }
+                when (source) {
+                    DragSource.Home -> viewModel.moveToDock(app, index)
+                    DragSource.Folder -> openFolderId?.let { viewModel.moveFolderAppToDock(app, it, index) }
+                    DragSource.Drawer, DragSource.Dock -> viewModel.addToDockAt(app, index)
+                }
+            }
+        }
+    }
 
     val widgetHost = LocalAppWidgetHost.current
     val widgetConfigLauncher = LocalWidgetConfigLauncher.current
@@ -526,9 +553,13 @@ fun HomeScreen(
         // Pinning LTR keeps render + touch consistent; the drawer/settings keep their natural RTL.
         LocalLayoutDirection provides LayoutDirection.Ltr,
     ) {
+    // This Box's top-left in root coords: the floating copy of a dock folder below is placed from the
+    // finger's root position, which the drag controller publishes.
+    var homeOrigin by remember { mutableStateOf(Offset.Zero) }
     Box(
         modifier = modifier
             .fillMaxSize()
+            .onGloballyPositioned { homeOrigin = it.positionInRoot() }
             // Root-level, Initial-pass swipe detector: a flick up/down anywhere on home (over icons,
             // folders, shortcuts or the dock — not just empty space) drives the drawer/notifications.
             .pixelHomeSwipe(
@@ -627,7 +658,8 @@ fun HomeScreen(
                 onAppMenu = { app, anchor, above -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home, above) },
                 onMove = viewModel::moveItem,
                 onMoveFolder = viewModel::moveFolder,
-                onMoveToDock = { app, index -> viewModel.moveToDock(app, index) },
+                onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Home) },
+                onMoveFolderToDock = { folderId, index -> viewModel.moveFolderToDock(folderId, index) },
                 onRemoveFromHome = { viewModel.removeFromHome(it) },
                 onOpenFolder = { openFolderId = it.id },
                 onLaunchShortcut = { viewModel.launchShortcut(it) },
@@ -690,29 +722,67 @@ fun HomeScreen(
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
             // can be populated by dragging apps onto it (there is no "add to dock" menu item).
             if (settings.dockEnabled) {
-                // Until the dock draws folder tiles, its slots are the apps among the entries.
-                val dockApps = uiState.dockEntries.filterIsInstance<DockApp>()
                 Dock(
-                    apps = dockApps.map { it.app },
+                    entries = uiState.dockEntries,
                     badges = badges,
                     badgeShowCount = badgeShowCount,
                     badgeScale = badgeScale,
                     showLabels = settings.showDockLabels,
+                    showFolderNames = settings.showHomeFolderNames,
                     labelColor = Color(settings.appLabelColor),
                     backgroundAlpha = settings.dockBackgroundOpacity,
                     locked = settings.desktopLocked,
                     dragController = dragController,
                     onAppClick = launchApp,
-                    onReorder = { apps ->
-                        val byKey = dockApps.associateBy { it.app.key }
-                        viewModel.reorderDock(apps.mapNotNull { byKey[it.key] })
-                    },
+                    onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName) },
                     onRemoveFromDock = { viewModel.removeFromDock(it) },
                     onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
+                    onOpenFolder = { openFolderId = it.id },
+                    onMoveFolderToHome = { folderId, page, cellX, cellY ->
+                        widgetScope.launch { viewModel.moveDockFolderToHome(folderId, page, cellX, cellY) }
+                    },
+                    onRemoveFolder = { viewModel.removeFolder(it) },
+                    onDropOnTile = { app, target -> dropOnDock(app, target, DragSource.Dock) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .homeDockPadding(),
+                )
+            }
+        }
+
+        // A dock folder on its way to the home grid: the shell draws only app icons, so its floating
+        // copy is drawn here, following the finger's root position, above the workspace and the dock.
+        val liftedDockFolder = dragController.draggedFolderId
+            ?.takeIf { dragController.source == DragSource.Dock && dragController.moving }
+            ?.let { id -> uiState.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == id }?.folder }
+        if (liftedDockFolder != null) {
+            val sizeDp = 56.dp * settings.iconScale
+            val halfPx = with(LocalDensity.current) { (sizeDp / 2).toPx() }
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            (dragController.rootPosition.x - homeOrigin.x - halfPx).roundToInt(),
+                            (dragController.rootPosition.y - homeOrigin.y - halfPx).roundToInt(),
+                        )
+                    }
+                    .size(sizeDp)
+                    .graphicsLayer {
+                        alpha = 0.92f
+                        scaleX = 1.1f
+                        scaleY = 1.1f
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                FolderIcon(
+                    name = liftedDockFolder.name,
+                    apps = liftedDockFolder.apps,
+                    showLabel = false,
+                    badgeCount = 0,
+                    badgeShowCount = false,
+                    size = 52.dp * settings.iconScale,
+                    customIcon = liftedDockFolder.icon,
                 )
             }
         }
@@ -743,7 +813,7 @@ fun HomeScreen(
                 onPinShortcut = { viewModel.pinShortcut(it) },
                 onReorder = { app, before -> viewModel.reorderInFolder(openFolder.id, app, before) },
                 onDropOnHome = { app, page, cx, cy -> viewModel.moveOutOfFolder(app, openFolder.id, page, cx, cy, defaultFolderName) },
-                onDropOnDock = { viewModel.moveFolderAppToDock(it, openFolder.id) },
+                onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Folder) },
                 onDropOnRemove = { viewModel.removeFromFolderEntirely(it, openFolder.id) },
                 // Whatever the drop was, a drag that left the card closed the folder.
                 onDragOutEnd = { openFolderId = null },
@@ -765,7 +835,9 @@ fun HomeScreen(
         val overRemove by remember(dragController) {
             derivedStateOf { dragController.isOverRemove(dragController.rootPosition) }
         }
-        if (dragController.isIncomingFrom(DragSource.Home, DragSource.Dock, DragSource.Folder) || dragController.localDragging) {
+        val removableIncoming = dragController.draggedApp != null &&
+            dragController.isIncomingFrom(DragSource.Home, DragSource.Dock, DragSource.Folder)
+        if (removableIncoming || dragController.localDragging) {
             Surface(
                 color = if (overRemove) Color(0xFFD32F2F) else Color.Black.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(24.dp),

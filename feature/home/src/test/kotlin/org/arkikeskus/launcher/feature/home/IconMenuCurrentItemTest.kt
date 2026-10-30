@@ -40,7 +40,7 @@ class IconMenuCurrentItemTest {
     private val maps = AppItem("com.maps", "maps.Main", Process.myUserHandle(), 0L, "Maps")
     private val picked = CustomIcon.FromPack("com.pack", "mail_icon")
     private val homeEntries = mutableStateOf<List<HomeEntry>>(listOf(PlacedApp(mail, page = 0, cellX = 0, cellY = 0)))
-    private val dockApps = mutableStateOf(listOf(maps))
+    private val dockApps = mutableStateOf(listOf<DockEntry>(DockApp(1L, maps)))
     private val homeMenus = mutableListOf<AppItem>()
     private val dockMenus = mutableListOf<AppItem>()
     private var longPress = 0L
@@ -69,7 +69,7 @@ class IconMenuCurrentItemTest {
                     onAppMenu = { app, _, _ -> homeMenus += app },
                     onMove = { _, _, _, _ -> true },
                     onMoveFolder = { _, _, _, _ -> true },
-                    onMoveToDock = { _, _ -> },
+                    onDropOnDock = { _, _ -> },
                     onRemoveFromHome = {},
                     onOpenFolder = {},
                     onLaunchShortcut = {},
@@ -80,7 +80,7 @@ class IconMenuCurrentItemTest {
                     modifier = Modifier.size(300.dp, 320.dp),
                 )
                 Dock(
-                    apps = dockApps.value,
+                    entries = dockApps.value,
                     badges = emptyMap(),
                     badgeShowCount = false,
                     badgeScale = 1f,
@@ -125,7 +125,7 @@ class IconMenuCurrentItemTest {
         holdAndRelease("Maps")
         assertThat(dockMenus.last().customIcon).isNull()
 
-        dockApps.value = listOf(maps.copy(customIcon = picked))
+        dockApps.value = listOf(DockApp(1L, maps.copy(customIcon = picked)))
         compose.waitForIdle()
         holdAndRelease("Maps")
 

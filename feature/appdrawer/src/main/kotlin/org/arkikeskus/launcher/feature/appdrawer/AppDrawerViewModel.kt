@@ -37,6 +37,8 @@ import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.SearchResults
 import org.arkikeskus.launcher.ui.AppLaunch
+import org.arkikeskus.launcher.ui.DockTarget
+import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.HomeNotice
 import javax.inject.Inject
 
@@ -268,6 +270,36 @@ class AppDrawerViewModel @Inject constructor(
             .isSuccess
 
     fun addToDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
+
+    /**
+     * A drawer icon released on the dock at [target] (see [HomeDragController.dockTargetAt]): onto a
+     * dock app it folds the two into a folder named [folderName], onto a dock folder it joins it,
+     * between tiles it takes that slot. The tile indices are the dock's shown slots: its rows in
+     * order, a folder always, an app only while it resolves, cut to the dock's columns.
+     */
+    fun dropOnDock(appItem: AppItem, target: DockTarget, folderName: String) = viewModelScope.launch {
+        val apps = appRepository.apps.first()
+        val byKey = apps.associateBy { it.key }
+        val shownKeys = apps.mapTo(HashSet()) { it.key }
+        val columns = settingsRepository.settings.first().dockColumns
+        val shown = homeLayoutRepository.homeItems.first()
+            .filter { it.containerId == HomeItemEntity.DOCK && (it.isFolder || it.key in shownKeys) }
+            .sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
+            .take(columns)
+        val onto = (target as? DockTarget.Onto)?.let { shown.getOrNull(it.index) }
+        val ontoApp = onto?.takeIf { it.isApp }?.let { byKey[it.key] }
+        when {
+            onto?.isFolder == true -> homeLayoutRepository.addToDockFolder(appItem, onto.id, fromContainer = null)
+            ontoApp != null -> homeLayoutRepository.createDockFolder(ontoApp, appItem, fromContainer = null, name = folderName)
+            else -> {
+                val index = when (target) {
+                    is DockTarget.Between -> target.index
+                    is DockTarget.Onto -> target.index
+                }
+                homeLayoutRepository.addToDockAt(appItem, index, shownKeys)
+            }
+        }
+    }
 
     fun removeFromDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
 

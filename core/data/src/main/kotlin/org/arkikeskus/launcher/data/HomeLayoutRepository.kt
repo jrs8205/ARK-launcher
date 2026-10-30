@@ -548,21 +548,27 @@ class HomeLayoutRepository @Inject constructor(
         insertDockRow(row, index, shownKeys)
     }
 
-    /** An app dragged out of its open folder onto the dock's free space: appended to the dock (its
-     *  child row becomes the dock row, or just goes when the app is already there); the folder is
-     *  re-indexed and dissolves when one app is left. */
-    suspend fun moveChildToDock(app: AppItem, folderId: Long) = db.withTransaction {
-        val child = dao.getByKey(folderId, app.packageName, app.className, app.userSerial)
-            ?: return@withTransaction
-        if (dockRow(app) != null) {
-            dao.deleteById(child.id)
-        } else {
-            dao.moveById(child.id, DOCK, 0, PARKED_SLOT, 0)
-            writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != child.id } + child.id)
+    /** An app dragged out of its open folder onto the dock's free space: into the dock at [index]
+     *  (see [addToDockAt]; null = appended) — its child row becomes the dock row, or just goes when
+     *  the app is already there; the folder is re-indexed and dissolves when one app is left. */
+    suspend fun moveChildToDock(app: AppItem, folderId: Long, index: Int? = null, shownKeys: Set<String>? = null) =
+        db.withTransaction {
+            val child = dao.getByKey(folderId, app.packageName, app.className, app.userSerial)
+                ?: return@withTransaction
+            if (dockRow(app) != null) {
+                dao.deleteById(child.id)
+            } else {
+                dao.moveById(child.id, DOCK, 0, PARKED_SLOT, 0)
+                val row = dao.getById(child.id)!!
+                if (index == null) {
+                    writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != child.id } + child.id)
+                } else {
+                    insertDockRow(row, index, shownKeys)
+                }
+            }
+            reindexFolder(folderId)
+            dissolveIfNeeded(folderId)
         }
-        reindexFolder(folderId)
-        dissolveIfNeeded(folderId)
-    }
 
     /**
      * [dropped] dropped onto the dock app [target]: the slot becomes a folder named [name] holding
