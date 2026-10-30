@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -46,7 +47,8 @@ class AppActionPopupHeldTest {
                 held = held,
             )
         }
-        compose.waitForIdle()
+        // The card shows once its shortcut query (off the main thread) has answered.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }
     }
 
     private fun popupWindow(): View = Shadow.extract<ShadowWindowManagerImpl>(compose.activity.windowManager)

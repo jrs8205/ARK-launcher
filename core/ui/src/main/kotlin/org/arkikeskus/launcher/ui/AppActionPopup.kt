@@ -59,6 +59,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.expressive.Accent
@@ -72,6 +73,9 @@ data class PopupAction(val label: String, @DrawableRes val icon: Int? = null, va
 data class IconMenuItem(@DrawableRes val icon: Int, val label: String, val onClick: () -> Unit)
 
 private const val POPUP_MARGIN_PX = 24
+
+/** The most the card waits for its shortcut and Widgets rows before showing with what has arrived. */
+internal const val POPUP_ROWS_WAIT_MS = 400L
 private val CARD_WIDTH = 232.dp
 internal val SHORTCUT_ICON_SIZE = 24.dp
 
@@ -81,6 +85,10 @@ internal val SHORTCUT_ICON_SIZE = 24.dp
  * [hasWidgets] finds the app home-screen widgets, as in Pixel Launcher — and the caller-supplied
  * [actions], with a caret pointing at the icon ([anchor] in root coords; [preferAbove] for
  * dock/bottom items). Styled with the shared Version C expressive palette.
+ *
+ * The card appears once both queries have answered (Launcher3 counts the rows before it shows):
+ * a card that grew as the rows arrived jumped on screen whenever it was anchored above its icon
+ * (issue #21). A query that is still out after [POPUP_ROWS_WAIT_MS] no longer holds the card.
  *
  * [held] is true while the finger that lifted the icon is still down — the menu opens at the lift
  * (issue #12). A second finger's tap on a row does nothing then: the row would act on an icon that is
@@ -99,19 +107,26 @@ fun AppActionPopup(
     held: Boolean = false,
 ) {
     val context = LocalContext.current
-    var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>>(emptyList()) }
+    // Null = still being asked for; the card waits for both (or the wait below) before it shows.
+    var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>?>(null) }
     LaunchedEffect(app.key) {
         shortcuts = withContext(Dispatchers.IO) { AppShortcuts.query(context, app) }
     }
-    var widgets by remember(app.key) { mutableStateOf(false) }
+    var widgets by remember(app.key) { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(app.key, onWidgets != null) {
         widgets = onWidgets != null && (
             hasWidgets?.invoke(app) ?: withContext(Dispatchers.IO) { AppWidgets.hasHomeScreenWidgets(context, app) }
         )
     }
+    var waited by remember(app.key) { mutableStateOf(false) }
+    LaunchedEffect(app.key) {
+        delay(POPUP_ROWS_WAIT_MS)
+        waited = true
+    }
+    if (!waited && (shortcuts == null || widgets == null)) return
 
     AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held) {
-        shortcuts.forEach { shortcut ->
+        shortcuts.orEmpty().forEach { shortcut ->
             ShortcutPopupRow(
                 label = shortcut.label,
                 shortLabel = shortcut.shortLabel,
@@ -128,13 +143,13 @@ fun AppActionPopup(
                 },
             )
         }
-        if (shortcuts.isNotEmpty()) {
+        if (!shortcuts.isNullOrEmpty()) {
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 4.dp),
                 color = LocalExpressivePalette.current.trackOff,
             )
         }
-        if (widgets && onWidgets != null) {
+        if (widgets == true && onWidgets != null) {
             PopupRow(stringResource(R.string.popup_widgets), LauncherIcons.Widgets) {
                 onWidgets()
                 onDismiss()

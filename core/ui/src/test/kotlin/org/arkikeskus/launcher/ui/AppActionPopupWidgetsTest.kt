@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Process
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.IntOffset
@@ -38,7 +39,8 @@ class AppActionPopupWidgetsTest {
                 hasWidgets = { queried++; hasWidgets },
             )
         }
-        compose.waitForIdle()
+        // The card shows once its shortcut query (off the main thread) has answered.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }
     }
 
     @Test fun anAppWithWidgetsGetsAWidgetsRowAboveTheActions() {

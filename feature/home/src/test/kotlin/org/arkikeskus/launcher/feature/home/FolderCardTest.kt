@@ -29,6 +29,7 @@ import androidx.compose.ui.test.down
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.isRoot
@@ -125,6 +126,9 @@ class FolderCardTest {
         compose.waitForIdle()
     }
 
+    /** The menu's rows show once its shortcut query (off the main thread) has answered. */
+    private fun awaitMenu() = compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }
+
     private fun release(label: String) {
         compose.onNodeWithText(label).performTouchInput { up() }
         compose.waitForIdle()
@@ -168,6 +172,7 @@ class FolderCardTest {
         assertThat(drag.draggedApp).isEqualTo(notes)
         cardRoot().performTouchInput { up() }
         compose.waitForIdle()
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
     }
 
@@ -177,6 +182,7 @@ class FolderCardTest {
         hold("Mail")
         release("Mail")
 
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         compose.onNodeWithText("Edit").assertIsDisplayed()
         compose.onNodeWithText("Remove from folder").assertIsDisplayed()
@@ -194,6 +200,7 @@ class FolderCardTest {
 
         hold("Mail")
 
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         assertThat(launched).isEmpty()
         assertThat(drag.moving).isFalse()
@@ -206,6 +213,7 @@ class FolderCardTest {
         val notesCenter = rootCenter("Notes")
 
         hold("Notes")
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         moveTo((notesCenter + mailCenter) / 2f)
         moveTo(mailCenter)
@@ -224,6 +232,7 @@ class FolderCardTest {
         val notesCenter = rootCenter("Notes")
 
         hold("Notes")
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         cardRoot().performTouchInput {
             moveTo((notesCenter + mailCenter) / 2f)
@@ -242,12 +251,14 @@ class FolderCardTest {
         show()
 
         hold("Mail")
+        awaitMenu()
         compose.onNodeWithText("Remove from folder").performClick()
         compose.waitForIdle()
         assertThat(removed).isEmpty()
         compose.onNodeWithText("Remove from folder").assertIsDisplayed()
 
         release("Mail")
+        awaitMenu()
         compose.onNodeWithText("Remove from folder").performClick()
         compose.waitForIdle()
         assertThat(removed).containsExactly(mail)
@@ -258,12 +269,14 @@ class FolderCardTest {
 
         hold("Mail")
         release("Mail")
+        awaitMenu()
         compose.onNodeWithText("Remove from folder").performClick()
         compose.waitForIdle()
         assertThat(removed).containsExactly(mail)
 
         hold("Maps")
         release("Maps")
+        awaitMenu()
         compose.onNodeWithText("Edit").performClick()
         compose.waitForIdle()
         assertThat(renamed).containsExactly(maps)
@@ -314,6 +327,7 @@ class FolderCardTest {
         compose.onNodeWithText("Maps").performTouchInput { up(1) }
         release("Mail")
 
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         assertThat(launched).isEmpty()
         assertNothingDropped()
@@ -332,6 +346,7 @@ class FolderCardTest {
         compose.onNodeWithText("Mail").performTouchInput { up(0) }
         compose.waitForIdle()
 
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         assertThat(drag.isDragging).isFalse()
 
@@ -362,6 +377,7 @@ class FolderCardTest {
         compose.onNodeWithText("Mail").performSemanticsAction(SemanticsActions.OnLongClick)
         compose.waitForIdle()
 
+        awaitMenu()
         compose.onNodeWithText("App info").assertIsDisplayed()
         assertThat(launched).isEmpty()
     }
