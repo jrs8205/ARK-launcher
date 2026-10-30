@@ -87,7 +87,7 @@ the app: **Settings ▸ Feedback**.
   stretch to full width or be reconfigured. Collection widgets (e.g. chat lists) scroll in place.
   Built-in clock (with the next event, alarm and optional weather), battery and notification
   widgets adapt to their size and offer translucent or themed backgrounds in Home screen settings.
-- **Folders** on the home screen and inside the drawer.
+- **Folders** on the home screen and inside the drawer: a tap opens a folder to look, a pencil opens its editor.
 - **Notification dots / badges** (via a notification-listener service; dot or Nova-style count).
 - **People widget**: messages, missed calls and mail grouped by person as tiles, with optional
   batch delivery that holds others' messages in the launcher's widgets, badges and status bar until
@@ -100,7 +100,7 @@ the app: **Settings ▸ Feedback**.
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, and a configurable
   **left-edge swipe** that launches an app of your choice.
 - **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
-  labels** (per surface), dock opacity, grid columns, page indicator, and more.
+  labels** (per surface), dock and drawer opacity, grid columns, page indicator, and more.
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
