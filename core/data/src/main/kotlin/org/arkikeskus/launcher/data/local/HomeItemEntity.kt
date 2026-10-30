@@ -14,9 +14,12 @@ import androidx.room.PrimaryKey
  *    order rather than a home cell.
  *  - **Pinned deep shortcut on home**: [containerId] = [HOME], [shortcutId] != null, [packageName] is
  *    the publishing app, at a home cell. Launched via LauncherApps.startShortcut.
+ *  - **App or folder in the dock**: [containerId] = [DOCK], [page] 0, [cellY] 0, [cellX] = the slot
+ *    (0..n-1, the dock's order). A dock folder's children point at its id like a home folder's.
  *
  * The unique index on (containerId, page, cellX, cellY) enforces "one item per cell" *within each
- * container* (the home grid and each folder are independent cell spaces) — see [HomeLayoutRepository].
+ * container* (the home grid, the dock and each folder are independent cell spaces) — see
+ * [HomeLayoutRepository].
  */
 @Entity(
     tableName = "home_items",
@@ -66,6 +69,9 @@ data class HomeItemEntity(
     companion object {
         /** [containerId] sentinel meaning "placed directly on the home screen". */
         const val HOME = -1L
+
+        /** [containerId] sentinel meaning "in the dock" (Launcher3's hotseat): [cellX] is the slot. */
+        const val DOCK = -2L
 
         /** [builtinType] of the clock + date + next-calendar-event widget. */
         const val BUILTIN_SMARTSPACE = "smartspace"

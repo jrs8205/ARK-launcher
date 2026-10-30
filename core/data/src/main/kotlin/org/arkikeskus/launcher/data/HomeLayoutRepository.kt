@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.model.AppItem
@@ -40,9 +41,10 @@ enum class PlaceResult {
 
 /**
  * Persists the home layout (Room): app shortcuts and folders placed at free cells, and the apps
- * inside each folder. Top-level items live in the [HOME] container; a folder's children live in the
- * container identified by the folder row's id. Each container is an independent cell space guarded by
- * the unique (containerId, page, cellX, cellY) index, so the swaps/repacks below stay collision-free.
+ * inside each folder. Top-level items live in the [HOME] container, the dock's apps and folders in
+ * the [DOCK] container (slot = cellX); a folder's children live in the container identified by the
+ * folder row's id. Each container is an independent cell space guarded by the unique (containerId,
+ * page, cellX, cellY) index, so the swaps/repacks below stay collision-free.
  */
 @Singleton
 class HomeLayoutRepository @Inject constructor(
@@ -282,18 +284,18 @@ class HomeLayoutRepository @Inject constructor(
             foldApps(targetRow, droppedRow, dropped, name)
         }
 
-    /** [target]'s cell becomes a folder named [name] holding [target] first and [dropped] second —
-     *  [droppedRow], its home row, moves in; without one a new child row is made. Returns the
-     *  folder's id. */
+    /** [target]'s cell (on home or in the dock) becomes a folder named [name] holding [target] first
+     *  and [dropped] second — [droppedRow], its row wherever it was, moves in; without one a new child
+     *  row is made. Returns the folder's id. */
     private suspend fun foldApps(target: HomeItemEntity, droppedRow: HomeItemEntity?, dropped: AppItem, name: String): Long {
         // Folder starts off-grid so it doesn't clash with the target cell it's about to take over.
         val folderId = dao.insert(
-            HomeItemEntity(containerId = HOME, folderName = name, page = -1, cellX = -1, cellY = -1),
+            HomeItemEntity(containerId = target.containerId, folderName = name, page = -1, cellX = -1, cellY = -1),
         )
         dao.moveById(target.id, folderId, 0, 0, 0)
         if (droppedRow != null) dao.moveById(droppedRow.id, folderId, 0, 1, 0)
         else dao.insert(homeApp(dropped, folderId, 0, 1, 0))
-        dao.moveById(folderId, HOME, target.page, target.cellX, target.cellY)
+        dao.moveById(folderId, target.containerId, target.page, target.cellX, target.cellY)
         return folderId
     }
 
@@ -446,6 +448,212 @@ class HomeLayoutRepository @Inject constructor(
         }
     }
 
+    // --- Dock (Launcher3's hotseat: the [DOCK] container, cellX = slot) ---------------------------
+
+    /** Appends [app] to the dock. False (nothing stored) when it already has a dock row. */
+    suspend fun addToDock(app: AppItem): Boolean = db.withTransaction {
+        if (dockRow(app) != null) return@withTransaction false
+        dao.insert(homeApp(app, DOCK, 0, dao.getContainerOrdered(DOCK).size, 0))
+        renumberDock()
+        true
+    }
+
+    /**
+     * Puts [app] into the dock at [index] (clamped), moving its existing dock row there if it has
+     * one — never a duplicate. The dock shows only folders and the apps that resolve, so the drop
+     * index counts those: given [shownKeys], [index] is read in that shown order and the row lands
+     * right before the shown row at that position (or right after the last shown one); without it,
+     * [index] is a raw slot and hidden rows in between shift the drop.
+     */
+    suspend fun addToDockAt(app: AppItem, index: Int, shownKeys: Set<String>? = null) = db.withTransaction {
+        val existing = dockRow(app)
+        val row = existing ?: dao.getById(dao.insert(homeApp(app, DOCK, 0, PARKED_SLOT, 0)))!!
+        insertDockRow(row, index, shownKeys)
+    }
+
+    /** Drops [app]'s own dock row (a folder's child is not touched) and closes the gap. */
+    suspend fun removeFromDock(app: AppItem) = db.withTransaction {
+        dao.deleteByKey(DOCK, app.packageName, app.className, app.userSerial)
+        renumberDock()
+    }
+
+    /**
+     * Puts the dock rows [rowIds] (the slots the dock shows, in their new order) first; rows the
+     * column cap hides keep their relative order after them, so the UI can never overwrite the full
+     * list. Ids that are not dock rows are ignored.
+     */
+    suspend fun reorderDock(rowIds: List<Long>) = db.withTransaction {
+        val rows = dao.getContainerOrdered(DOCK)
+        val byId = rows.associateBy { it.id }
+        val given = rowIds.distinct().mapNotNull { byId[it] }
+        val givenIds = given.mapTo(HashSet()) { it.id }
+        writeDockOrder((given + rows.filter { it.id !in givenIds }).map { it.id })
+    }
+
+    /** True while nothing has ever been put in the dock (first run). */
+    suspend fun isDockEmpty(): Boolean = dao.getContainer(DOCK).isEmpty()
+
+    /** The first-run default dock: [apps] in order, only while the dock is still empty. */
+    suspend fun seedDock(apps: List<AppItem>) = db.withTransaction {
+        if (dao.getContainer(DOCK).isNotEmpty()) return@withTransaction
+        apps.distinctBy { it.key }.forEachIndexed { i, app -> dao.insert(homeApp(app, DOCK, 0, i, 0)) }
+    }
+
+    /**
+     * One-time upgrade from the favourites key list of versions before 0.9.7: every well-formed key
+     * ("package/class/userSerial") without a dock row yet is appended, in key order, after the rows
+     * already there. Idempotent, so the caller may clear the key only after this returned.
+     */
+    suspend fun migrateDockFavorites(keys: List<String>) = db.withTransaction {
+        val present = dao.getContainerOrdered(DOCK).mapTo(HashSet()) { it.key }
+        var slot = present.size
+        for (key in keys.distinct()) {
+            val parts = key.split('/')
+            val serial = parts.getOrNull(2)?.toLongOrNull() ?: continue
+            if (parts.size != 3 || parts[0].isEmpty() || key in present) continue
+            dao.insert(
+                HomeItemEntity(
+                    containerId = DOCK, packageName = parts[0], className = parts[1], userSerial = serial,
+                    page = 0, cellX = slot++, cellY = 0,
+                ),
+            )
+            present += key
+        }
+        renumberDock()
+    }
+
+    /** A dock icon dropped on a home cell: placed with [placeAt]'s rules, and only once stored
+     *  there does its dock row go (the dock closes the gap). */
+    suspend fun moveDockAppToHome(
+        app: AppItem, page: Int, cellX: Int, cellY: Int, columns: Int, rows: Int, folderName: String,
+    ): PlaceResult = db.withTransaction {
+        val result = placeAt(app, page, cellX, cellY, columns, rows, folderName)
+        if (result == PlaceResult.Placed) {
+            dao.deleteByKey(DOCK, app.packageName, app.className, app.userSerial)
+            renumberDock()
+        }
+        result
+    }
+
+    /** A home icon dropped between dock tiles at [index] (see [addToDockAt]): its home row becomes
+     *  the dock row, or just goes when the app is already in the dock. */
+    suspend fun moveHomeAppToDock(app: AppItem, index: Int, shownKeys: Set<String>? = null) = db.withTransaction {
+        val home = dao.getByKey(HOME, app.packageName, app.className, app.userSerial)
+        val existing = dockRow(app)
+        val row = when {
+            existing != null -> { home?.let { dao.deleteById(it.id) }; existing }
+            home != null -> { dao.moveById(home.id, DOCK, 0, PARKED_SLOT, 0); dao.getById(home.id)!! }
+            else -> dao.getById(dao.insert(homeApp(app, DOCK, 0, PARKED_SLOT, 0)))!!
+        }
+        insertDockRow(row, index, shownKeys)
+    }
+
+    /** An app dragged out of its open folder onto the dock's free space: appended to the dock (its
+     *  child row becomes the dock row, or just goes when the app is already there); the folder is
+     *  re-indexed and dissolves when one app is left. */
+    suspend fun moveChildToDock(app: AppItem, folderId: Long) = db.withTransaction {
+        val child = dao.getByKey(folderId, app.packageName, app.className, app.userSerial)
+            ?: return@withTransaction
+        if (dockRow(app) != null) {
+            dao.deleteById(child.id)
+        } else {
+            dao.moveById(child.id, DOCK, 0, PARKED_SLOT, 0)
+            writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != child.id } + child.id)
+        }
+        reindexFolder(folderId)
+        dissolveIfNeeded(folderId)
+    }
+
+    /**
+     * [dropped] dropped onto the dock app [target]: the slot becomes a folder named [name] holding
+     * [target] first and [dropped] second. [fromContainer] says where [dropped]'s row is — [HOME],
+     * [DOCK], a folder's id, or null for the drawer (no row) — so that row moves in; a source folder
+     * is re-indexed and dissolves when one app is left. Returns the folder id, -1 when [target] is
+     * not a dock app (or is [dropped] itself).
+     */
+    suspend fun createDockFolder(target: AppItem, dropped: AppItem, fromContainer: Long?, name: String): Long =
+        db.withTransaction {
+            val targetRow = dockRow(target) ?: return@withTransaction -1L
+            val droppedRow = fromContainer?.let { dao.getByKey(it, dropped.packageName, dropped.className, dropped.userSerial) }
+            if (droppedRow?.id == targetRow.id) return@withTransaction -1L
+            val folderId = foldApps(targetRow, droppedRow, dropped, name)
+            repairSourceFolder(fromContainer)
+            renumberDock()
+            folderId
+        }
+
+    /** [app] dropped onto the dock folder [folderId]: joins it at the end (never twice), its row in
+     *  [fromContainer] (see [createDockFolder]) moving in. A drop from the folder onto itself does nothing. */
+    suspend fun addToDockFolder(app: AppItem, folderId: Long, fromContainer: Long?) = db.withTransaction {
+        if (fromContainer == folderId) return@withTransaction
+        if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+        val row = fromContainer?.let { dao.getByKey(it, app.packageName, app.className, app.userSerial) }
+        joinFolder(folderId, row, app)
+        repairSourceFolder(fromContainer)
+        renumberDock()
+    }
+
+    /** A home folder dropped between dock tiles at [index] (see [addToDockAt]). False when
+     *  [folderId] is not a home folder. */
+    suspend fun moveFolderToDock(folderId: Long, index: Int, shownKeys: Set<String>? = null): Boolean =
+        db.withTransaction {
+            val folder = dao.getById(folderId) ?: return@withTransaction false
+            if (!folder.isFolder || folder.containerId != HOME) return@withTransaction false
+            dao.moveById(folderId, DOCK, 0, PARKED_SLOT, 0)
+            insertDockRow(dao.getById(folderId)!!, index, shownKeys)
+            true
+        }
+
+    /** A dock folder dropped on a home cell: moves there only while the cell is free (folders never
+     *  merge, and nothing is swapped into the dock); the dock closes the gap. False = nothing changed. */
+    suspend fun moveDockFolderToHome(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
+        db.withTransaction {
+            val folder = dao.getById(folderId) ?: return@withTransaction false
+            if (!folder.isFolder || folder.containerId != DOCK) return@withTransaction false
+            if (!isShownPage(page)) return@withTransaction false
+            val items = dao.getContainer(HOME)
+            if (dao.getAt(HOME, page, cellX, cellY) != null || cellInWidget(items, -1L, page, cellX, cellY)) {
+                return@withTransaction false
+            }
+            dao.moveById(folderId, HOME, page, cellX, cellY)
+            renumberDock()
+            true
+        }
+
+    private suspend fun dockRow(app: AppItem): HomeItemEntity? =
+        dao.getByKey(DOCK, app.packageName, app.className, app.userSerial)
+
+    /** After a child left [container] for the dock: a folder re-indexes and may dissolve. */
+    private suspend fun repairSourceFolder(container: Long?) {
+        if (container == null || container == HOME || container == DOCK) return
+        reindexFolder(container)
+        dissolveIfNeeded(container)
+    }
+
+    /** Slots [row] (already a dock row, anywhere) at the shown [index] — see [addToDockAt]. */
+    private suspend fun insertDockRow(row: HomeItemEntity, index: Int, shownKeys: Set<String>?) {
+        val rest = dao.getContainerOrdered(DOCK).filter { it.id != row.id }
+        val shown = rest.filter { it.isFolder || shownKeys == null || it.key in shownKeys }
+        val i = index.coerceIn(0, shown.size)
+        val at = if (i < shown.size) rest.indexOf(shown[i]) else shown.lastOrNull()?.let { rest.indexOf(it) + 1 } ?: 0
+        val order = rest.toMutableList().apply { add(at, row) }
+        writeDockOrder(order.map { it.id })
+    }
+
+    /** Numbers the dock rows 0..n-1 in their current order when any slot is off (a gap, a parked row). */
+    private suspend fun renumberDock() {
+        val rows = dao.getContainerOrdered(DOCK)
+        val numbered = rows.withIndex().all { (i, r) -> r.page == 0 && r.cellY == 0 && r.cellX == i }
+        if (!numbered) writeDockOrder(rows.map { it.id })
+    }
+
+    /** Puts the dock rows [ids] at slots 0..n-1 in that order, parking them first so the unique
+     *  (container, page, cell) index never trips mid-update. */
+    private suspend fun writeDockOrder(ids: List<Long>) {
+        ids.forEachIndexed { i, id -> dao.moveById(id, DOCK, 0, -2 - i, 0) }
+        ids.forEachIndexed { i, id -> dao.moveById(id, DOCK, 0, i, 0) }
+    }
+
     private suspend fun reindexFolder(folderId: Long) {
         val children = dao.getContainerOrdered(folderId)
         children.forEachIndexed { i, child ->
@@ -455,28 +663,34 @@ class HomeLayoutRepository @Inject constructor(
         }
     }
 
-    /** Collapses a folder once it holds a single app (move it out) or none (delete the folder). A last
-     *  app that already has a home icon is dropped with the folder, leaving the folder's cell empty. */
+    /** Collapses a folder once it holds a single app (move it out, to the folder's own cell or dock
+     *  slot) or none (delete the folder). A last app that already has its own icon in the folder's
+     *  container is dropped with the folder, leaving the folder's cell empty (the dock closes the gap). */
     private suspend fun dissolveIfNeeded(folderId: Long) {
         val children = dao.getContainerOrdered(folderId)
+        val folder = dao.getById(folderId)
         when (children.size) {
             0 -> dao.deleteById(folderId)
             1 -> {
-                val folder = dao.getById(folderId) ?: return
+                if (folder == null) return
                 val last = children.first()
-                dao.deleteById(folderId) // free the home cell first
-                if (onHome(last)) {
+                dao.deleteById(folderId) // free the cell first
+                if (hasOwnRow(folder.containerId, last)) {
                     dao.deleteById(last.id)
                 } else {
-                    dao.moveById(last.id, HOME, folder.page, folder.cellX, folder.cellY)
+                    dao.moveById(last.id, folder.containerId, folder.page, folder.cellX, folder.cellY)
                 }
             }
         }
+        if (folder?.containerId == DOCK && children.size <= 1) renumberDock()
     }
 
     /** True if [row] is an app that already has its own icon directly on the home screen. */
-    private suspend fun onHome(row: HomeItemEntity): Boolean =
-        row.isApp && dao.getByKey(HOME, row.packageName, row.className, row.userSerial) != null
+    private suspend fun onHome(row: HomeItemEntity): Boolean = hasOwnRow(HOME, row)
+
+    /** True if [row] is an app that already has its own row directly in [container] (home or dock). */
+    private suspend fun hasOwnRow(container: Long, row: HomeItemEntity): Boolean =
+        row.isApp && dao.getByKey(container, row.packageName, row.className, row.userSerial) != null
 
     /**
      * Moves [source] to a target cell in the [HOME] container, swapping with the cell's occupant if
@@ -723,7 +937,8 @@ class HomeLayoutRepository @Inject constructor(
             // Re-point first: dissolving a folder checks the home rows' final app keys.
             plan.remap.forEach { (id, className) -> dao.updateClassName(id, className) }
             plan.delete.forEach { dao.deleteById(it) }
-            repairFolders(dao.getContainer(HOME).filter { it.isFolder }.map { it.id })
+            repairFolders((dao.getContainer(HOME) + dao.getContainer(DOCK)).filter { it.isFolder }.map { it.id })
+            renumberDock()
             plan.delete.size + plan.remap.size
         }
 
@@ -761,11 +976,14 @@ class HomeLayoutRepository @Inject constructor(
             doomed.size
         }
 
-    /** Deletes [ids] (rows of [all]) and repairs the folders they left. */
+    /** Deletes [ids] (rows of [all]), repairs the folders they left and closes the dock's gaps. */
     private suspend fun deleteAndRepairFolders(all: List<HomeItemEntity>, ids: Set<Long>): Int {
         if (ids.isEmpty()) return 0
         ids.forEach { dao.deleteById(it) }
-        repairFolders(all.filter { it.id in ids && it.containerId != HOME }.map { it.containerId }.distinct())
+        repairFolders(
+            all.filter { it.id in ids && it.containerId != HOME && it.containerId != DOCK }.map { it.containerId }.distinct(),
+        )
+        renumberDock()
         return ids.size
     }
 
@@ -822,6 +1040,9 @@ class HomeLayoutRepository @Inject constructor(
 
         /** Off-grid parking slot used while swapping two cells inside a transaction. */
         private const val TEMP_SLOT = -1
+
+        /** The dock slot a row waits at before [writeDockOrder] numbers it (below every parking slot). */
+        private const val PARKED_SLOT = -100_000
 
         /** Pure selection for [removeStaleAppRows]: plain app rows, pinned-shortcut rows and folder
          *  children whose (package, profile) fails [isInstalled] — never widget/builtin/folder rows. */
