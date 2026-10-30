@@ -446,6 +446,20 @@ class DockRowsTest {
         assertThat(dao.getAll().none { it.isFolder }).isTrue()
     }
 
+    @Test
+    fun moveChildToDockRepositionsAnAppThatIsAlreadyInTheDock() = runTest {
+        // Like moveHomeAppToDock: the app's own dock row takes the slot the finger chose.
+        repo.addToDock(a); repo.addToDock(c)
+        val folder = homeFolderWith(a, b)
+
+        repo.moveChildToDock(a, folder, index = 2, shownKeys = setOf(a.key, c.key))
+
+        assertThat(dockOrder()).containsExactly("c", "a").inOrder()
+        assertSlotsNumbered()
+        assertThat(dao.getById(folder)).isNull()
+        assertThat(homeRow(b)?.cellX to homeRow(b)?.cellY).isEqualTo(0 to 0)
+    }
+
     private fun homeRowIn(container: Long, app: AppItem, slot: Int) =
         HomeItemEntity(containerId = container, packageName = app.packageName, className = app.className, page = 0, cellX = slot, cellY = 0)
 }

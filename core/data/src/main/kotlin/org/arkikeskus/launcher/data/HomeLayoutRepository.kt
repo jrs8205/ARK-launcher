@@ -553,22 +553,24 @@ class HomeLayoutRepository @Inject constructor(
     }
 
     /** An app dragged out of its open folder onto the dock's free space: into the dock at [index]
-     *  (see [addToDockAt]; null = appended) — its child row becomes the dock row, or just goes when
-     *  the app is already there; the folder is re-indexed and dissolves when one app is left. */
+     *  (see [addToDockAt]; null = appended) — its child row becomes the dock row, or, when the app
+     *  already has one, that row takes the slot (as [moveHomeAppToDock] does) and the child just goes;
+     *  the folder is re-indexed and dissolves when one app is left. */
     suspend fun moveChildToDock(app: AppItem, folderId: Long, index: Int? = null, shownKeys: Set<String>? = null) =
         db.withTransaction {
             val child = dao.getByKey(folderId, app.packageName, app.className, app.userSerial)
                 ?: return@withTransaction
-            if (dockRow(app) != null) {
+            val existing = dockRow(app)
+            val row = if (existing != null) {
                 dao.deleteById(child.id)
+                existing
             } else {
                 dao.moveById(child.id, DOCK, 0, PARKED_SLOT, 0)
-                val row = dao.getById(child.id)!!
-                if (index == null) {
-                    writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != child.id } + child.id)
-                } else {
-                    insertDockRow(row, index, shownKeys)
-                }
+                dao.getById(child.id)!!
+            }
+            when {
+                index != null -> insertDockRow(row, index, shownKeys)
+                existing == null -> writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != row.id } + row.id)
             }
             reindexFolder(folderId)
             dissolveIfNeeded(folderId)

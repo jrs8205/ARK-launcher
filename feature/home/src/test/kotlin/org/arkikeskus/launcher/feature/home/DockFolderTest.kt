@@ -175,4 +175,20 @@ class DockFolderTest {
 
         assertThat(opened.map { it.id }).containsExactly(7L)
     }
+
+    @Test fun aVerticalFlickFromADockFolderOpensNothingLikeFromADockApp() {
+        // The dock owns every touch that starts on it (HomeScreen's root swipe detector bails over the
+        // dock so a hold's drift never half-opens the drawer): a flick that leaves the tile is dropped,
+        // it neither opens the folder nor lifts it.
+        show()
+        compose.onNodeWithText("Tools").performTouchInput {
+            down(center)
+            repeat(6) { moveBy(Offset(0f, -60f)) }
+            up()
+        }
+        compose.waitForIdle()
+
+        assertThat(opened).isEmpty()
+        assertThat(drag.isDragging).isFalse()
+    }
 }
