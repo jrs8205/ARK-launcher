@@ -22,6 +22,7 @@
     <string name="settings_two_line_labels">Etykiety w dwóch wierszach</string>
     <string name="settings_show_folder_names">Pokazuj nazwy folderów</string>
     <string name="settings_dock_bg">Krycie tła Docka</string>
+    <string name="settings_drawer_bg">Krycie tła szuflady aplikacji</string>
     <string name="settings_page_indicator">Kropki stron</string>
     <string name="settings_home_page_marker">Oznaczenie strony głównej</string>
     <string name="settings_page_switch_speed">Szybkość zmiany strony</string>

@@ -608,6 +608,27 @@ class SettingsRepositoryTest {
         restored.importRaw(mapOf("long_press_scale" to "slow"))
         assertThat(restored.settings.first().longPressScale).isEqualTo(1.0f) // wrong type: dropped, no crash
     }
+    /** The app drawer's background opacity (issue #21): opaque out of the box, a Float key like the dock's. */
+    @Test
+    fun `drawer background opacity defaults to opaque, clamps, survives a backup round-trip and rejects a wrong type`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().drawerBackgroundOpacity).isEqualTo(1.0f)
+        repo.setDrawerBackgroundOpacity(1.4f)
+        assertThat(repo.settings.first().drawerBackgroundOpacity).isEqualTo(1.0f)
+        repo.setDrawerBackgroundOpacity(0.6f)
+        assertThat(repo.settings.first().drawerBackgroundOpacity).isEqualTo(0.6f)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_opacity", 0.6f)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerBackgroundOpacity).isEqualTo(0.6f)
+        restored.importRaw(mapOf("drawer_opacity" to -0.5))
+        assertThat(restored.settings.first().drawerBackgroundOpacity).isEqualTo(0f) // out of range: clamped on read
+        restored.importRaw(mapOf("drawer_opacity" to "clear"))
+        assertThat(restored.settings.first().drawerBackgroundOpacity).isEqualTo(1.0f) // wrong type: dropped, no crash
+    }
+
     /** An older version restores a newer backup by storing the keys it does not know as Long; after the
      *  upgrade the typed Float/Int reads of those keys must not throw on every settings read. */
     @Test

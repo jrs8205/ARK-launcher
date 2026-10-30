@@ -22,6 +22,7 @@
     <string name="settings_two_line_labels">Nombres en dos líneas</string>
     <string name="settings_show_folder_names">Mostrar nombres de carpetas</string>
     <string name="settings_dock_bg">Opacidad del fondo del dock</string>
+    <string name="settings_drawer_bg">Opacidad del fondo del cajón de aplicaciones</string>
     <string name="settings_page_indicator">Indicador de páginas</string>
     <string name="settings_home_page_marker">Marca de la página de inicio</string>
     <string name="settings_page_switch_speed">Velocidad de cambio de página</string>

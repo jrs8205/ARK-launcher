@@ -221,6 +221,15 @@ class AppDrawerScreenTest {
         compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).assertDoesNotExist()
     }
 
+    /** Issue #21: the drawer's surface takes the background opacity setting; solid by default. */
+    @Test fun theDrawerSurfaceFollowsTheBackgroundOpacitySetting() {
+        show()
+        awaitState("the default opacity") { it.backgroundOpacity == 1f }
+
+        runBlocking { wiring.settingsRepository.setDrawerBackgroundOpacity(0.6f) }
+        awaitState("the chosen opacity") { it.backgroundOpacity == 0.6f }
+    }
+
     /** Issue #17: with "Show folder names" off the drawer's folder tiles carry no name. */
     @Test fun theFolderTileHidesItsNameWhenTheSettingIsOff() {
         runBlocking {

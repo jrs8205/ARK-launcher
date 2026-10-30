@@ -254,6 +254,7 @@ fun AppDrawerScreen(
     ExpressiveTheme {
     AppDrawerContent(
         apps = uiState.apps,
+        backgroundOpacity = uiState.backgroundOpacity,
         frequentApps = uiState.frequentApps,
         folders = uiState.folders,
         query = uiState.query,
@@ -409,6 +410,8 @@ internal const val ADD_APPS_ROW_TAG = "add-apps-row"
 @Composable
 private fun AppDrawerContent(
     apps: List<AppItem>,
+    /** The surface's opacity over the wallpaper (issue #21): 1 = the solid drawer. */
+    backgroundOpacity: Float,
     frequentApps: List<AppItem>,
     folders: List<DrawerFolderUi>,
     query: String,
@@ -497,7 +500,7 @@ private fun AppDrawerContent(
         }
     }
 
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface.copy(alpha = backgroundOpacity)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

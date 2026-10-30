@@ -19,6 +19,8 @@ data class LauncherSettings(
     /** The name under an app-drawer folder's tile; off keeps the tile alone. Labels off hide it too. */
     val showDrawerFolderNames: Boolean = true,
     val dockBackgroundOpacity: Float = DEFAULT_DOCK_BACKGROUND,
+    /** Opacity of the app drawer's background (0 = the wallpaper shows through, 1 = solid); issue #21. */
+    val drawerBackgroundOpacity: Float = DEFAULT_DRAWER_BACKGROUND,
     val showPageIndicator: Boolean = true,
     /** How the page dots mark the home page: a ring around its dot ([MARKER_RING]) or a house glyph
      *  in place of the dot ([MARKER_HOUSE]). */
@@ -142,5 +144,8 @@ data class LauncherSettings(
 
         /** [dockBackgroundOpacity] out of the box: a light tint that sets the dock off the wallpaper. */
         const val DEFAULT_DOCK_BACKGROUND = 0.35f
+
+        /** [drawerBackgroundOpacity] out of the box: solid, the drawer as it always was. */
+        const val DEFAULT_DRAWER_BACKGROUND = 1f
     }
 }

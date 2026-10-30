@@ -101,6 +101,7 @@ class SettingsRepository @Inject constructor(
             showHomeFolderNames = p[Keys.SHOW_HOME_FOLDER_NAMES] ?: true,
             showDrawerFolderNames = p[Keys.SHOW_DRAWER_FOLDER_NAMES] ?: true,
             dockBackgroundOpacity = (p[Keys.DOCK_OPACITY] ?: 0.35f).coerceIn(0f, 1f),
+            drawerBackgroundOpacity = (p[Keys.DRAWER_OPACITY] ?: LauncherSettings.DEFAULT_DRAWER_BACKGROUND).coerceIn(0f, 1f),
             showPageIndicator = p[Keys.SHOW_PAGE_INDICATOR] ?: true,
             homePageMarker = (p[Keys.HOME_PAGE_MARKER] ?: LauncherSettings.MARKER_RING)
                 .let { if (it == LauncherSettings.MARKER_HOUSE) it else LauncherSettings.MARKER_RING },
@@ -400,6 +401,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setShowHomeFolderNames(value: Boolean) = edit { it[Keys.SHOW_HOME_FOLDER_NAMES] = value }
     suspend fun setShowDrawerFolderNames(value: Boolean) = edit { it[Keys.SHOW_DRAWER_FOLDER_NAMES] = value }
     suspend fun setDockBackgroundOpacity(value: Float) = edit { it[Keys.DOCK_OPACITY] = value.coerceIn(0f, 1f) }
+    suspend fun setDrawerBackgroundOpacity(value: Float) = edit { it[Keys.DRAWER_OPACITY] = value.coerceIn(0f, 1f) }
     suspend fun setShowPageIndicator(value: Boolean) = edit { it[Keys.SHOW_PAGE_INDICATOR] = value }
     /** Home-page marker style of the page dots (see LauncherSettings.MARKER_*). */
     suspend fun setHomePageMarker(style: String) = edit { it[Keys.HOME_PAGE_MARKER] = style }
@@ -666,6 +668,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_HOME_FOLDER_NAMES = booleanPreferencesKey("show_home_folder_names")
         val SHOW_DRAWER_FOLDER_NAMES = booleanPreferencesKey("show_drawer_folder_names")
         val DOCK_OPACITY = floatPreferencesKey("dock_opacity")
+        val DRAWER_OPACITY = floatPreferencesKey("drawer_opacity")
         val SHOW_PAGE_INDICATOR = booleanPreferencesKey("show_page_indicator")
         val HOME_PAGE_MARKER = stringPreferencesKey("home_page_marker")
         val PAGE_SWITCH_SPEED = stringPreferencesKey("page_switch_speed")
@@ -742,7 +745,8 @@ class SettingsRepository @Inject constructor(
 
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf(
-            "dock_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "status_bar_scrim", "long_press_scale",
+            "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "status_bar_scrim",
+            "long_press_scale",
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",

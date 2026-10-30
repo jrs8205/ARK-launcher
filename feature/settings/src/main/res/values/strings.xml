@@ -22,6 +22,7 @@
     <string name="settings_two_line_labels">Two-line labels</string>
     <string name="settings_show_folder_names">Show folder names</string>
     <string name="settings_dock_bg">Dock background opacity</string>
+    <string name="settings_drawer_bg">App drawer background opacity</string>
     <string name="settings_page_indicator">Page dots</string>
     <string name="settings_home_page_marker">Home page marker</string>
     <string name="settings_page_switch_speed">Page switch speed</string>

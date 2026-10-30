@@ -22,6 +22,7 @@
     <string name="settings_two_line_labels">Nimet kahdella rivillä</string>
     <string name="settings_show_folder_names">Näytä kansioiden nimet</string>
     <string name="settings_dock_bg">Dockin taustan läpinäkyvyys</string>
+    <string name="settings_drawer_bg">Sovellusvalikon taustan läpinäkyvyys</string>
     <string name="settings_page_indicator">Sivupisteet</string>
     <string name="settings_home_page_marker">Kotisivun merkki</string>
     <string name="settings_page_switch_speed">Sivunvaihdon nopeus</string>

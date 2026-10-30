@@ -251,6 +251,7 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
                 SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
                 SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
+                DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_hidden_apps),
                     description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
@@ -1108,6 +1109,20 @@ internal fun DockBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
         valueRange = 0f..1f,
         valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
         default = LauncherSettings.DEFAULT_DOCK_BACKGROUND,
+    )
+}
+
+/** The app drawer's background opacity (issue #21): the dock row's twin, solid by default. */
+@Composable
+internal fun DrawerBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_drawer_bg),
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = 0f..1f,
+        valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
+        default = LauncherSettings.DEFAULT_DRAWER_BACKGROUND,
     )
 }
 

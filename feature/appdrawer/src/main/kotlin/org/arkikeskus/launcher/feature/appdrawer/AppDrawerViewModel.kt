@@ -73,6 +73,8 @@ data class AppDrawerUiState(
     /** The name under a folder tile (issue #17); labels off hide it too. */
     val showFolderNames: Boolean = true,
     val showSearch: Boolean = true,
+    /** The drawer surface's opacity over the wallpaper (settings, issue #21). */
+    val backgroundOpacity: Float = 1f,
     val badges: Map<String, Int> = emptyMap(),
     val showNotificationDots: Boolean = true,
     val notificationDotCount: Boolean = true,
@@ -157,6 +159,7 @@ class AppDrawerViewModel @Inject constructor(
             showLabels = settings.showDrawerLabels,
             showFolderNames = settings.showDrawerFolderNames,
             showSearch = settings.showDrawerSearch,
+            backgroundOpacity = settings.drawerBackgroundOpacity,
             showNotificationDots = settings.showNotificationDots,
             notificationDotCount = settings.notificationDotCount,
             notificationDotScale = settings.notificationDotScale,
