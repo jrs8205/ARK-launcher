@@ -751,11 +751,17 @@ fun HomeScreen(
             }
         }
 
-        // A dock folder on its way to the home grid: the shell draws only app icons, so its floating
-        // copy is drawn here, following the finger's root position, above the workspace and the dock.
+        // A lifted folder on the move: a dock folder on its way to the grid, or a home folder on its
+        // way to the dock. The shell draws only app icons, and the grid's own copy would be covered by
+        // the dock (composed after it) right at the drop zone, so the floating copy is drawn here,
+        // following the finger's root position, above the workspace and the dock.
+        val liftedFolderSource = dragController.source
         val liftedDockFolder = dragController.draggedFolderId
-            ?.takeIf { dragController.source == DragSource.Dock && dragController.moving }
-            ?.let { id -> uiState.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == id }?.folder }
+            ?.takeIf { dragController.moving && (liftedFolderSource == DragSource.Dock || liftedFolderSource == DragSource.Home) }
+            ?.let { id ->
+                uiState.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == id }?.folder
+                    ?: uiState.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == id }
+            }
         if (liftedDockFolder != null) {
             val sizeDp = 56.dp * settings.iconScale
             val halfPx = with(LocalDensity.current) { (sizeDp / 2).toPx() }
@@ -778,7 +784,10 @@ fun HomeScreen(
                 FolderIcon(
                     name = liftedDockFolder.name,
                     apps = liftedDockFolder.apps,
-                    showLabel = false,
+                    // The copy looks like the tile it left: with its label on home, without in the dock.
+                    showLabel = liftedFolderSource == DragSource.Home && settings.showHomeLabels,
+                    showName = settings.showHomeFolderNames,
+                    labelColor = Color(settings.appLabelColor),
                     badgeCount = 0,
                     badgeShowCount = false,
                     size = 52.dp * settings.iconScale,

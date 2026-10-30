@@ -1718,7 +1718,9 @@ internal fun Workspace(
         // The floating dragged *app icon* is drawn by LauncherShell (above the workspace, dock and the
         // drawer) so it can travel across surfaces. A dragged folder/shortcut never leaves the grid, so
         // its floating preview is drawn here locally, following the finger ([localDragPos], grid coords).
-        val dl = draggingLocal
+        // A folder's copy is the host's (HomeScreen draws it above the dock too, where this one would
+        // be covered right at the drop zone); a shortcut never leaves the grid, so its copy stays here.
+        val dl = draggingLocal?.takeUnless { it is PlacedFolder }
         if (dl != null && localMoving) {
             Box(
                 modifier = Modifier
