@@ -296,7 +296,7 @@ fun AppDrawerScreen(
         val inDock = app.key in uiState.dockKeys
         // A full visible dock can't show another favorite — offering "Add to dock" would appear to
         // do nothing (the new favorite lands in the invisible hidden tail). Hide the add action then.
-        val dockFull = uiState.dockKeys.size >= uiState.dockColumns
+        val dockFull = uiState.dockKeys.size + uiState.dockFolders >= uiState.dockColumns
         // Anchor to the icon's edge (not its centre) so the popup clears it with a small gap: below
         // the cell for top-half icons, above it for bottom-half ones.
         val preferAbove = bounds.center.y > windowHeightPx / 2

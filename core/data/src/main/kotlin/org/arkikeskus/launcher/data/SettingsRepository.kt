@@ -264,11 +264,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setLockSoundUri(uri: String) = edit { it[Keys.LOCK_SOUND_URI] = uri }
     suspend fun setUnlockSoundUri(uri: String) = edit { it[Keys.UNLOCK_SOUND_URI] = uri }
 
-    /** Ordered list of dock favorite app keys (see AppItem.key). */
-    val dockFavorites: Flow<List<String>> = dataStore.data.map { p ->
-        p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
-    }
-
     /** App keys hidden from the app drawer (see AppItem.key). */
     val hiddenApps: Flow<Set<String>> = dataStore.data.map { p ->
         p[Keys.HIDDEN_APPS]?.split("\n")?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()
@@ -477,65 +472,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setStatusBarScrimOpacity(value: Float) =
         edit { it[Keys.STATUS_BAR_SCRIM] = value.coerceIn(0f, 1f) }
 
-    suspend fun addToDock(key: String) = edit { p ->
-        val current = currentFavorites(p).toMutableList()
-        if (key !in current) current.add(key)
-        p[Keys.DOCK_FAVORITES] = current.joinToString("\n")
-    }
-
-    suspend fun removeFromDock(key: String) = edit { p ->
-        val current = currentFavorites(p).toMutableList()
-        current.remove(key)
-        p[Keys.DOCK_FAVORITES] = current.joinToString("\n")
-    }
-
-    /** Drops every dock favourite of (package, profile): the app was uninstalled. */
-    suspend fun removeDockPackage(packageName: String, userSerial: Long) = edit { p ->
-        val current = currentFavorites(p)
-        val kept = current.filterNot { key ->
-            val parts = key.split('/')
-            parts.size == 3 && parts[0] == packageName && parts[2].toLongOrNull() == userSerial
-        }
-        if (kept.size != current.size) p[Keys.DOCK_FAVORITES] = kept.joinToString("\n")
-    }
-
-    /**
-     * Inserts [key] into the dock favorites at [index] (clamped), used when an icon is dragged into
-     * the dock. Any existing occurrence is removed first, so this also re-positions a key already in
-     * the dock and never creates duplicates.
-     *
-     * The dock shows only favorites whose app resolves, so the drop index counts those. Given the
-     * [resolvableKeys], [index] is read in that shown order and the key lands right before the shown
-     * favorite at that position (or right after the last shown one); without it, [index] is a raw
-     * position and uninstalled favorites in between shift the drop.
-     */
-    suspend fun addToDockAt(key: String, index: Int, resolvableKeys: Set<String>? = null) = edit { p ->
-        val current = currentFavorites(p).toMutableList()
-        current.remove(key)
-        val at = if (resolvableKeys == null) {
-            index.coerceIn(0, current.size)
-        } else {
-            val shown = current.indices.filter { current[it] in resolvableKeys }
-            val i = index.coerceIn(0, shown.size)
-            if (i < shown.size) shown[i] else (shown.lastOrNull()?.plus(1) ?: 0)
-        }
-        current.add(at, key)
-        p[Keys.DOCK_FAVORITES] = current.joinToString("\n")
-    }
-
-    /**
-     * Reorders only the currently visible dock favorites while keeping any favorites hidden by the
-     * `dockColumns` cap. The dock UI only ever sees the first `dockColumns` keys, so it must not be
-     * allowed to overwrite the full list — the hidden tail is preserved after the new visible order.
-     */
-    suspend fun reorderVisibleDock(visibleKeys: List<String>) = edit { p ->
-        val normalizedVisible = visibleKeys.distinct()
-        val hiddenTail = currentFavorites(p).filter { it !in normalizedVisible }
-        p[Keys.DOCK_FAVORITES] = (normalizedVisible + hiddenTail).joinToString("\n")
-    }
-
-    /** Every app key the settings refer to: dock, hidden apps, custom labels, drawer folders and the
-     *  left-swipe app (see [APP_KEY_PREFS]). */
+    /** Every app key the settings refer to: hidden apps, custom labels and icons, drawer folders,
+     *  the left-swipe and weather apps (see [APP_KEY_PREFS]; the dock is rows since 0.9.7). */
     suspend fun referencedAppKeys(): Set<String> {
         val prefs = dataStore.data.first()
         val keys = LinkedHashSet<String>()
@@ -559,9 +497,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    private fun currentFavorites(p: MutablePreferences): List<String> =
-        p[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
-
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */
     val localLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.LOCAL_LAST_BACKUP] ?: 0L }
 
@@ -584,9 +519,6 @@ class SettingsRepository @Inject constructor(
             else -> null
         }
     suspend fun setFirstRunFresh(fresh: Boolean) = edit { it[Keys.FIRST_RUN_FRESH] = if (fresh) "yes" else "no" }
-
-    /** Replaces the (empty) dock with the first-run default apps — seeding only, not a user API. */
-    suspend fun seedDock(keys: List<String>) = edit { it[Keys.DOCK_FAVORITES] = keys.joinToString("\n") }
 
     /** The dock as versions before 0.9.7 stored it: a favourites key list. Read once at start-up
      *  (and from an older backup file) to turn it into dock rows; empty once migrated. */
@@ -850,7 +782,9 @@ class SettingsRepository @Inject constructor(
         private fun serializeIcons(icons: Map<String, CustomIcon>): String =
             icons.entries.joinToString("\n") { "${it.key}\t${it.value.encode()}" }
 
-        /** Preferences whose values hold app keys ("package/class/userSerial", AppItem.key). */
+        /** Preferences whose values hold app keys ("package/class/userSerial", AppItem.key).
+         *  `dock_favorites` is the dock of versions before 0.9.7, kept here so an older backup
+         *  file's keys are remapped before they become dock rows. */
         val APP_KEY_PREFS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key", "weather_app_key",
         )

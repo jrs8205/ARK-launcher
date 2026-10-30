@@ -62,7 +62,9 @@ data class AppDrawerUiState(
     val query: String = "",
     val columns: Int = 4,
     val dockKeys: Set<String> = emptySet(),
-    /** Visible dock capacity — the drawer hides "Add to dock" once this many favorites exist. */
+    /** Folders in the dock: slots taken like [dockKeys]' apps. */
+    val dockFolders: Int = 0,
+    /** Visible dock capacity — the drawer hides "Add to dock" once this many entries exist. */
     val dockColumns: Int = 4,
     val homeKeys: Set<String> = emptySet(),
     val showLabels: Boolean = true,
@@ -132,17 +134,18 @@ class AppDrawerViewModel @Inject constructor(
         appRepository.apps,
         query,
         settingsRepository.settings,
-        settingsRepository.dockFavorites,
         homeLayoutRepository.homeItems,
-    ) { apps, q, settings, favorites, homeItems ->
-        // Favorites whose app was uninstalled don't render in the dock (HomeViewModel drops them),
-        // so they must not count toward its visible capacity either.
+    ) { apps, q, settings, homeItems ->
+        // Dock rows whose app was uninstalled don't render in the dock (HomeViewModel drops them),
+        // so they must not count toward its visible capacity either; a dock folder always does.
         val installed = apps.mapTo(HashSet()) { it.key }
+        val dockRows = homeItems.filter { it.containerId == HomeItemEntity.DOCK }
         AppDrawerUiState(
             apps = apps,
             query = q,
             columns = settings.drawerColumns,
-            dockKeys = favorites.filterTo(LinkedHashSet()) { it in installed },
+            dockKeys = dockRows.filter { it.isApp && it.key in installed }.mapTo(LinkedHashSet()) { it.key },
+            dockFolders = dockRows.count { it.isFolder },
             dockColumns = settings.dockColumns,
             // Only apps placed directly on home (not folder rows or apps inside folders).
             homeKeys = homeItems
@@ -264,9 +267,9 @@ class AppDrawerViewModel @Inject constructor(
             .onFailure { Log.w("AppDrawerViewModel", "Failed to launch ${appItem.key}", it) }
             .isSuccess
 
-    fun addToDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.addToDock(appItem.key) }
+    fun addToDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
 
-    fun removeFromDock(appItem: AppItem) = viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
+    fun removeFromDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
 
     fun addToHome(appItem: AppItem) = viewModelScope.launch {
         val s = settingsRepository.settings.first()

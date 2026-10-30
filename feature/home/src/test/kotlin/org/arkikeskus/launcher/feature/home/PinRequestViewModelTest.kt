@@ -297,12 +297,13 @@ class PinRequestViewModelTest {
      *  taller dock, a shorter grid. The measured cell is not that grid's. */
     @Test
     fun aDockCutToFewerLargerIconsWhileHomeWasAwayIsNotMeasuredOnTheOldGrid() {
-        val seven = (1..7).map { "com.app$it/Main/0" }
         runBlocking {
             settings.setHomeColumns(4)
             settings.setHomeRows(6)
             settings.setShowDockLabels(true)
-            settings.seedDock(seven)
+            for (i in 1..7) {
+                dao.insert(HomeItemEntity(containerId = HomeItemEntity.DOCK, packageName = "com.app$i", className = "Main", page = 0, cellX = i - 1, cellY = 0))
+            }
             settings.setDockColumns(7)
         }
         val measured = runBlocking { settings.settings.first() }

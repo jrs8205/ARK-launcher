@@ -26,7 +26,6 @@ class SettingsAppKeysTest {
     @Test
     fun `renameAppKeys rewrites every setting that refers to an app`() = runTest {
         val repo = SettingsRepository(InMemoryDataStore())
-        listOf("x/x.M/0", "a/a.Old/0", "a/a.New/0").forEach { repo.addToDock(it) }
         repo.setAppHidden("a/a.Old/0", true)
         repo.setCustomLabel("a/a.Old/0", "Mail")
         repo.setCustomLabel("x/x.M/0", "X")
@@ -34,12 +33,10 @@ class SettingsAppKeysTest {
         repo.addAppsToDrawerFolder(folder, listOf("a/a.Old/0", "x/x.M/0"))
         repo.setLeftSwipeAppKey("a/a.Old/0")
         repo.setWeatherAppKey("w/w.Old/0")
-        assertThat(repo.referencedAppKeys()).containsExactly("x/x.M/0", "a/a.Old/0", "a/a.New/0", "w/w.Old/0")
+        assertThat(repo.referencedAppKeys()).containsExactly("a/a.Old/0", "x/x.M/0", "w/w.Old/0")
 
         repo.renameAppKeys(mapOf("a/a.Old/0" to "a/a.New/0", "w/w.Old/0" to "w/w.New/0"))
 
-        // The dock already held the new key: the renamed entry collapses into it, nothing duplicates.
-        assertThat(repo.dockFavorites.first()).containsExactly("x/x.M/0", "a/a.New/0").inOrder()
         assertThat(repo.hiddenApps.first()).containsExactly("a/a.New/0")
         assertThat(repo.customLabels.first()).containsExactly("a/a.New/0", "Mail", "x/x.M/0", "X")
         assertThat(repo.drawerFolders.first().single().appKeys).containsExactly("a/a.New/0", "x/x.M/0").inOrder()

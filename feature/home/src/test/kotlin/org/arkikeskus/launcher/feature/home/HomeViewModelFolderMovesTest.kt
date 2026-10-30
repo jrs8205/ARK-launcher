@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.HomeNotice
@@ -91,7 +92,7 @@ class HomeViewModelFolderMovesTest {
         }
     }
 
-    @Test fun movingAFolderAppToTheDockAddsItFirstThenRemovesTheChild() = runTest {
+    @Test fun movingAFolderAppToTheDockMakesItsChildRowTheDockRow() = runTest {
         val wiring = ProductionWiring(context, this)
         try {
             val folderId = wiring.pairFolder()
@@ -100,7 +101,7 @@ class HomeViewModelFolderMovesTest {
             viewModel.moveFolderAppToDock(a, folderId)
 
             awaitUntil("the child to go") { wiring.dao.getByKey(folderId, a.packageName, a.className, a.userSerial) == null }
-            assertThat(wiring.settingsRepository.dockFavorites.first()).contains(a.key)
+            assertThat(wiring.dao.getByKey(DOCK, a.packageName, a.className, a.userSerial)).isNotNull()
             assertThat(wiring.dao.getById(folderId)).isNull()
             val rowB = wiring.homeRow(b)!!
             assertThat(rowB.cellX to rowB.cellY).isEqualTo(0 to 0)
@@ -121,7 +122,7 @@ class HomeViewModelFolderMovesTest {
             awaitUntil("the folder to dissolve") { wiring.dao.getById(folderId) == null }
             val rowB = wiring.homeRow(b)!!
             assertThat(rowB.cellX to rowB.cellY).isEqualTo(0 to 0)
-            assertThat(wiring.settingsRepository.dockFavorites.first()).doesNotContain(a.key)
+            assertThat(wiring.dao.getByKey(DOCK, a.packageName, a.className, a.userSerial)).isNull()
             assertThat(wiring.homeRow(a)).isNull()
             wiring.clear(viewModel)
         } finally {

@@ -3,9 +3,14 @@ package org.arkikeskus.launcher.feature.home
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
+import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.os.Looper
+import android.os.Process
+import android.os.UserHandle
 import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +39,8 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.launcher.system.SignalMonitor
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.util.ReflectionHelpers
+import org.robolectric.util.ReflectionHelpers.ClassParameter.from
 import java.io.File
 import javax.inject.Provider
 import kotlin.jvm.functions.Function0
@@ -131,4 +138,41 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         dataStoreScope.cancel()
         db.javaClass.getMethod("close").invoke(db)
     }
+}
+
+/**
+ * Lists an app ([packageName], [label], launcher activity [className]) in the test device's
+ * LauncherApps, installed and enabled, so a [ProductionWiring] built AFTER this call lists it from
+ * its first query (the app list is queried eagerly, so add apps before the wiring). The two hidden
+ * constructors are the API 33+ shape (`LauncherActivityInfoInternal(ActivityInfo,
+ * IncrementalStatesInfo, UserHandle)`); the label is non-localized so no resource lookup runs.
+ */
+internal fun installFakeApp(context: Context, packageName: String, label: String, className: String = "$packageName.Main") {
+    val user: UserHandle = Process.myUserHandle()
+    val applicationInfo = ApplicationInfo().apply {
+        this.packageName = packageName
+        flags = ApplicationInfo.FLAG_INSTALLED
+    }
+    val activityInfo = ActivityInfo().apply {
+        this.packageName = packageName
+        name = className
+        nonLocalizedLabel = label
+        this.applicationInfo = applicationInfo
+    }
+    val internalClass = Class.forName("android.content.pm.LauncherActivityInfoInternal")
+    val internal: Any = ReflectionHelpers.callConstructor(
+        internalClass,
+        from(ActivityInfo::class.java, activityInfo),
+        from(Class.forName("android.content.pm.IncrementalStatesInfo"), null),
+        from(UserHandle::class.java, user),
+    )
+    val info: LauncherActivityInfo = ReflectionHelpers.callConstructor(
+        LauncherActivityInfo::class.java,
+        from(Context::class.java, context),
+        from(internalClass, internal),
+    )
+    val launcherApps = shadowOf(context.getSystemService(LauncherApps::class.java))
+    launcherApps.addApplicationInfo(user, packageName, applicationInfo)
+    launcherApps.addEnabledPackage(user, packageName)
+    launcherApps.addActivity(user, info)
 }

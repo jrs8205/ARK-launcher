@@ -482,8 +482,8 @@ fun HomeScreen(
     // Created by LauncherShell and passed in so the app drawer can drag onto home; falls back to a
     // local one when HomeScreen is used standalone (previews/tests).
     SideEffect {
-        dragController.dockItemCount = uiState.dockApps.size
-        dragController.dockHasSpace = settings.dockEnabled && uiState.dockApps.size < settings.dockColumns
+        dragController.dockItemCount = uiState.dockEntries.size
+        dragController.dockHasSpace = settings.dockEnabled && uiState.dockEntries.size < settings.dockColumns
     }
     // A drag that starts moving dismisses the menu (so the menu and drop bar never coexist).
     LaunchedEffect(dragController.moving) {
@@ -680,7 +680,7 @@ fun HomeScreen(
                 widgetScrollableById = widgetScrollableById,
                 widgetSizeReporter = widgetSizeReporter,
                 drawerOpen = drawerOpen,
-                chrome = workspaceChrome(settings, uiState.pageCount, LocalDensity.current.fontScale, uiState.dockApps.size),
+                chrome = workspaceChrome(settings, uiState.pageCount, LocalDensity.current.fontScale, uiState.dockEntries.size),
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -690,8 +690,10 @@ fun HomeScreen(
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
             // can be populated by dragging apps onto it (there is no "add to dock" menu item).
             if (settings.dockEnabled) {
+                // Until the dock draws folder tiles, its slots are the apps among the entries.
+                val dockApps = uiState.dockEntries.filterIsInstance<DockApp>()
                 Dock(
-                    apps = uiState.dockApps,
+                    apps = dockApps.map { it.app },
                     badges = badges,
                     badgeShowCount = badgeShowCount,
                     badgeScale = badgeScale,
@@ -701,7 +703,10 @@ fun HomeScreen(
                     locked = settings.desktopLocked,
                     dragController = dragController,
                     onAppClick = launchApp,
-                    onReorder = viewModel::reorderDock,
+                    onReorder = { apps ->
+                        val byKey = dockApps.associateBy { it.app.key }
+                        viewModel.reorderDock(apps.mapNotNull { byKey[it.key] })
+                    },
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName) },
                     onRemoveFromDock = { viewModel.removeFromDock(it) },
                     onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
@@ -716,6 +721,7 @@ fun HomeScreen(
         // composed before the remove pill so the pill draws over the fading card.
         val openFolder = openFolderId?.let { id ->
             uiState.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == id }
+                ?: uiState.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == id }?.folder
         }
         // Close the card if the folder dissolved (dropped to one app) while it was open.
         LaunchedEffect(openFolderId, openFolder == null) {

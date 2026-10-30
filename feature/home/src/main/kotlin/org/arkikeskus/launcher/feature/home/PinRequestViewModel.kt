@@ -150,9 +150,9 @@ class PinRequestViewModel @Inject constructor(
         val fontScale = context.resources.configuration.fontScale
         // The page count the home screen shows for these rows (its dots are part of the chrome).
         val pages = permanentPageCount(rows.filter { it.containerId == HomeItemEntity.HOME }.mapTo(HashSet()) { it.page }, settings.homePageCount)
-        // The dock shows its favourites up to its columns; one it skips (no longer installed) makes
+        // The dock shows its rows up to its columns; one it skips (no longer installed) makes
         // this count differ from the home screen's, and the estimate stand in for its cell.
-        val dockIcons = minOf(settingsRepository.dockFavorites.first().size, settings.dockColumns)
+        val dockIcons = minOf(rows.count { it.containerId == HomeItemEntity.DOCK }, settings.dockColumns)
         val now = workspaceChrome(settings, pages, fontScale, dockIcons)
         val decided = decideOn(request, settings, rows, now)
         val page = (decided.decision as? PinDecision.Confirm)?.page ?: return decided

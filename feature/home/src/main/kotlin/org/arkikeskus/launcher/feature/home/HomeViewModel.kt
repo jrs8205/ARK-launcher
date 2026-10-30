@@ -42,6 +42,7 @@ import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.AppShortcuts
+import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeNotice
 import javax.inject.Inject
 
@@ -158,9 +159,27 @@ data class PlacedBuiltin(
     val spanY: Int,
 ) : HomeEntry
 
+/** A dock slot's content: an app or a folder, [rowId] being its home_items row (the dock's order key). */
+sealed interface DockEntry {
+    val rowId: Long
+}
+
+/** An app in a dock slot. */
+data class DockApp(override val rowId: Long, val app: AppItem) : DockEntry
+
+/** A folder in a dock slot: [folder] at page [DOCK_PAGE], cellX = the slot, so the same card,
+ *  icon and rename paths serve it as a home folder. */
+data class DockFolder(val folder: PlacedFolder) : DockEntry {
+    override val rowId: Long get() = folder.id
+}
+
+/** The [PlacedFolder.page] of a folder that sits in the dock, not on a home page. */
+const val DOCK_PAGE = -1
+
 data class HomeUiState(
     val settings: LauncherSettings = LauncherSettings(),
-    val dockApps: List<AppItem> = emptyList(),
+    /** The dock's slots in order, cut to the dock's columns (rows past them are a hidden tail). */
+    val dockEntries: List<DockEntry> = emptyList(),
     val entries: List<HomeEntry> = emptyList(),
     val pageCount: Int = 1,
     /** The page HOME returns to, clamped to the pages that exist. */
@@ -214,6 +233,13 @@ class HomeViewModel @Inject constructor(
         // the intro. Device-local flags so removing items never re-seeds, and updating users
         // (non-empty home) get the flags silently without any of it.
         viewModelScope.launch {
+            // Versions before 0.9.7 kept the dock as a favourites key list: rows first, the key
+            // only once they exist (a death in between re-runs this, and the rows are skipped).
+            val legacyDock = settingsRepository.legacyDockFavorites()
+            if (legacyDock.isNotEmpty()) {
+                homeLayoutRepository.migrateDockFavorites(legacyDock)
+                settingsRepository.clearLegacyDockFavorites()
+            }
             val seeded = settingsRepository.defaultLayoutSeededOnce()
             val onboarded = settingsRepository.onboardingDoneOnce()
             if (seeded && onboarded) return@launch
@@ -240,8 +266,9 @@ class HomeViewModel @Inject constructor(
                     // The app list needs a beat on a cold start; a fresh device always has apps.
                     val apps = appRepository.apps.first { it.isNotEmpty() }
                     val dockKeys = resolveDefaultDockKeys(context, apps)
-                    if (dockKeys.isNotEmpty() && settingsRepository.dockFavorites.first().isEmpty()) {
-                        settingsRepository.seedDock(dockKeys)
+                    if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
+                        val byKey = apps.associateBy { it.key }
+                        homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
                         // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
                         if (dockKeys.size > settings.dockColumns) {
                             settingsRepository.setDockColumns(dockKeys.size)
@@ -281,18 +308,14 @@ class HomeViewModel @Inject constructor(
         // was destroyed behind Settings — and by then the app can be back: reinstalled, with a
         // shortcut pinned through the confirmation, which runs without a ViewModel. So rows go only
         // while the app is still gone; the check is fail-safe (an app it cannot judge keeps its rows).
-        // The dock favourite goes with the rows (Launcher3 drops hotseat items on uninstall too): a
-        // favourite kept for a gone app showed as an empty slot the user then filled, and when the
-        // app came back the list ran past the column cap: the last icon fell off the dock, and off
-        // home. Never pruned at start-up: a restored phone holds favourites Play has yet to install.
+        // The dock row goes with the home rows (Launcher3 drops hotseat items on uninstall too): a
+        // slot kept for a gone app showed empty, the user filled it, and when the app came back the
+        // dock ran past the column cap: the last icon fell off the dock, and off home.
         viewModelScope.launch {
             appRepository.packageRemovals.collect { removed ->
                 removed.forEach { (pkg, serial) ->
                     val stillGone = withContext(Dispatchers.IO) { !appRepository.isAppInstalled(pkg, serial) }
-                    if (stillGone) {
-                        homeLayoutRepository.removeAppRowsForPackage(pkg, serial)
-                        settingsRepository.removeDockPackage(pkg, serial)
-                    }
+                    if (stillGone) homeLayoutRepository.removeAppRowsForPackage(pkg, serial)
                 }
             }
         }
@@ -341,19 +364,37 @@ class HomeViewModel @Inject constructor(
 
     val uiState: StateFlow<HomeUiState> = combine(
         settingsRepository.settings,
-        settingsRepository.dockFavorites,
         appRepository.apps,
         // A new cache generation re-runs this with the same rows, re-resolving what was invalidated.
         homeLayoutRepository.homeItems.combine(shortcutCache.generation) { items, _ -> items }
             .combine(settingsRepository.folderIcons) { items, icons -> items to icons },
         notificationBadgeRepository.badges,
-    ) { settings, favoriteKeys, apps, (homeItems, folderIcons), badges ->
+    ) { settings, apps, (homeItems, folderIcons), badges ->
         val byKey = apps.associateBy { it.key }
-        val dockApps = favoriteKeys.mapNotNull { byKey[it] }.take(settings.dockColumns)
         // Children grouped by their folder id, kept in stored order.
         val childrenByFolder = homeItems
-            .filter { it.containerId != HomeItemEntity.HOME }
+            .filter { it.containerId != HomeItemEntity.HOME && it.containerId != HomeItemEntity.DOCK }
             .groupBy { it.containerId }
+        // distinctBy: a duplicate child row (old data from before the merge fix, or an edited
+        // backup) must never reach the folder grid's app-key lazy keys.
+        fun folderApps(folderId: Long) = childrenByFolder[folderId].orEmpty().mapNotNull { byKey[it.key] }.distinctBy { it.key }
+        // The dock: its rows in slot order, an app that no longer resolves skipped, cut to the columns.
+        val dockEntries = homeItems
+            .filter { it.containerId == HomeItemEntity.DOCK }
+            .sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
+            .mapNotNull { row ->
+                when {
+                    row.isFolder -> DockFolder(
+                        PlacedFolder(
+                            row.id, row.folderName.orEmpty(), folderApps(row.id), DOCK_PAGE, row.cellX, 0,
+                            icon = folderIcons[FolderIconKey.home(row.id)],
+                        ),
+                    )
+                    row.isApp -> byKey[row.key]?.let { DockApp(row.id, it) }
+                    else -> null
+                }
+            }
+            .take(settings.dockColumns)
         // Resolve any not-yet-cached pinned shortcuts (label, icon, state) off the main thread. This
         // pass shows what it resolved even when a racing change kept it out of the cache — the retry
         // pass that the cache requested then replaces it.
@@ -380,17 +421,10 @@ class HomeViewModel @Inject constructor(
                         page = row.page, cellX = row.cellX, cellY = row.cellY,
                         spanX = row.spanX, spanY = row.spanY,
                     )
-                    row.isFolder -> {
-                        // distinctBy: a duplicate child row (old data from before the merge fix, or
-                        // an edited backup) must never reach the folder grid's app-key lazy keys.
-                        val folderApps = childrenByFolder[row.id].orEmpty()
-                            .mapNotNull { byKey[it.key] }
-                            .distinctBy { it.key }
-                        PlacedFolder(
-                            row.id, row.folderName.orEmpty(), folderApps, row.page, row.cellX, row.cellY,
-                            icon = folderIcons[FolderIconKey.home(row.id)],
-                        )
-                    }
+                    row.isFolder -> PlacedFolder(
+                        row.id, row.folderName.orEmpty(), folderApps(row.id), row.page, row.cellX, row.cellY,
+                        icon = folderIcons[FolderIconKey.home(row.id)],
+                    )
                     row.isShortcut -> {
                         resolvedShortcuts[PinnedShortcutCache.Key(row.packageName, row.shortcutId!!, row.userSerial)]?.let { r ->
                             PlacedShortcut(
@@ -445,7 +479,7 @@ class HomeViewModel @Inject constructor(
         val pageCount = permanentPageCount(occupied, settings.homePageCount)
         HomeUiState(
             settings = settings,
-            dockApps = dockApps,
+            dockEntries = dockEntries,
             entries = entries,
             pageCount = pageCount,
             homePage = settings.homePage.coerceIn(0, pageCount - 1),
@@ -595,17 +629,50 @@ class HomeViewModel @Inject constructor(
     /** Device-local ids of all bound widgets (for the startup AppWidgetHost id reconcile). */
     suspend fun boundWidgetIds(): Set<Int> = homeLayoutRepository.boundWidgetIds()
 
-    fun reorderDock(newOrder: List<AppItem>) =
-        viewModelScope.launch { settingsRepository.reorderVisibleDock(newOrder.map { it.key }) }
+    /** The dock's shown slots in their new order; rows the column cap hides keep their place after them. */
+    fun reorderDock(newOrder: List<DockEntry>) =
+        viewModelScope.launch { homeLayoutRepository.reorderDock(newOrder.map { it.rowId }) }
 
     fun removeFromHome(appItem: AppItem) =
         viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 
     fun addToDock(appItem: AppItem) =
-        viewModelScope.launch { settingsRepository.addToDock(appItem.key) }
+        viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
 
     fun removeFromDock(appItem: AppItem) =
-        viewModelScope.launch { settingsRepository.removeFromDock(appItem.key) }
+        viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
+
+    /** The keys the dock shows (its rows that resolve), for a drop index counted over shown slots. */
+    private suspend fun shownDockKeys(): Set<String> = appRepository.apps.first().mapTo(HashSet()) { it.key }
+
+    /** The home_items container the dragged app's row is in, for a drop onto a dock app or folder:
+     *  null for the drawer (no row). [openFolderId] is the folder whose card the drag left, if any. */
+    fun dockDropContainer(source: DragSource, openFolderId: Long?): Long? = when (source) {
+        DragSource.Home -> HomeItemEntity.HOME
+        DragSource.Dock -> HomeItemEntity.DOCK
+        DragSource.Folder -> openFolderId
+        DragSource.Drawer -> null
+    }
+
+    /** [dropped] dropped onto the dock app [target]: the slot becomes a folder of the two. */
+    fun createDockFolder(target: AppItem, dropped: AppItem, fromContainer: Long?, name: String) =
+        viewModelScope.launch {
+            withContext(NonCancellable) { homeLayoutRepository.createDockFolder(target, dropped, fromContainer, name) }
+        }
+
+    /** [appItem] dropped onto the dock folder [folderId]: joins it. */
+    fun addToDockFolder(appItem: AppItem, folderId: Long, fromContainer: Long?) = viewModelScope.launch {
+        withContext(NonCancellable) { homeLayoutRepository.addToDockFolder(appItem, folderId, fromContainer) }
+    }
+
+    /** A home folder dropped between dock tiles at [index]. */
+    fun moveFolderToDock(folderId: Long, index: Int) = viewModelScope.launch {
+        withContext(NonCancellable) { homeLayoutRepository.moveFolderToDock(folderId, index, shownDockKeys()) }
+    }
+
+    /** A dock folder dropped on a home cell; false (nothing changed) unless the cell is free. */
+    suspend fun moveDockFolderToHome(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
+        homeLayoutRepository.moveDockFolderToHome(folderId, page, cellX, cellY)
 
     fun addToHome(appItem: AppItem) = viewModelScope.launch {
         val s = settingsRepository.settings.first()
@@ -633,26 +700,24 @@ class HomeViewModel @Inject constructor(
     }
 
     /** Cross-surface: an icon dragged from the dock onto a home cell — place it (an app there makes
-     *  a folder named [folderName], a folder there takes it in) and leave the dock. */
+     *  a folder named [folderName], a folder there takes it in) and leave the dock. One transaction;
+     *  NonCancellable so a ViewModel clear mid-way can't strand the item on both surfaces. */
     fun moveToHome(appItem: AppItem, page: Int, cellX: Int, cellY: Int, folderName: String) = viewModelScope.launch {
         val s = settingsRepository.settings.first()
-        // Add-first so an interruption can only duplicate, never lose; NonCancellable so a
-        // ViewModel clear between the halves can't strand the item on both surfaces.
         withContext(NonCancellable) {
-            when (homeLayoutRepository.placeAt(appItem, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)) {
-                PlaceResult.Placed -> settingsRepository.removeFromDock(appItem.key)
+            when (homeLayoutRepository.moveDockAppToHome(appItem, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)) {
+                PlaceResult.Placed -> Unit
                 PlaceResult.HomeFull -> notify(HomeNotice.HomeFull)
                 PlaceResult.Blocked -> Unit // the icon snaps back to the dock
             }
         }
     }
 
-    /** Cross-surface: a home icon dragged into the dock at [index] — add to dock and leave home. */
+    /** Cross-surface: a home icon dragged into the dock at [index] — its row moves to the dock. */
     fun moveToDock(appItem: AppItem, index: Int) = viewModelScope.launch {
         withContext(NonCancellable) {
-            // [index] counts the dock as shown; favourites that don't resolve are skipped in it.
-            settingsRepository.addToDockAt(appItem.key, index, appRepository.apps.first().mapTo(HashSet()) { it.key })
-            homeLayoutRepository.removeFromHome(appItem)
+            // [index] counts the dock as shown; rows that don't resolve are skipped in it.
+            homeLayoutRepository.moveHomeAppToDock(appItem, index, shownDockKeys())
         }
     }
 
@@ -694,14 +759,10 @@ class HomeViewModel @Inject constructor(
             }
         }
 
-    /** Cross-surface: an app dragged out of its open folder into the dock — add to the dock and
-     *  delete the child row. Add-first so an interruption can only duplicate, never lose; NonCancellable
-     *  so a ViewModel clear between the halves can't strand the app on both surfaces. */
+    /** Cross-surface: an app dragged out of its open folder into the dock — its child row becomes
+     *  a dock row (one transaction; NonCancellable so a ViewModel clear can't strand it). */
     fun moveFolderAppToDock(appItem: AppItem, folderId: Long) = viewModelScope.launch {
-        withContext(NonCancellable) {
-            settingsRepository.addToDock(appItem.key)
-            homeLayoutRepository.removeChild(appItem, folderId)
-        }
+        withContext(NonCancellable) { homeLayoutRepository.moveChildToDock(appItem, folderId) }
     }
 
     /** An app dragged out of its open folder onto the remove pill: it leaves the home screen entirely. */

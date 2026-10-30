@@ -9,6 +9,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,6 +32,13 @@ class HomeViewModelPackageRemovalTest {
 
     private suspend fun ProductionWiring.homeRow(packageName: String): Long =
         dao.insert(HomeItemEntity(packageName = packageName, className = "Main", page = 0, cellX = 0, cellY = 0))
+
+    /** The dock holding [packages] in slot order. */
+    private suspend fun ProductionWiring.dockRows(vararg packages: String) {
+        packages.forEachIndexed { slot, pkg ->
+            dao.insert(HomeItemEntity(containerId = DOCK, packageName = pkg, className = "Main", page = 0, cellX = slot, cellY = 0))
+        }
+    }
 
     private fun installed(packageName: String) {
         launcherApps.addApplicationInfo(Process.myUserHandle(), packageName, ApplicationInfo().also { it.packageName = packageName })
@@ -72,19 +80,19 @@ class HomeViewModelPackageRemovalTest {
         }
     }
 
-    /** The dock keeps a favourite whose app is gone: it showed an empty slot, the user filled it, and
-     *  when the app came back the list ran past the column cap and the last icon fell off the dock
-     *  (and off home). A favourite goes with its app's rows while the app is still gone. */
-    @Test fun aRemovalOfAnAppStillGoneDropsItsDockFavourite() = runTest {
+    /** The dock kept a row whose app is gone: it showed an empty slot, the user filled it, and when
+     *  the app came back the dock ran past the column cap and the last icon fell off the dock (and
+     *  off home). A dock row goes with the home rows while the app is still gone; the slots close. */
+    @Test fun aRemovalOfAnAppStillGoneDropsItsDockRow() = runTest {
         val wiring = ProductionWiring(context, this)
         try {
-            wiring.settingsRepository.seedDock(listOf("com.a/A/0", "com.b/B/0", "com.gone/G/0", "com.c/C/0"))
+            wiring.dockRows("com.a", "com.b", "com.gone", "com.c")
             launcherApps.notifyPackageRemoved("com.gone")
             shadowOf(Looper.getMainLooper()).idle()
 
             val viewModel = wiring.homeViewModel()
-            awaitUntil("the favourite gone") {
-                wiring.settingsRepository.dockFavorites.first() == listOf("com.a/A/0", "com.b/B/0", "com.c/C/0")
+            awaitUntil("the dock row gone") {
+                wiring.dao.getContainerOrdered(DOCK).map { it.packageName to it.cellX } == listOf("com.a" to 0, "com.b" to 1, "com.c" to 2)
             }
 
             wiring.clear(viewModel)
@@ -93,10 +101,10 @@ class HomeViewModelPackageRemovalTest {
         }
     }
 
-    @Test fun aRemovalHandledAfterTheAppCameBackKeepsItsDockFavourite() = runTest {
+    @Test fun aRemovalHandledAfterTheAppCameBackKeepsItsDockRow() = runTest {
         val wiring = ProductionWiring(context, this)
         try {
-            wiring.settingsRepository.seedDock(listOf("com.a/A/0", "com.chat/Main/0"))
+            wiring.dockRows("com.a", "com.chat")
             launcherApps.notifyPackageRemoved("com.chat")
             shadowOf(Looper.getMainLooper()).idle()
             installed("com.chat")
@@ -104,7 +112,7 @@ class HomeViewModelPackageRemovalTest {
             val viewModel = wiring.homeViewModel()
             settle()
 
-            assertThat(wiring.settingsRepository.dockFavorites.first()).containsExactly("com.a/A/0", "com.chat/Main/0").inOrder()
+            assertThat(wiring.dao.getContainerOrdered(DOCK).map { it.packageName }).containsExactly("com.a", "com.chat").inOrder()
             wiring.clear(viewModel)
         } finally {
             wiring.close()

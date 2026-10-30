@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.HomeNotice
@@ -99,7 +100,7 @@ class HomeViewModelNoticesTest {
         val wiring = ProductionWiring(context, this)
         try {
             wiring.fillEveryShownPage()
-            wiring.settingsRepository.addToDock(app.key)
+            wiring.homeLayoutRepository.addToDock(app)
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
@@ -107,7 +108,7 @@ class HomeViewModelNoticesTest {
 
             awaitUntil("the notice") { notices.isNotEmpty() }
             assertThat(notices).containsExactly(HomeNotice.HomeFull)
-            assertThat(wiring.settingsRepository.dockFavorites.first()).contains(app.key)
+            assertThat(wiring.dao.getByKey(DOCK, app.packageName, app.className, app.userSerial)).isNotNull()
             assertThat(wiring.dao.getByKey(HOME, app.packageName, app.className, app.userSerial)).isNull()
             wiring.clear(viewModel)
         } finally {
