@@ -442,9 +442,12 @@ class HomeLayoutRepository @Inject constructor(
      *  No-op when [folderId] is gone or isn't a folder. */
     suspend fun removeFolder(folderId: Long) {
         db.withTransaction {
-            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+            val folder = dao.getById(folderId)?.takeIf { it.isFolder } ?: return@withTransaction
             dao.deleteByContainers(listOf(folderId))
             dao.deleteById(folderId)
+            // A dock folder leaves a slot gap; the next append counts the rows for its slot and would
+            // land on a taken cell (unique index) unless the slots are closed here.
+            if (folder.containerId == DOCK) renumberDock()
         }
     }
 
@@ -453,8 +456,9 @@ class HomeLayoutRepository @Inject constructor(
     /** Appends [app] to the dock. False (nothing stored) when it already has a dock row. */
     suspend fun addToDock(app: AppItem): Boolean = db.withTransaction {
         if (dockRow(app) != null) return@withTransaction false
-        dao.insert(homeApp(app, DOCK, 0, dao.getContainerOrdered(DOCK).size, 0))
-        renumberDock()
+        // Parked first, numbered after: the row count is not a free slot while the dock has a gap.
+        val id = dao.insert(homeApp(app, DOCK, 0, PARKED_SLOT, 0))
+        writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != id } + id)
         true
     }
 
@@ -579,6 +583,9 @@ class HomeLayoutRepository @Inject constructor(
      */
     suspend fun createDockFolder(target: AppItem, dropped: AppItem, fromContainer: Long?, name: String): Long =
         db.withTransaction {
+            // The same app (from the drawer, its home copy, or the dock row itself) never folds with
+            // itself: that made a folder of two rows of one app, shown as a folder of one.
+            if (dropped.key == target.key) return@withTransaction -1L
             val targetRow = dockRow(target) ?: return@withTransaction -1L
             val droppedRow = fromContainer?.let { dao.getByKey(it, dropped.packageName, dropped.className, dropped.userSerial) }
             if (droppedRow?.id == targetRow.id) return@withTransaction -1L

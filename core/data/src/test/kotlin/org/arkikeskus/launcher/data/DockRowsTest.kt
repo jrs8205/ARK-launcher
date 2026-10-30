@@ -402,4 +402,50 @@ class DockRowsTest {
         assertThat(dao.getById(folderId)).isNull()
         assertThat(dockOrder()).containsExactly("a")
     }
+
+    // --- Review round 1 (2026-10-30) ---------------------------------------------------------------
+
+    @Test
+    fun removingAnEmptyDockFolderClosesItsSlotSoTheNextAddFits() = runTest {
+        // A folder whose apps all stopped resolving renders empty and is removed from the remove pill.
+        val folderId = dao.insert(HomeItemEntity(containerId = DOCK, folderName = "Gone", page = 0, cellX = 0, cellY = 0))
+        dao.insert(HomeItemEntity(containerId = folderId, packageName = "com.gone", className = "Main", page = 0, cellX = 0, cellY = 0))
+        dao.insert(homeRowIn(DOCK, a, 1)); dao.insert(homeRowIn(DOCK, b, 2))
+
+        repo.removeFolder(folderId)
+        assertSlotsNumbered()
+        assertThat(repo.addToDock(c)).isTrue()
+
+        assertThat(dockOrder()).containsExactly("a", "b", "c").inOrder()
+        assertSlotsNumbered()
+        assertThat(dao.getContainer(folderId)).isEmpty()
+    }
+
+    @Test
+    fun addToDockNeverTripsTheUniqueIndexOnAGappedDock() = runTest {
+        // Slots 1 and 2 taken, 0 free (an older row set left a gap): the count would say "insert at 2".
+        dao.insert(homeRowIn(DOCK, a, 1)); dao.insert(homeRowIn(DOCK, b, 2))
+
+        assertThat(repo.addToDock(c)).isTrue()
+
+        assertThat(dockOrder()).containsExactly("a", "b", "c").inOrder()
+        assertSlotsNumbered()
+    }
+
+    @Test
+    fun createDockFolderRefusesTheSameAppWhereverItComesFrom() = runTest {
+        repo.addToDock(a)
+        insertOnHome(a, 0, 1, 1)
+
+        assertThat(repo.createDockFolder(target = a, dropped = a, fromContainer = null, name = "Folder")).isEqualTo(-1L)
+        assertThat(repo.createDockFolder(target = a, dropped = a, fromContainer = HOME, name = "Folder")).isEqualTo(-1L)
+        assertThat(repo.createDockFolder(target = a, dropped = a, fromContainer = DOCK, name = "Folder")).isEqualTo(-1L)
+
+        assertThat(dockOrder()).containsExactly("a")
+        assertThat(homeRow(a)).isNotNull()
+        assertThat(dao.getAll().none { it.isFolder }).isTrue()
+    }
+
+    private fun homeRowIn(container: Long, app: AppItem, slot: Int) =
+        HomeItemEntity(containerId = container, packageName = app.packageName, className = app.className, page = 0, cellX = slot, cellY = 0)
 }
