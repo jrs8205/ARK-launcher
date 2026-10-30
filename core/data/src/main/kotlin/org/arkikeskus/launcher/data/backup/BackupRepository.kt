@@ -56,7 +56,17 @@ class BackupRepository @Inject constructor(
             gridRows = gridRows,
             missingShortcuts = missingShortcuts(doc.homeItems, installed.packages, ownSerial),
         )
-        val restoredSettings = BackupMapper.remapSettingsProfiles(doc.settings, doc.mainUserSerial, ownSerial)
+        val remapped = BackupMapper.remapSettingsProfiles(doc.settings, doc.mainUserSerial, ownSerial)
+        // The dock travels as rows since format 4. An older file brings it as the favourites key
+        // list: those become dock rows here, and the key never reaches the settings (a file of the
+        // new format that still carries one is a hand-edited mix; its rows win).
+        val restoredSettings = remapped - LEGACY_DOCK_KEY
+        val legacyDock = remapped[LEGACY_DOCK_KEY] as? String
+        val entities = if (!legacyDock.isNullOrBlank() && mapping.entities.none { it.containerId == HomeItemEntity.DOCK }) {
+            mapping.entities + BackupMapper.legacyDockEntities(legacyDock, ownSerial, installed.appKeys)
+        } else {
+            mapping.entities
+        }
         // Settings first, then the layout. Room and DataStore share no transaction, so a process
         // death between the two writes leaves half a restore whichever goes first; this order makes
         // it the harmless half. Replacing the layout is the destructive step, so it comes last:
@@ -73,15 +83,15 @@ class BackupRepository @Inject constructor(
             settings.importRaw(restoredSettings)
             val importedSettings = settings.snapshot()
             try {
-                homeItemDao.replaceLayout(mapping.entities)
+                homeItemDao.replaceLayout(entities)
             } catch (t: Throwable) {
                 // Put the old settings back so a failed layout write never leaves half a restore.
                 runCatching { settings.rollbackImport(previousSettings, importedSettings) }
                 throw t
             }
-            repinShortcuts(previousLayout, mapping.entities)
+            repinShortcuts(previousLayout, entities)
         } }
-        return RestoreResult(mapping.entities.size, mapping.skipped)
+        return RestoreResult(entities.size, mapping.skipped)
     }
 
     private fun mainUserSerial(): Long = resolver.ownUserSerial() ?: 0L
@@ -109,6 +119,11 @@ class BackupRepository @Inject constructor(
 
     /** Packages providing app widgets — a widget-only app has no launcher activity, so the
      *  launchable-apps set alone would wrongly drop its restored widgets. */
+    private companion object {
+        /** The dock of versions before 0.9.7 (backup format <= 3): a newline-joined app key list. */
+        const val LEGACY_DOCK_KEY = "dock_favorites"
+    }
+
     private fun widgetPackages(): Set<String> = runCatching {
         AppWidgetManager.getInstance(context).installedProviders
             .map { it.provider.packageName }

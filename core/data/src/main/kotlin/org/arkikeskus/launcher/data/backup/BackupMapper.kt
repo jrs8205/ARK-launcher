@@ -64,10 +64,13 @@ object BackupMapper {
         val occupied = HashSet<Triple<Int, Int, Int>>()
         val keptFolderIds = HashSet<Long>()
 
-        val (homeItems, childItems) = items.partition { it.containerId == HomeItemEntity.HOME }
+        val (topItems, childItems) = items.partition { it.containerId == HomeItemEntity.HOME || it.containerId == HomeItemEntity.DOCK }
 
-        for (it in homeItems) {
+        for (it in topItems) {
+            val inDock = it.containerId == HomeItemEntity.DOCK
             val keep = when {
+                // The dock holds apps and folders only (format 4+); its slots are renumbered below.
+                inDock && (it.builtinType != null || it.widgetProvider != null || it.shortcutId != null) -> false
                 it.builtinType != null -> it.builtinType in KNOWN_BUILTINS
                 it.widgetProvider != null -> {
                     val pkg = it.widgetProvider.substringBefore('/')
@@ -87,6 +90,14 @@ object BackupMapper {
                 it.folderName == null && it.shortcutId == null
             val appKey = "${it.containerId}/${it.packageName}/${it.className}"
             if (plainApp && appKey in seenAppKeys) { skipped++; continue }
+            if (inDock) {
+                if (it.cellX < 0) { skipped++; continue }
+                seenIds.add(it.id)
+                if (plainApp) seenAppKeys.add(appKey)
+                if (it.folderName != null) keptFolderIds.add(it.id)
+                kept.add(entity(it, mainUserSerial, 1, 1))
+                continue
+            }
             // Only widgets (app or built-in) have a real footprint; an oversized span shrinks to
             // the grid (the normal add path does the same) but a bad POSITION is rejected below.
             val footprint = it.widgetProvider != null || it.builtinType != null
@@ -141,7 +152,7 @@ object BackupMapper {
         // addToFolder's childCount-as-index then lands on an occupied cell (unique cell index →
         // SQLiteConstraintException). Re-number every folder's survivors 0…n−1 in reading order.
         val childOrder = HashMap<Long, Int>()
-        kept.filter { it.containerId != HomeItemEntity.HOME }
+        kept.filter { it.isChild }
             .groupBy { it.containerId }
             .values.forEach { children ->
                 children.sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
@@ -156,14 +167,15 @@ object BackupMapper {
         // under-filled folder (children dropped above as uninstalled): a folder restored with zero
         // children would be stuck on the grid forever — folders have no delete affordance and an
         // empty one has nothing to long-press — and a single-child folder dissolves to that app on
-        // the folder's own cell, exactly like the live paths. Also like dissolveIfNeeded, a last
-        // child whose app is already on home goes with the folder (two HOME rows of one app break
-        // drag and remove) and the folder's cell stays empty.
-        val childCounts = kept.filter { it.containerId != HomeItemEntity.HOME }
-            .groupingBy { it.containerId }.eachCount()
+        // the folder's own cell (or dock slot), exactly like the live paths. Also like
+        // dissolveIfNeeded, a last child whose app already has its own row in the folder's container
+        // goes with the folder (two rows of one app in a container break drag and remove) and the
+        // folder's cell stays empty.
+        val childCounts = kept.filter { it.isChild }.groupingBy { it.containerId }.eachCount()
         // Grows as children are promoted: two dissolving folders holding the same app would otherwise
-        // both put it on home, and two HOME rows of one app break drag and remove.
-        val homeAppKeys = kept.filter { it.containerId == HomeItemEntity.HOME && it.isApp }.mapTo(HashSet()) { it.key }
+        // both put it in the container, and two rows of one app there break drag and remove.
+        val ownKeys = HashMap<Long, HashSet<String>>()
+        kept.filter { !it.isChild && it.isApp }.forEach { ownKeys.getOrPut(it.containerId) { HashSet() }.add(it.key) }
         val dissolving = HashMap<Long, HomeItemEntity>()
         val dropped = HashSet<Long>()
         for (folder in kept) {
@@ -173,19 +185,54 @@ object BackupMapper {
                 1 -> { dissolving[folder.id] = folder; skipped++ }
             }
         }
-        if (dropped.isEmpty() && dissolving.isEmpty()) return RestoreMapping(kept, skipped)
+        if (dropped.isEmpty() && dissolving.isEmpty()) return RestoreMapping(renumberDock(kept), skipped)
         val entities = kept.mapNotNull { e ->
             val folder = dissolving[e.containerId]
             when {
                 e.folderName != null && (e.id in dropped || e.id in dissolving) -> null
-                folder != null && !homeAppKeys.add(e.key) -> { skipped++; null }
+                folder != null && !ownKeys.getOrPut(folder.containerId) { HashSet() }.add(e.key) -> { skipped++; null }
                 folder != null ->
-                    e.copy(containerId = HomeItemEntity.HOME, page = folder.page, cellX = folder.cellX, cellY = folder.cellY)
+                    e.copy(containerId = folder.containerId, page = folder.page, cellX = folder.cellX, cellY = folder.cellY)
                 else -> e
             }
         }
-        return RestoreMapping(entities, skipped)
+        return RestoreMapping(renumberDock(entities), skipped)
     }
+
+    /** A row inside a folder (not on home, not in the dock). */
+    private val HomeItemEntity.isChild: Boolean
+        get() = containerId != HomeItemEntity.HOME && containerId != HomeItemEntity.DOCK
+
+    /** The dock rows at slots 0..n-1 in their file order (a dropped row or a hand-edited file leaves gaps). */
+    private fun renumberDock(entities: List<HomeItemEntity>): List<HomeItemEntity> {
+        val slots = entities.filter { it.containerId == HomeItemEntity.DOCK }
+            .sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
+            .withIndex().associate { (i, row) -> row.id to i }
+        if (slots.isEmpty()) return entities
+        return entities.map { e -> slots[e.id]?.let { slot -> e.copy(page = 0, cellX = slot, cellY = 0) } ?: e }
+    }
+
+    /**
+     * The dock of a file written before format 4: its `dock_favorites` key list (app keys in slot
+     * order, already remapped to this device's profile [mainUserSerial]) as dock rows for the apps
+     * installed here ([installedAppKeys]: "package/class"). Ids are left to the database.
+     */
+    fun legacyDockEntities(favorites: String, mainUserSerial: Long, installedAppKeys: Set<String>): List<HomeItemEntity> =
+        favorites.split('\n')
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .mapNotNull { key ->
+                val parts = key.split('/')
+                if (parts.size != 3 || parts[2].toLongOrNull() != mainUserSerial) return@mapNotNull null
+                if ("${parts[0]}/${parts[1]}" !in installedAppKeys) return@mapNotNull null
+                parts[0] to parts[1]
+            }
+            .mapIndexed { slot, (pkg, cls) ->
+                HomeItemEntity(
+                    containerId = HomeItemEntity.DOCK, packageName = pkg, className = cls, userSerial = mainUserSerial,
+                    page = 0, cellX = slot, cellY = 0,
+                )
+            }
 
     /** The apps of [installedApps] (AppItem keys, "package/class/userSerial") that live in the
      *  profile [userSerial]. Restored rows become rows of that one profile, so an app installed only

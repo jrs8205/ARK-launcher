@@ -69,7 +69,9 @@ class BackupRepositoryTest {
 
         repo().restoreDocument(backup, installedApps = listOf("a/A/0"))
 
-        assertThat(settings.dockFavorites.first()).containsExactly("a/A/0")
+        // The older file's dock key list restores as dock rows of this profile (DockBackupTest).
+        assertThat(dao.getContainer(org.arkikeskus.launcher.data.local.HomeItemEntity.DOCK).map { it.key }).containsExactly("a/A/0")
+        assertThat(settings.legacyDockFavorites()).isEmpty()
         assertThat(settings.settings.first().leftSwipeAppKey).isEqualTo("a/A/0")
     }
 
@@ -124,7 +126,6 @@ class BackupRepositoryTest {
     @Test
     fun restore_putsTheSettingsBackWhenTheLayoutWriteFails() = runTest {
         settings.setHomeColumns(5)
-        settings.addToDock("x/X/0")
         dao.insert(org.arkikeskus.launcher.data.local.HomeItemEntity(packageName = "x", className = "X", page = 0, cellX = 0, cellY = 0))
         val backup = doc(mapOf("home_columns" to 6), BackupItem(1, -1, null, "a", "A", true, null, 0, 0, 0))
 
@@ -132,7 +133,6 @@ class BackupRepositoryTest {
 
         assertThat(failure.isFailure).isTrue()
         assertThat(settings.settings.first().homeColumns).isEqualTo(5)
-        assertThat(settings.dockFavorites.first()).containsExactly("x/X/0")
         assertThat(dao.getAll().map { it.key }).containsExactly("x/X/0")
     }
 }

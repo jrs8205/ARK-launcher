@@ -588,6 +588,14 @@ class SettingsRepository @Inject constructor(
     /** Replaces the (empty) dock with the first-run default apps — seeding only, not a user API. */
     suspend fun seedDock(keys: List<String>) = edit { it[Keys.DOCK_FAVORITES] = keys.joinToString("\n") }
 
+    /** The dock as versions before 0.9.7 stored it: a favourites key list. Read once at start-up
+     *  (and from an older backup file) to turn it into dock rows; empty once migrated. */
+    suspend fun legacyDockFavorites(): List<String> =
+        dataStore.data.first()[Keys.DOCK_FAVORITES]?.split("\n")?.filter { it.isNotEmpty() } ?: emptyList()
+
+    /** Drops the favourites key list once its rows exist (see [legacyDockFavorites]). */
+    suspend fun clearLegacyDockFavorites() = edit { it.remove(Keys.DOCK_FAVORITES) }
+
     /**
      * Snapshot of every persisted preference (name -> value) for backup.
      * Device-local bookkeeping keys are excluded so a restore never reimports another device's

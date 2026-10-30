@@ -29,8 +29,8 @@ class BackupCodecTest {
     )
 
     @Test
-    fun format_is_3() {
-        assertThat(BackupCodec.FORMAT).isEqualTo(3)
+    fun format_is_4() {
+        assertThat(BackupCodec.FORMAT).isEqualTo(4)
     }
 
     @Test

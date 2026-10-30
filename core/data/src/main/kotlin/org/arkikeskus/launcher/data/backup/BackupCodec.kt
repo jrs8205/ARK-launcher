@@ -10,10 +10,12 @@ import org.json.JSONObject
  */
 object BackupCodec {
     /** Format 2 added widget rows (spanX/spanY/widgetProvider); format 3 adds built-in widgets
-     *  (builtinType). Decode still accepts every older format, absent fields defaulting. The
-     *  optional top-level mainUserSerial came later without a format bump: older readers ignore
-     *  it, and files without it still decode. */
-    const val FORMAT = 3
+     *  (builtinType); format 4 carries the dock as rows of the DOCK container (apps and folders) in
+     *  place of the `dock_favorites` settings key, which a reader of format 4 turns into rows. Decode
+     *  still accepts every older format, absent fields defaulting. The optional top-level
+     *  mainUserSerial came later without a format bump: older readers ignore it, and files without
+     *  it still decode. */
+    const val FORMAT = 4
 
     fun encode(doc: BackupDocument): String {
         val settings = JSONObject()
