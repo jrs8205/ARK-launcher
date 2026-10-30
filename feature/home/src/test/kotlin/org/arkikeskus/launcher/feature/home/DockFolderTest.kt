@@ -191,4 +191,24 @@ class DockFolderTest {
         assertThat(opened).isEmpty()
         assertThat(drag.isDragging).isFalse()
     }
+
+    @Test fun aReorderAfterTheRowIdsChangedUsesTheCurrentIds() {
+        // A restored backup keeps the same apps under NEW row ids; the slot's gesture detector lives on
+        // (its keys are the app, not the row) and must report the ids the dock holds now.
+        show()
+        entries.value = listOf(DockApp(11L, maps), DockFolder(tools.copy(id = 17L)))
+        compose.waitForIdle()
+        val folderSlot = drag.dockSlots[1]
+        compose.onNodeWithText("Maps").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(longPress + 50)
+        compose.waitForIdle()
+        compose.onNodeWithText("Maps").performTouchInput {
+            val dx = folderSlot.center.x - drag.dockSlots[0].center.x
+            repeat(10) { moveBy(Offset(dx / 10f, 0f)) }
+            up()
+        }
+        compose.waitForIdle()
+
+        assertThat(reorders).containsExactly(listOf(17L, 11L))
+    }
 }

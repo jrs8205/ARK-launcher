@@ -233,7 +233,12 @@ fun Dock(
                                 }
                                 // Rested on another tile's middle: a folder of the two, or into that folder.
                                 onto != null && onto.index == armedOwnOnto && onto.index < current.size -> onDropOnTile(app, onto)
-                                else -> reorderedDock(current, entry.rowId, dragOffsetX, rowWidthPx)?.let(onReorder)
+                                // By the app's key, not the row id this composition saw: a restored backup
+                                // keeps the apps under new row ids while the slot's detector lives on.
+                                else -> {
+                                    val rowId = current.firstOrNull { it is DockApp && it.app.key == app.key }?.rowId ?: entry.rowId
+                                    reorderedDock(current, rowId, dragOffsetX, rowWidthPx)?.let(onReorder)
+                                }
                             }
                         },
                         onReleased = { token ->
@@ -324,8 +329,10 @@ private fun RowScope.DockAppSlot(
     // The whole slot takes the tap; the launch zooms from the icon in it.
     val launchOrigin = rememberAppLaunchOrigin()
     // The gesture below outlives a label or icon change of the app (its keys do not change) and
-    // must act on the item as it is NOW, not as it was at the first touch.
+    // must act on the item as it is NOW, not as it was at the first touch, and hand its drop to the
+    // host's CURRENT lambda, not the one this composition captured.
     val currentApp by rememberUpdatedState(app)
+    val currentOnDropped by rememberUpdatedState(onDropped)
     val slotCount = latestEntries().size
     Box(
         modifier = slot
@@ -415,7 +422,7 @@ private fun RowScope.DockAppSlot(
                         // Nothing on release once HOME cancelled the lift.
                         val live = completed && dragController.owns(token)
                         if (live && dragController.moving) {
-                            onDropped(dragController.rootPosition, currentApp, latestEntries())
+                            currentOnDropped(dragController.rootPosition, currentApp, latestEntries())
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                         // A still release leaves the menu, opened at the lift, as it is.
@@ -471,6 +478,7 @@ private fun RowScope.DockFolderSlot(
     // (and so its removability) change while the detector lives on.
     val currentFolder by rememberUpdatedState(folder)
     val currentOnOpen by rememberUpdatedState(onOpenFolder)
+    val currentOnDropped by rememberUpdatedState(onDropped)
     Box(
         modifier = slot
             // One node for accessibility services, named by the icon's description, whose click
@@ -516,7 +524,7 @@ private fun RowScope.DockFolderSlot(
                         }
                         val live = completed && dragController.owns(token)
                         if (live && dragController.moving) {
-                            onDropped(dragController.rootPosition, removable)
+                            currentOnDropped(dragController.rootPosition, removable)
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         } else if (live) {
                             currentOnOpen(currentFolder)
