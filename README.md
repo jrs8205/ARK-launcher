@@ -74,7 +74,7 @@ the app: **Settings ▸ Feedback**.
 - **Paged home screen** with free icon placement and smooth drag-and-drop — move icons within a
   page, across pages, and between the home grid and the dock. Drag an app from the drawer straight
   onto any page.
-- **Dock** of favorite apps (reorder, drag in/out).
+- **Dock** of favorite apps and folders (reorder, drag in/out; drop an app onto a dock app to make a folder).
 - **App drawer with universal search** — one search box finds:
   - installed **apps**,
   - common **system settings** pages (type "wifi", "battery", …),
