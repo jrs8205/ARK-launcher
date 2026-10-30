@@ -974,8 +974,12 @@ internal fun Workspace(
                             // Placeholder cell: our own in-home drag uses [targetCell]; a dock→home
                             // drag (driven by the shared controller) computes it from the finger.
                             val tc: IntOffset? = when {
-                                // Local relocation (folder or pinned shortcut) — stays on the grid.
-                                draggingLocal != null && localMoving -> targetCell
+                                // Local relocation (folder or pinned shortcut): a folder may leave for the
+                                // dock, and the cell hint goes while it hovers there, as for an app.
+                                draggingLocal != null && localMoving -> {
+                                    if (draggingLocal is PlacedFolder && dragController.isOverDock(dragController.rootPosition)) null
+                                    else targetCell
+                                }
                                 // Our own home drag: hide the cell hint while hovering the dock.
                                 dragging != null && dragController.moving -> {
                                     if (dragController.isOverDock(dragController.rootPosition)) null else targetCell
