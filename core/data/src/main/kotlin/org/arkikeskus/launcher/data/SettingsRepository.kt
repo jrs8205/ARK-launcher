@@ -124,6 +124,8 @@ class SettingsRepository @Inject constructor(
             sortDrawerFolders = p[Keys.SORT_DRAWER_FOLDERS] ?: false,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
+            // Unset, the drawer follows home's scale (the one slider before 0.9.8).
+            drawerIconScale = (p[Keys.DRAWER_ICON_SCALE] ?: p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
             longPressScale = (p[Keys.LONG_PRESS_SCALE] ?: 1.0f).coerceIn(MIN_LONG_PRESS_SCALE, MAX_LONG_PRESS_SCALE),
             twoLineHomeLabels = p[Keys.TWO_LINE_HOME_LABELS] ?: false,
             twoLineDrawerLabels = p[Keys.TWO_LINE_DRAWER_LABELS] ?: true,
@@ -443,9 +445,14 @@ class SettingsRepository @Inject constructor(
     suspend fun setAppLabelTextScale(value: Float) =
         edit { it[Keys.APP_LABEL_SCALE] = value.coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE) }
 
-    /** Size multiplier for app icons (clamped to the slider's range). */
+    /** Size multiplier for app icons on home, the dock and home folders (clamped to the slider's range). */
     suspend fun setIconScale(value: Float) =
         edit { it[Keys.ICON_SCALE] = value.coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE) }
+
+    /** Size multiplier for the app drawer's icons (clamped to the slider's range); once set, the drawer
+     *  no longer follows [setIconScale]. */
+    suspend fun setDrawerIconScale(value: Float) =
+        edit { it[Keys.DRAWER_ICON_SCALE] = value.coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE) }
 
     /** Multiplier on the system long-press timeout (clamped to the slider's range). */
     suspend fun setLongPressScale(value: Float) =
@@ -694,6 +701,7 @@ class SettingsRepository @Inject constructor(
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val ICON_SCALE = floatPreferencesKey("icon_scale")
+        val DRAWER_ICON_SCALE = floatPreferencesKey("drawer_icon_scale")
         val LONG_PRESS_SCALE = floatPreferencesKey("long_press_scale")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
         val TWO_LINE_HOME_LABELS = booleanPreferencesKey("two_line_home_labels")
@@ -745,8 +753,8 @@ class SettingsRepository @Inject constructor(
 
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf(
-            "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "status_bar_scrim",
-            "long_press_scale",
+            "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "drawer_icon_scale",
+            "status_bar_scrim", "long_press_scale",
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",

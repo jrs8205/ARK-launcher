@@ -252,6 +252,7 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
                 SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
                 DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
+                DrawerIconSizeRow(s.drawerIconScale, viewModel::setDrawerIconScale)
                 ExpressiveActionRow(
                     label = stringResource(R.string.settings_hidden_apps),
                     description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
@@ -1113,6 +1114,20 @@ internal fun DockBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
 }
 
 /** The app drawer's background opacity (issue #21): the dock row's twin, solid by default. */
+/** The app drawer's own icon size (80–130 %, a Telegram request): until the user moves it, it shows and follows
+ *  the home icon size (see LauncherSettings.drawerIconScale). */
+@Composable
+internal fun DrawerIconSizeRow(value: Float, onValueChange: (Float) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_drawer_icon_size),
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = 0.8f..1.3f,
+        valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
+    )
+}
+
 @Composable
 internal fun DrawerBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
     val resources = LocalResources.current

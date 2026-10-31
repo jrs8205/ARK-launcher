@@ -168,7 +168,7 @@ class AppDrawerViewModel @Inject constructor(
             desktopLocked = settings.desktopLocked,
             showFrequentApps = settings.showFrequentApps,
             appLabelTextScale = settings.appLabelTextScale,
-            iconScale = settings.iconScale,
+            iconScale = settings.drawerIconScale,
             twoLineLabels = settings.twoLineDrawerLabels,
             drawerOpensAtTop = settings.drawerOpensAtTop,
             sortDrawerFolders = settings.sortDrawerFolders,

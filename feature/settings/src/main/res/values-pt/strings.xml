@@ -99,7 +99,8 @@
     <string name="settings_icon_pack">Pacote de ícones</string>
     <string name="settings_icon_pack_system">Padrão do sistema</string>
     <string name="settings_label_size">Tamanho dos nomes</string>
-    <string name="settings_icon_size">Tamanho dos ícones</string>
+    <string name="settings_icon_size">Tamanho dos ícones (tela inicial e dock)</string>
+    <string name="settings_drawer_icon_size">Tamanho dos ícones</string>
     <string name="settings_percent">%1$d%%</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Padrão %1$s</string>

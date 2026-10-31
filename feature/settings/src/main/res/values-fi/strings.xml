@@ -96,7 +96,8 @@
     <string name="settings_icon_pack">Ikonipaketti</string>
     <string name="settings_icon_pack_system">Järjestelmän oletus</string>
     <string name="settings_label_size">Tekstin koko</string>
-    <string name="settings_icon_size">Kuvakkeiden koko</string>
+    <string name="settings_icon_size">Kuvakkeiden koko (etusivu ja dockki)</string>
+    <string name="settings_drawer_icon_size">Kuvakkeiden koko</string>
     <string name="settings_percent">%1$d %%</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Oletus %1$s</string>

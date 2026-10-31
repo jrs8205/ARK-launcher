@@ -102,7 +102,8 @@
     <string name="settings_icon_pack">Pakiet ikon</string>
     <string name="settings_icon_pack_system">Domyślny systemowy</string>
     <string name="settings_label_size">Rozmiar tekstu etykiet</string>
-    <string name="settings_icon_size">Rozmiar ikon</string>
+    <string name="settings_icon_size">Rozmiar ikon (ekran główny i dock)</string>
+    <string name="settings_drawer_icon_size">Rozmiar ikon</string>
     <string name="settings_percent">%1$d%%</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Domyślnie %1$s</string>

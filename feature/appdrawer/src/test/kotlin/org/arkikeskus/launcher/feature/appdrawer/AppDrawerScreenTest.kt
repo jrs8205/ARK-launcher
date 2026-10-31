@@ -230,6 +230,17 @@ class AppDrawerScreenTest {
         awaitState("the chosen opacity") { it.backgroundOpacity == 0.6f }
     }
 
+    /** A Telegram request after 0.9.7: the drawer's icon size is its own setting; until set it follows home's. */
+    @Test fun theDrawerIconScaleFollowsItsOwnSetting() {
+        show()
+        awaitState("the default scale") { it.iconScale == 1f }
+
+        runBlocking { wiring.settingsRepository.setIconScale(1.2f) }
+        awaitState("home's scale while the drawer's is unset") { it.iconScale == 1.2f }
+        runBlocking { wiring.settingsRepository.setDrawerIconScale(0.9f) }
+        awaitState("the drawer's own scale") { it.iconScale == 0.9f }
+    }
+
     /** Issue #17: with "Show folder names" off the drawer's folder tiles carry no name. */
     @Test fun theFolderTileHidesItsNameWhenTheSettingIsOff() {
         runBlocking {

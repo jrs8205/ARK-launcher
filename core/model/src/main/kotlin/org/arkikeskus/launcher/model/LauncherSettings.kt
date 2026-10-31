@@ -64,6 +64,10 @@ data class LauncherSettings(
     /** Size multiplier for app icons across home/dock/drawer/folders (1.0 = each surface's nominal size;
      *  the cell still caps the result). */
     val iconScale: Float = 1.0f,
+    /** Size multiplier for the app drawer's icons (its tiles and folder cards), apart from [iconScale] which
+     *  sizes home, the dock and home folders. Unset it follows [iconScale], so the single slider of versions
+     *  before 0.9.8 keeps looking the same (a Telegram request). */
+    val drawerIconScale: Float = 1.0f,
     /** Multiplier on the system long-press timeout before an icon's menu opens or it can be moved
      *  (1.0 = the system's own delay, 0.5–2.0). */
     val longPressScale: Float = 1.0f,

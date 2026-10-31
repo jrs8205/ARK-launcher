@@ -96,7 +96,8 @@
     <string name="settings_icon_pack">Symbolpaket</string>
     <string name="settings_icon_pack_system">Systemstandard</string>
     <string name="settings_label_size">Textgröße der Beschriftungen</string>
-    <string name="settings_icon_size">Symbolgröße</string>
+    <string name="settings_icon_size">Symbolgröße (Startbildschirm und Dock)</string>
+    <string name="settings_drawer_icon_size">Symbolgröße</string>
     <string name="settings_percent">%1$d %%</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Standard %1$s</string>

@@ -102,7 +102,8 @@
     <string name="settings_icon_pack">Набор значков</string>
     <string name="settings_icon_pack_system">Системные (по умолчанию)</string>
     <string name="settings_label_size">Размер подписей</string>
-    <string name="settings_icon_size">Размер значков</string>
+    <string name="settings_icon_size">Размер значков (главный экран и док-панель)</string>
+    <string name="settings_drawer_icon_size">Размер значков</string>
     <string name="settings_percent">%1$d %%</string>
     <string name="settings_millis">%1$d мс</string>
     <string name="settings_reset_default">По умолчанию %1$s</string>

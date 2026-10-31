@@ -96,7 +96,8 @@
     <string name="settings_icon_pack">Simge paketi</string>
     <string name="settings_icon_pack_system">Sistem varsayılanı</string>
     <string name="settings_label_size">Etiket metni boyutu</string>
-    <string name="settings_icon_size">Simge boyutu</string>
+    <string name="settings_icon_size">Simge boyutu (ana ekran ve dock)</string>
+    <string name="settings_drawer_icon_size">Simge boyutu</string>
     <string name="settings_percent">%%%1$d</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Varsayılan %1$s</string>

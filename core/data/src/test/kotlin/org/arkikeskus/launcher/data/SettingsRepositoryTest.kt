@@ -591,6 +591,31 @@ class SettingsRepositoryTest {
         // ClassCastException on the read.
         assertThat(restored.settings.first().iconScale).isEqualTo(1.0f)
     }
+
+    /** A Telegram request after 0.9.7: the drawer's icons sized apart from home's. Until the drawer's own
+     *  value is set it follows the home scale, so an update changes nobody's look. */
+    @Test
+    fun `drawer icon scale follows the home scale until set, then clamps and survives a backup round-trip`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().drawerIconScale).isEqualTo(1.0f)
+        repo.setIconScale(1.2f)
+        assertThat(repo.settings.first().drawerIconScale).isEqualTo(1.2f)
+
+        repo.setDrawerIconScale(0.5f)
+        assertThat(repo.settings.first().drawerIconScale).isEqualTo(0.8f) // clamped on write
+        assertThat(repo.settings.first().iconScale).isEqualTo(1.2f) // home untouched
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_icon_scale", 0.8f)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerIconScale).isEqualTo(0.8f)
+        restored.importRaw(mapOf("icon_scale" to 1.1, "drawer_icon_scale" to 9))
+        assertThat(restored.settings.first().drawerIconScale).isEqualTo(1.3f) // out of range: clamped on read
+        restored.importRaw(mapOf("icon_scale" to 1.1, "drawer_icon_scale" to "big"))
+        assertThat(restored.settings.first().drawerIconScale).isEqualTo(1.1f) // wrong type dropped: follows home again
+    }
+
     @Test
     fun `long-press scale clamps on write and read, survives a backup round-trip and rejects a wrong type`() = runTest {
         val repo = newRepository()
@@ -637,6 +662,7 @@ class SettingsRepositoryTest {
         store.edit {
             it[longPreferencesKey("long_press_scale")] = 2L
             it[longPreferencesKey("icon_scale")] = 1L
+            it[longPreferencesKey("drawer_icon_scale")] = 1L
             it[longPreferencesKey("drawer_columns")] = 5L
             it[longPreferencesKey("app_label_color")] = 0xFF000000L
             it[stringPreferencesKey("dock_opacity")] = "half"
@@ -644,6 +670,7 @@ class SettingsRepositoryTest {
         val settings = SettingsRepository(store).settings.first()
         assertThat(settings.longPressScale).isEqualTo(2.0f)
         assertThat(settings.iconScale).isEqualTo(1.0f)
+        assertThat(settings.drawerIconScale).isEqualTo(1.0f)
         assertThat(settings.drawerColumns).isEqualTo(5)
         assertThat(settings.appLabelColor).isEqualTo(0xFF000000.toInt())
         assertThat(settings.dockBackgroundOpacity).isEqualTo(0.35f) // not a number: dropped, the default is back
