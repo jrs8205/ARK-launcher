@@ -8,6 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.up
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
@@ -37,12 +41,13 @@ class FolderSwipeUpTest {
     private val mail = AppItem("com.mail", "mail.Main", Process.myUserHandle(), 0L, "Mail")
     private val chat = AppItem("com.chat", "chat.Main", Process.myUserHandle(), 0L, "Chat")
     private val tools = PlacedFolder(id = 7L, name = "Tools", apps = listOf(mail, chat), page = 0, cellX = 1, cellY = 2)
+    private val games = PlacedFolder(id = 8L, name = "Games", apps = listOf(chat, mail), page = 0, cellX = 2, cellY = 4)
     private val swipedFolders = mutableListOf<Long>()
     private val opened = mutableListOf<Long>()
     private var drawerDrags = 0
     private var shadeOpens = 0
 
-    private fun show(folderSwipeOpensFirstApp: Boolean) {
+    private fun show(folderSwipeOpensFirstApp: Boolean, entries: List<HomeEntry> = listOf(tools)) {
         compose.setContent {
             Box(
                 Modifier
@@ -59,7 +64,7 @@ class FolderSwipeUpTest {
                     ),
             ) {
                 Workspace(
-                    pageCount = 1, columns = 4, rows = 6, entries = listOf(tools),
+                    pageCount = 1, columns = 4, rows = 6, entries = entries,
                     badges = emptyMap(), badgeShowCount = false, badgeScale = 1f, showLabels = true, showPageIndicator = true,
                     locked = false, homeSignals = emptyFlow(), homePage = 0, dragController = drag,
                     widgetDragController = remember { WidgetDragController(drag) },
@@ -115,6 +120,27 @@ class FolderSwipeUpTest {
         compose.waitForIdle()
         assertThat(opened).containsExactly(7L)
         assertThat(swipedFolders).isEmpty()
+    }
+
+    /** The folder is the one under the finger that swipes. A second finger resting on
+     *  another folder must not redirect the first finger's swipe to that folder's app. */
+    @Test fun theFolderIsTheOneUnderTheFingerThatSwipes() {
+        show(folderSwipeOpensFirstApp = true, entries = listOf(tools, games))
+        val a = compose.onNodeWithText("Tools").fetchSemanticsNode().boundsInRoot.center
+        val b = compose.onNodeWithText("Games").fetchSemanticsNode().boundsInRoot.center
+
+        compose.onRoot().performTouchInput {
+            down(0, a)
+            down(1, b)
+            repeat(8) { moveBy(0, Offset(0f, -40f)) }
+            up(0)
+            up(1)
+        }
+        compose.waitForIdle()
+
+        // Only the first finger's folder; the second finger's own clean lift is its own tap, as on every other
+        // surface (the root only ever consumes the swiping pointer's changes).
+        assertThat(swipedFolders).containsExactly(7L)
     }
 
     /** The decision itself: the folder action wins over the drawer only with the setting on. */

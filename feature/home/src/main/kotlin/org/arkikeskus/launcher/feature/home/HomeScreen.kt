@@ -1118,7 +1118,7 @@ internal fun Modifier.pixelHomeSwipe(
                     when {
                         abs(dy) > touchSlop && abs(dy) > abs(dx) -> when {
                             dy < 0f -> {
-                                val pressedFolder = dragController.pressedFolderId
+                                val pressedFolder = dragController.pressedFolder(down.id.value)
                                 when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer)) {
                                     SwipeUpTarget.FOLDER_APP -> {
                                         // The folder's first app opens once; the rest of the gesture is

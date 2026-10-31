@@ -98,12 +98,24 @@ class HomeDragController {
     var localGestureActive by mutableStateOf(false)
 
     /**
-     * The home folder whose icon the finger went down on, from that DOWN until its gesture ends (set and
-     * cleared by the grid's folder tiles). The root swipe detector reads it to route a swipe up that starts
-     * on a folder to the folder's first app when that setting is on (issue #17). Read only inside pointer
-     * loops, never composed, so plain state is enough.
+     * The home folders whose icons fingers are down on, by the pointer that pressed each (PointerId.value),
+     * from that DOWN until its gesture ends (set and cleared by the grid's folder tiles). The root swipe
+     * detector asks for ITS pointer's folder to route a swipe up that starts on a folder to the folder's
+     * first app when that setting is on (issue #17); a second finger resting on another folder must not
+     * redirect the first finger's swipe. Read only inside pointer loops, never composed: plain state.
      */
-    var pressedFolderId: Long? = null
+    private val pressedFolders = HashMap<Long, Long>()
+
+    /** A finger ([pointer]) went down on the home folder [folderId]. */
+    fun folderPressed(pointer: Long, folderId: Long) { pressedFolders[pointer] = folderId }
+
+    /** That finger's gesture ended, however it ended; only the pairing it made is dropped. */
+    fun folderReleased(pointer: Long, folderId: Long) {
+        if (pressedFolders[pointer] == folderId) pressedFolders.remove(pointer)
+    }
+
+    /** The home folder under [pointer], or null when it went down elsewhere. */
+    fun pressedFolder(pointer: Long): Long? = pressedFolders[pointer]
 
     // Home-grid metrics for cell math on a dock→home / drawer→home drop (published by Workspace).
     var columns by mutableStateOf(1)
