@@ -137,6 +137,7 @@
     <string name="settings_support_text">ARK-launcher är gratis och öppen källkod, och förblir så. Om den gör din telefon trevligare kan du bjuda mig på en kaffe eller sponsra arbetet.</string>
     <string name="settings_support_github">Sponsra på GitHub</string>
     <string name="settings_support_coffee">Bjud på en kaffe</string>
+    <string name="settings_support_paypal">PayPal</string>
     <string name="settings_step_decrease">Minska</string>
     <string name="settings_step_increase">Öka</string>
     <string name="settings_widget_tonal">Bakgrunder med tema för inbyggda widgetar</string>

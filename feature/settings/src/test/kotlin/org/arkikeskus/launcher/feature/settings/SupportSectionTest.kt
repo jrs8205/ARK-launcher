@@ -15,8 +15,8 @@ import org.robolectric.annotation.Config
 
 /**
  * The support section at the very bottom of Settings (owner decision 2026-10-31): a title, one sentence,
- * and two plain buttons that open the sponsor pages in the browser. Nothing else: no reminders, no
- * in-app payment, no third-party logos.
+ * and three plain buttons that open the sponsor pages in the browser (GitHub Sponsors, Buy Me a Coffee and
+ * the owner's personal PayPal.me). Nothing else: no reminders, no in-app payment, no third-party logos.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
@@ -31,13 +31,14 @@ class SupportSectionTest {
         compose.waitForIdle()
     }
 
-    @Test fun theSectionShowsItsTitleTextAndBothButtons() {
+    @Test fun theSectionShowsItsTitleTextAndAllThreeButtons() {
         show()
 
         compose.onNodeWithText(res.getString(R.string.settings_support_title)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.settings_support_text)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.settings_support_github)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.settings_support_coffee)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_support_paypal)).assertIsDisplayed()
     }
 
     @Test fun eachButtonOpensItsOwnPage() {
@@ -45,9 +46,11 @@ class SupportSectionTest {
 
         compose.onNodeWithText(res.getString(R.string.settings_support_github)).performClick()
         compose.onNodeWithText(res.getString(R.string.settings_support_coffee)).performClick()
+        compose.onNodeWithText(res.getString(R.string.settings_support_paypal)).performClick()
 
-        assertThat(opened).containsExactly(SPONSOR_URL, COFFEE_URL).inOrder()
+        assertThat(opened).containsExactly(SPONSOR_URL, COFFEE_URL, PAYPAL_URL).inOrder()
         assertThat(SPONSOR_URL).isEqualTo("https://github.com/sponsors/jrs8205")
         assertThat(COFFEE_URL).isEqualTo("https://buymeacoffee.com/jrs8205")
+        assertThat(PAYPAL_URL).isEqualTo("https://paypal.me/JarsiS")
     }
 }

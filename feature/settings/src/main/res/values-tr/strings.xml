@@ -137,6 +137,7 @@
     <string name="settings_support_text">ARK-launcher ücretsiz ve açık kaynaklıdır ve öyle kalacak. Telefonunuzu daha hoş hale getiriyorsa bana bir kahve ısmarlayabilir veya çalışmayı destekleyebilirsiniz.</string>
     <string name="settings_support_github">GitHub\'da sponsor ol</string>
     <string name="settings_support_coffee">Bir kahve ısmarla</string>
+    <string name="settings_support_paypal">PayPal</string>
     <string name="settings_step_decrease">Azalt</string>
     <string name="settings_step_increase">Artır</string>
     <string name="settings_widget_tonal">Yerleşik widget\'lar için temalı arka planlar</string>

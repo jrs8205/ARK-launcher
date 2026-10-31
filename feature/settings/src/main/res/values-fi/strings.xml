@@ -137,6 +137,7 @@
     <string name="settings_support_text">ARK-launcher on ilmainen ja avointa lähdekoodia, ja pysyy sellaisena. Jos se tekee puhelimestasi mukavamman, voit tarjota minulle kahvin tai sponsoroida työtä.</string>
     <string name="settings_support_github">Sponsoroi GitHubissa</string>
     <string name="settings_support_coffee">Tarjoa kahvi</string>
+    <string name="settings_support_paypal">PayPal</string>
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
     <string name="settings_widget_tonal">Widgettien teematausta</string>

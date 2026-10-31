@@ -140,6 +140,7 @@
     <string name="settings_support_text">ARK-launcher est gratuit et open source, et le restera. S\'il rend votre téléphone plus agréable, vous pouvez m\'offrir un café ou sponsoriser le travail.</string>
     <string name="settings_support_github">Sponsoriser sur GitHub</string>
     <string name="settings_support_coffee">Offrir un café</string>
+    <string name="settings_support_paypal">PayPal</string>
     <string name="settings_step_decrease">Diminuer</string>
     <string name="settings_step_increase">Augmenter</string>
     <string name="settings_widget_tonal">Fonds à thème pour les widgets intégrés</string>

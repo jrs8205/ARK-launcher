@@ -17,13 +17,14 @@ import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.ExpressiveSectionTitle
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
-/** Where the two support buttons lead; the same pages the README links. */
+/** Where the support buttons lead: the two pages the README links, and the owner's personal PayPal.me. */
 internal const val SPONSOR_URL = "https://github.com/sponsors/jrs8205"
 internal const val COFFEE_URL = "https://buymeacoffee.com/jrs8205"
+internal const val PAYPAL_URL = "https://paypal.me/JarsiS"
 
 /**
  * The support section at the very bottom of Settings (owner decision 2026-10-31): a title, one sentence
- * and two plain buttons that hand [onOpen] a page to open in the browser. Deliberately quiet: no
+ * and three plain buttons that hand [onOpen] a page to open in the browser. Deliberately quiet: no
  * reminders anywhere else, no in-app payment, no third-party logos (text buttons only).
  */
 @Composable
@@ -54,6 +55,10 @@ internal fun SupportSection(onOpen: (String) -> Unit) {
                         onClick = { onOpen(COFFEE_URL) },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = p.text),
                     ) { Text(stringResource(R.string.settings_support_coffee)) }
+                    OutlinedButton(
+                        onClick = { onOpen(PAYPAL_URL) },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = p.text),
+                    ) { Text(stringResource(R.string.settings_support_paypal)) }
                 }
             }
         }
