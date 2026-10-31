@@ -117,6 +117,8 @@
     <string name="settings_status_bar">Status bar (clock, battery, signal)</string>
     <string name="settings_status_bar_scrim">Status bar background darkness</string>
     <string name="settings_frequent_apps">Most used at the top</string>
+    <string name="settings_hide_home_apps">Hide apps that are on the home screen</string>
+    <string name="settings_hide_home_apps_desc">Apps placed on the home screen, in its folders or in the dock leave the list. The search still finds them.</string>
     <string name="settings_drawer_open_top">Always open at top</string>
     <string name="settings_backup">Backup</string>
     <string name="settings_double_tap_lock">Double-tap to lock the screen</string>

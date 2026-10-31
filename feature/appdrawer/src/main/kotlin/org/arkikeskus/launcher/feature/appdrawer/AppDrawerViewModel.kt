@@ -69,6 +69,11 @@ data class AppDrawerUiState(
     /** Visible dock capacity — the drawer hides "Add to dock" once this many entries exist. */
     val dockColumns: Int = 4,
     val homeKeys: Set<String> = emptySet(),
+    /** Every app anywhere on the home surface (pages, home and dock folders, the dock): what
+     *  [hideHomeApps] takes out of the list. */
+    val onHomeKeys: Set<String> = emptySet(),
+    /** Apps on the home surface leave the list (the search still finds them). */
+    val hideHomeApps: Boolean = false,
     val showLabels: Boolean = true,
     /** The name under a folder tile (issue #17); labels off hide it too. */
     val showFolderNames: Boolean = true,
@@ -156,6 +161,9 @@ class AppDrawerViewModel @Inject constructor(
                 .filter { it.containerId == HomeItemEntity.HOME && !it.isFolder }
                 .map { it.key }
                 .toSet(),
+            // Every home_items app row is on the home surface: a page, a folder on a page or in the dock, the dock.
+            onHomeKeys = homeItems.filter { it.isApp }.mapTo(HashSet()) { it.key },
+            hideHomeApps = settings.hideHomeAppsFromDrawer,
             showLabels = settings.showDrawerLabels,
             showFolderNames = settings.showDrawerFolderNames,
             showSearch = settings.showDrawerSearch,
@@ -186,9 +194,12 @@ class AppDrawerViewModel @Inject constructor(
             // itself), the work profile's apps go to the Work grid, folders take their members out
             // of the Personal grid only. While searching keep a flat list so folder members stay
             // findable.
+            // With the setting on, apps on the home surface are hidden like hidden apps, but only from the
+            // browsing list: a search keeps finding them (the search provider filters hidden apps itself).
+            val hiddenNow = if (state.hideHomeApps && state.query.isBlank()) hidden + state.onHomeKeys else hidden
             val partition = partitionDrawer(
                 apps = state.apps,
-                hidden = hidden,
+                hidden = hiddenNow,
                 folders = if (state.query.isNotBlank()) emptyList() else folders,
                 workSerial = profile?.userSerial,
                 sortFolders = state.sortDrawerFolders,

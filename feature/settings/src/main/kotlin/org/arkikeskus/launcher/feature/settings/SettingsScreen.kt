@@ -261,6 +261,12 @@ fun SettingsScreen(
                 SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, viewModel::setShowDrawerFolderNames)
                 SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
                 SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
+                SwitchRow(
+                    stringResource(R.string.settings_hide_home_apps),
+                    stringResource(R.string.settings_hide_home_apps_desc),
+                    s.hideHomeAppsFromDrawer,
+                    viewModel::setHideHomeAppsFromDrawer,
+                )
                 SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
                 DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
                 DrawerIconSizeRow(s.drawerIconScale, viewModel::setDrawerIconScale)

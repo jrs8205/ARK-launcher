@@ -96,6 +96,7 @@ class SettingsRepository @Inject constructor(
             swipeUpForDrawer = p[Keys.SWIPE_UP_DRAWER] ?: true,
             swipeDownForNotifications = p[Keys.SWIPE_DOWN_NOTIF] ?: true,
             folderSwipeOpensFirstApp = p[Keys.FOLDER_SWIPE_FIRST_APP] ?: false,
+            hideHomeAppsFromDrawer = p[Keys.HIDE_HOME_APPS_FROM_DRAWER] ?: false,
             showDockLabels = p[Keys.SHOW_DOCK_LABELS] ?: false,
             showHomeLabels = p[Keys.SHOW_HOME_LABELS] ?: true,
             showDrawerLabels = p[Keys.SHOW_DRAWER_LABELS] ?: true,
@@ -399,6 +400,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setSwipeUpForDrawer(value: Boolean) = edit { it[Keys.SWIPE_UP_DRAWER] = value }
     suspend fun setSwipeDownForNotifications(value: Boolean) = edit { it[Keys.SWIPE_DOWN_NOTIF] = value }
     suspend fun setFolderSwipeOpensFirstApp(value: Boolean) = edit { it[Keys.FOLDER_SWIPE_FIRST_APP] = value }
+    suspend fun setHideHomeAppsFromDrawer(value: Boolean) = edit { it[Keys.HIDE_HOME_APPS_FROM_DRAWER] = value }
     suspend fun setShowDockLabels(value: Boolean) = edit { it[Keys.SHOW_DOCK_LABELS] = value }
     suspend fun setShowHomeLabels(value: Boolean) = edit { it[Keys.SHOW_HOME_LABELS] = value }
     suspend fun setShowDrawerLabels(value: Boolean) = edit { it[Keys.SHOW_DRAWER_LABELS] = value }
@@ -683,6 +685,7 @@ class SettingsRepository @Inject constructor(
         val PAGE_SWITCH_SPEED = stringPreferencesKey("page_switch_speed")
         val INFINITE_SCROLL = booleanPreferencesKey("infinite_scroll")
         val FOLDER_SWIPE_FIRST_APP = booleanPreferencesKey("folder_swipe_first_app")
+        val HIDE_HOME_APPS_FROM_DRAWER = booleanPreferencesKey("hide_home_apps_from_drawer")
         val SHOW_NOTIF_DOTS = booleanPreferencesKey("show_notif_dots")
         val NOTIF_DOT_COUNT = booleanPreferencesKey("notif_dot_count")
         val NOTIF_DOT_SCALE = floatPreferencesKey("notif_dot_scale")
@@ -769,6 +772,7 @@ class SettingsRepository @Inject constructor(
          *  stored under the same key name and crash every settings read with a ClassCastException. */
         val BOOLEAN_KEYS = setOf(
             "dock_enabled", "show_drawer_search", "swipe_up_drawer", "swipe_down_notif", "folder_swipe_first_app",
+            "hide_home_apps_from_drawer",
             "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",

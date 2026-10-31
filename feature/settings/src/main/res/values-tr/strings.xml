@@ -117,6 +117,8 @@
     <string name="settings_status_bar">Durum çubuğu (saat, pil, sinyal)</string>
     <string name="settings_status_bar_scrim">Durum çubuğu arka plan koyuluğu</string>
     <string name="settings_frequent_apps">En çok kullanılanlar üstte</string>
+    <string name="settings_hide_home_apps">Ana ekrandaki uygulamaları gizle</string>
+    <string name="settings_hide_home_apps_desc">Ana ekrana, klasörlerine veya dock\'a yerleştirilen uygulamalar listeden çıkar. Arama yine de bulur.</string>
     <string name="settings_drawer_open_top">Her zaman en üstte aç</string>
     <string name="settings_backup">Yedekleme</string>
     <string name="settings_double_tap_lock">Ekranı kilitlemek için iki kez dokunun</string>

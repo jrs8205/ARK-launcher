@@ -123,6 +123,8 @@
     <string name="settings_status_bar">Pasek stanu (zegar, bateria, sygnał)</string>
     <string name="settings_status_bar_scrim">Przyciemnienie tła paska stanu</string>
     <string name="settings_frequent_apps">Najczęściej używane na górze</string>
+    <string name="settings_hide_home_apps">Ukryj aplikacje znajdujące się na ekranie głównym</string>
+    <string name="settings_hide_home_apps_desc">Aplikacje umieszczone na ekranie głównym, w jego folderach lub w docku znikają z listy. Wyszukiwanie nadal je znajduje.</string>
     <string name="settings_drawer_open_top">Zawsze otwieraj od góry</string>
     <string name="settings_backup">Kopia zapasowa</string>
     <string name="settings_double_tap_lock">Dotknij dwukrotnie, aby zablokować ekran</string>

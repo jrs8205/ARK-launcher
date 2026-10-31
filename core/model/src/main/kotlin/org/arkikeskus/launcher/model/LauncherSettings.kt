@@ -63,6 +63,9 @@ data class LauncherSettings(
     val drawerOpensAtTop: Boolean = true,
     /** List the app drawer's folders A–Z (case aside) instead of in the user's own order. */
     val sortDrawerFolders: Boolean = false,
+    /** Apps placed on the home screen (its pages, its folders, the dock) leave the drawer's list; the search
+     *  still finds them (a Telegram request after 0.9.7, opt-in). */
+    val hideHomeAppsFromDrawer: Boolean = false,
     /** Size multiplier for app icon labels across home/dock/drawer/folders (1.0 = the default 11sp). */
     val appLabelTextScale: Float = 1.0f,
     /** Size multiplier for app icons across home/dock/drawer/folders (1.0 = each surface's nominal size;

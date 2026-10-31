@@ -28,6 +28,8 @@ import androidx.compose.ui.test.performTouchInput
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
+import org.arkikeskus.launcher.model.AppItem
+import android.os.Process
 import kotlinx.coroutines.test.TestScope
 import org.junit.After
 import org.junit.Rule
@@ -228,6 +230,25 @@ class AppDrawerScreenTest {
 
         runBlocking { wiring.settingsRepository.setDrawerBackgroundOpacity(0.6f) }
         awaitState("the chosen opacity") { it.backgroundOpacity == 0.6f }
+    }
+
+    /** A Telegram request after 0.9.7: with "Hide apps that are on the home screen" on, an app placed on home
+     *  leaves the drawer's list; the search still finds it. Off (the default) it stays listed. */
+    @Test fun appsOnTheHomeScreenLeaveTheDrawerWhenTheSettingIsOn() {
+        show()
+        awaitText("com.mail")
+        val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0L, "Mail")
+        runBlocking { wiring.homeLayoutRepository.addToHome(mail, columns = 4, rows = 6) }
+        awaitState("home knows the app") { mail.key in it.homeKeys }
+        compose.onNodeWithText("com.mail").assertExists() // the default: still listed
+
+        runBlocking { wiring.settingsRepository.setHideHomeAppsFromDrawer(true) }
+        awaitState("the app left the list") { it.apps.none { a -> a.key == mail.key } }
+        settle()
+        compose.onAllNodesWithText("com.mail").assertCountEquals(0)
+
+        viewModel.onQueryChange("mail")
+        awaitText("com.mail") // the search still finds it
     }
 
     /** A Telegram request after 0.9.7: the drawer's icon size is its own setting; until set it follows home's. */

@@ -117,6 +117,8 @@
     <string name="settings_status_bar">Statusfält (klocka, batteri, signal)</string>
     <string name="settings_status_bar_scrim">Mörkhet bakom statusfältet</string>
     <string name="settings_frequent_apps">Mest använda högst upp</string>
+    <string name="settings_hide_home_apps">Dölj appar som finns på startskärmen</string>
+    <string name="settings_hide_home_apps_desc">Appar som lagts på startskärmen, i dess mappar eller i docken lämnar listan. Sökningen hittar dem fortfarande.</string>
     <string name="settings_drawer_open_top">Öppna alltid högst upp</string>
     <string name="settings_backup">Säkerhetskopiering</string>
     <string name="settings_double_tap_lock">Tryck två gånger för att låsa skärmen</string>

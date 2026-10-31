@@ -123,6 +123,8 @@
     <string name="settings_status_bar">Строка состояния (часы, батарея, сигнал)</string>
     <string name="settings_status_bar_scrim">Затемнение фона строки состояния</string>
     <string name="settings_frequent_apps">Часто используемые вверху</string>
+    <string name="settings_hide_home_apps">Скрывать приложения с главного экрана</string>
+    <string name="settings_hide_home_apps_desc">Приложения, размещённые на главном экране, в его папках или в док-панели, исчезают из списка. Поиск по-прежнему их находит.</string>
     <string name="settings_drawer_open_top">Всегда открывать с начала списка</string>
     <string name="settings_backup">Резервное копирование</string>
     <string name="settings_double_tap_lock">Блокировка экрана двойным нажатием</string>

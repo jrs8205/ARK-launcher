@@ -120,6 +120,8 @@
     <string name="settings_status_bar">Barra de estado (reloj, batería, señal)</string>
     <string name="settings_status_bar_scrim">Oscurecimiento de la barra de estado</string>
     <string name="settings_frequent_apps">Mostrar las más usadas arriba</string>
+    <string name="settings_hide_home_apps">Ocultar las apps que están en la pantalla de inicio</string>
+    <string name="settings_hide_home_apps_desc">Las apps colocadas en la pantalla de inicio, en sus carpetas o en el dock salen de la lista. La búsqueda sigue encontrándolas.</string>
     <string name="settings_drawer_open_top">Abrir siempre al principio</string>
     <string name="settings_backup">Copia de seguridad</string>
     <string name="settings_double_tap_lock">Tocar dos veces para bloquear la pantalla</string>

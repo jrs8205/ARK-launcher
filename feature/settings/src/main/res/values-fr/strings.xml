@@ -120,6 +120,8 @@
     <string name="settings_status_bar">Barre d\'état (heure, batterie, signal)</string>
     <string name="settings_status_bar_scrim">Assombrissement du fond de la barre d\'état</string>
     <string name="settings_frequent_apps">Les plus utilisées en haut</string>
+    <string name="settings_hide_home_apps">Masquer les applis présentes sur l\'écran d\'accueil</string>
+    <string name="settings_hide_home_apps_desc">Les applis placées sur l\'écran d\'accueil, dans ses dossiers ou dans le dock quittent la liste. La recherche les trouve toujours.</string>
     <string name="settings_drawer_open_top">Toujours ouvrir en haut</string>
     <string name="settings_backup">Sauvegarde</string>
     <string name="settings_double_tap_lock">Appuyer deux fois pour verrouiller l\'écran</string>

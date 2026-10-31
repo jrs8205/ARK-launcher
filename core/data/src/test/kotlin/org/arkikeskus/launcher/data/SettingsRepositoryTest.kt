@@ -592,6 +592,23 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().iconScale).isEqualTo(1.0f)
     }
 
+    /** A Telegram request after 0.9.7: hiding home-screen apps from the drawer is opt-in and travels in a backup. */
+    @Test
+    fun `hide home apps from drawer is off by default and survives a backup round-trip`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().hideHomeAppsFromDrawer).isFalse()
+        repo.setHideHomeAppsFromDrawer(true)
+        assertThat(repo.settings.first().hideHomeAppsFromDrawer).isTrue()
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("hide_home_apps_from_drawer", true)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().hideHomeAppsFromDrawer).isTrue()
+        restored.importRaw(mapOf("hide_home_apps_from_drawer" to 1))
+        assertThat(restored.settings.first().hideHomeAppsFromDrawer).isFalse() // wrong type dropped
+    }
+
     /** Issue #17 item 3: the Nova-style folder swipe is opt-in, off out of the box, and travels in a backup. */
     @Test
     fun `folder swipe opens first app is off by default and survives a backup round-trip`() = runTest {

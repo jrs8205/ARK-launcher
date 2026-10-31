@@ -117,6 +117,8 @@
     <string name="settings_status_bar">Statusleiste (Uhr, Akku, Signal)</string>
     <string name="settings_status_bar_scrim">Abdunklung hinter der Statusleiste</string>
     <string name="settings_frequent_apps">Meistgenutzte Apps oben</string>
+    <string name="settings_hide_home_apps">Apps auf dem Startbildschirm ausblenden</string>
+    <string name="settings_hide_home_apps_desc">Apps auf dem Startbildschirm, in seinen Ordnern oder im Dock verschwinden aus der Liste. Die Suche findet sie weiterhin.</string>
     <string name="settings_drawer_open_top">Immer oben öffnen</string>
     <string name="settings_backup">Sicherung</string>
     <string name="settings_double_tap_lock">Zum Sperren des Bildschirms doppeltippen</string>

@@ -82,7 +82,7 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
     }
     private val workProfileRepository = WorkProfileRepository(noProfiles, appScope)
     val appRepository = AppRepository(source, settingsRepository, appUsageRepository, workProfileRepository, appScope)
-    private val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
+    val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
 
     fun viewModel(): AppDrawerViewModel = AppDrawerViewModel(
         context,
