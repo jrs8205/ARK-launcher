@@ -1,0 +1,9 @@
+New
+- Folders in the dock: drop an app onto a dock app, or drag a home folder into the dock.
+- A tap opens a folder to look at it; the pencil opens its editor (#20).
+- Settings > App drawer > "App drawer background opacity" (#21).
+
+Fixed
+- The long-press menu no longer jumps as its rows arrive (#21).
+- The system bars' glyphs stay readable over a see-through drawer.
+- Back closes a long-press menu that is still opening.
