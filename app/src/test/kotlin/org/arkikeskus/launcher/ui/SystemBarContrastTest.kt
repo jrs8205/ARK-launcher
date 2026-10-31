@@ -69,9 +69,9 @@ class SystemBarContrastTest {
         assertThat(behindStatusBarLuminance(ownBarVisible = false, scrimOpacity = 1f, wallpaperSupportsDarkText = true)).isEqualTo(1f)
         assertThat(behindStatusBarLuminance(ownBarVisible = true, scrimOpacity = 0.6f, wallpaperSupportsDarkText = false)).isEqualTo(0f)
         // Light theme, white wallpaper, the default scrim, a half-transparent drawer: dark glyphs, as before the setting.
-        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 0.5f, ownBarVisible = true, scrimOpacity = 0.6f, wallpaperSupportsDarkText = true)).isTrue()
+        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 0.5f, ownBarVisible = true, scrimOpacity = 0.6f, wallpaperSupportsDarkText = true, homeDim = 0f)).isTrue()
         // The same over a solid scrim: light glyphs.
-        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 0.5f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true)).isFalse()
+        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 0.5f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true, homeDim = 0f)).isFalse()
     }
 
     /** Home blanks its own bar while the system bar it was to replace is on top (a kept bar that takes layout space, or a
@@ -92,8 +92,8 @@ class SystemBarContrastTest {
             heightPx = { 2400f },
             statusBarPx = { 130f },
             navBarPx = { 60f },
-            drawerIsLightOverStatusBar = { drawerIsLightOverStatusBar(0.01f, 0f, visible(), 1f, wallpaperSupportsDarkText = true) },
-            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(0.01f, 0f, wallpaperSupportsDarkText = true) },
+            drawerIsLightOverStatusBar = { drawerIsLightOverStatusBar(0.01f, 0f, visible(), 1f, wallpaperSupportsDarkText = true, homeDim = it) },
+            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(0.01f, 0f, wallpaperSupportsDarkText = true, homeDim = it) },
             coverIsLight = { null },
             ownBarBacksDark = { ownBarBacksDark(visible(), 1f) },
             wallpaperSupportsDarkText = { true },
@@ -108,11 +108,11 @@ class SystemBarContrastTest {
      *  navigation bar, over the wallpaper, gets dark ones. */
     @Test fun aSeeThroughDrawerOverTheOwnDarkBarKeepsLightStatusGlyphs() {
         val darkTheme = 0.01f
-        assertThat(drawerIsLightOverStatusBar(darkTheme, opacity = 0f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true)).isFalse()
-        assertThat(drawerIsLightOverStatusBar(darkTheme, opacity = 0f, ownBarVisible = false, scrimOpacity = 1f, wallpaperSupportsDarkText = true)).isTrue()
-        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = true)).isTrue()
+        assertThat(drawerIsLightOverStatusBar(darkTheme, opacity = 0f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true, homeDim = 0f)).isFalse()
+        assertThat(drawerIsLightOverStatusBar(darkTheme, opacity = 0f, ownBarVisible = false, scrimOpacity = 1f, wallpaperSupportsDarkText = true, homeDim = 0f)).isTrue()
+        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = true, homeDim = 0f)).isTrue()
         // Opaque, the own bar is covered: the surface decides as before.
-        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 1f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = false)).isTrue()
+        assertThat(drawerIsLightOverStatusBar(0.98f, opacity = 1f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = false, homeDim = 0f)).isTrue()
 
         // The whole decision, as the shell wires it: showStatusBar on, scrim 1.0, dark theme, drawer transparent and open.
         val ownBar = ownBarBacksDark(ownBarShown = true, scrimOpacity = 1f)
@@ -121,14 +121,56 @@ class SystemBarContrastTest {
             heightPx = { 2400f },
             statusBarPx = { 130f },
             navBarPx = { 60f },
-            drawerIsLightOverStatusBar = { drawerIsLightOverStatusBar(darkTheme, 0f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true) },
-            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true) },
+            drawerIsLightOverStatusBar = { drawerIsLightOverStatusBar(darkTheme, 0f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true, homeDim = it) },
+            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = it) },
             coverIsLight = { null },
             ownBarBacksDark = { ownBar },
             wallpaperSupportsDarkText = { true },
         )
         assertThat(glyphs.darkStatus.value).isFalse() // light glyphs on the own bar's black
         assertThat(glyphs.darkNav.value).isTrue() // dark glyphs on the light wallpaper
+    }
+
+    /** The shell dims home under the rising drawer ([drawerScrimAlpha], 32 % when open), so behind a see-through
+     *  drawer is home's top edge DIMMED by that -- over the status bar and the navigation bar alike. White wallpaper,
+     *  light theme, the own bar at 50 %, the drawer at 5 %: 0.98 x 0.05 + (1 x 0.5 x 0.68) x 0.95 = 0.37 -> light
+     *  glyphs, where the undimmed 0.52 chose dark ones. Opaque, the surface still decides. */
+    @Test fun theDimOverHomeUnderTheDrawerCountsInTheBackdrop() {
+        val lightTheme = 0.98f
+        val open = drawerScrimAlpha(1f)
+        assertThat(drawerIsLightOverStatusBar(lightTheme, 0.05f, ownBarVisible = true, scrimOpacity = 0.5f, wallpaperSupportsDarkText = true, homeDim = 0f)).isTrue()
+        assertThat(drawerIsLightOverStatusBar(lightTheme, 0.05f, ownBarVisible = true, scrimOpacity = 0.5f, wallpaperSupportsDarkText = true, homeDim = open)).isFalse()
+        // The navigation bar: a dark theme at 40 % over the white wallpaper is light undimmed (0.60), dark dimmed (0.41).
+        assertThat(drawerIsLightOverNavigationBar(0.01f, 0.4f, wallpaperSupportsDarkText = true, homeDim = 0f)).isTrue()
+        assertThat(drawerIsLightOverNavigationBar(0.01f, 0.4f, wallpaperSupportsDarkText = true, homeDim = open)).isFalse()
+        // Opaque: the dim is behind the drawer, the surface decides.
+        assertThat(drawerIsLightOverStatusBar(lightTheme, 1f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = false, homeDim = open)).isTrue()
+        assertThat(drawerIsLightOverNavigationBar(0.01f, 1f, wallpaperSupportsDarkText = true, homeDim = open)).isFalse()
+
+        // The whole decision, as the shell wires it: the dim comes from the drawer's progress inside the snapshot.
+        val progress = mutableFloatStateOf(1f)
+        val dimsSeen = mutableListOf<Float>()
+        val glyphs = SystemBarGlyphs(
+            progress = { progress.floatValue },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { dim ->
+                dimsSeen += dim
+                drawerIsLightOverStatusBar(lightTheme, 0.05f, ownBarVisible = true, scrimOpacity = 0.5f, wallpaperSupportsDarkText = true, homeDim = dim)
+            },
+            drawerIsLightOverNavBar = { dim -> drawerIsLightOverNavigationBar(0.01f, 0.4f, wallpaperSupportsDarkText = true, homeDim = dim) },
+            coverIsLight = { null },
+            ownBarBacksDark = { ownBarBacksDark(ownBarShown = true, scrimOpacity = 0.5f) },
+            wallpaperSupportsDarkText = { true },
+        )
+        assertThat(glyphs.darkStatus.value).isFalse()
+        assertThat(glyphs.darkNav.value).isFalse()
+        assertThat(dimsSeen).containsExactly(open)
+        // Home again: the own bar's scrim backs light glyphs, the wallpaper's hint the navigation bar.
+        progress.floatValue = 0f
+        assertThat(glyphs.darkStatus.value).isFalse()
+        assertThat(glyphs.darkNav.value).isTrue()
     }
 
     @Test fun overTheDrawerItsSurfaceDecides() {
