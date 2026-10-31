@@ -1,6 +1,8 @@
 New
-- App drawer icon size, separate from the home screen's (Settings > App drawer).
-- Swipe up on a home folder opens its first app (Settings > Gestures, off by default).
+- App drawer icon size, separate from the home screen's.
+- Hide apps that are on the home screen from the drawer (optional).
+- Swipe up on a home folder opens its first app (optional).
+- Widget edges aligned with the icons (optional).
 - Settings reopened within five minutes starts where you left it.
 - A Support section at the end of Settings.
 

@@ -102,7 +102,8 @@ the app: **Settings ▸ Feedback**.
   that opens the folder's first app.
 - **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
-  drawer opacity, grid columns, page indicator, and more.
+  drawer opacity, widget edges aligned with the icons, hiding home-screen apps from the drawer, grid
+  columns, page indicator, and more.
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
