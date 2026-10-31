@@ -1,0 +1,8 @@
+New
+- App drawer icon size, separate from the home screen's (Settings > App drawer).
+- Swipe up on a home folder opens its first app (Settings > Gestures, off by default).
+- Settings reopened within five minutes starts where you left it.
+- A Support section at the end of Settings.
+
+Fixed
+- The dark gradient behind light status-bar glyphs follows the bar that is really on screen.
