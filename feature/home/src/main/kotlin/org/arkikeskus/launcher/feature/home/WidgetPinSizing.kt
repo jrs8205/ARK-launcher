@@ -11,6 +11,8 @@ import android.view.WindowInsets
 import org.arkikeskus.launcher.data.PinSpans
 import org.arkikeskus.launcher.data.WidgetBinder
 import org.arkikeskus.launcher.model.LauncherSettings
+import androidx.compose.ui.unit.dp
+import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
 
@@ -50,6 +52,10 @@ internal data class WorkspaceChrome(
     val statusBar: Boolean,
     val systemStatusBarHidden: Boolean,
     val pageDotsDp: Float,
+    /** Widgets keep an icon's margin inside their cells (the setting; WidgetInset.kt). */
+    val widgetInsets: Boolean = false,
+    /** The height of a home icon's label block, which the icon size in a cell depends on. */
+    val homeLabelsDp: Float = 0f,
 )
 
 /** The chrome of a home screen with [settings], [pageCount] pages (the dots show from two on) and
@@ -72,6 +78,11 @@ internal fun workspaceChrome(settings: LauncherSettings, pageCount: Int, fontSca
         // Its own setting: with the themed bar off, a shown system bar pads the workspace instead.
         systemStatusBarHidden = settings.hideSystemStatusBar,
         pageDotsDp = if (settings.showPageIndicator && pageCount > 1) pageDotsRowHeight(settings.homePageMarker).value else 0f,
+        widgetInsets = settings.widgetEdgesAlignWithIcons,
+        homeLabelsDp = labelBlockHeight(
+            settings.showHomeLabels, settings.appLabelTextScale, labelFontFactor(fontScale),
+            lines = if (settings.twoLineHomeLabels) 2 else 1,
+        ).value,
     )
 }
 
@@ -112,8 +123,19 @@ internal fun homeWindowOf(activity: Activity): HomeWindow? = runCatching {
     )
 }.getOrNull()
 
-/** The home grid's cell size in dp. */
-data class CellSizeDp(val widthDp: Float, val heightDp: Float)
+/** The home grid's cell size in dp, with the widget inset the grid applies on each side (WidgetInset.kt; 0 off). */
+data class CellSizeDp(val widthDp: Float, val heightDp: Float, val insetXDp: Float = 0f, val insetYDp: Float = 0f) {
+    /** This cell with the inset the grid of [chrome] gives widgets: the icon's side margin in it (none without the setting). */
+    internal fun withInsets(chrome: WorkspaceChrome?): CellSizeDp {
+        if (chrome == null || !chrome.widgetInsets) return copy(insetXDp = 0f, insetYDp = 0f)
+        val icon = iconSizeForCell(widthDp.dp, (HOME_ICON_NOMINAL_DP * chrome.iconScale).dp, heightDp.dp, chrome.homeLabelsDp.dp).value
+        val (x, y) = widgetInsetsDp(widthDp, heightDp, icon)
+        return copy(insetXDp = x, insetYDp = y)
+    }
+}
+
+/** The nominal home icon size the grid scales by the icon-size setting (Workspace's 52 dp). */
+internal const val HOME_ICON_NOMINAL_DP = 52f
 
 /**
  * The home grid's cell size as [Workspace] last laid it out, for the rest of the process: the
@@ -139,9 +161,10 @@ class HomeCellSize {
     internal fun publish(
         widthDp: Float, heightDp: Float, columns: Int, rows: Int,
         configuration: Configuration? = null, chrome: WorkspaceChrome? = null,
+        insetXDp: Float = 0f, insetYDp: Float = 0f,
     ) {
         if (widthDp > 0f && heightDp > 0f && columns > 0 && rows > 0) {
-            measured = Measured(CellSizeDp(widthDp, heightDp), columns, rows, configuration?.let(::screenOf), chrome)
+            measured = Measured(CellSizeDp(widthDp, heightDp, insetXDp, insetYDp), columns, rows, configuration?.let(::screenOf), chrome)
         }
     }
 
@@ -166,10 +189,11 @@ class HomeCellSize {
             dotsGivenBackDp = m.chrome.pageDotsDp - chrome.pageDotsDp
         }
         if (m.columns == columns && m.rows == rows && dotsGivenBackDp == 0f) return m.cell
+        // A rescaled cell gets its inset from the same rule the workspace applies.
         return CellSizeDp(
             m.cell.widthDp * m.columns / columns.coerceAtLeast(1),
             (m.cell.heightDp * m.rows + dotsGivenBackDp) / rows.coerceAtLeast(1),
-        )
+        ).withInsets(chrome ?: m.chrome)
     }
 
     companion object {
@@ -212,7 +236,7 @@ class HomeCellSize {
             return CellSizeDp(
                 home.widthDp / settings.homeColumns.coerceAtLeast(1),
                 gridHeightDp.coerceAtLeast(1f) / settings.homeRows.coerceAtLeast(1),
-            )
+            ).withInsets(chrome)
         }
 
         /** What HomeScreen's column gives the status bar above the workspace. */
@@ -257,7 +281,7 @@ class HomeCellSize {
  * there). Unclamped: the decision clamps against the grid.
  */
 internal fun requestedWidgetSpans(info: AppWidgetProviderInfo, context: Context, cell: CellSizeDp): PinSpans {
-    val (spanX, spanY) = defaultWidgetSpans(info, context, cell.widthDp, cell.heightDp)
+    val (spanX, spanY) = defaultWidgetSpans(info, context, cell.widthDp, cell.heightDp, cell.insetXDp, cell.insetYDp)
     val density = context.resources.displayMetrics.density
     val resizesX = info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
     val resizesY = info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
@@ -265,7 +289,7 @@ internal fun requestedWidgetSpans(info: AppWidgetProviderInfo, context: Context,
     val minHeight = if (resizesY && info.minResizeHeight > 0) minOf(info.minResizeHeight, info.minHeight) else info.minHeight
     return PinSpans(
         spanX, spanY,
-        minimumWidgetCells(minWidth / density, cell.widthDp),
-        minimumWidgetCells(minHeight / density, cell.heightDp),
+        minimumWidgetCells(minWidth / density, cell.widthDp, cell.insetXDp),
+        minimumWidgetCells(minHeight / density, cell.heightDp, cell.insetYDp),
     )
 }

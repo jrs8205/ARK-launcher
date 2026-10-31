@@ -65,12 +65,14 @@ val LocalOrphanWidgetConfigResult = staticCompositionLocalOf<MutableStateFlow<Bo
  */
 fun defaultWidgetSpans(
     provider: AppWidgetProviderInfo, context: Context, cellWidthDp: Float, cellHeightDp: Float,
+    /** The widget inset the home grid applies on each side (WidgetInset.kt), counted into the cells needed. */
+    insetXDp: Float = 0f, insetYDp: Float = 0f,
 ): Pair<Int, Int> {
     val density = context.resources.displayMetrics.density
     val hintX = if (Build.VERSION.SDK_INT >= 31) provider.targetCellWidth else 0
     val hintY = if (Build.VERSION.SDK_INT >= 31) provider.targetCellHeight else 0
-    val sx = maxOf(hintX, minimumWidgetCells(provider.minWidth / density, cellWidthDp))
-    val sy = maxOf(hintY, minimumWidgetCells(provider.minHeight / density, cellHeightDp))
+    val sx = maxOf(hintX, minimumWidgetCells(provider.minWidth / density, cellWidthDp, insetXDp))
+    val sy = maxOf(hintY, minimumWidgetCells(provider.minHeight / density, cellHeightDp, insetYDp))
     return sx to sy
 }
 
@@ -90,16 +92,19 @@ fun widgetResizeRange(
     rows: Int = HomeLayoutRepository.ROWS,
     cellWidthDp: Float,
     cellHeightDp: Float,
+    /** The widget inset the home grid applies on each side (WidgetInset.kt), counted into every limit. */
+    insetXDp: Float = 0f,
+    insetYDp: Float = 0f,
 ): WidgetResizeRange {
     val density = context.resources.displayMetrics.density
     val minX = minimumWidgetCells(
-        (if (info.minResizeWidth > 0) minOf(info.minResizeWidth, info.minWidth) else info.minWidth) / density, cellWidthDp,
+        (if (info.minResizeWidth > 0) minOf(info.minResizeWidth, info.minWidth) else info.minWidth) / density, cellWidthDp, insetXDp,
     )
     val minY = minimumWidgetCells(
-        (if (info.minResizeHeight > 0) minOf(info.minResizeHeight, info.minHeight) else info.minHeight) / density, cellHeightDp,
+        (if (info.minResizeHeight > 0) minOf(info.minResizeHeight, info.minHeight) else info.minHeight) / density, cellHeightDp, insetYDp,
     )
-    val maxX = maximumWidgetCells(if (Build.VERSION.SDK_INT >= 31) info.maxResizeWidth / density else 0f, cellWidthDp, gridColumns)
-    val maxY = maximumWidgetCells(if (Build.VERSION.SDK_INT >= 31) info.maxResizeHeight / density else 0f, cellHeightDp, rows)
+    val maxX = maximumWidgetCells(if (Build.VERSION.SDK_INT >= 31) info.maxResizeWidth / density else 0f, cellWidthDp, gridColumns, insetXDp)
+    val maxY = maximumWidgetCells(if (Build.VERSION.SDK_INT >= 31) info.maxResizeHeight / density else 0f, cellHeightDp, rows, insetYDp)
     val horizontal = info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
     val vertical = info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
     return WidgetResizeRange(

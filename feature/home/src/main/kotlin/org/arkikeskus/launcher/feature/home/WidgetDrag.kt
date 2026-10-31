@@ -52,6 +52,9 @@ class WidgetDragController(private val home: HomeDragController) {
     internal var keepsGestureLock: () -> Boolean = { false }
     internal var cellWidthDp by mutableFloatStateOf(1f)
     internal var cellHeightDp by mutableFloatStateOf(1f)
+    /** The widget inset the grid applies on each side (WidgetInset.kt), for the picker's default spans. */
+    internal var widgetInsetXDp by mutableFloatStateOf(0f)
+    internal var widgetInsetYDp by mutableFloatStateOf(0f)
 
     /** The gesture that started the active drag; see [owns]. */
     private var owner: Any? = null

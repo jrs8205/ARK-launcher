@@ -89,6 +89,22 @@ class WidgetPinSizingTest {
         assertThat(requestedWidgetSpans(provider(250, 110), context, cell)).isEqualTo(PinSpans(4, 2, 4, 2))
     }
 
+    /** With the widget inset on, the footprint covers the size PLUS the inset on both sides. */
+    @Test fun theFootprintCountsTheWidgetInsetWhenItIsOn() {
+        val inset = CellSizeDp(70f, 100f, insetXDp = 19f, insetYDp = 19f)
+        // 250 + 38 = 288 dp needs 5 cells of 70 (4 without the inset); 110 + 38 = 148 still needs 2 of 100.
+        assertThat(requestedWidgetSpans(provider(250, 110), context, inset)).isEqualTo(PinSpans(5, 2, 5, 2))
+    }
+
+    @Test fun theEstimateCarriesTheWidgetInsetWhenTheSettingIsOn() {
+        val on = LauncherSettings(widgetEdgesAlignWithIcons = true)
+        val cell = estimateOf(on)
+        assertThat(cell.insetXDp).isGreaterThan(0f)
+        assertThat(cell.insetYDp).isAtMost(cell.insetXDp)
+        assertThat(cell.insetYDp).isAtMost(cell.heightDp / 4)
+        assertThat(estimateOf(LauncherSettings()).insetXDp).isEqualTo(0f)
+    }
+
     @Test fun theFootprintMatchesWhatTheWidgetPickerGives() {
         val info = provider(250, 110, targetCellWidth = 5, targetCellHeight = 1)
         val (sx, sy) = defaultWidgetSpans(info, context, cell.widthDp, cell.heightDp)

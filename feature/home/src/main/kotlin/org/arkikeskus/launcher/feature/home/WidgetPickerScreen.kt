@@ -164,7 +164,10 @@ private fun WidgetCard(
 ) {
     val context = LocalContext.current
     val (defaultX, defaultY) = when (val choice = option.choice) {
-        is WidgetChoice.App -> defaultWidgetSpans(choice.provider, context, controller.cellWidthDp, controller.cellHeightDp)
+        is WidgetChoice.App -> defaultWidgetSpans(
+            choice.provider, context, controller.cellWidthDp, controller.cellHeightDp,
+            controller.widgetInsetXDp, controller.widgetInsetYDp,
+        )
         is WidgetChoice.Builtin -> when (choice.type) {
             HomeItemEntity.BUILTIN_BATTERY -> 1 to 1
             HomeItemEntity.BUILTIN_NOTIFICATIONS -> columns to 1

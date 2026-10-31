@@ -5,12 +5,14 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.WidgetPlacement
 
-internal fun minimumWidgetCells(sizeDp: Float, cellDp: Float): Int =
-    ceil(sizeDp.coerceAtLeast(0f) / cellDp.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
+/** The fewest cells that cover [sizeDp] plus a widget inset of [insetDp] on both sides (WidgetInset.kt). */
+internal fun minimumWidgetCells(sizeDp: Float, cellDp: Float, insetDp: Float = 0f): Int =
+    ceil((sizeDp.coerceAtLeast(0f) + 2 * insetDp.coerceAtLeast(0f)) / cellDp.coerceAtLeast(1f)).toInt().coerceAtLeast(1)
 
-internal fun maximumWidgetCells(sizeDp: Float, cellDp: Float, gridCells: Int): Int =
+/** The most cells whose span, less a widget inset of [insetDp] on both sides, still fits [sizeDp]. */
+internal fun maximumWidgetCells(sizeDp: Float, cellDp: Float, gridCells: Int, insetDp: Float = 0f): Int =
     if (sizeDp <= 0f) gridCells else
-        floor(sizeDp / cellDp.coerceAtLeast(1f)).toInt().coerceIn(1, gridCells.coerceAtLeast(1))
+        floor((sizeDp + 2 * insetDp.coerceAtLeast(0f)) / cellDp.coerceAtLeast(1f)).toInt().coerceIn(1, gridCells.coerceAtLeast(1))
 
 /** Preserve the opposite edge, including old layouts smaller than today's provider minimum. */
 internal fun resizeWidgetStartEdge(

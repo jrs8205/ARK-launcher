@@ -417,7 +417,7 @@ internal fun Workspace(
         nominalIconSize
     }
     // A widget's margin inside its cells when it is to line up with the icons (a Telegram request).
-    val widgetInsetDp = widgetInset(with(density) { cellW.toDp() }, cellIconSize, widgetEdgesAlignWithIcons)
+    val widgetInsets = widgetInsets(with(density) { cellW.toDp() }, with(density) { cellH.toDp() }, cellIconSize, widgetEdgesAlignWithIcons)
     val moveThresholdPx = with(density) { 16.dp.toPx() }
     // Page flips only when the dragged icon is pushed right against the screen edge.
     val edgePx = with(density) { 20.dp.toPx() }
@@ -471,9 +471,16 @@ internal fun Workspace(
     val configuration = LocalConfiguration.current
     SideEffect {
         widgetDragController.cellWidthDp = cellW / density.density
+        widgetDragController.widgetInsetXDp = widgetInsets.horizontal.value
+        widgetDragController.widgetInsetYDp = widgetInsets.vertical.value
         widgetDragController.cellHeightDp = cellH / density.density
         // The same size for the rest of the process (a widget request's confirmation), once real.
-        if (gridSize.width > 0 && gridSize.height > 0) cellSize.publish(cellW / density.density, cellH / density.density, columns, rows, configuration, chrome)
+        if (gridSize.width > 0 && gridSize.height > 0) {
+            cellSize.publish(
+                cellW / density.density, cellH / density.density, columns, rows, configuration, chrome,
+                insetXDp = widgetInsets.horizontal.value, insetYDp = widgetInsets.vertical.value,
+            )
+        }
         widgetDragController.target = {
             val drag = widgetDragController.active
             if (drag == null || locked || pagerState.isScrollInProgress) null else {
@@ -1473,7 +1480,7 @@ internal fun Workspace(
                                         }
                                         // Last, so every geometry read above (bounds, drag, reveal) still sees the
                                         // whole span and only the hosted view is inset (widgetInset).
-                                        .padding(widgetInsetDp),
+                                        .padding(horizontal = widgetInsets.horizontal, vertical = widgetInsets.vertical),
                                 ) {
                                     if (hostView != null) {
                                         // Host the persistent AppWidgetHostView inside a container, re-parenting
@@ -1483,9 +1490,8 @@ internal fun Workspace(
                                         AndroidView(
                                             factory = { c -> android.widget.FrameLayout(c) },
                                             update = { container ->
-                                                val insetDp = widgetInsetDp.value.toInt()
-                                                val wDp = insetWidgetSizeDp((widget.spanX * cellW / density.density).toInt(), insetDp)
-                                                val hDp = insetWidgetSizeDp((widget.spanY * cellH / density.density).toInt(), insetDp)
+                                                val wDp = insetWidgetSizeDp((widget.spanX * cellW / density.density).toInt(), widgetInsets.horizontal.value.toInt())
+                                                val hDp = insetWidgetSizeDp((widget.spanY * cellH / density.density).toInt(), widgetInsets.vertical.value.toInt())
                                                 if (wDp > 0 && hDp > 0) {
                                                     widgetSizeReporter.report(widget.appWidgetId, wDp, hDp) {
                                                         sendWidgetSize(hostView, wDp, hDp)
@@ -1657,7 +1663,12 @@ internal fun Workspace(
                                     horizontal = true, vertical = true,
                                 )
                             } else {
-                                info?.let { widgetResizeRange(it, ctxE, columns, rows, cellW / density.density, cellH / density.density) }?.takeIf { it.isResizable }
+                                info?.let {
+                                    widgetResizeRange(
+                                        it, ctxE, columns, rows, cellW / density.density, cellH / density.density,
+                                        widgetInsets.horizontal.value, widgetInsets.vertical.value,
+                                    )
+                                }?.takeIf { it.isResizable }
                             }
                         }
                         val reconfigurable = remember(ew.appWidgetId) { info?.let { isReconfigurableWidget(it) } ?: false }
