@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.SystemClock
 import android.graphics.Bitmap
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -126,13 +127,17 @@ fun SettingsScreen(
     // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
     // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
     // list and forget the position — the "settings always restart at the top" complaint). Saveable so
-    // it also survives activity recreation; a fresh Settings open still starts at the top.
-    val mainScrollState = rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) }
+    // it also survives activity recreation. A fresh Settings open starts where the list was left if
+    // that was less than five minutes ago (SettingsScrollMemory), else at the top.
+    val mainScrollState = rememberSaveable(saver = ScrollState.Saver) {
+        ScrollState(SettingsScrollMemory.restore(SystemClock.elapsedRealtime()))
+    }
     var isDefaultLauncher by remember { mutableStateOf(DefaultLauncher.isDefault(context)) }
     // The home app can also change in the system settings while this screen is behind them.
     LifecycleResumeEffect(Unit) {
         isDefaultLauncher = DefaultLauncher.isDefault(context)
-        onPauseOrDispose { }
+        // Leaving (HOME, Back, another app on top): note the place and the time for the next open.
+        onPauseOrDispose { SettingsScrollMemory.remember(mainScrollState.value, SystemClock.elapsedRealtime()) }
     }
     // Re-check after the user returns from the system "default home app" / role chooser.
     val setDefaultLauncher = rememberLauncherForActivityResult(
