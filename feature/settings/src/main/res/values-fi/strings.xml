@@ -131,6 +131,10 @@
     <string name="settings_feedback_discussions_desc">Kysymykset ja ideat — GitHub Discussions</string>
     <string name="settings_feedback_telegram">Telegram-ryhmä</string>
     <string name="settings_feedback_telegram_desc">Keskustele muiden käyttäjien kanssa — t.me/ARKlauncher</string>
+    <string name="settings_support_title">Tue ARK-launcheria</string>
+    <string name="settings_support_text">ARK-launcher on ilmainen ja avointa lähdekoodia, ja pysyy sellaisena. Jos se tekee puhelimestasi mukavamman, voit tarjota minulle kahvin tai sponsoroida työtä.</string>
+    <string name="settings_support_github">Sponsoroi GitHubissa</string>
+    <string name="settings_support_coffee">Tarjoa kahvi</string>
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
     <string name="settings_widget_tonal">Widgettien teematausta</string>

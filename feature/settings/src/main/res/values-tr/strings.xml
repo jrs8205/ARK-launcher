@@ -131,6 +131,10 @@
     <string name="settings_feedback_discussions_desc">Sorular ve fikirler — GitHub Discussions</string>
     <string name="settings_feedback_telegram">Telegram grubu</string>
     <string name="settings_feedback_telegram_desc">Diğer kullanıcılarla sohbet edin — t.me/ARKlauncher</string>
+    <string name="settings_support_title">ARK-launcher\'ı destekle</string>
+    <string name="settings_support_text">ARK-launcher ücretsiz ve açık kaynaklıdır ve öyle kalacak. Telefonunuzu daha hoş hale getiriyorsa bana bir kahve ısmarlayabilir veya çalışmayı destekleyebilirsiniz.</string>
+    <string name="settings_support_github">GitHub\'da sponsor ol</string>
+    <string name="settings_support_coffee">Bir kahve ısmarla</string>
     <string name="settings_step_decrease">Azalt</string>
     <string name="settings_step_increase">Artır</string>
     <string name="settings_widget_tonal">Yerleşik widget\'lar için temalı arka planlar</string>

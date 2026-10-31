@@ -488,6 +488,9 @@ fun SettingsScreen(
                     description = stringResource(R.string.settings_feedback_telegram_desc),
                 ) { openLink(context, TELEGRAM_URL) }
 
+                // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
+                SupportSection(onOpen = { openLink(context, it) })
+
                 // The installed build, last of all, so a glance here answers "which version is this"
                 // without the system's app info — and compares with the newest release above.
                 val installedVersion = remember(context) { installedVersionLabel(context) }

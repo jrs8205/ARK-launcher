@@ -131,6 +131,10 @@
     <string name="settings_feedback_discussions_desc">Fragen und Ideen – GitHub Discussions</string>
     <string name="settings_feedback_telegram">Telegram-Gruppe</string>
     <string name="settings_feedback_telegram_desc">Chatte mit anderen Nutzern – t.me/ARKlauncher</string>
+    <string name="settings_support_title">ARK-launcher unterstützen</string>
+    <string name="settings_support_text">ARK-launcher ist kostenlos und quelloffen und bleibt es auch. Wenn es dein Telefon angenehmer macht, kannst du mir einen Kaffee ausgeben oder die Arbeit sponsern.</string>
+    <string name="settings_support_github">Auf GitHub sponsern</string>
+    <string name="settings_support_coffee">Einen Kaffee ausgeben</string>
     <string name="settings_step_decrease">Verringern</string>
     <string name="settings_step_increase">Erhöhen</string>
     <string name="settings_widget_tonal">Designbasierte Hintergründe für integrierte Widgets</string>
