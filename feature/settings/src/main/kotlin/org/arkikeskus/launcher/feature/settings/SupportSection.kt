@@ -1,5 +1,8 @@
 package org.arkikeskus.launcher.feature.settings
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -21,6 +24,24 @@ import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 internal const val SPONSOR_URL = "https://github.com/sponsors/jrs8205"
 internal const val COFFEE_URL = "https://buymeacoffee.com/jrs8205"
 internal const val PAYPAL_URL = "https://paypal.me/JarsiS"
+
+/** The PayPal app, which takes the PayPal page directly when it is installed ([openSupportLink]). */
+private const val PAYPAL_PACKAGE = "com.paypal.android.p2pmobile"
+
+/**
+ * Opens a support page. The PayPal page goes straight to the PayPal app when it is installed: as a plain
+ * link it only offers a choice between the app and the browser where Android has not verified the app for
+ * paypal.me (seen on a Pixel 8a). Without the app, or if it refuses, the plain link takes over ([openLink]).
+ */
+internal fun openSupportLink(context: Context, url: String) {
+    if (url == PAYPAL_URL) {
+        val direct = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            .setPackage(PAYPAL_PACKAGE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(direct) }.isSuccess) return
+    }
+    openLink(context, url)
+}
 
 /**
  * The support section at the very bottom of Settings (owner decision 2026-10-31): a title, one sentence

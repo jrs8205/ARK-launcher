@@ -506,7 +506,7 @@ fun SettingsScreen(
                 ) { openLink(context, TELEGRAM_URL) }
 
                 // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
-                SupportSection(onOpen = { openLink(context, it) })
+                SupportSection(onOpen = { openSupportLink(context, it) })
 
                 // The installed build, last of all, so a glance here answers "which version is this"
                 // without the system's app info — and compares with the newest release above.
@@ -891,7 +891,7 @@ private const val DISCUSSIONS_URL = "https://github.com/jrs8205/ARK-launcher/dis
 private const val TELEGRAM_URL = "https://t.me/ARKlauncher"
 private const val RELEASES_URL = "https://github.com/jrs8205/ARK-launcher/releases"
 
-private fun openLink(context: android.content.Context, url: String) {
+internal fun openLink(context: android.content.Context, url: String) {
     val opened = runCatching {
         context.startActivity(
             Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
