@@ -34,6 +34,15 @@ class WidgetInsetTest {
             .isEqualTo(WidgetInsets(0.dp, 0.dp))
     }
 
+    /** A placed widget gets only the inset its own minimum leaves room for, per axis and never a negative one. */
+    @Test fun aPlacedWidgetKeepsItsMinimumSize() {
+        val full = WidgetInsets(19.dp, 19.dp)
+        // 180 x 200 dp span: no room sideways for a 180 dp minimum, 15 dp up and down for a 170 dp one.
+        assertThat(insetsWithinMinimum(full, 180f, 200f, minWidthDp = 180f, minHeightDp = 170f)).isEqualTo(WidgetInsets(0.dp, 15.dp))
+        assertThat(insetsWithinMinimum(full, 180f, 200f, minWidthDp = 100f, minHeightDp = 100f)).isEqualTo(full)
+        assertThat(insetsWithinMinimum(full, 180f, 200f, minWidthDp = 250f, minHeightDp = 300f)).isEqualTo(WidgetInsets(0.dp, 0.dp))
+    }
+
     /** The size the widget is told about shrinks by the inset on both sides, never below one dp. */
     @Test fun theReportedSizeLosesTheInsetOnBothSides() {
         assertThat(insetWidgetSizeDp(spanDp = 180, insetDp = 19)).isEqualTo(142)

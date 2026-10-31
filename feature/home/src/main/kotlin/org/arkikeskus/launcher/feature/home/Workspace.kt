@@ -1416,6 +1416,14 @@ internal fun Workspace(
                                 // the root bounds are published to the controller so the swipe-up detector
                                 // yields to a collection widget's own scroll instead of opening the drawer.
                                 val hostView = widgetViews[widget.appWidgetId]
+                                // Only what the provider's own minimum leaves room for (WidgetInset.kt).
+                                val placedInsets = info?.let {
+                                    val (minWidthDp, minHeightDp) = smallestWidgetSizeDp(it, density.density)
+                                    insetsWithinMinimum(
+                                        widgetInsets, widget.spanX * cellW / density.density, widget.spanY * cellH / density.density,
+                                        minWidthDp, minHeightDp,
+                                    )
+                                } ?: widgetInsets
                                 val widgetScrollable = widgetScrollableById[widget.appWidgetId] ?: false
                                 var widgetRect by remember(widget.rowId) { mutableStateOf(Rect.Zero) }
                                 // Page 0 can be composed twice (the real page and the copy at the tail):
@@ -1480,7 +1488,7 @@ internal fun Workspace(
                                         }
                                         // Last, so every geometry read above (bounds, drag, reveal) still sees the
                                         // whole span and only the hosted view is inset (widgetInset).
-                                        .padding(horizontal = widgetInsets.horizontal, vertical = widgetInsets.vertical),
+                                        .padding(horizontal = placedInsets.horizontal, vertical = placedInsets.vertical),
                                 ) {
                                     if (hostView != null) {
                                         // Host the persistent AppWidgetHostView inside a container, re-parenting
@@ -1490,8 +1498,8 @@ internal fun Workspace(
                                         AndroidView(
                                             factory = { c -> android.widget.FrameLayout(c) },
                                             update = { container ->
-                                                val wDp = insetWidgetSizeDp((widget.spanX * cellW / density.density).toInt(), widgetInsets.horizontal.value.toInt())
-                                                val hDp = insetWidgetSizeDp((widget.spanY * cellH / density.density).toInt(), widgetInsets.vertical.value.toInt())
+                                                val wDp = insetWidgetSizeDp((widget.spanX * cellW / density.density).toInt(), placedInsets.horizontal.value.toInt())
+                                                val hDp = insetWidgetSizeDp((widget.spanY * cellH / density.density).toInt(), placedInsets.vertical.value.toInt())
                                                 if (wDp > 0 && hDp > 0) {
                                                     widgetSizeReporter.report(widget.appWidgetId, wDp, hDp) {
                                                         sendWidgetSize(hostView, wDp, hDp)

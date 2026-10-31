@@ -26,5 +26,17 @@ internal fun widgetInsetsDp(cellWidthDp: Float, cellHeightDp: Float, iconDp: Flo
     return horizontal to vertical
 }
 
+/**
+ * [insets] for a widget placed in a span of [spanWidthDp] x [spanHeightDp]: never so much that it is left less
+ * than [minWidthDp] x [minHeightDp], the smallest its provider supports. The setting does not touch the layout, so
+ * a widget placed before it was on may fill its cells exactly: that one keeps its size rather than clip its content.
+ */
+internal fun insetsWithinMinimum(
+    insets: WidgetInsets, spanWidthDp: Float, spanHeightDp: Float, minWidthDp: Float, minHeightDp: Float,
+): WidgetInsets = WidgetInsets(
+    minOf(insets.horizontal, ((spanWidthDp - minWidthDp) / 2f).coerceAtLeast(0f).dp),
+    minOf(insets.vertical, ((spanHeightDp - minHeightDp) / 2f).coerceAtLeast(0f).dp),
+)
+
 /** The size (one axis, dp) a widget is told about once [insetDp] is taken off both sides; never below 1. */
 internal fun insetWidgetSizeDp(spanDp: Int, insetDp: Int): Int = (spanDp - 2 * insetDp).coerceAtLeast(1)

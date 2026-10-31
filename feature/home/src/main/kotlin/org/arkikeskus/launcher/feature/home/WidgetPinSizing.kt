@@ -282,14 +282,19 @@ class HomeCellSize {
  */
 internal fun requestedWidgetSpans(info: AppWidgetProviderInfo, context: Context, cell: CellSizeDp): PinSpans {
     val (spanX, spanY) = defaultWidgetSpans(info, context, cell.widthDp, cell.heightDp, cell.insetXDp, cell.insetYDp)
-    val density = context.resources.displayMetrics.density
+    val (minWidthDp, minHeightDp) = smallestWidgetSizeDp(info, context.resources.displayMetrics.density)
+    return PinSpans(
+        spanX, spanY,
+        minimumWidgetCells(minWidthDp, cell.widthDp, cell.insetXDp),
+        minimumWidgetCells(minHeightDp, cell.heightDp, cell.insetYDp),
+    )
+}
+
+/** The smallest size (width, height in dp) [info] supports: its minimum, or its resize minimum along an axis it resizes on. */
+internal fun smallestWidgetSizeDp(info: AppWidgetProviderInfo, density: Float): Pair<Float, Float> {
     val resizesX = info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
     val resizesY = info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
     val minWidth = if (resizesX && info.minResizeWidth > 0) minOf(info.minResizeWidth, info.minWidth) else info.minWidth
     val minHeight = if (resizesY && info.minResizeHeight > 0) minOf(info.minResizeHeight, info.minHeight) else info.minHeight
-    return PinSpans(
-        spanX, spanY,
-        minimumWidgetCells(minWidth / density, cell.widthDp, cell.insetXDp),
-        minimumWidgetCells(minHeight / density, cell.heightDp, cell.insetYDp),
-    )
+    return minWidth / density to minHeight / density
 }
