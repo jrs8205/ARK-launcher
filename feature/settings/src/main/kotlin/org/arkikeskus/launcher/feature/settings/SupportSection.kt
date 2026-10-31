@@ -2,7 +2,7 @@ package org.arkikeskus.launcher.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
@@ -37,9 +37,11 @@ internal fun SupportSection(onOpen: (String) -> Unit) {
             lineHeight = 20.sp,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
         )
-        Row(
+        // A flow row: long labels (de, ru, tr) wrap the second button onto its own line instead of clipping.
+        FlowRow(
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             OutlinedButton(
                 onClick = { onOpen(SPONSOR_URL) },
