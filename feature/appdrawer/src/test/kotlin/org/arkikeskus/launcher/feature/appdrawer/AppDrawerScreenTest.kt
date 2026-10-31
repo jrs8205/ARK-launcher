@@ -251,6 +251,21 @@ class AppDrawerScreenTest {
         awaitText("com.mail") // the search still finds it
     }
 
+    /** A dock that is off shows nothing, so its apps are not "on the home screen" and stay listed. */
+    @Test fun aDockAppReturnsToTheDrawerWhenTheDockIsOff() {
+        show()
+        awaitText("com.mail")
+        val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0L, "Mail")
+        runBlocking {
+            wiring.homeLayoutRepository.addToDock(mail)
+            wiring.settingsRepository.setHideHomeAppsFromDrawer(true)
+        }
+        awaitState("the dock app left the list") { it.apps.none { a -> a.key == mail.key } }
+
+        runBlocking { wiring.settingsRepository.setDockEnabled(false) }
+        awaitState("the dock is off, the app is back") { it.apps.any { a -> a.key == mail.key } }
+    }
+
     /** A Telegram request after 0.9.7: the drawer's icon size is its own setting; until set it follows home's. */
     @Test fun theDrawerIconScaleFollowsItsOwnSetting() {
         show()

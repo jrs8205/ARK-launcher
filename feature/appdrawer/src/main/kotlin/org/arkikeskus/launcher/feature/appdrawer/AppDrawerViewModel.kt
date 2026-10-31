@@ -69,8 +69,7 @@ data class AppDrawerUiState(
     /** Visible dock capacity — the drawer hides "Add to dock" once this many entries exist. */
     val dockColumns: Int = 4,
     val homeKeys: Set<String> = emptySet(),
-    /** Every app anywhere on the home surface (pages, home and dock folders, the dock): what
-     *  [hideHomeApps] takes out of the list. */
+    /** Every app on the home surface as shown ([homeSurfaceKeys]): what [hideHomeApps] takes out of the list. */
     val onHomeKeys: Set<String> = emptySet(),
     /** Apps on the home surface leave the list (the search still finds them). */
     val hideHomeApps: Boolean = false,
@@ -161,8 +160,8 @@ class AppDrawerViewModel @Inject constructor(
                 .filter { it.containerId == HomeItemEntity.HOME && !it.isFolder }
                 .map { it.key }
                 .toSet(),
-            // Every home_items app row is on the home surface: a page, a folder on a page or in the dock, the dock.
-            onHomeKeys = homeItems.filter { it.isApp }.mapTo(HashSet()) { it.key },
+            // The apps on the home surface as shown: pages, home folders, and the dock as HomeViewModel shows it.
+            onHomeKeys = homeSurfaceKeys(homeItems, installed, settings.dockEnabled, settings.dockColumns),
             hideHomeApps = settings.hideHomeAppsFromDrawer,
             showLabels = settings.showDrawerLabels,
             showFolderNames = settings.showDrawerFolderNames,
