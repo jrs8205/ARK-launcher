@@ -329,6 +329,12 @@ fun SettingsScreen(
                     viewModel::setHideSystemStatusBar,
                 )
                 SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, viewModel::setWidgetTonalBackground)
+                SwitchRow(
+                    stringResource(R.string.settings_widget_inset),
+                    stringResource(R.string.settings_widget_inset_desc),
+                    s.widgetEdgesAlignWithIcons,
+                    viewModel::setWidgetEdgesAlignWithIcons,
+                )
                 WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
                 if (s.showWeather) {
                     WeatherAppRow(appLabel = allApps.firstOrNull { it.key == s.weatherAppKey }?.label) {

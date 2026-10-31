@@ -140,6 +140,8 @@
     <string name="settings_step_decrease">Decrease</string>
     <string name="settings_step_increase">Increase</string>
     <string name="settings_widget_tonal">Themed backgrounds for built-in widgets</string>
+    <string name="settings_widget_inset">Widget edges align with icons</string>
+    <string name="settings_widget_inset_desc">Widgets keep the same side margin as app icons instead of filling their cells edge to edge. Widgets with margins of their own may look smaller.</string>
     <string name="settings_sounds">Sounds</string>
     <string name="settings_lock_sounds">Lock and unlock sounds</string>
     <string name="settings_lock_sounds_desc">A sound you pick plays when the phone locks and when it unlocks — not when it is silent or on vibrate, in Do not disturb or in a call.</string>

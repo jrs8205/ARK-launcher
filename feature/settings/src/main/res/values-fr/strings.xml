@@ -143,6 +143,8 @@
     <string name="settings_step_decrease">Diminuer</string>
     <string name="settings_step_increase">Augmenter</string>
     <string name="settings_widget_tonal">Fonds à thème pour les widgets intégrés</string>
+    <string name="settings_widget_inset">Aligner les bords des widgets sur les icônes</string>
+    <string name="settings_widget_inset_desc">Les widgets gardent la même marge latérale que les icônes au lieu de remplir leurs cellules bord à bord. Les widgets ayant leur propre marge peuvent paraître plus petits.</string>
     <string name="settings_sounds">Sons</string>
     <string name="settings_lock_sounds">Sons de verrouillage et de déverrouillage</string>
     <string name="settings_lock_sounds_desc">Un son de votre choix est joué quand le téléphone se verrouille et se déverrouille, sauf en mode silencieux ou vibreur, en mode Ne pas déranger ou pendant un appel.</string>

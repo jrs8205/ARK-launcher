@@ -146,6 +146,8 @@
     <string name="settings_step_decrease">Уменьшить</string>
     <string name="settings_step_increase">Увеличить</string>
     <string name="settings_widget_tonal">Тематический фон встроенных виджетов</string>
+    <string name="settings_widget_inset">Выровнять края виджетов по значкам</string>
+    <string name="settings_widget_inset_desc">Виджеты получают тот же боковой отступ, что и значки приложений, вместо заполнения ячеек от края до края. Виджеты с собственными отступами могут выглядеть меньше.</string>
     <string name="settings_sounds">Звуки</string>
     <string name="settings_lock_sounds">Звуки блокировки и разблокировки</string>
     <string name="settings_lock_sounds_desc">Выбранный вами звук звучит при блокировке и разблокировке телефона — но не в беззвучном режиме, в режиме вибрации, «Не беспокоить» или во время звонка.</string>

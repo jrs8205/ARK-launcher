@@ -146,6 +146,8 @@
     <string name="settings_step_decrease">Zmniejsz</string>
     <string name="settings_step_increase">Zwiększ</string>
     <string name="settings_widget_tonal">Tła z motywem dla wbudowanych widżetów</string>
+    <string name="settings_widget_inset">Wyrównaj krawędzie widżetów do ikon</string>
+    <string name="settings_widget_inset_desc">Widżety zachowują taki sam boczny margines jak ikony aplikacji, zamiast wypełniać komórki od krawędzi do krawędzi. Widżety z własnym marginesem mogą wyglądać na mniejsze.</string>
     <string name="settings_sounds">Dźwięki</string>
     <string name="settings_lock_sounds">Dźwięki blokady i odblokowania</string>
     <string name="settings_lock_sounds_desc">Wybrany przez Ciebie dźwięk odtwarza się, gdy telefon się blokuje i gdy się odblokowuje – nie w trybie cichym, wibracji, Nie przeszkadzać ani podczas rozmowy.</string>

@@ -143,6 +143,8 @@
     <string name="settings_step_decrease">Disminuir</string>
     <string name="settings_step_increase">Aumentar</string>
     <string name="settings_widget_tonal">Fondos temáticos en los widgets integrados</string>
+    <string name="settings_widget_inset">Alinear los bordes de los widgets con los iconos</string>
+    <string name="settings_widget_inset_desc">Los widgets mantienen el mismo margen lateral que los iconos en lugar de llenar sus celdas de borde a borde. Los widgets con margen propio pueden verse más pequeños.</string>
     <string name="settings_sounds">Sonidos</string>
     <string name="settings_lock_sounds">Sonidos de bloqueo y desbloqueo</string>
     <string name="settings_lock_sounds_desc">Un sonido que elijas suena cuando el teléfono se bloquea y cuando se desbloquea, salvo en silencio o vibración, en No molestar o durante una llamada.</string>

@@ -140,6 +140,8 @@
     <string name="settings_step_decrease">Verringern</string>
     <string name="settings_step_increase">Erhöhen</string>
     <string name="settings_widget_tonal">Designbasierte Hintergründe für integrierte Widgets</string>
+    <string name="settings_widget_inset">Widget-Ränder an den Symbolen ausrichten</string>
+    <string name="settings_widget_inset_desc">Widgets erhalten denselben Seitenabstand wie App-Symbole, statt ihre Zellen bis zum Rand zu füllen. Widgets mit eigenem Rand können kleiner wirken.</string>
     <string name="settings_sounds">Töne</string>
     <string name="settings_lock_sounds">Sperr- und Entsperrtöne</string>
     <string name="settings_lock_sounds_desc">Ein Ton deiner Wahl erklingt, wenn das Telefon gesperrt und entsperrt wird – nicht im Lautlos- oder Vibrationsmodus, bei „Bitte nicht stören“ oder während eines Anrufs.</string>

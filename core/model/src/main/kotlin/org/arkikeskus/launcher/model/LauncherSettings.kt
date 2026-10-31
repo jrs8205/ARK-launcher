@@ -104,6 +104,9 @@ data class LauncherSettings(
     /** Count indicator of the built-in notifications widget: [COUNT_NUMBER], [COUNT_DOT] or [COUNT_NONE]. */
     /** Use theme surfaces for built-in widgets; false keeps the translucent wallpaper style. */
     val widgetTonalBackground: Boolean = false,
+    /** Widgets keep the same side margin inside their cells as an app icon has inside its cell, instead of
+     *  filling the span edge to edge (a Telegram request after 0.9.7, opt-in; Launcher3's widget padding). */
+    val widgetEdgesAlignWithIcons: Boolean = false,
     val notificationWidgetCountStyle: String = COUNT_NUMBER,
     /** Double-tap on empty home-screen space locks the screen (needs the lock accessibility service). */
     val doubleTapToLock: Boolean = false,

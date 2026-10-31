@@ -651,6 +651,7 @@ fun HomeScreen(
                 showFolderNames = settings.showHomeFolderNames,
                 labelColor = Color(settings.appLabelColor),
                 showPageIndicator = settings.showPageIndicator,
+                widgetEdgesAlignWithIcons = settings.widgetEdgesAlignWithIcons,
                 homePageMarker = settings.homePageMarker,
                 infiniteScroll = settings.infiniteScroll,
                 // Same condition as pixelHomeSwipe's left-edge gesture above: while it owns the

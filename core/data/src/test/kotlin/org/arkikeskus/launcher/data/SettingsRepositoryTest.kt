@@ -592,6 +592,21 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().iconScale).isEqualTo(1.0f)
     }
 
+    /** A Telegram request after 0.9.7: widget edges aligned with icons is opt-in and travels in a backup. */
+    @Test
+    fun `widget edges align with icons is off by default and survives a backup round-trip`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().widgetEdgesAlignWithIcons).isFalse()
+        repo.setWidgetEdgesAlignWithIcons(true)
+        assertThat(repo.settings.first().widgetEdgesAlignWithIcons).isTrue()
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("widget_inset_like_icons", true)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().widgetEdgesAlignWithIcons).isTrue()
+    }
+
     /** A Telegram request after 0.9.7: hiding home-screen apps from the drawer is opt-in and travels in a backup. */
     @Test
     fun `hide home apps from drawer is off by default and survives a backup round-trip`() = runTest {

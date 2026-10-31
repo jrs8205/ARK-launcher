@@ -140,6 +140,8 @@
     <string name="settings_step_decrease">Azalt</string>
     <string name="settings_step_increase">Artır</string>
     <string name="settings_widget_tonal">Yerleşik widget\'lar için temalı arka planlar</string>
+    <string name="settings_widget_inset">Widget kenarlarını simgelerle hizala</string>
+    <string name="settings_widget_inset_desc">Widget\'lar hücrelerini kenardan kenara doldurmak yerine uygulama simgeleriyle aynı yan boşluğu alır. Kendi boşluğu olan widget\'lar daha küçük görünebilir.</string>
     <string name="settings_sounds">Sesler</string>
     <string name="settings_lock_sounds">Kilitleme ve kilit açma sesleri</string>
     <string name="settings_lock_sounds_desc">Seçtiğiniz bir ses telefon kilitlendiğinde ve kilidi açıldığında çalar; sessiz veya titreşim modunda, Rahatsız Etmeyin modunda ya da arama sırasında çalmaz.</string>

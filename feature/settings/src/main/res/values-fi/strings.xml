@@ -140,6 +140,8 @@
     <string name="settings_step_decrease">Vähennä</string>
     <string name="settings_step_increase">Lisää</string>
     <string name="settings_widget_tonal">Widgettien teematausta</string>
+    <string name="settings_widget_inset">Widgettien reunat kuvakkeiden tasalle</string>
+    <string name="settings_widget_inset_desc">Widgetit saavat saman sivumarginaalin kuin sovelluskuvakkeet sen sijaan, että täyttäisivät solunsa reunasta reunaan. Widgetit, joilla on oma marginaali, voivat näyttää pienemmiltä.</string>
     <string name="settings_sounds">Äänet</string>
     <string name="settings_lock_sounds">Lukituksen ja avauksen äänet</string>
     <string name="settings_lock_sounds_desc">Valitsemasi ääni soi, kun puhelin lukittuu ja kun se avataan – ei äänettömällä, värinällä, Älä häiritse -tilassa eikä puhelun aikana.</string>

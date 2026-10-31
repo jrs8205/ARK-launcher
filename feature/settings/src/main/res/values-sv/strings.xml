@@ -140,6 +140,8 @@
     <string name="settings_step_decrease">Minska</string>
     <string name="settings_step_increase">Öka</string>
     <string name="settings_widget_tonal">Bakgrunder med tema för inbyggda widgetar</string>
+    <string name="settings_widget_inset">Justera widgetarnas kanter efter ikonerna</string>
+    <string name="settings_widget_inset_desc">Widgetar får samma sidomarginal som appikoner i stället för att fylla sina celler kant till kant. Widgetar med egna marginaler kan se mindre ut.</string>
     <string name="settings_sounds">Ljud</string>
     <string name="settings_lock_sounds">Ljud vid låsning och upplåsning</string>
     <string name="settings_lock_sounds_desc">Ett ljud du väljer spelas när telefonen låses och när den låses upp – inte i ljudlöst läge, vibrationsläge, Stör ej eller under ett samtal.</string>

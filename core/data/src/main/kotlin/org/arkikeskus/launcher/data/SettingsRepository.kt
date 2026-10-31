@@ -138,6 +138,7 @@ class SettingsRepository @Inject constructor(
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: LauncherSettings.DEFAULT_STATUS_BAR_SCRIM).coerceIn(0f, 1f),
             widgetTonalBackground = p[Keys.WIDGET_TONAL_BACKGROUND] ?: false,
+            widgetEdgesAlignWithIcons = p[Keys.WIDGET_INSET_LIKE_ICONS] ?: false,
             notificationWidgetCountStyle = (p[Keys.NOTIF_WIDGET_COUNT_STYLE] ?: LauncherSettings.COUNT_NUMBER)
                 .let { if (it == LauncherSettings.COUNT_DOT || it == LauncherSettings.COUNT_NONE) it else LauncherSettings.COUNT_NUMBER },
             doubleTapToLock = p[Keys.DOUBLE_TAP_LOCK] ?: false,
@@ -401,6 +402,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setSwipeDownForNotifications(value: Boolean) = edit { it[Keys.SWIPE_DOWN_NOTIF] = value }
     suspend fun setFolderSwipeOpensFirstApp(value: Boolean) = edit { it[Keys.FOLDER_SWIPE_FIRST_APP] = value }
     suspend fun setHideHomeAppsFromDrawer(value: Boolean) = edit { it[Keys.HIDE_HOME_APPS_FROM_DRAWER] = value }
+    suspend fun setWidgetEdgesAlignWithIcons(value: Boolean) = edit { it[Keys.WIDGET_INSET_LIKE_ICONS] = value }
     suspend fun setShowDockLabels(value: Boolean) = edit { it[Keys.SHOW_DOCK_LABELS] = value }
     suspend fun setShowHomeLabels(value: Boolean) = edit { it[Keys.SHOW_HOME_LABELS] = value }
     suspend fun setShowDrawerLabels(value: Boolean) = edit { it[Keys.SHOW_DRAWER_LABELS] = value }
@@ -686,6 +688,7 @@ class SettingsRepository @Inject constructor(
         val INFINITE_SCROLL = booleanPreferencesKey("infinite_scroll")
         val FOLDER_SWIPE_FIRST_APP = booleanPreferencesKey("folder_swipe_first_app")
         val HIDE_HOME_APPS_FROM_DRAWER = booleanPreferencesKey("hide_home_apps_from_drawer")
+        val WIDGET_INSET_LIKE_ICONS = booleanPreferencesKey("widget_inset_like_icons")
         val SHOW_NOTIF_DOTS = booleanPreferencesKey("show_notif_dots")
         val NOTIF_DOT_COUNT = booleanPreferencesKey("notif_dot_count")
         val NOTIF_DOT_SCALE = floatPreferencesKey("notif_dot_scale")
@@ -772,7 +775,7 @@ class SettingsRepository @Inject constructor(
          *  stored under the same key name and crash every settings read with a ClassCastException. */
         val BOOLEAN_KEYS = setOf(
             "dock_enabled", "show_drawer_search", "swipe_up_drawer", "swipe_down_notif", "folder_swipe_first_app",
-            "hide_home_apps_from_drawer",
+            "hide_home_apps_from_drawer", "widget_inset_like_icons",
             "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "show_status_bar",

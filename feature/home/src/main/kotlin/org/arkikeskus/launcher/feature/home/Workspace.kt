@@ -188,6 +188,8 @@ internal fun Workspace(
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
     onEmptyAreaMenu: (IntOffset, Boolean) -> Unit,
+    /** Widgets keep an icon's side margin inside their cells ([widgetInset]); off they fill the span. */
+    widgetEdgesAlignWithIcons: Boolean = false,
     // Two clean taps on empty space within the platform double-tap timeout. The caller decides what
     // (if anything) happens — Workspace only reports the gesture.
     onEmptyAreaDoubleTap: () -> Unit = {},
@@ -414,6 +416,8 @@ internal fun Workspace(
     } else {
         nominalIconSize
     }
+    // A widget's margin inside its cells when it is to line up with the icons (a Telegram request).
+    val widgetInsetDp = widgetInset(with(density) { cellW.toDp() }, cellIconSize, widgetEdgesAlignWithIcons)
     val moveThresholdPx = with(density) { 16.dp.toPx() }
     // Page flips only when the dragged icon is pushed right against the screen edge.
     val edgePx = with(density) { 20.dp.toPx() }
@@ -1466,7 +1470,10 @@ internal fun Workspace(
                                         .widgetDragGesture(widget.rowId, !pageLocked, widgetDragController) { root, fraction, owner ->
                                             liftWidget(EditingItem(widget.rowId, widget.appWidgetId, widget.page,
                                                 widget.cellX, widget.cellY, widget.spanX, widget.spanY), root, fraction, owner)
-                                        },
+                                        }
+                                        // Last, so every geometry read above (bounds, drag, reveal) still sees the
+                                        // whole span and only the hosted view is inset (widgetInset).
+                                        .padding(widgetInsetDp),
                                 ) {
                                     if (hostView != null) {
                                         // Host the persistent AppWidgetHostView inside a container, re-parenting
@@ -1476,8 +1483,9 @@ internal fun Workspace(
                                         AndroidView(
                                             factory = { c -> android.widget.FrameLayout(c) },
                                             update = { container ->
-                                                val wDp = (widget.spanX * cellW / density.density).toInt()
-                                                val hDp = (widget.spanY * cellH / density.density).toInt()
+                                                val insetDp = widgetInsetDp.value.toInt()
+                                                val wDp = insetWidgetSizeDp((widget.spanX * cellW / density.density).toInt(), insetDp)
+                                                val hDp = insetWidgetSizeDp((widget.spanY * cellH / density.density).toInt(), insetDp)
                                                 if (wDp > 0 && hDp > 0) {
                                                     widgetSizeReporter.report(widget.appWidgetId, wDp, hDp) {
                                                         sendWidgetSize(hostView, wDp, hDp)
