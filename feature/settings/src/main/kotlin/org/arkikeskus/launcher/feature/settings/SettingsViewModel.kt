@@ -74,6 +74,7 @@ class SettingsViewModel @Inject constructor(
 
     fun setSwipeUp(value: Boolean) = update { repository.setSwipeUpForDrawer(value) }
     fun setSwipeDown(value: Boolean) = update { repository.setSwipeDownForNotifications(value) }
+    fun setFolderSwipeOpensFirstApp(value: Boolean) = update { repository.setFolderSwipeOpensFirstApp(value) }
     fun setDockEnabled(value: Boolean) = update { repository.setDockEnabled(value) }
     fun setDockColumns(value: Int) = update { repository.setDockColumns(value) }
     fun setDrawerColumns(value: Int) = update { repository.setDrawerColumns(value) }

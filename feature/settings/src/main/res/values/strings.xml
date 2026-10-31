@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">If the phone can\'t name your town itself, look it up from BigDataCloud. The service receives your approximate location.</string>
     <string name="settings_swipe_up_drawer">Swipe up → apps</string>
     <string name="settings_swipe_down_notif">Swipe down → notifications</string>
+    <string name="settings_folder_swipe_first_app">Swipe up on a folder → its first app</string>
+    <string name="settings_folder_swipe_first_app_desc">Home screen only. Opens the first app in the folder\'s own order; reorder the folder to pick another. Off, a swipe up from a folder opens the app list like anywhere else.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Show dock</string>
     <string name="settings_dock_icons">Dock icon count</string>

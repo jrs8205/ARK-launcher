@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Telefon bulunduğunuz yerin adını kendi başına belirleyemezse ad, BigDataCloud hizmetinden alınır. Bu hizmete yaklaşık konumunuz gönderilir.</string>
     <string name="settings_swipe_up_drawer">Yukarı kaydırma → uygulamalar</string>
     <string name="settings_swipe_down_notif">Aşağı kaydırma → bildirimler</string>
+    <string name="settings_folder_swipe_first_app">Klasörde yukarı kaydırma → ilk uygulaması</string>
+    <string name="settings_folder_swipe_first_app_desc">Yalnızca ana ekran. Klasörün kendi sırasındaki ilk uygulamayı açar; başka birini seçmek için klasörü yeniden sıralayın. Kapalıyken klasörden yukarı kaydırma, her yerde olduğu gibi uygulama çekmecesini açar.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Dock\'u göster</string>
     <string name="settings_dock_icons">Dock simge sayısı</string>

@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Se o telefone não conseguir identificar sua cidade, o nome será buscado no BigDataCloud. O serviço recebe sua localização aproximada.</string>
     <string name="settings_swipe_up_drawer">Deslizar para cima → apps</string>
     <string name="settings_swipe_down_notif">Deslizar para baixo → notificações</string>
+    <string name="settings_folder_swipe_first_app">Deslizar para cima numa pasta → o seu primeiro app</string>
+    <string name="settings_folder_swipe_first_app_desc">Só na tela inicial. Abre o primeiro app na ordem da pasta; reordene a pasta para escolher outro. Desligado, deslizar a partir de uma pasta abre a gaveta de apps como em qualquer outro lugar.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Mostrar dock</string>
     <string name="settings_dock_icons">Número de ícones no dock</string>

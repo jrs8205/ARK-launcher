@@ -582,6 +582,12 @@ internal fun Workspace(
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
                 down.consume()
+                // The root swipe detector (Initial pass) learns which folder the finger is on, so a swipe up
+                // from it can open the folder's first app when that setting is on (issue #17). Cleared when
+                // this gesture ends, however it ends.
+                val pressedFolder = (currentEntry as? PlacedFolder)?.id
+                if (pressedFolder != null) dragController.pressedFolderId = pressedFolder
+                try {
                 // Shared press phase (tap / yield to a claimed swipe / hold). The lift starts where the
                 // finger is when the hold completes — the hold tolerates a roll across the icon.
                 val press = awaitIconPress(down)
@@ -673,6 +679,9 @@ internal fun Workspace(
                         localMoving = false
                         dragController.stop(token)
                     }
+                }
+                } finally {
+                    if (pressedFolder != null && dragController.pressedFolderId == pressedFolder) dragController.pressedFolderId = null
                 }
             }
         }

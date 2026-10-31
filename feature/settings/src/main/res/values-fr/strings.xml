@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Si le téléphone ne trouve pas lui-même le nom de votre ville, celui-ci est recherché auprès de BigDataCloud. Ce service reçoit votre position approximative.</string>
     <string name="settings_swipe_up_drawer">Balayer vers le haut → applications</string>
     <string name="settings_swipe_down_notif">Balayer vers le bas → notifications</string>
+    <string name="settings_folder_swipe_first_app">Balayer vers le haut sur un dossier → sa première appli</string>
+    <string name="settings_folder_swipe_first_app_desc">Écran d\'accueil seulement. Ouvre la première appli dans l\'ordre du dossier ; réorganisez le dossier pour en choisir une autre. Désactivé, balayer depuis un dossier ouvre la liste des applications comme ailleurs.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Afficher le dock</string>
     <string name="settings_dock_icons">Nombre d\'icônes du dock</string>

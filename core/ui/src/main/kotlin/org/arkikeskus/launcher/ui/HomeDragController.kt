@@ -97,6 +97,14 @@ class HomeDragController {
      */
     var localGestureActive by mutableStateOf(false)
 
+    /**
+     * The home folder whose icon the finger went down on, from that DOWN until its gesture ends (set and
+     * cleared by the grid's folder tiles). The root swipe detector reads it to route a swipe up that starts
+     * on a folder to the folder's first app when that setting is on (issue #17). Read only inside pointer
+     * loops, never composed, so plain state is enough.
+     */
+    var pressedFolderId: Long? = null
+
     // Home-grid metrics for cell math on a dock→home / drawer→home drop (published by Workspace).
     var columns by mutableStateOf(1)
     var rows by mutableStateOf(1)

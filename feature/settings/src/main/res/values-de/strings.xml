@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Wenn dein Smartphone den Ortsnamen nicht selbst ermitteln kann, wird er bei BigDataCloud abgefragt. Der Dienst erhält dabei deinen ungefähren Standort.</string>
     <string name="settings_swipe_up_drawer">Nach oben wischen → Apps</string>
     <string name="settings_swipe_down_notif">Nach unten wischen → Benachrichtigungen</string>
+    <string name="settings_folder_swipe_first_app">Nach oben wischen auf einem Ordner → seine erste App</string>
+    <string name="settings_folder_swipe_first_app_desc">Nur Startbildschirm. Öffnet die erste App in der Reihenfolge des Ordners; den Ordner umsortieren, um eine andere zu wählen. Aus: Wischen von einem Ordner öffnet den App-Drawer wie überall sonst.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Dock anzeigen</string>
     <string name="settings_dock_icons">Anzahl der Dock-Symbole</string>

@@ -11,6 +11,10 @@ data class LauncherSettings(
     val showDrawerSearch: Boolean = true,
     val swipeUpForDrawer: Boolean = true,
     val swipeDownForNotifications: Boolean = true,
+    /** Issue #17 (opt-in, Nova-style): a swipe up that starts on a HOME folder icon opens the folder's first app
+     *  (in the folder's own order) instead of the drawer. Off, the swipe drives the drawer as from anywhere on
+     *  home. Home only: dock folders and the drawer keep their gestures. */
+    val folderSwipeOpensFirstApp: Boolean = false,
     val showDockLabels: Boolean = false,
     val showHomeLabels: Boolean = true,
     val showDrawerLabels: Boolean = true,

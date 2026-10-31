@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Om telefonen inte själv kan avgöra vilken ort du befinner dig på hämtas namnet från BigDataCloud. Tjänsten får då din ungefärliga plats.</string>
     <string name="settings_swipe_up_drawer">Svep uppåt → appar</string>
     <string name="settings_swipe_down_notif">Svep nedåt → aviseringar</string>
+    <string name="settings_folder_swipe_first_app">Svep uppåt på en mapp → dess första app</string>
+    <string name="settings_folder_swipe_first_app_desc">Bara startskärmen. Öppnar den första appen i mappens egen ordning; sortera om mappen för att välja en annan. Av: ett svep från en mapp öppnar applådan som överallt annars.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Visa Dock</string>
     <string name="settings_dock_icons">Antal ikoner i Dock</string>

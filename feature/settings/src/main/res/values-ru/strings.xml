@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Если телефон не может сам определить ваш город, название будет запрошено у BigDataCloud. Сервис получит ваше приблизительное местоположение.</string>
     <string name="settings_swipe_up_drawer">Свайп вверх → приложения</string>
     <string name="settings_swipe_down_notif">Свайп вниз → уведомления</string>
+    <string name="settings_folder_swipe_first_app">Свайп вверх по папке → её первое приложение</string>
+    <string name="settings_folder_swipe_first_app_desc">Только главный экран. Открывает первое приложение в порядке папки; измените порядок в папке, чтобы выбрать другое. Выключено: свайп с папки открывает список приложений, как и везде.</string>
     <string name="settings_dock">Док-панель</string>
     <string name="settings_dock_show">Показывать док-панель</string>
     <string name="settings_dock_icons">Число значков на док-панели</string>

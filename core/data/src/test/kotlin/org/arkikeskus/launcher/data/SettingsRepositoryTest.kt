@@ -592,6 +592,23 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().iconScale).isEqualTo(1.0f)
     }
 
+    /** Issue #17 item 3: the Nova-style folder swipe is opt-in, off out of the box, and travels in a backup. */
+    @Test
+    fun `folder swipe opens first app is off by default and survives a backup round-trip`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().folderSwipeOpensFirstApp).isFalse()
+        repo.setFolderSwipeOpensFirstApp(true)
+        assertThat(repo.settings.first().folderSwipeOpensFirstApp).isTrue()
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("folder_swipe_first_app", true)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().folderSwipeOpensFirstApp).isTrue()
+        restored.importRaw(mapOf("folder_swipe_first_app" to "yes"))
+        assertThat(restored.settings.first().folderSwipeOpensFirstApp).isFalse() // wrong type dropped, no ClassCastException
+    }
+
     /** A Telegram request after 0.9.7: the drawer's icons sized apart from home's. Until the drawer's own
      *  value is set it follows the home scale, so an update changes nobody's look. */
     @Test

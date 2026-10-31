@@ -216,6 +216,12 @@ fun SettingsScreen(
                 ExpressiveSectionTitle(stringResource(R.string.settings_gestures))
                 SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, viewModel::setSwipeUp)
                 SwitchRow(stringResource(R.string.settings_swipe_down_notif), s.swipeDownForNotifications, viewModel::setSwipeDown)
+                SwitchRow(
+                    stringResource(R.string.settings_folder_swipe_first_app),
+                    stringResource(R.string.settings_folder_swipe_first_app_desc),
+                    s.folderSwipeOpensFirstApp,
+                    viewModel::setFolderSwipeOpensFirstApp,
+                )
                 val leftSwipeLabel = allApps.firstOrNull { it.key == s.leftSwipeAppKey }?.label
                     ?: stringResource(R.string.settings_left_edge_none)
                 ExpressiveActionRow(

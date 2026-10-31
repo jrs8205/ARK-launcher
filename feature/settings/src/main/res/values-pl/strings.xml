@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Jeśli telefon nie potrafi sam ustalić nazwy twojej miejscowości, zostanie ona sprawdzona w BigDataCloud. Usługa otrzymuje twoją przybliżoną lokalizację.</string>
     <string name="settings_swipe_up_drawer">Przesuń w górę → aplikacje</string>
     <string name="settings_swipe_down_notif">Przesuń w dół → powiadomienia</string>
+    <string name="settings_folder_swipe_first_app">Przesunięcie w górę na folderze → jego pierwsza aplikacja</string>
+    <string name="settings_folder_swipe_first_app_desc">Tylko ekran główny. Otwiera pierwszą aplikację w kolejności folderu; zmień kolejność w folderze, aby wybrać inną. Wyłączone: przesunięcie z folderu otwiera szufladę aplikacji jak wszędzie indziej.</string>
     <string name="settings_dock">Dock</string>
     <string name="settings_dock_show">Pokaż Dock</string>
     <string name="settings_dock_icons">Liczba ikon w Docku</string>

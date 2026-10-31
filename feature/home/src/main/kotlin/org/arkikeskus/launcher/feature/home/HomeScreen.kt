@@ -583,6 +583,11 @@ fun HomeScreen(
                 leftEdgeEnabled = leftSwipeAvailable && !showOnboarding && openFolderId == null,
                 atLeftEdge = { dragController.currentPage == 0 },
                 onLeftEdgeAction = viewModel::onLeftSwipe,
+                // Issue #17 (opt-in): a swipe up from a home folder icon opens the folder's first app.
+                folderSwipeOpensFirstApp = settings.folderSwipeOpensFirstApp && !showOnboarding && openFolderId == null,
+                onFolderSwipeUp = { id ->
+                    uiState.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == id }?.apps?.firstOrNull()?.let(launchApp)
+                },
             ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -1022,7 +1027,9 @@ fun HomeScreen(
  * from anywhere on the home surface reliably "catches" and drives the drawer (the root cause of the
  * old bug: the detector lived on the page background, so icons/dock won the gesture first).
  *
- * - Swipe up (with [swipeUpForDrawer]) → finger-following drawer via [onDrawerDrag] / [onDrawerSettle].
+ * - Swipe up (with [swipeUpForDrawer]) → finger-following drawer via [onDrawerDrag] / [onDrawerSettle];
+ *   from a home folder icon with [folderSwipeOpensFirstApp] → [onFolderSwipeUp] with the folder's id
+ *   instead (issue #17, opt-in; see [swipeUpTarget]), the rest of the gesture swallowed like the shade's.
  * - Swipe down (with [swipeDownForNotifications]) → [onOpenNotifications] (one-shot).
  * - A real long-press drag — an app/dock item ([HomeDragController.isDragging]) or a folder/shortcut
  *   ([HomeDragController.localGestureActive] / [HomeDragController.localDragging]) — is never stolen;
@@ -1033,7 +1040,7 @@ fun HomeScreen(
  * flicks under-settle and snap shut).
  */
 @Composable
-private fun Modifier.pixelHomeSwipe(
+internal fun Modifier.pixelHomeSwipe(
     swipeUpForDrawer: Boolean,
     swipeDownForNotifications: Boolean,
     dragController: HomeDragController,
@@ -1043,13 +1050,16 @@ private fun Modifier.pixelHomeSwipe(
     leftEdgeEnabled: Boolean = false,
     atLeftEdge: () -> Boolean = { false },
     onLeftEdgeAction: () -> Unit = {},
+    folderSwipeOpensFirstApp: Boolean = false,
+    onFolderSwipeUp: (Long) -> Unit = {},
 ): Modifier {
     val latestOnDrawerDrag by rememberUpdatedState(onDrawerDrag)
     val latestOnDrawerSettle by rememberUpdatedState(onDrawerSettle)
     val latestOnOpenNotifications by rememberUpdatedState(onOpenNotifications)
     val latestOnLeftEdgeAction by rememberUpdatedState(onLeftEdgeAction)
+    val latestOnFolderSwipeUp by rememberUpdatedState(onFolderSwipeUp)
 
-    return pointerInput(swipeUpForDrawer, swipeDownForNotifications, leftEdgeEnabled, dragController) {
+    return pointerInput(swipeUpForDrawer, swipeDownForNotifications, leftEdgeEnabled, folderSwipeOpensFirstApp, dragController) {
         val touchSlop = viewConfiguration.touchSlop
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -1107,11 +1117,24 @@ private fun Modifier.pixelHomeSwipe(
                 if (mode == 0) {
                     when {
                         abs(dy) > touchSlop && abs(dy) > abs(dx) -> when {
-                            dy < 0f && swipeUpForDrawer -> {
-                                mode = 1
-                                change.consume()
-                                latestOnDrawerDrag(dy) // jump to the finger, including the slop moved
-                                lastY = change.position.y
+                            dy < 0f -> {
+                                val pressedFolder = dragController.pressedFolderId
+                                when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer)) {
+                                    SwipeUpTarget.FOLDER_APP -> {
+                                        // The folder's first app opens once; the rest of the gesture is
+                                        // swallowed (mode 3) so neither the pager nor the folder sees it.
+                                        mode = 3
+                                        change.consume()
+                                        latestOnFolderSwipeUp(pressedFolder!!)
+                                    }
+                                    SwipeUpTarget.DRAWER -> {
+                                        mode = 1
+                                        change.consume()
+                                        latestOnDrawerDrag(dy) // jump to the finger, including the slop moved
+                                        lastY = change.position.y
+                                    }
+                                    SwipeUpTarget.NONE -> break
+                                }
                             }
                             dy > 0f && swipeDownForNotifications -> {
                                 // Open the shade, then keep consuming the rest of the gesture (mode 3)

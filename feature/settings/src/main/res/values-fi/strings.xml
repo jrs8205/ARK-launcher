@@ -11,6 +11,8 @@
     <string name="settings_network_place_names_desc">Jos puhelin ei itse tunnista paikkakuntaa, nimi haetaan BigDataCloud-palvelusta. Palveluun lähtee likimääräinen sijainti.</string>
     <string name="settings_swipe_up_drawer">Pyyhkäise ylös → sovellukset</string>
     <string name="settings_swipe_down_notif">Pyyhkäise alas → ilmoitukset</string>
+    <string name="settings_folder_swipe_first_app">Pyyhkäisy ylös kansiolla → sen ensimmäinen sovellus</string>
+    <string name="settings_folder_swipe_first_app_desc">Vain etusivulla. Avaa kansion järjestyksessä ensimmäisen sovelluksen; järjestä kansio valitaksesi toisen. Pois päältä pyyhkäisy kansiolta avaa sovellusvalikon kuten muualtakin.</string>
     <string name="settings_dock">Dockki</string>
     <string name="settings_dock_show">Näytä dockki</string>
     <string name="settings_dock_icons">Dockin ikonien määrä</string>
