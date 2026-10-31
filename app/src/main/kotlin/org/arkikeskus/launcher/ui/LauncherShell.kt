@@ -6,9 +6,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -203,7 +205,11 @@ fun LauncherShell(
                 shown = homeTopScrimShown(
                     statusBars.ownBarShown,
                     statusBars.systemBarHidden,
-                    wallpaperDarkText.value,
+                    // The bars as they really are (SystemBarContrast's ownBarVisible): a kept or heads-up
+                    // revealed system bar over a blanked own bar gets the gradient too.
+                    statusBarPx = WindowInsets.statusBars.getTop(density).toFloat(),
+                    headsUpActive = headsUpActive,
+                    wallpaperSupportsDarkText = wallpaperDarkText.value,
                     covered = barCovers.coverIsLight != null,
                 ),
                 progress = { currentProgress },

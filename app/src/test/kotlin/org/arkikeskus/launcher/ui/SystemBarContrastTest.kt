@@ -197,7 +197,7 @@ class SystemBarContrastTest {
         assertThat(navigationBarDarkIcons(drawerCoversBar = false, drawerSurfaceIsLight = false, coverIsLight = true, wallpaperSupportsDarkText = false)).isTrue()
         assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, coverIsLight = true, wallpaperSupportsDarkText = true)).isFalse()
 
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = false, covered = true)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = true)).isFalse()
     }
 
     @Test fun theNavigationBarFollowsTheDrawerOrTheWallpaper() {
@@ -230,12 +230,23 @@ class SystemBarContrastTest {
      * bar whenever its glyphs are light on home, so they read on any wallpaper.
      */
     @Test fun aTopScrimBacksLightGlyphsOnHome() {
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = false, covered = false)).isTrue()
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, wallpaperSupportsDarkText = true, covered = false)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = false)).isTrue()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = true, covered = false)).isFalse()
         // ARK's own bar has its own scrim; a hidden system bar has no glyphs to back.
-        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = false, wallpaperSupportsDarkText = false, covered = false)).isFalse()
-        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = true, wallpaperSupportsDarkText = false, covered = false)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = false)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = true, statusBarPx = 0f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = false)).isFalse()
         assertThat(HOME_TOP_SCRIM_ALPHA).isAtMost(0.35f)
+    }
+
+    /** The scrim follows the bars as they really are, like the glyph rules ([ownBarVisible]): the own bar blanked
+     *  under a system bar the system keeps (an inset while hidden by the setting) or reveals for a heads-up has
+     *  no scrim of its own, and the system bar's light glyphs on a dark wallpaper get the gradient again. */
+    @Test fun theTopScrimBacksAKeptOrRevealedSystemBarOverABlankedOwnBar() {
+        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = true, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = false)).isTrue()
+        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = true, statusBarPx = 0f, headsUpActive = true, wallpaperSupportsDarkText = false, covered = false)).isTrue()
+        // Really hidden, or the own bar really on screen: as before.
+        assertThat(homeTopScrimShown(ownBarShown = true, systemBarHidden = true, statusBarPx = 0f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = false)).isFalse()
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = true, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = true, covered = false)).isFalse()
     }
 
     /**

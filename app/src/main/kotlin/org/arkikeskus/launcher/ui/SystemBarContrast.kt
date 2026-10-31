@@ -163,16 +163,24 @@ private val HOME_TOP_SCRIM_MIN_HEIGHT = 70.dp
  * Whether home gets a soft dark gradient behind the system status bar. The wallpaper hint describes the
  * whole image, so a wallpaper that is mostly dark but light at the top gets light glyphs on a light
  * strip; like Launcher3's top scrim, the gradient keeps them readable on any wallpaper. Not with ARK's
- * own bar (it has its own scrim, at the opacity the user picked, and the gradient would dim ARK's own
- * glyphs), nor with the system bar hidden (no glyphs to back), nor while a full-screen surface is
- * [covered] over home (it is drawn above home, the gradient would sit on top of it).
+ * own bar ON SCREEN ([ownBarVisible]: it has its own scrim, at the opacity the user picked, and the
+ * gradient would dim ARK's own glyphs), nor with the system bar really gone (hidden by the setting and
+ * neither kept by the system -- [statusBarPx] -- nor revealed for a heads-up: no glyphs to back), nor
+ * while a full-screen surface is [covered] over home (it is drawn above home, the gradient would sit on
+ * top of it). A blanked own bar under a kept or revealed system bar gets the gradient like no own bar.
  */
 internal fun homeTopScrimShown(
     ownBarShown: Boolean,
     systemBarHidden: Boolean,
+    statusBarPx: Float,
+    headsUpActive: Boolean,
     wallpaperSupportsDarkText: Boolean,
     covered: Boolean,
-): Boolean = !ownBarShown && !systemBarHidden && !wallpaperSupportsDarkText && !covered
+): Boolean {
+    val systemBarGone = systemBarHidden && statusBarPx <= 0f && !headsUpActive
+    return !ownBarVisible(ownBarShown, systemBarHidden, statusBarPx, headsUpActive) &&
+        !systemBarGone && !wallpaperSupportsDarkText && !covered
+}
 
 /** The wallpaper says dark text reads well on it. The hint constant is inlined at compile time; only
  *  Android 12+ hands over real hints (see [wallpaperSupportsDarkText]). */
