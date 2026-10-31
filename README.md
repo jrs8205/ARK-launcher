@@ -97,10 +97,12 @@ the app: **Settings ▸ Feedback**.
 - **Material You themed icons** (monochrome, on supported Android versions) and third-party
   **[icon packs](https://github.com/jrs8205/ARK-launcher/wiki/Icon-Packs)**.
 - Optional **themed status bar** with the clock, status indicators and notification icons.
-- **Configurable gestures:** swipe up → app drawer, swipe down → notifications, and a configurable
-  **left-edge swipe** that launches an app of your choice.
+- **Configurable gestures:** swipe up → app drawer, swipe down → notifications, a configurable
+  **left-edge swipe** that launches an app of your choice, and an opt-in **swipe up on a home folder**
+  that opens the folder's first app.
 - **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
-  labels** (per surface), dock and drawer opacity, grid columns, page indicator, and more.
+  labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
+  drawer opacity, grid columns, page indicator, and more.
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
