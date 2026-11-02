@@ -54,6 +54,10 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- The clock app behind the smartspace clock tap, for the fallback when SHOW_ALARMS is refused. -->
+        <intent>
+            <action android:name="android.intent.action.SHOW_ALARMS" />
+        </intent>
     </queries>
 
     <application

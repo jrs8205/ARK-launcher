@@ -3,7 +3,6 @@ package org.arkikeskus.launcher.feature.home
 import android.Manifest
 import android.content.ContentUris
 import android.content.Intent
-import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.text.format.DateUtils
 import android.util.Log
@@ -260,7 +259,7 @@ internal fun SmartspaceContent(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // The clock's hit area spans both lines.
                 TapTarget(minHeight = 0.dp, fillWidth = false, ripple = true, modifier = Modifier.fillMaxHeight(), onTap = {
-                    runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+                    openClockApp(context)
                 }) {
                     Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium, maxLines = 1)
                 }
@@ -337,7 +336,7 @@ internal fun SmartspaceContent(
         Unit
     }
     val openAlarms = {
-        runCatching { context.startActivity(Intent(AlarmClock.ACTION_SHOW_ALARMS)) }
+        openClockApp(context)
         Unit
     }
     // The weather line opens the chosen app only while that app resolves; otherwise it is plain text.
