@@ -94,7 +94,8 @@ the app: **Settings ▸ Feedback**.
   set times. Android notifications, sounds and pop-ups remain active; new messages from pinned
   people, missed calls and recognized one-time codes bypass the batch.
 - **Page menu**: add a page to the left or right, set the home page, remove an empty page.
-- **Material You themed icons** (monochrome, on supported Android versions) and third-party
+- **Material You themed icons** (monochrome, on supported Android versions), optionally for
+  **every app** (apps without a themed icon get a silhouette of their own), and third-party
   **[icon packs](https://github.com/jrs8205/ARK-launcher/wiki/Icon-Packs)**.
 - Optional **themed status bar** with the clock, status indicators and notification icons.
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, a configurable
@@ -102,8 +103,10 @@ the app: **Settings ▸ Feedback**.
   that opens the folder's first app.
 - **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
-  drawer opacity, widget edges aligned with the icons, hiding home-screen apps from the drawer, grid
-  columns, page indicator, and more.
+  drawer opacity, an optional **wallpaper blur** behind the rising app drawer (Android 12+), widget
+  edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder
+  columns**, page indicator, and more. App drawer folders can lead the list or sit among the apps
+  A–Z, and every settings section folds under its title.
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
