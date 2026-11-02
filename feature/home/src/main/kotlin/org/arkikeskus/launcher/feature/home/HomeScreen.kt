@@ -806,6 +806,7 @@ fun HomeScreen(
                 dragController = dragController,
                 onRename = { viewModel.renameFolder(openFolder.id, it) },
                 onSetIcon = { viewModel.setFolderIcon(openFolder.id, it) },
+                showName = settings.showHomeFolderNames,
                 onAppClick = launchApp,
                 onRenameApp = { renameTarget = it },
                 onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id) },

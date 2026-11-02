@@ -11,6 +11,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -144,6 +146,8 @@ internal fun FolderCard(
     onWidgets: ((AppItem) -> Unit)? = null,
     /** The icon picked for the folder beside its name (null = back to the preview of its apps). */
     onSetIcon: (CustomIcon?) -> Unit = {},
+    /** Home shows folder names: off, the view's header is just the pencil (issue #18 follow-up). */
+    showName: Boolean = true,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -251,41 +255,58 @@ internal fun FolderCard(
                         )
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (editing) {
-                        // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
-                        FolderIconButton(icon = folder.icon, preview = preview, onPick = onSetIcon)
-                        Spacer(Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it; onRename(it) },
-                            singleLine = true,
-                            label = { Text(stringResource(R.string.folder_name_label)) },
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(onClick = { editing = false }) {
-                            Icon(painterResource(LauncherIcons.Check), contentDescription = stringResource(R.string.folder_done))
+                // The header: the editor, the folder's look, or, with folder names off, only the
+                // pencil flush right in a slim row (none at all when locked): the apps move up.
+                val slimHeader = !editing && !showName
+                if (slimHeader && locked) {
+                    // Nothing to edit and nothing to say: the grid starts at the top.
+                } else if (slimHeader) {
+                    Row(Modifier.fillMaxWidth().height(32.dp), horizontalArrangement = Arrangement.End) {
+                        IconButton(onClick = { editing = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                painterResource(LauncherIcons.Edit),
+                                contentDescription = stringResource(R.string.folder_edit),
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
-                    } else {
-                        // A look at the folder (issue #20): the name as text beside its preview, which the
-                        // text speaks for; the pencil opens the editor. A locked desktop edits nothing.
-                        Box(Modifier.padding(4.dp).clearAndSetSemantics { }) { preview(folder.icon, 48.dp) }
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (!locked) {
-                            IconButton(onClick = { editing = true }) {
-                                Icon(painterResource(LauncherIcons.Edit), contentDescription = stringResource(R.string.folder_edit))
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (editing) {
+                            // The folder's icon: a tap picks another (Nova and Lawnchair let folders have one).
+                            FolderIconButton(icon = folder.icon, preview = preview, onPick = onSetIcon)
+                            Spacer(Modifier.width(8.dp))
+                            OutlinedTextField(
+                                value = name,
+                                onValueChange = { name = it; onRename(it) },
+                                singleLine = true,
+                                label = { Text(stringResource(R.string.folder_name_label)) },
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = { editing = false }) {
+                                Icon(painterResource(LauncherIcons.Check), contentDescription = stringResource(R.string.folder_done))
+                            }
+                        } else {
+                            // A look at the folder (issue #20): the name as text beside its preview, which the
+                            // text speaks for; the pencil opens the editor. A locked desktop edits nothing.
+                            Box(Modifier.padding(4.dp).clearAndSetSemantics { }) { preview(folder.icon, 48.dp) }
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (!locked) {
+                                IconButton(onClick = { editing = true }) {
+                                    Icon(painterResource(LauncherIcons.Edit), contentDescription = stringResource(R.string.folder_edit))
+                                }
                             }
                         }
                     }
+                    Spacer(Modifier.height(12.dp))
                 }
-                Spacer(Modifier.height(12.dp))
 
                 // The icon follows the user's icon-size setting, capped by the slot like the drawer.
                 val nominalIconSize = 56.dp * iconScale

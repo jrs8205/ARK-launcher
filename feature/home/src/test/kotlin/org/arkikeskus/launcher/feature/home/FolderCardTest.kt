@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -87,8 +88,11 @@ class FolderCardTest {
     private var behindClicks = 0
     private lateinit var backDispatcher: OnBackPressedDispatcher
     private var longPress = 0L
+    private var showName by mutableStateOf(true)
+    private var lockedState by mutableStateOf(false)
 
     private fun show(locked: Boolean = false) {
+        lockedState = locked
         compose.setContent {
             backDispatcher = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
             longPress = LocalViewConfiguration.current.longPressTimeoutMillis
@@ -101,7 +105,8 @@ class FolderCardTest {
                         badges = emptyMap(),
                         badgeShowCount = false,
                         badgeScale = 1f,
-                        locked = locked,
+                        locked = lockedState,
+                        showName = showName,
                         dragController = drag,
                         onRename = {},
                         onAppClick = { launched += it },
@@ -163,6 +168,35 @@ class FolderCardTest {
         compose.waitForIdle()
         compose.onNodeWithText("Folder name").assertDoesNotExist()
         compose.onNodeWithText("Tools").assertIsDisplayed()
+    }
+
+    /** Issue #18 (a follow-up after 0.9.7): with folder names off the header is just the pencil,
+     *  flush right, and the apps move up; the pencil still opens the editor with its name field. */
+    @Test fun withFolderNamesOffTheHeaderShrinksToThePencilAndTheAppsMoveUp() {
+        show()
+        val namedTop = compose.onNodeWithText("Mail").getBoundsInRoot().top.value
+
+        showName = false
+        compose.waitForIdle()
+        compose.onNodeWithText("Tools").assertDoesNotExist()
+        assertThat(compose.onNodeWithText("Mail").getBoundsInRoot().top.value).isLessThan(namedTop)
+
+        compose.onNodeWithContentDescription("Edit folder").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Folder name").assertIsDisplayed()
+    }
+
+    /** Locked there is nothing to edit, so with names off the header row goes altogether. */
+    @Test fun withFolderNamesOffALockedDesktopHasNoHeaderRowAtAll() {
+        showName = false
+        show()
+        val pencilRowTop = compose.onNodeWithText("Mail").getBoundsInRoot().top.value
+
+        lockedState = true
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Edit folder").assertDoesNotExist()
+        compose.onNodeWithText("Tools").assertDoesNotExist()
+        assertThat(compose.onNodeWithText("Mail").getBoundsInRoot().top.value).isLessThan(pencilRowTop)
     }
 
     @Test fun aLockedDesktopHasNoPencil() {
