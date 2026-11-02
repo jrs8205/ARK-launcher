@@ -3,12 +3,18 @@
     <!-- Transparent, wallpaper-showing launcher window. Compose draws the actual UI. -->
     <style name="Theme.ArkikeskusLauncher" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowShowWallpaper">true</item>
-        <!-- Translucent in the window's own eyes: the background blur behind the rising app drawer
-             (Settings > App drawer) is only drawn for a window that says so. -->
-        <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- The HOME window only (handed over after the splash): translucent in the window's own eyes, because
+         the decor draws the wallpaper blur behind the rising app drawer (Settings > App drawer) only for a
+         window that says so. Settings keeps the opaque theme above: a translucent Settings would leave the
+         launcher started underneath, its foreground flag never reset, and the next HOME press would jump to
+         the home page instead of staying on the page the user left. -->
+    <style name="Theme.ArkikeskusLauncher.Home">
+        <item name="android:windowIsTranslucent">true</item>
     </style>
 
     <!-- See-through window for the confirmation another app's "Add to home screen" opens: the
@@ -26,6 +32,6 @@
     <style name="Theme.ArkikeskusLauncher.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
-        <item name="postSplashScreenTheme">@style/Theme.ArkikeskusLauncher</item>
+        <item name="postSplashScreenTheme">@style/Theme.ArkikeskusLauncher.Home</item>
     </style>
 </resources>
