@@ -3,6 +3,9 @@
     <!-- Transparent, wallpaper-showing launcher window. Compose draws the actual UI. -->
     <style name="Theme.ArkikeskusLauncher" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowShowWallpaper">true</item>
+        <!-- Translucent in the window's own eyes: the background blur behind the rising app drawer
+             (Settings > App drawer) is only drawn for a window that says so. -->
+        <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
