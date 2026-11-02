@@ -12,6 +12,6 @@ class AppIconKeyer : Keyer<IconRequest> {
     // version change from serving the pre-update icon out of the cache. An icon the user picked for
     // the app is in the key too, so picking or clearing one shows at once.
     override fun key(data: IconRequest, options: Options): String =
-        "appicon:${data.app.key}:t=${data.themed}:d=${data.dark}:p=${data.iconPack}:e=${data.epoch}" +
+        "appicon:${data.app.key}:t=${data.themed}:a=${data.themeAll}:d=${data.dark}:p=${data.iconPack}:e=${data.epoch}" +
             ":c=${data.app.customIcon?.encode().orEmpty()}"
 }

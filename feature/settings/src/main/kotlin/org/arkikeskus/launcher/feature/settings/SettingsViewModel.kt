@@ -86,6 +86,7 @@ class SettingsViewModel @Inject constructor(
     fun setSortDrawerFolders(value: Boolean) = update { repository.setSortDrawerFolders(value) }
     fun setMixDrawerFolders(value: Boolean) = update { repository.setMixDrawerFolders(value) }
     fun setBlurBehindDrawer(value: Boolean) = update { repository.setBlurBehindDrawer(value) }
+    fun setThemeAllIcons(value: Boolean) = update { repository.setThemeAllIcons(value) }
     fun setFolderColumns(value: Int) = update { repository.setFolderColumns(value) }
     fun setSectionCollapsed(id: String, collapsed: Boolean) = update { repository.setSettingsSectionCollapsed(id, collapsed) }
     fun setHomeColumns(value: Int) = viewModelScope.launch {

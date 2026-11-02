@@ -44,6 +44,7 @@ import org.arkikeskus.launcher.feature.home.HomeScreen
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalIconScale
+import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.roundToInt
 
@@ -293,6 +294,7 @@ fun LauncherShell(
                     CompositionLocalProvider(
                         LocalIconPack provides iconStyle.iconPack,
                         LocalThemedIcons provides iconStyle.themed,
+                        LocalThemeAllIcons provides iconStyle.themeAll,
                         LocalIconScale provides iconStyle.iconScale,
                     ) {
                         AppIcon(

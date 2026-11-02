@@ -6,7 +6,8 @@ package org.arkikeskus.launcher.model
  * immediately and caches each variant separately.
  *
  * [themed] only changes apps whose adaptive icon ships a monochrome layer (Android 13+); every other
- * app falls back to its normal icon, exactly like Pixel Launcher.
+ * app falls back to its normal icon, exactly like Pixel Launcher, unless [themeAll] asks for a
+ * one-colour silhouette of its icon instead (a Telegram request). Part of the key like the rest.
  *
  * [iconPack] is the package name of a selected third-party icon pack (empty = none). When set it takes
  * priority over [themed]: mapped apps use the pack's drawable, unmapped apps are masked to the pack's
@@ -22,4 +23,5 @@ data class IconRequest(
     val dark: Boolean = false,
     val iconPack: String = "",
     val epoch: Int = 0,
+    val themeAll: Boolean = false,
 )

@@ -28,6 +28,8 @@
     <string name="settings_section_collapsed">Свёрнуто</string>
     <string name="settings_blur_behind_drawer">Размывать обои за списком приложений</string>
     <string name="settings_blur_behind_drawer_desc">Обои размываются по мере открытия списка. Android 12 и новее; в режиме энергосбережения система это пропускает.</string>
+    <string name="settings_theme_all_icons">Тема для всех значков</string>
+    <string name="settings_theme_all_icons_desc">Приложения без собственного тематического значка получают одноцветный силуэт своего значка в цветах темы.</string>
     <string name="settings_dock_bg">Непрозрачность фона док-панели</string>
     <string name="settings_drawer_bg">Непрозрачность фона списка приложений</string>
     <string name="settings_page_indicator">Индикатор страниц</string>

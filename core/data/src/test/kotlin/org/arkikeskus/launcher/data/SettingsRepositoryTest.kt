@@ -510,6 +510,20 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().blurBehindDrawer).isTrue()
     }
 
+    @Test
+    fun `themeAllIcons defaults to false, round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().themeAllIcons).isFalse()
+
+        repo.setThemeAllIcons(true)
+        assertThat(repo.settings.first().themeAllIcons).isTrue()
+        assertThat(repo.exportRaw()["theme_all_icons"]).isEqualTo(true)
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("theme_all_icons" to true))
+        assertThat(restored.settings.first().themeAllIcons).isTrue()
+    }
+
     /** Issue #17: folder names show by default; each surface's switch round-trips and restores. */
     @Test
     fun `folder names show by default, each surface's switch round-trips and restores from a backup`() = runTest {

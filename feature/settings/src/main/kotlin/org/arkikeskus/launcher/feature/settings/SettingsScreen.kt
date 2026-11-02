@@ -84,6 +84,7 @@ import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.LongPressScale
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalIconPack
+import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 import org.arkikeskus.launcher.ui.expressive.Accent
@@ -158,6 +159,7 @@ fun SettingsScreen(
         // icons like every other surface.
         LocalIconPack provides s.iconPackPackage,
         LocalThemedIcons provides s.useThemedIcons,
+        LocalThemeAllIcons provides s.themeAllIcons,
     ) {
         if (showBackup) {
             BackupScreen(onBack = { showBackup = false }, modifier = modifier.fillMaxSize())
@@ -451,6 +453,14 @@ fun SettingsScreen(
                             s.useThemedIcons,
                             viewModel::setUseThemedIcons,
                         )
+                        if (s.useThemedIcons) {
+                            SwitchRow(
+                                stringResource(R.string.settings_theme_all_icons),
+                                stringResource(R.string.settings_theme_all_icons_desc),
+                                s.themeAllIcons,
+                                viewModel::setThemeAllIcons,
+                            )
+                        }
                     }
                     val iconPackName = iconPacks.firstOrNull { it.packageName == s.iconPackPackage }?.label
                         ?: stringResource(R.string.settings_icon_pack_system)

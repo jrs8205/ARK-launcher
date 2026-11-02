@@ -38,6 +38,12 @@ import org.arkikeskus.launcher.ui.rememberAppLaunchOrigin
 val LocalThemedIcons = compositionLocalOf { false }
 
 /**
+ * With [LocalThemedIcons] on, also theme the apps that have no monochrome layer, as a silhouette of
+ * their icon (a Telegram request). Provided per surface like the other icon-style locals.
+ */
+val LocalThemeAllIcons = compositionLocalOf { false }
+
+/**
  * Package name of the selected third-party icon pack under this subtree ("" = none). Provided per
  * surface from the user's setting and fed into the Coil request (part of the cache key), so mapped apps
  * use the pack's icon and unmapped ones are masked to its style; overrides [LocalThemedIcons].
@@ -114,6 +120,7 @@ fun AppIcon(
                     dark = isSystemInDarkTheme(),
                     iconPack = LocalIconPack.current,
                     epoch = LocalIconEpochs.current.of(appItem.packageName),
+                    themeAll = LocalThemeAllIcons.current,
                 ),
                 contentDescription = appItem.label,
                 modifier = Modifier.size(iconSize).onGloballyPositioned { origin?.icon = it },

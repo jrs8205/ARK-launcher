@@ -28,6 +28,8 @@
     <string name="settings_section_collapsed">Recolhido</string>
     <string name="settings_blur_behind_drawer">Desfocar o papel de parede atrás da gaveta de apps</string>
     <string name="settings_blur_behind_drawer_desc">O papel de parede desfoca à medida que a gaveta sobe. Android 12 ou mais recente; o sistema ignora isso na economia de bateria.</string>
+    <string name="settings_theme_all_icons">Aplicar o tema a todos os ícones</string>
+    <string name="settings_theme_all_icons_desc">Apps sem ícone temático próprio recebem uma silhueta de uma cor do seu ícone nas cores do tema.</string>
     <string name="settings_dock_bg">Opacidade do fundo do dock</string>
     <string name="settings_drawer_bg">Opacidade do fundo da gaveta de apps</string>
     <string name="settings_page_indicator">Indicador de página</string>

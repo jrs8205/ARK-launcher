@@ -84,6 +84,7 @@ data class AppDrawerUiState(
     val notificationDotCount: Boolean = true,
     val notificationDotScale: Float = 1f,
     val useThemedIcons: Boolean = false,
+    val themeAllIcons: Boolean = false,
     val iconPackPackage: String = "",
     val calc: SearchResult.Calculation? = null,
     /** The query on screen has no results yet (the debounce or the search is still running): the
@@ -175,6 +176,7 @@ class AppDrawerViewModel @Inject constructor(
             notificationDotCount = settings.notificationDotCount,
             notificationDotScale = settings.notificationDotScale,
             useThemedIcons = settings.useThemedIcons,
+            themeAllIcons = settings.themeAllIcons,
             iconPackPackage = settings.iconPackPackage,
             desktopLocked = settings.desktopLocked,
             showFrequentApps = settings.showFrequentApps,

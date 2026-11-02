@@ -29,7 +29,7 @@ class AppIconFetcher(
     override suspend fun fetch(): FetchResult? = withContext(Dispatchers.IO) {
         // An icon the user picked for the app wins; if its pack or file is gone, the app's own shows.
         val drawable = data.app.customIcon?.let(custom::drawable)
-            ?: source.loadIcon(data.app, data.themed, data.dark, data.iconPack)
+            ?: source.loadIcon(data.app, data.themed, data.dark, data.iconPack, data.themeAll)
             ?: return@withContext null
         iconResult(drawable)
     }

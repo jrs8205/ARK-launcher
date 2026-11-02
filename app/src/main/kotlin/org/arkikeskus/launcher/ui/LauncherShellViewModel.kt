@@ -24,7 +24,7 @@ data class StatusBarSettings(
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
  *  matches the surfaces. */
-data class IconStyle(val iconPack: String = "", val themed: Boolean = false, val iconScale: Float = 1f)
+data class IconStyle(val iconPack: String = "", val themed: Boolean = false, val iconScale: Float = 1f, val themeAll: Boolean = false)
 
 /**
  * Exposes just the icon-style settings to [LauncherShell] so the single floating drag icon — drawn
@@ -44,7 +44,7 @@ class LauncherShellViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val iconStyle: StateFlow<IconStyle> = settingsRepository.settings
-        .map { IconStyle(it.iconPackPackage, it.useThemedIcons, it.iconScale) }
+        .map { IconStyle(it.iconPackPackage, it.useThemedIcons, it.iconScale, it.themeAllIcons) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IconStyle())
 
     val iconEpochs: StateFlow<IconEpochs> = launcherAppsSource.iconEpochs

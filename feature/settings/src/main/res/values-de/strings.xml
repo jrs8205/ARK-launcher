@@ -28,6 +28,8 @@
     <string name="settings_section_collapsed">Eingeklappt</string>
     <string name="settings_blur_behind_drawer">Hintergrund hinter dem App-Drawer weichzeichnen</string>
     <string name="settings_blur_behind_drawer_desc">Das Hintergrundbild verschwimmt, während der Drawer aufgeht. Ab Android 12; im Energiesparmodus lässt das System es aus.</string>
+    <string name="settings_theme_all_icons">Alle Symbole einfärben</string>
+    <string name="settings_theme_all_icons_desc">Apps ohne eigenes Themen-Symbol erhalten eine einfarbige Silhouette ihres Symbols in den Farben des Themas.</string>
     <string name="settings_dock_bg">Deckkraft des Dock-Hintergrunds</string>
     <string name="settings_drawer_bg">Deckkraft des App-Drawer-Hintergrunds</string>
     <string name="settings_page_indicator">Seitenpunkte</string>

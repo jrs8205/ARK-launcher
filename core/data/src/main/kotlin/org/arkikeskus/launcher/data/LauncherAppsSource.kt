@@ -337,13 +337,15 @@ class LauncherAppsSource @Inject constructor(
      *
      * A selected [iconPack] takes priority: a mapped app uses the pack's drawable, an unmapped app keeps
      * its normal icon. Otherwise, when [themed] is set (and the device + app support it) the Material You
-     * monochrome icon is returned, tinted for the [dark]/light theme; else the normal icon.
+     * monochrome icon is returned, tinted for the [dark]/light theme; an app without one gets a silhouette
+     * of its icon in the same colours when [themeAll] asks for it; else the normal icon.
      */
     fun loadIcon(
         appItem: AppItem,
         themed: Boolean = false,
         dark: Boolean = false,
         iconPack: String = "",
+        themeAll: Boolean = false,
     ): Drawable? = runCatching {
         val info = launcherApps.getActivityList(appItem.packageName, appItem.user)
             .firstOrNull { it.componentName.className == appItem.className }
@@ -354,6 +356,7 @@ class LauncherAppsSource @Inject constructor(
             iconPacks.get(iconPack)?.getIcon(appItem.componentName)?.let { return@runCatching it }
         } else if (themed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             themedIcon(info, dark)?.let { return@runCatching it }
+            if (themeAll) silhouetteThemedIcon(info, dark)?.let { return@runCatching it }
         }
         info.getBadgedIcon(0)
     }.getOrNull()
@@ -371,6 +374,21 @@ class LauncherAppsSource @Inject constructor(
         val (bg, fg) = themedColors(dark)
         mono.setTint(fg)
         return AdaptiveIconDrawable(ColorDrawable(bg), mono)
+    }
+
+    /**
+     * A themed icon for an app without a monochrome layer (a Telegram request, "Theme every icon"):
+     * the adaptive foreground, or the whole legacy icon inset, as a one-colour silhouette over the
+     * Monet background, so it sits among the real themed icons instead of breaking the set.
+     */
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun silhouetteThemedIcon(info: LauncherActivityInfo, dark: Boolean): Drawable? {
+        val icon = info.getIcon(0) ?: return null
+        val adaptive = icon as? AdaptiveIconDrawable
+        val glyph = adaptive?.foreground ?: icon
+        val (bg, fg) = themedColors(dark)
+        val silhouette = silhouetteDrawable(glyph, fg, adaptive = adaptive != null, resources = context.resources)
+        return AdaptiveIconDrawable(ColorDrawable(bg), silhouette)
     }
 
     /** Background/foreground colours for themed icons, from the system dynamic (Monet) palette. */

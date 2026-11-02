@@ -28,6 +28,8 @@
     <string name="settings_section_collapsed">Plegado</string>
     <string name="settings_blur_behind_drawer">Desenfocar el fondo detrás del cajón de aplicaciones</string>
     <string name="settings_blur_behind_drawer_desc">El fondo de pantalla se desenfoca al subir el cajón. Android 12 o posterior; el sistema lo omite en ahorro de batería.</string>
+    <string name="settings_theme_all_icons">Aplicar el tema a todos los iconos</string>
+    <string name="settings_theme_all_icons_desc">Las aplicaciones sin icono temático propio reciben una silueta de un solo color de su icono en los colores del tema.</string>
     <string name="settings_dock_bg">Opacidad del fondo del dock</string>
     <string name="settings_drawer_bg">Opacidad del fondo del cajón de aplicaciones</string>
     <string name="settings_page_indicator">Indicador de páginas</string>

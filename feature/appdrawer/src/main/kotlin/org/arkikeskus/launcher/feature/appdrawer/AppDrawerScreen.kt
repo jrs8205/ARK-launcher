@@ -124,6 +124,7 @@ import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
+import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 import org.arkikeskus.launcher.ui.expressive.Accent
@@ -246,6 +247,7 @@ fun AppDrawerScreen(
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
         LocalThemedIcons provides uiState.useThemedIcons,
+        LocalThemeAllIcons provides uiState.themeAllIcons,
         LocalIconPack provides uiState.iconPackPackage,
         LocalAppLabelScale provides uiState.appLabelTextScale,
         LocalIconScale provides uiState.iconScale,
