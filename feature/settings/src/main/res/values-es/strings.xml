@@ -24,6 +24,8 @@
     <string name="settings_two_line_labels">Nombres en dos líneas</string>
     <string name="settings_show_folder_names">Mostrar nombres de carpetas</string>
     <string name="settings_folder_columns">Columnas de carpeta</string>
+    <string name="settings_section_expanded">Desplegado</string>
+    <string name="settings_section_collapsed">Plegado</string>
     <string name="settings_dock_bg">Opacidad del fondo del dock</string>
     <string name="settings_drawer_bg">Opacidad del fondo del cajón de aplicaciones</string>
     <string name="settings_page_indicator">Indicador de páginas</string>

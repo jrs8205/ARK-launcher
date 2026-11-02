@@ -24,6 +24,8 @@
     <string name="settings_two_line_labels">Appnamn på två rader</string>
     <string name="settings_show_folder_names">Visa mappnamn</string>
     <string name="settings_folder_columns">Mappkolumner</string>
+    <string name="settings_section_expanded">Utfälld</string>
+    <string name="settings_section_collapsed">Infälld</string>
     <string name="settings_dock_bg">Bakgrundsopacitet för Dock</string>
     <string name="settings_drawer_bg">Bakgrundsopacitet för applådan</string>
     <string name="settings_page_indicator">Sidprickar</string>

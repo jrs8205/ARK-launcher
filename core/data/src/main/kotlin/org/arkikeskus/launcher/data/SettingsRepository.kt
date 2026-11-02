@@ -126,6 +126,7 @@ class SettingsRepository @Inject constructor(
             sortDrawerFolders = p[Keys.SORT_DRAWER_FOLDERS] ?: false,
             mixDrawerFolders = p[Keys.MIX_DRAWER_FOLDERS] ?: false,
             folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
+            collapsedSettingsSections = parseSections(p[Keys.COLLAPSED_SETTINGS_SECTIONS]),
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
             // Unset, the drawer follows home's scale (the one slider before 0.9.8).
@@ -452,6 +453,16 @@ class SettingsRepository @Inject constructor(
     suspend fun setFolderColumns(value: Int) =
         edit { it[Keys.FOLDER_COLUMNS] = value.coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS) }
 
+    /** Folds or opens the settings section [id]; the folded ids live in one comma-separated string. */
+    suspend fun setSettingsSectionCollapsed(id: String, collapsed: Boolean) = edit { p ->
+        val current = parseSections(p[Keys.COLLAPSED_SETTINGS_SECTIONS])
+        val next = if (collapsed) current + id else current - id
+        p[Keys.COLLAPSED_SETTINGS_SECTIONS] = next.joinToString(",")
+    }
+
+    private fun parseSections(raw: String?): Set<String> =
+        raw.orEmpty().split(',').map { it.trim() }.filterTo(LinkedHashSet()) { it.isNotEmpty() }
+
     /** Size multiplier for app icon labels (clamped to the slider's range). */
     suspend fun setAppLabelTextScale(value: Float) =
         edit { it[Keys.APP_LABEL_SCALE] = value.coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE) }
@@ -714,6 +725,7 @@ class SettingsRepository @Inject constructor(
         val SORT_DRAWER_FOLDERS = booleanPreferencesKey("sort_drawer_folders")
         val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
         val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
+        val COLLAPSED_SETTINGS_SECTIONS = stringPreferencesKey("collapsed_settings_sections")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val ICON_SCALE = floatPreferencesKey("icon_scale")
@@ -798,7 +810,7 @@ class SettingsRepository @Inject constructor(
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
-            "page_switch_speed",
+            "page_switch_speed", "collapsed_settings_sections",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
             "custom_icons", "folder_icons",
         )

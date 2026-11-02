@@ -479,6 +479,23 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().folderColumns).isEqualTo(5)
     }
 
+    @Test
+    fun `collapsed settings sections start empty, toggle per section and restore from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().collapsedSettingsSections).isEmpty()
+
+        repo.setSettingsSectionCollapsed("dock", true)
+        repo.setSettingsSectionCollapsed("icons", true)
+        assertThat(repo.settings.first().collapsedSettingsSections).containsExactly("dock", "icons")
+        repo.setSettingsSectionCollapsed("dock", false)
+        assertThat(repo.settings.first().collapsedSettingsSections).containsExactly("icons")
+        assertThat(repo.exportRaw()["collapsed_settings_sections"]).isEqualTo("icons")
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("collapsed_settings_sections" to "home,drawer"))
+        assertThat(restored.settings.first().collapsedSettingsSections).containsExactly("home", "drawer")
+    }
+
     /** Issue #17: folder names show by default; each surface's switch round-trips and restores. */
     @Test
     fun `folder names show by default, each surface's switch round-trips and restores from a backup`() = runTest {

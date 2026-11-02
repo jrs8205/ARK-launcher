@@ -31,4 +31,5 @@ object LauncherIcons {
     @DrawableRes val Widgets: Int = R.drawable.ic_widgets
     @DrawableRes val Work: Int = R.drawable.ic_work
     @DrawableRes val Play: Int = R.drawable.ic_play_arrow
+    @DrawableRes val ExpandMore: Int = R.drawable.ic_expand_more
 }

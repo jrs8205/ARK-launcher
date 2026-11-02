@@ -67,6 +67,8 @@ data class LauncherSettings(
     val mixDrawerFolders: Boolean = false,
     /** Icons per row in an open folder, on the home screen and in the app drawer (a Telegram request). */
     val folderColumns: Int = 4,
+    /** The settings sections folded under their titles, by id (a Telegram request); empty = all open. */
+    val collapsedSettingsSections: Set<String> = emptySet(),
     /** Apps placed on the home screen (its pages, its folders, the dock) leave the drawer's list; the search
      *  still finds them (a Telegram request after 0.9.7, opt-in). */
     val hideHomeAppsFromDrawer: Boolean = false,

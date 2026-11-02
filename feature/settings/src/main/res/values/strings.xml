@@ -24,6 +24,8 @@
     <string name="settings_two_line_labels">Two-line labels</string>
     <string name="settings_show_folder_names">Show folder names</string>
     <string name="settings_folder_columns">Folder columns</string>
+    <string name="settings_section_expanded">Expanded</string>
+    <string name="settings_section_collapsed">Collapsed</string>
     <string name="settings_dock_bg">Dock background opacity</string>
     <string name="settings_drawer_bg">App drawer background opacity</string>
     <string name="settings_page_indicator">Page dots</string>
