@@ -69,6 +69,8 @@ data class LauncherSettings(
     val folderColumns: Int = 4,
     /** The settings sections folded under their titles, by id (a Telegram request); empty = all open. */
     val collapsedSettingsSections: Set<String> = emptySet(),
+    /** Blur the wallpaper behind the window as the app drawer rises (a Telegram request, Android 12+). */
+    val blurBehindDrawer: Boolean = false,
     /** Apps placed on the home screen (its pages, its folders, the dock) leave the drawer's list; the search
      *  still finds them (a Telegram request after 0.9.7, opt-in). */
     val hideHomeAppsFromDrawer: Boolean = false,

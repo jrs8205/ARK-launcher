@@ -26,6 +26,8 @@
     <string name="settings_folder_columns">Klasör sütunları</string>
     <string name="settings_section_expanded">Genişletildi</string>
     <string name="settings_section_collapsed">Daraltıldı</string>
+    <string name="settings_blur_behind_drawer">Uygulama çekmecesinin arkasındaki duvar kağıdını bulanıklaştır</string>
+    <string name="settings_blur_behind_drawer_desc">Çekmece yükseldikçe duvar kağıdı bulanıklaşır. Android 12 veya üzeri; pil tasarrufunda sistem bunu atlar.</string>
     <string name="settings_dock_bg">Dock arka plan opaklığı</string>
     <string name="settings_drawer_bg">Uygulama çekmecesi arka plan opaklığı</string>
     <string name="settings_page_indicator">Sayfa noktaları</string>

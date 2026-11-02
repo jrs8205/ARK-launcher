@@ -383,5 +383,5 @@ internal fun rememberWallpaperSupportsDarkText(): State<Boolean> {
     return wallpaper.state
 }
 
-private fun Context.findActivity(): Activity? =
+internal fun Context.findActivity(): Activity? =
     generateSequence(this) { (it as? ContextWrapper)?.baseContext }.filterIsInstance<Activity>().firstOrNull()

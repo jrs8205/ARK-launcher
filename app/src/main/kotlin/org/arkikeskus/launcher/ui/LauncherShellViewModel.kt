@@ -65,4 +65,9 @@ class LauncherShellViewModel @Inject constructor(
     val longPressScale: StateFlow<Float> = settingsRepository.settings
         .map { it.longPressScale }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1f)
+
+    /** The wallpaper blurs behind the rising drawer (Settings > App drawer, opt-in). */
+    val blurBehindDrawer: StateFlow<Boolean> = settingsRepository.settings
+        .map { it.blurBehindDrawer }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 }

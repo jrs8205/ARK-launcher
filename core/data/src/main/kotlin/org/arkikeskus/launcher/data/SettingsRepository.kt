@@ -127,6 +127,7 @@ class SettingsRepository @Inject constructor(
             mixDrawerFolders = p[Keys.MIX_DRAWER_FOLDERS] ?: false,
             folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
             collapsedSettingsSections = parseSections(p[Keys.COLLAPSED_SETTINGS_SECTIONS]),
+            blurBehindDrawer = p[Keys.BLUR_BEHIND_DRAWER] ?: false,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
             // Unset, the drawer follows home's scale (the one slider before 0.9.8).
@@ -450,6 +451,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setDrawerOpensAtTop(value: Boolean) = edit { it[Keys.DRAWER_OPENS_AT_TOP] = value }
     suspend fun setSortDrawerFolders(value: Boolean) = edit { it[Keys.SORT_DRAWER_FOLDERS] = value }
     suspend fun setMixDrawerFolders(value: Boolean) = edit { it[Keys.MIX_DRAWER_FOLDERS] = value }
+    suspend fun setBlurBehindDrawer(value: Boolean) = edit { it[Keys.BLUR_BEHIND_DRAWER] = value }
     suspend fun setFolderColumns(value: Int) =
         edit { it[Keys.FOLDER_COLUMNS] = value.coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS) }
 
@@ -726,6 +728,7 @@ class SettingsRepository @Inject constructor(
         val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
         val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
         val COLLAPSED_SETTINGS_SECTIONS = stringPreferencesKey("collapsed_settings_sections")
+        val BLUR_BEHIND_DRAWER = booleanPreferencesKey("blur_behind_drawer")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val ICON_SCALE = floatPreferencesKey("icon_scale")
@@ -805,7 +808,7 @@ class SettingsRepository @Inject constructor(
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
-            "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders",
+            "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders", "blur_behind_drawer",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

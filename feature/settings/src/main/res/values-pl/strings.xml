@@ -26,6 +26,8 @@
     <string name="settings_folder_columns">Kolumny folderu</string>
     <string name="settings_section_expanded">Rozwinięte</string>
     <string name="settings_section_collapsed">Zwinięte</string>
+    <string name="settings_blur_behind_drawer">Rozmyj tapetę za szufladą aplikacji</string>
+    <string name="settings_blur_behind_drawer_desc">Tapeta rozmywa się, gdy szuflada się unosi. Android 12 lub nowszy; w trybie oszczędzania baterii system to pomija.</string>
     <string name="settings_dock_bg">Krycie tła Docka</string>
     <string name="settings_drawer_bg">Krycie tła szuflady aplikacji</string>
     <string name="settings_page_indicator">Kropki stron</string>

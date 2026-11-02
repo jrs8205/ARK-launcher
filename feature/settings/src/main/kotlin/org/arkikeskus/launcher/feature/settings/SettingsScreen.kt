@@ -283,6 +283,12 @@ fun SettingsScreen(
                     )
                     SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
                     DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
+                    SwitchRow(
+                        stringResource(R.string.settings_blur_behind_drawer),
+                        stringResource(R.string.settings_blur_behind_drawer_desc),
+                        s.blurBehindDrawer,
+                        viewModel::setBlurBehindDrawer,
+                    )
                     DrawerIconSizeRow(s.drawerIconScale, viewModel::setDrawerIconScale)
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_hidden_apps),

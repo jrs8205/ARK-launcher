@@ -26,6 +26,8 @@
     <string name="settings_folder_columns">Folder columns</string>
     <string name="settings_section_expanded">Expanded</string>
     <string name="settings_section_collapsed">Collapsed</string>
+    <string name="settings_blur_behind_drawer">Blur the wallpaper behind the app drawer</string>
+    <string name="settings_blur_behind_drawer_desc">The wallpaper blurs as the drawer rises. Android 12 or newer; the system skips it in battery saver.</string>
     <string name="settings_dock_bg">Dock background opacity</string>
     <string name="settings_drawer_bg">App drawer background opacity</string>
     <string name="settings_page_indicator">Page dots</string>

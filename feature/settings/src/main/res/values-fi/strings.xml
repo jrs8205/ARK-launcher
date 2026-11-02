@@ -26,6 +26,8 @@
     <string name="settings_folder_columns">Kansion sarakkeet</string>
     <string name="settings_section_expanded">Avattu</string>
     <string name="settings_section_collapsed">Suljettu</string>
+    <string name="settings_blur_behind_drawer">Sumenna taustakuva sovellusvalikon takana</string>
+    <string name="settings_blur_behind_drawer_desc">Taustakuva sumenee valikon noustessa. Android 12 tai uudempi; virransäästötilassa järjestelmä ohittaa sen.</string>
     <string name="settings_dock_bg">Dockin taustan läpinäkyvyys</string>
     <string name="settings_drawer_bg">Sovellusvalikon taustan läpinäkyvyys</string>
     <string name="settings_page_indicator">Sivupisteet</string>

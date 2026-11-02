@@ -496,6 +496,20 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().collapsedSettingsSections).containsExactly("home", "drawer")
     }
 
+    @Test
+    fun `blurBehindDrawer defaults to false, round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().blurBehindDrawer).isFalse()
+
+        repo.setBlurBehindDrawer(true)
+        assertThat(repo.settings.first().blurBehindDrawer).isTrue()
+        assertThat(repo.exportRaw()["blur_behind_drawer"]).isEqualTo(true)
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("blur_behind_drawer" to true))
+        assertThat(restored.settings.first().blurBehindDrawer).isTrue()
+    }
+
     /** Issue #17: folder names show by default; each surface's switch round-trips and restores. */
     @Test
     fun `folder names show by default, each surface's switch round-trips and restores from a backup`() = runTest {

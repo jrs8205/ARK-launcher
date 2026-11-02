@@ -26,6 +26,8 @@
     <string name="settings_folder_columns">Colonnes des dossiers</string>
     <string name="settings_section_expanded">Déplié</string>
     <string name="settings_section_collapsed">Replié</string>
+    <string name="settings_blur_behind_drawer">Flouter le fond d\'écran derrière la liste des applications</string>
+    <string name="settings_blur_behind_drawer_desc">Le fond d\'écran se floute à mesure que la liste monte. Android 12 ou plus récent ; le système l\'ignore en économie de batterie.</string>
     <string name="settings_dock_bg">Opacité du fond du dock</string>
     <string name="settings_drawer_bg">Opacité du fond de la liste des applications</string>
     <string name="settings_page_indicator">Indicateur de page</string>
