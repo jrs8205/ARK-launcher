@@ -148,6 +148,8 @@ internal fun FolderCard(
     onSetIcon: (CustomIcon?) -> Unit = {},
     /** Home shows folder names: off, the view's header is just the pencil (issue #18 follow-up). */
     showName: Boolean = true,
+    /** Icons per row (Settings > Home > Folder columns). */
+    columns: Int = FOLDER_COLUMNS,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -311,7 +313,7 @@ internal fun FolderCard(
                 // The icon follows the user's icon-size setting, capped by the slot like the drawer.
                 val nominalIconSize = 56.dp * iconScale
                 val iconSize = if (gridWidthPx > 0) {
-                    iconSizeForCell(with(density) { (gridWidthPx.toFloat() / FOLDER_COLUMNS).toDp() }, nominalIconSize)
+                    iconSizeForCell(with(density) { (gridWidthPx.toFloat() / columns).toDp() }, nominalIconSize)
                 } else {
                     nominalIconSize
                 }
@@ -400,6 +402,7 @@ internal fun FolderCard(
                                             val index = folderSlotIndex(
                                                 change.position, size.width.toFloat(),
                                                 rowBands(gridState.layoutInfo.visibleItemsInfo), currentShownBase.size,
+                                                columns,
                                             )
                                             if (index != targetIndex) {
                                                 keepScrollPositionByIndex()
@@ -453,7 +456,7 @@ internal fun FolderCard(
                         },
                 ) {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(FOLDER_COLUMNS),
+                        columns = GridCells.Fixed(columns),
                         state = gridState,
                         userScrollEnabled = !lifted,
                         modifier = Modifier

@@ -58,6 +58,9 @@ class AppDrawerScreenTest {
     // Before the wiring: its app list is queried eagerly. Robolectric resolves a fake app's label to
     // its package name, so the drawer shows this app as "com.mail".
     private val mailApp = "com.mail".also { installFakeApp(context, it, "Mail") }
+    private val mapsApp = "com.maps".also { installFakeApp(context, it, "Maps") }
+    private val notesApp = "com.notes".also { installFakeApp(context, it, "Notes") }
+    private val docsApp = "com.docs".also { installFakeApp(context, it, "Docs") }
     private val wiring = DrawerWiring(context, testScope)
     private val viewModel = wiring.viewModel()
     private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
@@ -233,18 +236,43 @@ class AppDrawerScreenTest {
         show()
         awaitState("both folders are listed") { it.folders.size == 2 }
         awaitText(mailApp)
-        assertThat(leftOf("Tools")).isLessThan(leftOf("games"))
-        assertThat(leftOf("games")).isLessThan(leftOf(mailApp))
+        assertThat(orderOf("Tools")).isLessThan(orderOf("games"))
+        assertThat(orderOf("games")).isLessThan(orderOf(mailApp))
 
         runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }
         awaitState("the setting reached the drawer") { it.mixDrawerFolders }
         settle()
-        assertThat(leftOf(mailApp)).isLessThan(leftOf("games"))
-        assertThat(leftOf("games")).isLessThan(leftOf("Tools"))
+        assertThat(orderOf(mailApp)).isLessThan(orderOf("games"))
+        assertThat(orderOf("games")).isLessThan(orderOf("Tools"))
     }
 
-    /** The left edge of the tile labelled [text]: the grid reads left to right on one row. */
-    private fun leftOf(text: String): Float = compose.onNodeWithText(text).getBoundsInRoot().left.value
+    /** The tile labelled [text] in the grid's reading order: row first (its top), then column (its left). */
+    private fun orderOf(text: String): Float =
+        compose.onNodeWithText(text).getBoundsInRoot().let { it.top.value * 10_000f + it.left.value }
+
+    private fun topOf(text: String): Float = compose.onNodeWithText(text).getBoundsInRoot().top.value
+
+    /** A Telegram request: the drawer's folder card has as many columns as the folder columns setting. */
+    @Test fun theFolderCardFollowsTheFolderColumnsSetting() {
+        val members = listOf(mailApp, mapsApp, notesApp, docsApp)
+        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        show()
+        awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
+        val keys = viewModel.uiState.value.apps.filter { it.packageName in members }.map { it.key }
+        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        awaitState("the folder holds the four") { it.folders.firstOrNull()?.apps?.size == 4 }
+        settle()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+        // Four members A-Z: com.docs, com.mail, com.maps, com.notes fill one row of four.
+        assertThat(topOf(notesApp)).isEqualTo(topOf(mailApp))
+
+        runBlocking { wiring.settingsRepository.setFolderColumns(3) }
+        awaitState("the setting reached the drawer") { it.folderColumns == 3 }
+        settle()
+        assertThat(topOf(notesApp)).isGreaterThan(topOf(mailApp))
+    }
 
     /** Mixed among the apps the order is by name, so the editor offers no moves. */
     @Test fun theEditorHidesMovesWhileFoldersMixWithTheApps() {
@@ -367,7 +395,8 @@ class AppDrawerScreenTest {
         settle()
         compose.onNodeWithText(addApps()).performClick()
         settle()
-        assertThat(compose.onAllNodesWithTag(ADD_APPS_ROW_TAG).fetchSemanticsNodes()).hasSize(1)
+        assertThat(compose.onAllNodesWithTag(ADD_APPS_ROW_TAG).fetchSemanticsNodes())
+            .hasSize(viewModel.uiState.value.folderCandidates.size)
 
         compose.onNode(hasTestTag(ADD_APPS_SEARCH_TAG)).performTextInput("zq")
         settle()

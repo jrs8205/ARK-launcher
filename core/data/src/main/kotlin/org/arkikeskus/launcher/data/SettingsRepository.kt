@@ -125,6 +125,7 @@ class SettingsRepository @Inject constructor(
             drawerOpensAtTop = p[Keys.DRAWER_OPENS_AT_TOP] ?: true,
             sortDrawerFolders = p[Keys.SORT_DRAWER_FOLDERS] ?: false,
             mixDrawerFolders = p[Keys.MIX_DRAWER_FOLDERS] ?: false,
+            folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
             // Unset, the drawer follows home's scale (the one slider before 0.9.8).
@@ -448,6 +449,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setDrawerOpensAtTop(value: Boolean) = edit { it[Keys.DRAWER_OPENS_AT_TOP] = value }
     suspend fun setSortDrawerFolders(value: Boolean) = edit { it[Keys.SORT_DRAWER_FOLDERS] = value }
     suspend fun setMixDrawerFolders(value: Boolean) = edit { it[Keys.MIX_DRAWER_FOLDERS] = value }
+    suspend fun setFolderColumns(value: Int) =
+        edit { it[Keys.FOLDER_COLUMNS] = value.coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS) }
 
     /** Size multiplier for app icon labels (clamped to the slider's range). */
     suspend fun setAppLabelTextScale(value: Float) =
@@ -710,6 +713,7 @@ class SettingsRepository @Inject constructor(
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val SORT_DRAWER_FOLDERS = booleanPreferencesKey("sort_drawer_folders")
         val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
+        val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val ICON_SCALE = floatPreferencesKey("icon_scale")
@@ -743,6 +747,10 @@ class SettingsRepository @Inject constructor(
         const val MIN_COLUMNS = 3
         const val MAX_COLUMNS = 7
 
+        /** Valid range for an open folder's columns (mirrors the settings stepper). */
+        const val MIN_FOLDER_COLUMNS = 3
+        const val MAX_FOLDER_COLUMNS = 6
+
         /** Valid range for the home-grid row count (mirrors the settings stepper). */
         const val MIN_ROWS = 5
         const val MAX_ROWS = 10
@@ -770,7 +778,7 @@ class SettingsRepository @Inject constructor(
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",
-            "home_page", "home_page_count",
+            "home_page", "home_page_count", "folder_columns",
         )
 
         /** Known boolean/string preference keys. importRaw writes a known key ONLY with its

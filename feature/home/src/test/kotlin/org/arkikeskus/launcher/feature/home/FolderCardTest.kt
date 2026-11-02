@@ -90,6 +90,7 @@ class FolderCardTest {
     private var longPress = 0L
     private var showName by mutableStateOf(true)
     private var lockedState by mutableStateOf(false)
+    private var folderColumns by mutableStateOf(4)
 
     private fun show(locked: Boolean = false) {
         lockedState = locked
@@ -107,6 +108,7 @@ class FolderCardTest {
                         badgeScale = 1f,
                         locked = lockedState,
                         showName = showName,
+                        columns = folderColumns,
                         dragController = drag,
                         onRename = {},
                         onAppClick = { launched += it },
@@ -198,6 +200,18 @@ class FolderCardTest {
         compose.onNodeWithText("Tools").assertDoesNotExist()
         assertThat(compose.onNodeWithText("Mail").getBoundsInRoot().top.value).isLessThan(pencilRowTop)
     }
+
+    /** A Telegram request: the open folder's grid has as many columns as the setting says. */
+    @Test fun theGridFollowsTheFolderColumns() {
+        show()
+        assertThat(topOf("Notes")).isEqualTo(topOf("Mail"))
+
+        folderColumns = 2
+        compose.waitForIdle()
+        assertThat(topOf("Notes")).isGreaterThan(topOf("Mail"))
+    }
+
+    private fun topOf(label: String): Float = compose.onNodeWithText(label).getBoundsInRoot().top.value
 
     @Test fun aLockedDesktopHasNoPencil() {
         show(locked = true)

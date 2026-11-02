@@ -85,6 +85,7 @@ class SettingsViewModel @Inject constructor(
     fun setDrawerOpensAtTop(value: Boolean) = update { repository.setDrawerOpensAtTop(value) }
     fun setSortDrawerFolders(value: Boolean) = update { repository.setSortDrawerFolders(value) }
     fun setMixDrawerFolders(value: Boolean) = update { repository.setMixDrawerFolders(value) }
+    fun setFolderColumns(value: Int) = update { repository.setFolderColumns(value) }
     fun setHomeColumns(value: Int) = viewModelScope.launch {
         // Shrinking the grid can leave shortcuts at an out-of-range cellX; repack them back on-screen
         // before the new (smaller) column count reaches the home screen, so nothing draws off-grid.

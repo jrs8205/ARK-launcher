@@ -362,6 +362,7 @@ fun AppDrawerScreen(
         DrawerFolderCard(
             folder = cardFolder,
             bounds = card.second,
+            columns = uiState.folderColumns,
             badges = badges,
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
@@ -374,6 +375,7 @@ fun AppDrawerScreen(
         DrawerFolderSheet(
             folder = openFolder,
             candidateApps = uiState.folderCandidates,
+            columns = uiState.folderColumns,
             badges = badges,
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
@@ -847,7 +849,6 @@ private fun FolderSlot(app: AppItem?, size: Dp) {
     }
 }
 
-private const val FOLDER_CARD_COLUMNS = 4
 private val FOLDER_CARD_WIDTH = 328.dp
 
 /**
@@ -860,6 +861,8 @@ private val FOLDER_CARD_WIDTH = 328.dp
 private fun DrawerFolderCard(
     folder: DrawerFolderUi,
     bounds: Rect,
+    /** Icons per row (Settings > Home > Folder columns, shared with the home screen's folders). */
+    columns: Int,
     badges: Map<String, Int>,
     badgeShowCount: Boolean,
     badgeScale: Float,
@@ -872,7 +875,7 @@ private fun DrawerFolderCard(
     val anchor = IntOffset(bounds.center.x.roundToInt(), (if (preferAbove) bounds.top else bounds.bottom).roundToInt())
     val width = with(LocalDensity.current) { minOf(FOLDER_CARD_WIDTH, windowSize.width.toDp() - 16.dp) }
     // The grid's rule: the icon shrinks to its cell when the icon-size setting would overflow it.
-    val iconSize = iconSizeForCell((width - 16.dp) / FOLDER_CARD_COLUMNS, 56.dp * LocalIconScale.current)
+    val iconSize = iconSizeForCell((width - 16.dp) / columns, 56.dp * LocalIconScale.current)
     val palette = LocalExpressivePalette.current
     AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width) {
         Column(
@@ -897,7 +900,7 @@ private fun DrawerFolderCard(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
-            folder.apps.chunked(FOLDER_CARD_COLUMNS).forEach { row ->
+            folder.apps.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEach { app ->
                         AppIcon(
@@ -914,7 +917,7 @@ private fun DrawerFolderCard(
                                 .padding(vertical = 10.dp, horizontal = 4.dp),
                         )
                     }
-                    repeat(FOLDER_CARD_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
@@ -929,6 +932,8 @@ private fun DrawerFolderCard(
 private fun DrawerFolderSheet(
     folder: DrawerFolderUi,
     candidateApps: List<AppItem>,
+    /** Icons per row of the member grid (Settings > Home > Folder columns). */
+    columns: Int,
     badges: Map<String, Int>,
     badgeShowCount: Boolean,
     badgeScale: Float,
@@ -980,7 +985,7 @@ private fun DrawerFolderSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
+                    columns = GridCells.Fixed(columns),
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 280.dp),

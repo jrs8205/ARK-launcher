@@ -462,6 +462,23 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().mixDrawerFolders).isTrue()
     }
 
+    @Test
+    fun `folderColumns defaults to 4, clamps to 3 to 6, round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().folderColumns).isEqualTo(4)
+
+        repo.setFolderColumns(9)
+        assertThat(repo.settings.first().folderColumns).isEqualTo(6)
+        repo.setFolderColumns(1)
+        assertThat(repo.settings.first().folderColumns).isEqualTo(3)
+        repo.setFolderColumns(5)
+        assertThat(repo.exportRaw()["folder_columns"]).isEqualTo(5)
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("folder_columns" to 5))
+        assertThat(restored.settings.first().folderColumns).isEqualTo(5)
+    }
+
     /** Issue #17: folder names show by default; each surface's switch round-trips and restores. */
     @Test
     fun `folder names show by default, each surface's switch round-trips and restores from a backup`() = runTest {
