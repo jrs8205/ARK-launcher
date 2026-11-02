@@ -1,0 +1,10 @@
+New
+- App drawer folders can sit among the apps A–Z (optional).
+- Folder columns: 3 to 6 icons per row in an open folder.
+- Every settings section folds under its title.
+- Blur the wallpaper behind the rising app drawer (optional, Android 12+).
+- Theme every icon: apps without a themed icon get a silhouette (optional).
+- With folder names off, an open folder shows only the pencil above its apps.
+
+Fixed
+- The clock tap opens the clock app on phones whose clock refuses the alarms view.
