@@ -76,6 +76,8 @@
     <string name="drawer_folder_default">Carpeta</string>
     <string name="settings_sort_drawer_folders">Ordenar carpetas A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Carpetas del cajón de aplicaciones en orden alfabético. Desactivado mantiene tu propio orden.</string>
+    <string name="settings_mix_drawer_folders">Carpetas entre las aplicaciones A–Z</string>
+    <string name="settings_mix_drawer_folders_desc">Las carpetas del cajón de aplicaciones se colocan por nombre en la lista de aplicaciones en lugar de ir delante.</string>
     <string name="settings_drawer_folders">Carpetas del cajón de aplicaciones</string>
     <string name="settings_drawer_folders_empty">Aún no hay carpetas</string>
     <string name="settings_folder_name">Nombre de la carpeta</string>

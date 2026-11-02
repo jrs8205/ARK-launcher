@@ -76,6 +76,8 @@
     <string name="drawer_folder_default">Dossier</string>
     <string name="settings_sort_drawer_folders">Trier les dossiers A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Dossiers de la liste des applications par ordre alphabétique. Désactivé, votre ordre est conservé.</string>
+    <string name="settings_mix_drawer_folders">Dossiers parmi les applications A–Z</string>
+    <string name="settings_mix_drawer_folders_desc">Les dossiers de la liste des applications prennent leur place par nom dans la liste au lieu de la précéder.</string>
     <string name="settings_drawer_folders">Dossiers de la liste des applications</string>
     <string name="settings_drawer_folders_empty">Aucun dossier pour l’instant</string>
     <string name="settings_folder_name">Nom du dossier</string>

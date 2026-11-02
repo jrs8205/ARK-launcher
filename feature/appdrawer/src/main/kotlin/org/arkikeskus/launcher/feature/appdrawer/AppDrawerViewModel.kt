@@ -101,6 +101,8 @@ data class AppDrawerUiState(
     val drawerOpensAtTop: Boolean = true,
     /** The folders listed A-Z rather than in the user's order; the editor hides its moves then. */
     val sortDrawerFolders: Boolean = false,
+    /** The folders seated among the apps by name (issue #22); the editor hides its moves then too. */
+    val mixDrawerFolders: Boolean = false,
 )
 
 @HiltViewModel
@@ -179,6 +181,7 @@ class AppDrawerViewModel @Inject constructor(
             twoLineLabels = settings.twoLineDrawerLabels,
             drawerOpensAtTop = settings.drawerOpensAtTop,
             sortDrawerFolders = settings.sortDrawerFolders,
+            mixDrawerFolders = settings.mixDrawerFolders,
         )
     }.combine(notificationBadgeRepository.badges) { state, badges ->
         state.copy(badges = badges)

@@ -63,6 +63,8 @@ data class LauncherSettings(
     val drawerOpensAtTop: Boolean = true,
     /** List the app drawer's folders A–Z (case aside) instead of in the user's own order. */
     val sortDrawerFolders: Boolean = false,
+    /** Seat the app drawer's folders among the apps by name (issue #22) instead of leading the grid. */
+    val mixDrawerFolders: Boolean = false,
     /** Apps placed on the home screen (its pages, its folders, the dock) leave the drawer's list; the search
      *  still finds them (a Telegram request after 0.9.7, opt-in). */
     val hideHomeAppsFromDrawer: Boolean = false,

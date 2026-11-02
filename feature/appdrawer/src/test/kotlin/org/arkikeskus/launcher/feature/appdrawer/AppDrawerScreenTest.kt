@@ -8,6 +8,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.up
@@ -216,6 +217,40 @@ class AppDrawerScreenTest {
         runBlocking { wiring.settingsRepository.setSortDrawerFolders(true) }
         showWithFolder()
         awaitState("the setting reached the drawer") { it.sortDrawerFolders }
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+
+        compose.onNodeWithText(addApps()).assertExists()
+        compose.onNodeWithContentDescription(context.getString(R.string.folder_move_later)).assertDoesNotExist()
+    }
+
+    /** Issue #22: off, the folders lead the grid; on, a folder takes its place among the apps by name. */
+    @Test fun foldersSitAmongTheAppsByNameWhenMixingIsOn() {
+        runBlocking {
+            wiring.settingsRepository.createDrawerFolder("Tools")
+            wiring.settingsRepository.createDrawerFolder("games")
+        }
+        show()
+        awaitState("both folders are listed") { it.folders.size == 2 }
+        awaitText(mailApp)
+        assertThat(leftOf("Tools")).isLessThan(leftOf("games"))
+        assertThat(leftOf("games")).isLessThan(leftOf(mailApp))
+
+        runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }
+        awaitState("the setting reached the drawer") { it.mixDrawerFolders }
+        settle()
+        assertThat(leftOf(mailApp)).isLessThan(leftOf("games"))
+        assertThat(leftOf("games")).isLessThan(leftOf("Tools"))
+    }
+
+    /** The left edge of the tile labelled [text]: the grid reads left to right on one row. */
+    private fun leftOf(text: String): Float = compose.onNodeWithText(text).getBoundsInRoot().left.value
+
+    /** Mixed among the apps the order is by name, so the editor offers no moves. */
+    @Test fun theEditorHidesMovesWhileFoldersMixWithTheApps() {
+        runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }
+        showWithFolder()
+        awaitState("the setting reached the drawer") { it.mixDrawerFolders }
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
         settle()
 

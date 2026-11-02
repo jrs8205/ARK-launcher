@@ -75,6 +75,8 @@
     <string name="drawer_folder_default">Mapp</string>
     <string name="settings_sort_drawer_folders">Sortera mappar A–Ö</string>
     <string name="settings_sort_drawer_folders_desc">Mappar i applådan i bokstavsordning. Av behåller din egen ordning.</string>
+    <string name="settings_mix_drawer_folders">Mappar bland apparna A–Ö</string>
+    <string name="settings_mix_drawer_folders_desc">Mappar i applådan tar sin plats i applistan efter namn i stället för att ligga först.</string>
     <string name="settings_drawer_folders">Mappar i applådan</string>
     <string name="settings_drawer_folders_empty">Inga mappar ännu</string>
     <string name="settings_folder_name">Mappnamn</string>

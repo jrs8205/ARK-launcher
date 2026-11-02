@@ -75,6 +75,8 @@
     <string name="drawer_folder_default">Folder</string>
     <string name="settings_sort_drawer_folders">Sort folders A–Z</string>
     <string name="settings_sort_drawer_folders_desc">App drawer folders in alphabetical order. Off keeps your own order.</string>
+    <string name="settings_mix_drawer_folders">Folders among the apps A–Z</string>
+    <string name="settings_mix_drawer_folders_desc">App drawer folders take their place in the app list by name instead of leading it.</string>
     <string name="settings_drawer_folders">Folders in app drawer</string>
     <string name="settings_drawer_folders_empty">No folders yet</string>
     <string name="settings_folder_name">Folder name</string>

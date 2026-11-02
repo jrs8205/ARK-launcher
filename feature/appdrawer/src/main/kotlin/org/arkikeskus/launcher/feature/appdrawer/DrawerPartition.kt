@@ -50,6 +50,44 @@ internal fun partitionDrawer(
     )
 }
 
+/** One tile of the idle Personal grid: a folder or an app, each with its own grid key. */
+internal sealed interface DrawerEntry {
+    val key: String
+    val name: String
+
+    data class Folder(val folder: DrawerFolderUi) : DrawerEntry {
+        override val key get() = "folder-${folder.id}"
+        override val name get() = folder.name
+    }
+
+    data class App(val app: AppItem) : DrawerEntry {
+        override val key get() = app.key
+        override val name get() = app.label
+    }
+}
+
+/**
+ * The idle Personal grid's tiles in order (issue #22). Not [mixed], the folders lead in the order
+ * given and the apps follow; [mixed], every folder takes its place among the [apps] (already A–Z,
+ * case aside) by its name, before an app of the same name. The apps keep their given order either
+ * way, so the merge never reorders what the app list sorted.
+ */
+internal fun drawerEntries(folders: List<DrawerFolderUi>, apps: List<AppItem>, mixed: Boolean): List<DrawerEntry> {
+    if (!mixed) return folders.map { DrawerEntry.Folder(it) } + apps.map { DrawerEntry.App(it) }
+    val sortedFolders = folders.sortedBy { it.name.lowercase() }
+    val out = ArrayList<DrawerEntry>(folders.size + apps.size)
+    var next = 0
+    for (app in apps) {
+        val appName = app.label.lowercase()
+        while (next < sortedFolders.size && sortedFolders[next].name.lowercase() <= appName) {
+            out += DrawerEntry.Folder(sortedFolders[next++])
+        }
+        out += DrawerEntry.App(app)
+    }
+    while (next < sortedFolders.size) out += DrawerEntry.Folder(sortedFolders[next++])
+    return out
+}
+
 /** Launcher3's `hasWorkApps()` rule plus the paused case, so "Unpause" is always reachable. */
 internal fun workTabVisible(profile: WorkProfile?, work: List<AppItem>): Boolean =
     profile != null && (profile.paused || work.isNotEmpty())

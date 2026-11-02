@@ -124,6 +124,7 @@ class SettingsRepository @Inject constructor(
             showFrequentApps = p[Keys.SHOW_FREQUENT_APPS] ?: false,
             drawerOpensAtTop = p[Keys.DRAWER_OPENS_AT_TOP] ?: true,
             sortDrawerFolders = p[Keys.SORT_DRAWER_FOLDERS] ?: false,
+            mixDrawerFolders = p[Keys.MIX_DRAWER_FOLDERS] ?: false,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
             // Unset, the drawer follows home's scale (the one slider before 0.9.8).
@@ -446,6 +447,7 @@ class SettingsRepository @Inject constructor(
     /** Whether the app drawer reopens at the top vs. remembers its last scroll position. */
     suspend fun setDrawerOpensAtTop(value: Boolean) = edit { it[Keys.DRAWER_OPENS_AT_TOP] = value }
     suspend fun setSortDrawerFolders(value: Boolean) = edit { it[Keys.SORT_DRAWER_FOLDERS] = value }
+    suspend fun setMixDrawerFolders(value: Boolean) = edit { it[Keys.MIX_DRAWER_FOLDERS] = value }
 
     /** Size multiplier for app icon labels (clamped to the slider's range). */
     suspend fun setAppLabelTextScale(value: Float) =
@@ -707,6 +709,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val SORT_DRAWER_FOLDERS = booleanPreferencesKey("sort_drawer_folders")
+        val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
         val ICON_SCALE = floatPreferencesKey("icon_scale")
@@ -782,7 +785,7 @@ class SettingsRepository @Inject constructor(
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
-            "show_home_folder_names", "show_drawer_folder_names",
+            "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

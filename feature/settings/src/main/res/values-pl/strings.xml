@@ -77,6 +77,8 @@
     <string name="drawer_folder_default">Folder</string>
     <string name="settings_sort_drawer_folders">Sortuj foldery A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Foldery w szufladzie aplikacji w kolejności alfabetycznej. Wyłączone zachowuje własną kolejność.</string>
+    <string name="settings_mix_drawer_folders">Foldery wśród aplikacji A–Z</string>
+    <string name="settings_mix_drawer_folders_desc">Foldery w szufladzie aplikacji zajmują miejsce na liście aplikacji według nazwy, zamiast być na jej początku.</string>
     <string name="settings_drawer_folders">Foldery w szufladzie aplikacji</string>
     <string name="settings_drawer_folders_empty">Nie ma jeszcze folderów</string>
     <string name="settings_folder_name">Nazwa folderu</string>

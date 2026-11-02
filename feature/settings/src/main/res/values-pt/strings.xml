@@ -76,6 +76,8 @@
     <string name="drawer_folder_default">Pasta</string>
     <string name="settings_sort_drawer_folders">Ordenar pastas A–Z</string>
     <string name="settings_sort_drawer_folders_desc">Pastas da gaveta de apps em ordem alfabética. Desligado mantém a sua ordem.</string>
+    <string name="settings_mix_drawer_folders">Pastas entre os apps A–Z</string>
+    <string name="settings_mix_drawer_folders_desc">As pastas da gaveta de apps ficam na lista de apps pelo nome, em vez de no início.</string>
     <string name="settings_drawer_folders">Pastas da gaveta de apps</string>
     <string name="settings_drawer_folders_empty">Ainda não há pastas</string>
     <string name="settings_folder_name">Nome da pasta</string>

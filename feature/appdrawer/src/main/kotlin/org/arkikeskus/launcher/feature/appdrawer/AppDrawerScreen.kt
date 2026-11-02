@@ -257,6 +257,7 @@ fun AppDrawerScreen(
         backgroundOpacity = uiState.backgroundOpacity,
         frequentApps = uiState.frequentApps,
         folders = uiState.folders,
+        mixFolders = uiState.mixDrawerFolders,
         query = uiState.query,
         columns = uiState.columns,
         badges = badges,
@@ -382,7 +383,7 @@ fun AppDrawerScreen(
             onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key) },
             onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys) },
             // Sorted A-Z the order is not the user's to change, and one folder has nowhere to go.
-            onMove = if (uiState.sortDrawerFolders || uiState.folders.size < 2) {
+            onMove = if (uiState.sortDrawerFolders || uiState.mixDrawerFolders || uiState.folders.size < 2) {
                 null
             } else {
                 { by -> viewModel.moveDrawerFolder(openFolder.id, by) }
@@ -414,6 +415,8 @@ private fun AppDrawerContent(
     backgroundOpacity: Float,
     frequentApps: List<AppItem>,
     folders: List<DrawerFolderUi>,
+    /** Issue #22: the folders seated among the apps by name instead of leading the grid. */
+    mixFolders: Boolean,
     query: String,
     columns: Int,
     badges: Map<String, Int>,
@@ -570,6 +573,7 @@ private fun AppDrawerContent(
                     content = content,
                 )
             }
+            val entries = remember(folders, apps, mixFolders) { drawerEntries(folders, apps, mixFolders) }
             val idleContent: LazyGridScope.() -> Unit = {
                 run {
                     if (frequentApps.isNotEmpty()) {
@@ -587,22 +591,31 @@ private fun AppDrawerContent(
                             )
                         }
                     }
-                    items(items = folders, key = { "folder-${it.id}" }, contentType = { "folder" }) { folder ->
-                        DrawerFolderTile(
-                            folder = folder,
-                            showLabel = showLabels && showFolderNames,
-                            tileSize = drawerIconSize,
-                            // Aggregated like the home-screen FolderIcon: members left the flat A–Z
-                            // grid, so without this their unread badges vanished from the drawer.
-                            badgeCount = folder.apps.sumOf { badges[it.badgeKey] ?: 0 },
-                            badgeShowCount = badgeShowCount,
-                            badgeScale = badgeScale,
-                            onClick = { bounds -> onFolderClick(folder, bounds) },
-                            onLongClick = { onFolderLongClick(folder) },
-                        )
+                    // The folders lead, or sit among the apps by name (issue #22); each tile keeps its
+                    // own key either way, so a switch of the setting moves the tiles, not their state.
+                    items(
+                        items = entries,
+                        key = { it.key },
+                        contentType = { if (it is DrawerEntry.Folder) "folder" else "app" },
+                    ) { entry ->
+                        when (entry) {
+                            is DrawerEntry.Folder -> DrawerFolderTile(
+                                folder = entry.folder,
+                                showLabel = showLabels && showFolderNames,
+                                tileSize = drawerIconSize,
+                                // Aggregated like the home-screen FolderIcon: members left the flat A–Z
+                                // grid, so without this their unread badges vanished from the drawer.
+                                badgeCount = entry.folder.apps.sumOf { badges[it.badgeKey] ?: 0 },
+                                badgeShowCount = badgeShowCount,
+                                badgeScale = badgeScale,
+                                onClick = { bounds -> onFolderClick(entry.folder, bounds) },
+                                onLongClick = { onFolderLongClick(entry.folder) },
+                            )
+                            is DrawerEntry.App -> DrawerAppCell(entry.app, badges, badgeShowCount, badgeScale, showLabels,
+                                drawerIconSize, onAppClick, onAppLongClick, dragController, onDragOutStart, onDropOnHome,
+                                onDropOnDock, haptics, locked)
+                        }
                     }
-                    appCells(apps, badges, badgeShowCount, badgeScale, showLabels, drawerIconSize, onAppClick,
-                        onAppLongClick, dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
                 }
             }
             val searchContent: LazyGridScope.() -> Unit = {
@@ -1193,138 +1206,163 @@ internal fun LazyGridScope.appCells(
     locked: Boolean,
 ) {
     items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
-        // The gesture below lives as long as the key (a label or icon change does not restart it)
-        // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
-        // time showed the old icon and saving a name wiped a picture picked a moment earlier.
-        val currentApp by rememberUpdatedState(app)
-        // [bounds] anchors the popup and is clipped by the grid; [origin] is the cell's real top-left,
-        // which a cell half scrolled under the grid's top edge still needs for the finger's position.
-        var bounds by remember { mutableStateOf(Rect.Zero) }
-        var origin by remember { mutableStateOf(Offset.Zero) }
-        AppIcon(
-            appItem = app,
-            labelColor = MaterialTheme.colorScheme.onSurface,
-            showLabel = showLabels,
-            iconSize = iconSize,
-            badgeCount = badges[app.badgeKey] ?: 0,
-            badgeShowCount = badgeShowCount,
-            badgeScale = badgeScale,
-            modifier = Modifier
-                .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
-                // One unified gesture (like Workspace/Dock) but non-consuming until the
-                // long-press fires, so a quick drag still scrolls the grid: quick tap
-                // launches; a still long-press lifts → drag out to home/dock, or with no
-                // movement opens the long-press menu.
-                .pointerInput(app.key, locked) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val slop = viewConfiguration.touchSlop
-                        // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
-                        var outcome = 0
-                        // The lift starts where the finger is when the hold completes.
-                        var holdPos = down.position
-                        withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                            while (true) {
-                                val ev = awaitPointerEvent()
-                                val c = ev.changes.firstOrNull { it.id == down.id }
-                                if (c == null) {
-                                    outcome = 2
-                                    return@withTimeoutOrNull
-                                }
-                                if (!c.pressed) {
-                                    outcome = 1
-                                    return@withTimeoutOrNull
-                                }
-                                // Don't consume: let the LazyGrid scroll a quick drag. Vertical travel
-                                // past the slop is that scroll; a sideways roll ends the hold once
-                                // the finger leaves the icon.
-                                if (c.isConsumed ||
-                                    abs(c.position.y - down.position.y) > slop ||
-                                    !IconPress.staysOnIcon(c.position, size, slop)
-                                ) {
-                                    outcome = 2
-                                    return@withTimeoutOrNull
-                                }
-                                holdPos = c.position
-                                // The Personal / Work pager claims a sideways swipe in the Main pass
-                                // AFTER this child, and the page then follows the finger, so the
-                                // pointer never leaves the icon: only the Final pass shows the claim
-                                // (the same rule as awaitIconPress in core/ui). Without it a flick
-                                // between the tabs launched the app under the finger.
-                                awaitPointerEvent(PointerEventPass.Final)
-                                if (c.isConsumed) {
-                                    outcome = 2
-                                    return@withTimeoutOrNull
-                                }
+        DrawerAppCell(app, badges, badgeShowCount, badgeScale, showLabels, iconSize, onAppClick, onAppLongClick,
+            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
+    }
+}
+
+/**
+ * One app tile of the drawer grid, shared by the Personal grid (among the folders), the Work grid
+ * and the search results: a tap launches, a long-press lifts into the shared drag controller.
+ */
+@Composable
+private fun DrawerAppCell(
+    app: AppItem,
+    badges: Map<String, Int>,
+    badgeShowCount: Boolean,
+    badgeScale: Float,
+    showLabels: Boolean,
+    iconSize: Dp,
+    onAppClick: (AppItem) -> Unit,
+    onAppLongClick: (AppItem, Rect) -> Unit,
+    dragController: HomeDragController,
+    onDragOutStart: () -> Unit,
+    onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
+    onDropOnDock: (AppItem, DockTarget) -> Unit,
+    haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    locked: Boolean,
+) {
+    // The gesture below lives as long as the key (a label or icon change does not restart it)
+    // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
+    // time showed the old icon and saving a name wiped a picture picked a moment earlier.
+    val currentApp by rememberUpdatedState(app)
+    // [bounds] anchors the popup and is clipped by the grid; [origin] is the cell's real top-left,
+    // which a cell half scrolled under the grid's top edge still needs for the finger's position.
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    AppIcon(
+        appItem = app,
+        labelColor = MaterialTheme.colorScheme.onSurface,
+        showLabel = showLabels,
+        iconSize = iconSize,
+        badgeCount = badges[app.badgeKey] ?: 0,
+        badgeShowCount = badgeShowCount,
+        badgeScale = badgeScale,
+        modifier = Modifier
+            .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
+            // One unified gesture (like Workspace/Dock) but non-consuming until the
+            // long-press fires, so a quick drag still scrolls the grid: quick tap
+            // launches; a still long-press lifts → drag out to home/dock, or with no
+            // movement opens the long-press menu.
+            .pointerInput(app.key, locked) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val slop = viewConfiguration.touchSlop
+                    // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
+                    var outcome = 0
+                    // The lift starts where the finger is when the hold completes.
+                    var holdPos = down.position
+                    withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val c = ev.changes.firstOrNull { it.id == down.id }
+                            if (c == null) {
+                                outcome = 2
+                                return@withTimeoutOrNull
                             }
-                        }
-                        when (outcome) {
-                            1 -> {
-                                onAppClick(currentApp)
-                                return@awaitEachGesture
+                            if (!c.pressed) {
+                                outcome = 1
+                                return@withTimeoutOrNull
                             }
-                            2 -> return@awaitEachGesture
-                        }
-                        // Desktop locked: long-press does nothing (no menu, no drag-out); tap still launches.
-                        if (locked) return@awaitEachGesture
-                        // LONG PRESS → lift into the shared controller (drawer source).
-                        // The finger's root position is the icon's [bounds] top-left
-                        // (captured while the drawer is open) plus the pointer's local
-                        // position. The drawer is hidden with alpha (not translated) during
-                        // the drag, so its local coordinate space stays put and this stays
-                        // accurate.
-                        val token = Any()
-                        if (!dragController.start(currentApp, DragSource.Drawer, origin + holdPos, token)) {
-                            return@awaitEachGesture
-                        }
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        // The menu opens now, by the icon, under the still-held finger (issue #12);
-                        // pulling the icon on closes it (DismissWhenDragMoves) and the drag goes on.
-                        onAppLongClick(currentApp, bounds)
-                        val dragStartPx = IconPress.DragStartThreshold.toPx()
-                        try {
-                            val completed = drag(down.id) { change ->
-                                change.consume()
-                                if (!dragController.owns(token)) return@drag
-                                // Only commit to a drag-out once the finger is pulled past the
-                                // drag-start threshold — otherwise a still long-press (with finger
-                                // jitter) would collapse the drawer instead of just showing the menu.
-                                if (!dragController.moving &&
-                                    IconPress.startsDrag(change.position, holdPos, dragStartPx)
-                                ) {
-                                    dragController.beginMove()
-                                    onDragOutStart()
-                                }
-                                if (dragController.moving) {
-                                    dragController.update(origin + change.position)
-                                }
+                            // Don't consume: let the LazyGrid scroll a quick drag. Vertical travel
+                            // past the slop is that scroll; a sideways roll ends the hold once
+                            // the finger leaves the icon.
+                            if (c.isConsumed ||
+                                abs(c.position.y - down.position.y) > slop ||
+                                !IconPress.staysOnIcon(c.position, size, slop)
+                            ) {
+                                outcome = 2
+                                return@withTimeoutOrNull
                             }
-                            // Nothing on release once HOME cancelled the lift.
-                            val live = completed && dragController.owns(token)
-                            if (live && dragController.moving) {
-                                val root = dragController.rootPosition
-                                when {
-                                    dragController.isOverDock(root) && dragController.dockAccepts(root) ->
-                                        onDropOnDock(currentApp, dragController.dockTargetAt(root))
-                                    dragController.isOverGrid(root) -> {
-                                        val (page, cx, cy) = dragController.cellAt(root)
-                                        onDropOnHome(currentApp, page, cx, cy)
-                                    }
-                                }
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            holdPos = c.position
+                            // The Personal / Work pager claims a sideways swipe in the Main pass
+                            // AFTER this child, and the page then follows the finger, so the
+                            // pointer never leaves the icon: only the Final pass shows the claim
+                            // (the same rule as awaitIconPress in core/ui). Without it a flick
+                            // between the tabs launched the app under the finger.
+                            awaitPointerEvent(PointerEventPass.Final)
+                            if (c.isConsumed) {
+                                outcome = 2
+                                return@withTimeoutOrNull
                             }
-                            // A still release leaves the menu, opened at the lift, as it is.
-                        } finally {
-                            // Reset even on cancellation (node disposed / pointerInput restarted),
-                            // mirroring Workspace's local-drag path, so a dead gesture can't leave
-                            // the shared controller lifted.
-                            dragController.stop(token)
                         }
                     }
+                    when (outcome) {
+                        1 -> {
+                            onAppClick(currentApp)
+                            return@awaitEachGesture
+                        }
+                        2 -> return@awaitEachGesture
+                    }
+                    // Desktop locked: long-press does nothing (no menu, no drag-out); tap still launches.
+                    if (locked) return@awaitEachGesture
+                    // LONG PRESS → lift into the shared controller (drawer source).
+                    // The finger's root position is the icon's [bounds] top-left
+                    // (captured while the drawer is open) plus the pointer's local
+                    // position. The drawer is hidden with alpha (not translated) during
+                    // the drag, so its local coordinate space stays put and this stays
+                    // accurate.
+                    val token = Any()
+                    if (!dragController.start(currentApp, DragSource.Drawer, origin + holdPos, token)) {
+                        return@awaitEachGesture
+                    }
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    // The menu opens now, by the icon, under the still-held finger (issue #12);
+                    // pulling the icon on closes it (DismissWhenDragMoves) and the drag goes on.
+                    onAppLongClick(currentApp, bounds)
+                    val dragStartPx = IconPress.DragStartThreshold.toPx()
+                    try {
+                        val completed = drag(down.id) { change ->
+                            change.consume()
+                            if (!dragController.owns(token)) return@drag
+                            // Only commit to a drag-out once the finger is pulled past the
+                            // drag-start threshold — otherwise a still long-press (with finger
+                            // jitter) would collapse the drawer instead of just showing the menu.
+                            if (!dragController.moving &&
+                                IconPress.startsDrag(change.position, holdPos, dragStartPx)
+                            ) {
+                                dragController.beginMove()
+                                onDragOutStart()
+                            }
+                            if (dragController.moving) {
+                                dragController.update(origin + change.position)
+                            }
+                        }
+                        // Nothing on release once HOME cancelled the lift.
+                        val live = completed && dragController.owns(token)
+                        if (live && dragController.moving) {
+                            val root = dragController.rootPosition
+                            when {
+                                dragController.isOverDock(root) && dragController.dockAccepts(root) ->
+                                    onDropOnDock(currentApp, dragController.dockTargetAt(root))
+                                dragController.isOverGrid(root) -> {
+                                    val (page, cx, cy) = dragController.cellAt(root)
+                                    onDropOnHome(currentApp, page, cx, cy)
+                                }
+                            }
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        // A still release leaves the menu, opened at the lift, as it is.
+                    } finally {
+                        // Reset even on cancellation (node disposed / pointerInput restarted),
+                        // mirroring Workspace's local-drag path, so a dead gesture can't leave
+                        // the shared controller lifted.
+                        dragController.stop(token)
+                    }
                 }
-                .padding(vertical = 10.dp, horizontal = 4.dp),
-        )
-    }
+            }
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+    )
 }
 
 @Composable

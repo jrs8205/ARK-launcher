@@ -86,6 +86,29 @@ class DrawerPartitionTest {
         assertThat(sorted.folders.map { it.name }).containsExactly("Chat", "games", "Tools").inOrder()
     }
 
+    /** Issue #22: the idle grid leads with the folders, or, mixed, seats them among the apps by name. */
+    @Test fun entriesLeadWithTheFoldersUnlessMixedAmongTheApps() {
+        val tools = DrawerFolderUi(id = 2, name = "Tools", apps = emptyList())
+        val games = DrawerFolderUi(id = 3, name = "games", apps = emptyList())
+        val apps = listOf(mail, maps)
+
+        val led = drawerEntries(folders = listOf(tools, games), apps = apps, mixed = false)
+        val mixed = drawerEntries(folders = listOf(tools, games), apps = apps, mixed = true)
+
+        assertThat(led.map { it.name }).containsExactly("Tools", "games", "mail", "maps").inOrder()
+        assertThat(mixed.map { it.name }).containsExactly("games", "mail", "maps", "Tools").inOrder()
+    }
+
+    /** A folder named like an app comes before it, and every entry keeps a grid key of its own. */
+    @Test fun aFolderNamedLikeAnAppSitsBeforeItWithItsOwnKey() {
+        val mailFolder = DrawerFolderUi(id = 4, name = "Mail", apps = emptyList())
+
+        val mixed = drawerEntries(folders = listOf(mailFolder), apps = listOf(mail, maps), mixed = true)
+
+        assertThat(mixed.first()).isEqualTo(DrawerEntry.Folder(mailFolder))
+        assertThat(mixed.map { it.key }).containsExactly("folder-4", mail.key, maps.key).inOrder()
+    }
+
     @Test fun pausedProfileWithNoVisibleAppsStillHasATab() {
         assertThat(workTabVisible(WorkProfile(userSerial = 10, paused = true), emptyList())).isTrue()
     }

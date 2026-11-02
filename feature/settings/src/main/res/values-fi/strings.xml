@@ -75,6 +75,8 @@
     <string name="drawer_folder_default">Kansio</string>
     <string name="settings_sort_drawer_folders">Järjestä kansiot aakkosittain</string>
     <string name="settings_sort_drawer_folders_desc">Sovellusvalikon kansiot aakkosjärjestyksessä. Pois päältä säilyttää oman järjestyksesi.</string>
+    <string name="settings_mix_drawer_folders">Kansiot sovellusten joukkoon aakkosittain</string>
+    <string name="settings_mix_drawer_folders_desc">Sovellusvalikon kansiot sijoittuvat sovelluslistaan nimen mukaan sen sijaan, että ne olisivat listan alussa.</string>
     <string name="settings_drawer_folders">Sovellusvalikon kansiot</string>
     <string name="settings_drawer_folders_empty">Ei vielä kansioita</string>
     <string name="settings_folder_name">Kansion nimi</string>

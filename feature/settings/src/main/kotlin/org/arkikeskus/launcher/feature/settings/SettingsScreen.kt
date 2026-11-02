@@ -296,6 +296,12 @@ fun SettingsScreen(
                     s.sortDrawerFolders,
                     viewModel::setSortDrawerFolders,
                 )
+                SwitchRow(
+                    stringResource(R.string.settings_mix_drawer_folders),
+                    stringResource(R.string.settings_mix_drawer_folders_desc),
+                    s.mixDrawerFolders,
+                    viewModel::setMixDrawerFolders,
+                )
 
                 ExpressiveSectionTitle(stringResource(R.string.settings_home))
                 StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS, viewModel::setHomeColumns)

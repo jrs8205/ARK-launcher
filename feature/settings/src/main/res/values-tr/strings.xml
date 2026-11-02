@@ -75,6 +75,8 @@
     <string name="drawer_folder_default">Klasör</string>
     <string name="settings_sort_drawer_folders">Klasörleri A–Z sırala</string>
     <string name="settings_sort_drawer_folders_desc">Uygulama çekmecesindeki klasörler alfabetik sırada. Kapalıyken kendi sıranız korunur.</string>
+    <string name="settings_mix_drawer_folders">Klasörler uygulamalar arasında A–Z</string>
+    <string name="settings_mix_drawer_folders_desc">Uygulama çekmecesindeki klasörler listenin başında değil, ada göre uygulama listesinde yer alır.</string>
     <string name="settings_drawer_folders">Uygulama çekmecesindeki klasörler</string>
     <string name="settings_drawer_folders_empty">Henüz klasör yok</string>
     <string name="settings_folder_name">Klasör adı</string>
