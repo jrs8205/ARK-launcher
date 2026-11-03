@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.CustomIconStore
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
+import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -81,6 +83,11 @@ data class AppDrawerUiState(
     val backgroundOpacity: Float = 1f,
     /** The drawer surface's ARGB colour, or null for the theme's own (settings, a Telegram request). */
     val backgroundColor: Int? = null,
+    /** The user's own picture behind the drawer, or null for the system wallpaper through the window. */
+    val wallpaper: DrawerWallpaper? = null,
+    /** The wallpaper blur setting and its strength: an own picture is blurred inside the window by them. */
+    val blurBehindDrawer: Boolean = false,
+    val drawerBlurStrength: Float = 1f,
     val badges: Map<String, Int> = emptyMap(),
     val showNotificationDots: Boolean = true,
     val notificationDotCount: Boolean = true,
@@ -121,6 +128,7 @@ class AppDrawerViewModel @Inject constructor(
     private val appUsageRepository: org.arkikeskus.launcher.data.AppUsageRepository,
     private val workProfileRepository: WorkProfileRepository,
     private val customIcons: CustomIconStore,
+    private val drawerWallpaper: DrawerWallpaperStore,
 ) : ViewModel() {
 
     private val _notices = Channel<HomeNotice>(Channel.BUFFERED)
@@ -175,6 +183,8 @@ class AppDrawerViewModel @Inject constructor(
             showSearch = settings.showDrawerSearch,
             backgroundOpacity = settings.drawerBackgroundOpacity,
             backgroundColor = settings.drawerBackgroundColor,
+            blurBehindDrawer = settings.blurBehindDrawer,
+            drawerBlurStrength = settings.drawerBlurStrength,
             showNotificationDots = settings.showNotificationDots,
             notificationDotCount = settings.notificationDotCount,
             notificationDotScale = settings.notificationDotScale,
@@ -263,6 +273,8 @@ class AppDrawerViewModel @Inject constructor(
         // A Work selection only means something while the Work tab exists: hiding the last work
         // app, or the profile going, lands the pager on Personal.
         state.copy(selectedTab = effectiveTab(tab, hasWorkTab = state.workProfile != null))
+    }.combine(drawerWallpaper.current) { state, wallpaper ->
+        state.copy(wallpaper = wallpaper)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

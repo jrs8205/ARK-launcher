@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Sovellusvalikon taustan läpinäkyvyys</string>
     <string name="settings_drawer_color">Sovellusvalikon taustaväri</string>
     <string name="settings_color_theme">Teema</string>
+    <string name="settings_drawer_wallpaper">Sovellusvalikon taustakuva</string>
+    <string name="settings_drawer_wallpaper_desc">Oma kuva sovellusvalikon taakse; taustaväri, sen läpinäkyvyys ja sumennus tulevat sen päälle. Ei mukana varmuuskopiossa.</string>
+    <string name="settings_drawer_wallpaper_none">Ei kuvaa</string>
+    <string name="settings_drawer_wallpaper_pick">Valitse kuva</string>
+    <string name="settings_drawer_wallpaper_remove">Poista</string>
     <string name="settings_page_indicator">Sivupisteet</string>
     <string name="settings_home_page_marker">Kotisivun merkki</string>
     <string name="settings_page_switch_speed">Sivunvaihdon nopeus</string>

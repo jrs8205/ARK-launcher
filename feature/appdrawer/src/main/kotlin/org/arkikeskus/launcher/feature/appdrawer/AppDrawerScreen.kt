@@ -43,6 +43,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import org.arkikeskus.launcher.ui.component.DrawerWallpaperPicture
+import org.arkikeskus.launcher.data.DrawerWallpaper
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -259,12 +261,18 @@ fun AppDrawerScreen(
     // The user's background colour, with black or white text to match what the drawer really looks like at its
     // opacity over the wallpaper, for everything the drawer shows (DrawerColors.kt).
     val drawerBackground = uiState.backgroundColor?.let { Color(it) }
-    val textIsDark = drawerTextIsDark(drawerBackground ?: MaterialTheme.colorScheme.surface, uiState.backgroundOpacity, behindLuminance)
+    val textIsDark = drawerTextIsDark(
+        drawerBackground ?: MaterialTheme.colorScheme.surface,
+        uiState.backgroundOpacity,
+        uiState.wallpaper?.luminance ?: behindLuminance,
+    )
     MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, drawerBackground, textIsDark)) {
     DrawerExpressiveTheme(drawerBackground) {
     AppDrawerContent(
         apps = uiState.apps,
         backgroundOpacity = uiState.backgroundOpacity,
+        wallpaper = uiState.wallpaper,
+        wallpaperBlur = drawerWallpaperBlur(uiState.blurBehindDrawer, uiState.drawerBlurStrength),
         frequentApps = uiState.frequentApps,
         folders = uiState.folders,
         mixFolders = uiState.mixDrawerFolders,
@@ -426,6 +434,10 @@ private fun AppDrawerContent(
     apps: List<AppItem>,
     /** The surface's opacity over the wallpaper (issue #21): 1 = the solid drawer. */
     backgroundOpacity: Float,
+    /** The user's own picture under the surface, or null for the system wallpaper through the window. */
+    wallpaper: DrawerWallpaper?,
+    /** How much the own picture is blurred inside the window ([drawerWallpaperBlur]). */
+    wallpaperBlur: Dp,
     frequentApps: List<AppItem>,
     folders: List<DrawerFolderUi>,
     /** Issue #22: the folders seated among the apps by name instead of leading the grid. */
@@ -516,7 +528,12 @@ private fun AppDrawerContent(
         }
     }
 
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface.copy(alpha = backgroundOpacity)) {
+    Box(modifier = modifier) {
+    // The user's own picture (Settings > App drawer), blurred inside the window, under the surface at its opacity.
+    if (wallpaper != null) {
+        DrawerWallpaperPicture(file = wallpaper.file, blur = wallpaperBlur, modifier = Modifier.matchParentSize().testTag(DRAWER_WALLPAPER_TAG))
+    }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface.copy(alpha = backgroundOpacity)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -738,6 +755,7 @@ private fun AppDrawerContent(
                 }
             }
         }
+    }
     }
 }
 

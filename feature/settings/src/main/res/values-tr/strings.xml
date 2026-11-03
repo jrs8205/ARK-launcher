@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Uygulama çekmecesi arka plan opaklığı</string>
     <string name="settings_drawer_color">Uygulama çekmecesi arka plan rengi</string>
     <string name="settings_color_theme">Tema</string>
+    <string name="settings_drawer_wallpaper">Uygulama çekmecesi duvar kağıdı</string>
+    <string name="settings_drawer_wallpaper_desc">Çekmecenin arkasında kendi resminiz; arka plan rengi, opaklığı ve bulanıklık üstüne uygulanır. Yedeklere dahil edilmez.</string>
+    <string name="settings_drawer_wallpaper_none">Yok</string>
+    <string name="settings_drawer_wallpaper_pick">Resim seç</string>
+    <string name="settings_drawer_wallpaper_remove">Kaldır</string>
     <string name="settings_page_indicator">Sayfa noktaları</string>
     <string name="settings_home_page_marker">Ana sayfa işareti</string>
     <string name="settings_page_switch_speed">Sayfa geçiş hızı</string>

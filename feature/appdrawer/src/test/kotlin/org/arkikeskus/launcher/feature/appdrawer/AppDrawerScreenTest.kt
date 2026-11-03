@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
 import android.app.Application
+import androidx.core.graphics.createBitmap
+import android.graphics.Bitmap
 import android.os.Looper
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.SemanticsActions
@@ -306,6 +308,23 @@ class AppDrawerScreenTest {
 
         runBlocking { wiring.settingsRepository.setDrawerBackgroundColor(null) }
         awaitState("the theme's colour again") { it.backgroundColor == null }
+    }
+
+    /** A Telegram request after 0.9.9: the user's own picture reaches the drawer with its lightness, and is drawn under
+     *  the surface; removed, the drawer is back to the system wallpaper. */
+    @Test fun theDrawerShowsTheUsersOwnPictureWhileOneIsSet() {
+        show()
+        awaitState("no picture") { it.wallpaper == null }
+        compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
+
+        val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
+        runBlocking { wiring.drawerWallpaper.set(dark) }
+        awaitState("the picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
+        compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertExists()
+
+        runBlocking { wiring.drawerWallpaper.clear() }
+        awaitState("no picture again") { it.wallpaper == null }
+        compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
     }
 
     /** A Telegram request after 0.9.7: with "Hide apps that are on the home screen" on, an app placed on home

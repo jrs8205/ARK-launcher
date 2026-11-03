@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Krycie tła szuflady aplikacji</string>
     <string name="settings_drawer_color">Kolor tła szuflady aplikacji</string>
     <string name="settings_color_theme">Motyw</string>
+    <string name="settings_drawer_wallpaper">Tapeta szuflady aplikacji</string>
+    <string name="settings_drawer_wallpaper_desc">Własny obraz za szufladą; kolor tła, jego krycie i rozmycie nakładają się na niego. Nie trafia do kopii zapasowych.</string>
+    <string name="settings_drawer_wallpaper_none">Brak</string>
+    <string name="settings_drawer_wallpaper_pick">Wybierz obraz</string>
+    <string name="settings_drawer_wallpaper_remove">Usuń</string>
     <string name="settings_page_indicator">Kropki stron</string>
     <string name="settings_home_page_marker">Oznaczenie strony głównej</string>
     <string name="settings_page_switch_speed">Szybkość zmiany strony</string>

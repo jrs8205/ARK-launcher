@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Opacité du fond de la liste des applications</string>
     <string name="settings_drawer_color">Couleur de fond de la liste des applications</string>
     <string name="settings_color_theme">Thème</string>
+    <string name="settings_drawer_wallpaper">Fond d’écran de la liste des applications</string>
+    <string name="settings_drawer_wallpaper_desc">Une image à vous derrière la liste ; la couleur de fond, son opacité et le flou s’appliquent par-dessus. Non incluse dans les sauvegardes.</string>
+    <string name="settings_drawer_wallpaper_none">Aucun</string>
+    <string name="settings_drawer_wallpaper_pick">Choisir une image</string>
+    <string name="settings_drawer_wallpaper_remove">Retirer</string>
     <string name="settings_page_indicator">Indicateur de page</string>
     <string name="settings_home_page_marker">Repère de la page d’accueil</string>
     <string name="settings_page_switch_speed">Vitesse de changement de page</string>

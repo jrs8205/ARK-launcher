@@ -101,7 +101,8 @@ the app: **Settings ▸ Feedback**.
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, a configurable
   **left-edge swipe** that launches an app of your choice, and an opt-in **swipe up on a home folder**
   that opens the folder's first app.
-- **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
+- **Customizable look** — a **font** for everything the launcher draws (six families Android ships),
+  adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
   drawer opacity, an **app drawer background colour** (the text turns black or white to match), an
   optional **wallpaper blur** behind the rising app drawer (Android 12+, with a

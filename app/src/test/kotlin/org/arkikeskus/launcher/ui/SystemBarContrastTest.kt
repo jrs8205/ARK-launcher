@@ -132,6 +132,19 @@ class SystemBarContrastTest {
         assertThat(glyphs.darkNav.value).isTrue() // dark glyphs on the light wallpaper
     }
 
+    /** The user's own picture behind the drawer sits inside the drawer and covers home and the wallpaper alike, so
+     *  it is what a see-through drawer lets through, over both bars; without one, home as the shell shows it. */
+    @Test fun anOwnPictureBehindTheDrawerIsWhatShowsThrough() {
+        assertThat(behindDrawerLuminance(pictureLuminance = null, behindHome = 0.4f)).isEqualTo(0.4f)
+        assertThat(behindDrawerLuminance(pictureLuminance = 0.9f, behindHome = 0.4f)).isEqualTo(0.9f)
+        assertThat(behindDrawerLuminance(pictureLuminance = 2f, behindHome = 0.4f)).isEqualTo(1f)
+        // A dark theme's transparent drawer: over a light picture dark glyphs, over a dark one light glyphs, whatever
+        // the own bar or the wallpaper would have said.
+        val darkTheme = 0.01f
+        assertThat(drawerSurfaceIsLight(darkTheme, 0f, behindDrawerLuminance(0.9f, behindHome = 0f))).isTrue()
+        assertThat(drawerSurfaceIsLight(darkTheme, 0f, behindDrawerLuminance(0.1f, behindHome = 1f))).isFalse()
+    }
+
     /** Home -- and ARK's own bar with it -- fades out under the rising drawer (homeContentAlpha), so the own bar's
      *  scrim backs the glyphs with only as much darkness as is left on screen. White wallpaper, the own bar at a
      *  solid scrim, a dark theme's drawer fully transparent: light glyphs on home, dark ones once the bar has faded,

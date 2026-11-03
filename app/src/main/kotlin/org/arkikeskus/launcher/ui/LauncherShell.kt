@@ -174,6 +174,7 @@ fun LauncherShell(
         wallpaperDarkText = wallpaperDarkText,
         drawerOpacity = statusBars.drawerOpacity,
         drawerColor = statusBars.drawerColor,
+        drawerPictureLuminance = statusBars.drawerPictureLuminance,
     )
     // The wallpaper behind the window softens as the drawer rises (opt-in, Android 12 and newer).
     DrawerWallpaperBlur(enabled = drawerBlur.enabled, strength = drawerBlur.strength, progress = { currentProgress })

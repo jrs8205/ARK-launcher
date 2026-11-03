@@ -21,6 +21,7 @@ import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.AppUsageRepository
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.LauncherAppsSource
@@ -94,7 +95,11 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
         appUsageRepository,
         workProfileRepository,
         CustomIconStore(settingsRepository, CustomIconSource(context, iconPacks)),
+        drawerWallpaper,
     )
+
+    /** The user's own picture behind the drawer (DrawerWallpaperStore), in the app's files. */
+    val drawerWallpaper = DrawerWallpaperStore(context)
 
     fun clear(viewModel: AppDrawerViewModel) = ViewModelStore().run {
         put("drawer", viewModel)

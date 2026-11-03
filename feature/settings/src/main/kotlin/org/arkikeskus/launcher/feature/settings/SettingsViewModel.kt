@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.feature.settings
 
 import androidx.lifecycle.ViewModel
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
+import org.arkikeskus.launcher.data.DrawerWallpaper
+import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +33,16 @@ class SettingsViewModel @Inject constructor(
     private val iconPackRepository: IconPackRepository,
     private val customIcons: CustomIconStore,
     appRepository: AppRepository,
+    private val drawerWallpaper: DrawerWallpaperStore,
 ) : ViewModel() {
+
+    /** The user's own picture behind the app drawer, or null (a Telegram request after 0.9.9). */
+    val drawerWallpaperPicture: StateFlow<DrawerWallpaper?> = drawerWallpaper.current
+
+    /** Saves the picture at [uri] as the drawer's wallpaper. */
+    fun importDrawerWallpaper(uri: Uri) = viewModelScope.launch { drawerWallpaper.import(uri) }
+
+    fun clearDrawerWallpaper() = viewModelScope.launch { drawerWallpaper.clear() }
 
     val settings: StateFlow<LauncherSettings> = repository.settings.stateIn(
         scope = viewModelScope,

@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">App drawer background opacity</string>
     <string name="settings_drawer_color">App drawer background color</string>
     <string name="settings_color_theme">Theme</string>
+    <string name="settings_drawer_wallpaper">App drawer wallpaper</string>
+    <string name="settings_drawer_wallpaper_desc">A picture of your own behind the app drawer; the background colour, its opacity and the blur apply on top of it. Not included in backups.</string>
+    <string name="settings_drawer_wallpaper_none">None</string>
+    <string name="settings_drawer_wallpaper_pick">Pick a picture</string>
+    <string name="settings_drawer_wallpaper_remove">Remove</string>
     <string name="settings_page_indicator">Page dots</string>
     <string name="settings_home_page_marker">Home page marker</string>
     <string name="settings_page_switch_speed">Page switch speed</string>

@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Opacidade do fundo da gaveta de apps</string>
     <string name="settings_drawer_color">Cor de fundo da gaveta de apps</string>
     <string name="settings_color_theme">Tema</string>
+    <string name="settings_drawer_wallpaper">Papel de parede da gaveta de apps</string>
+    <string name="settings_drawer_wallpaper_desc">Uma imagem sua atrás da gaveta; a cor de fundo, a sua opacidade e o desfoque aplicam-se por cima. Não vai para as cópias de segurança.</string>
+    <string name="settings_drawer_wallpaper_none">Nenhum</string>
+    <string name="settings_drawer_wallpaper_pick">Escolher uma imagem</string>
+    <string name="settings_drawer_wallpaper_remove">Remover</string>
     <string name="settings_page_indicator">Indicador de página</string>
     <string name="settings_home_page_marker">Marcador da página inicial</string>
     <string name="settings_page_switch_speed">Velocidade de troca de página</string>

@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.SettingsRepository
@@ -22,6 +24,9 @@ data class StatusBarSettings(
     val drawerOpacity: Float = 1f,
     /** The drawer's own ARGB background colour, or null for the theme's surface (its lightness decides the glyphs). */
     val drawerColor: Int? = null,
+    /** The mean lightness of the user's own picture behind the drawer, or null without one: with a picture it is
+     *  what a see-through drawer lets through, in place of home and the wallpaper. */
+    val drawerPictureLuminance: Float? = null,
 )
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
@@ -39,6 +44,7 @@ class LauncherShellViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
     launcherAppsSource: LauncherAppsSource,
     notificationBadgeRepository: NotificationBadgeRepository,
+    drawerWallpaper: DrawerWallpaperStore,
 ) : ViewModel() {
     /** A heads-up notification's bar reveal is on: home blanks its own status bar for the window (see
      *  [NotificationBadgeRepository.headsUpActive]), so the bar is no dark backing for the glyphs then. */
@@ -53,13 +59,14 @@ class LauncherShellViewModel @Inject constructor(
 
     /** The status-bar settings the system bars' glyph colour depends on (see SystemBarContrast). */
     val statusBars: StateFlow<StatusBarSettings> = settingsRepository.settings
-        .map {
+        .combine(drawerWallpaper.current) { it, picture ->
             StatusBarSettings(
                 ownBarShown = it.showStatusBar,
                 systemBarHidden = it.hideSystemStatusBar,
                 scrimOpacity = it.statusBarScrimOpacity,
                 drawerOpacity = it.drawerBackgroundOpacity,
                 drawerColor = it.drawerBackgroundColor,
+                drawerPictureLuminance = picture?.luminance,
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())

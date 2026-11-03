@@ -132,6 +132,12 @@ internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, behin
  */
 internal fun dimmedUnderDrawer(luminance: Float, homeDim: Float): Float = luminance * (1f - homeDim.coerceIn(0f, 1f))
 
+/** What a see-through drawer lets through: the user's own picture behind the drawer
+ *  ([pictureLuminance], its mean lightness) when one is set -- it sits inside the drawer and covers
+ *  home and the wallpaper alike -- or else [behindHome], home as the shell shows it. */
+internal fun behindDrawerLuminance(pictureLuminance: Float?, behindHome: Float): Float =
+    pictureLuminance?.coerceIn(0f, 1f) ?: behindHome
+
 /** [drawerSurfaceIsLight] over the status bar: behind a see-through drawer is home's top edge,
  *  [behindStatusBarLuminance] (the own bar's scrim, when on screen, over the wallpaper), under the
  *  shell's dim ([dimmedUnderDrawer]). */
@@ -277,6 +283,8 @@ internal fun SystemBarContrast(
     drawerOpacity: Float = 1f,
     /** The app drawer's own ARGB background colour, or null for the theme's surface ([drawerSurfaceIsLight]). */
     drawerColor: Int? = null,
+    /** The mean lightness of the user's own picture behind the drawer, or null without one ([behindDrawerLuminance]). */
+    drawerPictureLuminance: Float? = null,
 ) {
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window } ?: return
@@ -286,6 +294,7 @@ internal fun SystemBarContrast(
     val themeSurface = MaterialTheme.colorScheme.surface
     val surfaceLuminance = rememberUpdatedState(drawerSurfaceLuminance(drawerColor, themeSurface))
     val currentDrawerOpacity = rememberUpdatedState(drawerOpacity)
+    val currentPicture = rememberUpdatedState(drawerPictureLuminance)
     val currentOwnBarShown = rememberUpdatedState(ownBarShown)
     val currentSystemBarHidden = rememberUpdatedState(systemBarHidden)
     val currentScrim = rememberUpdatedState(scrimOpacity)
@@ -302,18 +311,17 @@ internal fun SystemBarContrast(
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
             // The own bar fades with home under the rising drawer: its scrim counts as much as is on screen.
+            // With the user's own picture behind the drawer, the picture is what shows through instead.
             drawerIsLightOverStatusBar = { homeDim, homeAlpha ->
-                drawerIsLightOverStatusBar(
-                    surfaceLuminance.value,
-                    currentDrawerOpacity.value,
-                    ownBarOnScreen(),
-                    ownBarScrimOnScreen(currentScrim.value, homeAlpha),
-                    wallpaperDarkText.value,
+                val behindHome = dimmedUnderDrawer(
+                    behindStatusBarLuminance(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha), wallpaperDarkText.value),
                     homeDim,
                 )
+                drawerSurfaceIsLight(surfaceLuminance.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
             },
             drawerIsLightOverNavBar = { homeDim ->
-                drawerIsLightOverNavigationBar(surfaceLuminance.value, currentDrawerOpacity.value, wallpaperDarkText.value, homeDim)
+                val behindHome = dimmedUnderDrawer(if (wallpaperDarkText.value) 1f else 0f, homeDim)
+                drawerSurfaceIsLight(surfaceLuminance.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
             },
             coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { homeAlpha -> ownBarBacksDark(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha)) },

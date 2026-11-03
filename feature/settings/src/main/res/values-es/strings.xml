@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Opacidad del fondo del cajón de aplicaciones</string>
     <string name="settings_drawer_color">Color de fondo del cajón de aplicaciones</string>
     <string name="settings_color_theme">Tema</string>
+    <string name="settings_drawer_wallpaper">Fondo de pantalla del cajón de aplicaciones</string>
+    <string name="settings_drawer_wallpaper_desc">Una imagen propia detrás del cajón; el color de fondo, su opacidad y el desenfoque se aplican encima. No se incluye en las copias de seguridad.</string>
+    <string name="settings_drawer_wallpaper_none">Ninguno</string>
+    <string name="settings_drawer_wallpaper_pick">Elegir una imagen</string>
+    <string name="settings_drawer_wallpaper_remove">Quitar</string>
     <string name="settings_page_indicator">Indicador de páginas</string>
     <string name="settings_home_page_marker">Marca de la página de inicio</string>
     <string name="settings_page_switch_speed">Velocidad de cambio de página</string>

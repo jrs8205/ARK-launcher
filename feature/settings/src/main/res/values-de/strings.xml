@@ -39,6 +39,11 @@
     <string name="settings_drawer_bg">Deckkraft des App-Drawer-Hintergrunds</string>
     <string name="settings_drawer_color">Hintergrundfarbe des App-Drawers</string>
     <string name="settings_color_theme">Design</string>
+    <string name="settings_drawer_wallpaper">Hintergrundbild des App-Drawers</string>
+    <string name="settings_drawer_wallpaper_desc">Ein eigenes Bild hinter dem App-Drawer; Hintergrundfarbe, Deckkraft und Weichzeichnung liegen darüber. Nicht in Sicherungen enthalten.</string>
+    <string name="settings_drawer_wallpaper_none">Keins</string>
+    <string name="settings_drawer_wallpaper_pick">Bild wählen</string>
+    <string name="settings_drawer_wallpaper_remove">Entfernen</string>
     <string name="settings_page_indicator">Seitenpunkte</string>
     <string name="settings_home_page_marker">Markierung der Startseite</string>
     <string name="settings_page_switch_speed">Geschwindigkeit des Seitenwechsels</string>

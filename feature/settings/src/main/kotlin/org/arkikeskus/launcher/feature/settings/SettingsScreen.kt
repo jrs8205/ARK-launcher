@@ -45,6 +45,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
+import org.arkikeskus.launcher.ui.component.DrawerWallpaperPicture
+import org.arkikeskus.launcher.data.DrawerWallpaper
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -107,6 +110,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val s by viewModel.settings.collectAsStateWithLifecycle()
+    val drawerWallpaper by viewModel.drawerWallpaperPicture.collectAsStateWithLifecycle()
     val allApps by viewModel.apps.collectAsStateWithLifecycle()
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
     val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
@@ -291,6 +295,11 @@ fun SettingsScreen(
                     SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
                     DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
                     DrawerColorRow(selected = s.drawerBackgroundColor, onPick = viewModel::setDrawerBackgroundColor)
+                    DrawerWallpaperRow(
+                        wallpaper = drawerWallpaper,
+                        onPick = viewModel::importDrawerWallpaper,
+                        onClear = viewModel::clearDrawerWallpaper,
+                    )
                     // Greyed with the reason where the system cannot blur behind the window (Android 11, a
                     // Fairphone 6 report), instead of a switch that silently does nothing.
                     val blurAvailability = rememberBlurAvailability()
@@ -1441,6 +1450,58 @@ internal fun FontRow(selected: String, onPick: (String) -> Unit) {
                         label = { Text(stringResource(fontNameRes(key)), fontFamily = launcherFontFamily(key)) },
                         modifier = Modifier.testTag(fontChipTag(key)),
                     )
+                }
+            }
+        }
+    }
+}
+
+/** The test tags of the drawer wallpaper row's preview and buttons. */
+internal const val DRAWER_WALLPAPER_PREVIEW_TAG = "drawer-wallpaper-preview"
+internal const val DRAWER_WALLPAPER_PICK_TAG = "drawer-wallpaper-pick"
+internal const val DRAWER_WALLPAPER_REMOVE_TAG = "drawer-wallpaper-remove"
+
+/** The user's own picture behind the app drawer (a Telegram request after 0.9.9): a preview of the one set,
+ *  a button to pick one from the gallery (the system photo picker, no permission), one to remove it. The
+ *  picture stays on this phone: it is not in a backup. */
+@Composable
+internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: (Uri) -> Unit, onClear: () -> Unit) {
+    val p = LocalExpressivePalette.current
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) onPick(uri)
+    }
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_drawer_wallpaper))
+            Text(stringResource(R.string.settings_drawer_wallpaper_desc), color = p.dim, fontSize = 12.5.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (wallpaper != null) {
+                    DrawerWallpaperPicture(
+                        file = wallpaper.file,
+                        blur = 0.dp,
+                        contentDescription = stringResource(R.string.settings_drawer_wallpaper),
+                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).testTag(DRAWER_WALLPAPER_PREVIEW_TAG),
+                    )
+                } else {
+                    Text(stringResource(R.string.settings_drawer_wallpaper_none), color = p.dim, fontSize = 14.sp)
+                }
+                Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = { runCatching { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
+                    modifier = Modifier.testTag(DRAWER_WALLPAPER_PICK_TAG),
+                ) {
+                    Text(stringResource(R.string.settings_drawer_wallpaper_pick), color = Accent)
+                }
+                if (wallpaper != null) {
+                    TextButton(onClick = onClear, modifier = Modifier.testTag(DRAWER_WALLPAPER_REMOVE_TAG)) {
+                        Text(stringResource(R.string.settings_drawer_wallpaper_remove), color = Accent)
+                    }
                 }
             }
         }
