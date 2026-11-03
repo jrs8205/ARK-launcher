@@ -30,6 +30,7 @@
     <string name="settings_blur_behind_drawer_desc">Tapeta rozmywa się, gdy szuflada się unosi. Android 12 lub nowszy; w trybie oszczędzania baterii system to pomija.</string>
     <string name="settings_blur_behind_drawer_needs_12">Wymaga Androida 12 lub nowszego; ten telefon ma starszą wersję.</string>
     <string name="settings_blur_behind_drawer_unavailable">Ten telefon nie rozmywa tła za oknami, więc to ustawienie nie może tu działać.</string>
+    <string name="settings_blur_behind_drawer_paused">Tymczasowo wstrzymane przez system (oszczędzanie baterii, odtwarzane wideo lub opcja programisty); wróci samo.</string>
     <string name="settings_blur_strength">Siła rozmycia</string>
     <string name="settings_blur_behind_drawer_opaque">Zmniejsz powyżej „Krycie tła szuflady aplikacji”, aby je zobaczyć: szuflada jest teraz nieprzezroczysta.</string>
     <string name="settings_theme_all_icons">Motyw dla wszystkich ikon</string>

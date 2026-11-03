@@ -40,6 +40,7 @@ class BlurHintLengthTest {
         R.string.settings_blur_behind_drawer_opaque,
         R.string.settings_blur_behind_drawer_unavailable,
         R.string.settings_blur_behind_drawer_needs_12,
+        R.string.settings_blur_behind_drawer_paused,
         R.string.settings_blur_behind_drawer_desc,
     )
 
@@ -57,6 +58,7 @@ class BlurHintLengthTest {
                         availability = when (hint) {
                             R.string.settings_blur_behind_drawer_unavailable -> BlurAvailability.DEVICE_CANNOT
                             R.string.settings_blur_behind_drawer_needs_12 -> BlurAvailability.NEEDS_ANDROID_12
+                            R.string.settings_blur_behind_drawer_paused -> BlurAvailability.PAUSED
                             else -> BlurAvailability.AVAILABLE
                         },
                         checked = true,

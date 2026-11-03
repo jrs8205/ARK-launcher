@@ -30,6 +30,7 @@
     <string name="settings_blur_behind_drawer_desc">Le fond d\'écran se floute à mesure que la liste monte. Android 12 ou plus récent ; le système l\'ignore en économie de batterie.</string>
     <string name="settings_blur_behind_drawer_needs_12">Nécessite Android 12 ou plus récent ; ce téléphone a une version plus ancienne.</string>
     <string name="settings_blur_behind_drawer_unavailable">Ce téléphone ne floute pas derrière les fenêtres, le réglage ne peut donc pas fonctionner ici.</string>
+    <string name="settings_blur_behind_drawer_paused">Suspendu par le système pour l’instant (économie de batterie, une vidéo en lecture ou une option développeur) ; il revient de lui-même.</string>
     <string name="settings_blur_strength">Intensité du flou</string>
     <string name="settings_blur_behind_drawer_opaque">Baissez « Opacité du fond de la liste des applications » ci-dessus pour le voir : la liste est opaque pour l’instant.</string>
     <string name="settings_theme_all_icons">Thémer toutes les icônes</string>

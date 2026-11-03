@@ -30,6 +30,7 @@
     <string name="settings_blur_behind_drawer_desc">Das Hintergrundbild verschwimmt, während der Drawer aufgeht. Ab Android 12; im Energiesparmodus lässt das System es aus.</string>
     <string name="settings_blur_behind_drawer_needs_12">Braucht Android 12 oder neuer; dieses Telefon hat eine ältere Version.</string>
     <string name="settings_blur_behind_drawer_unavailable">Dieses Telefon zeichnet hinter Fenstern nicht weich, daher kann die Einstellung hier nicht wirken.</string>
+    <string name="settings_blur_behind_drawer_paused">Vom System vorerst ausgesetzt (Energiesparmodus, ein laufendes Video oder eine Entwickleroption); sie kommt von selbst zurück.</string>
     <string name="settings_blur_strength">Stärke der Weichzeichnung</string>
     <string name="settings_blur_behind_drawer_opaque">Verringere oben „Deckkraft des App-Drawer-Hintergrunds“, um sie zu sehen: der Drawer ist jetzt deckend.</string>
     <string name="settings_theme_all_icons">Alle Symbole einfärben</string>

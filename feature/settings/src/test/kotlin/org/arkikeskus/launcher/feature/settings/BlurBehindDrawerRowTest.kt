@@ -67,6 +67,19 @@ class BlurBehindDrawerRowTest {
         compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_opaque)).assertDoesNotExist()
     }
 
+    /** The system pausing the blur (battery saver, a video, a developer option) is not the device's fault: the switch
+     *  stays usable and says the blur is paused, before any opacity hint. */
+    @Test fun aPausedBlurKeepsTheSwitchUsableAndSaysSo() {
+        show(BlurAvailability.PAUSED, checked = true, drawerOpaque = true)
+
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_paused)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_opaque)).assertDoesNotExist()
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_unavailable)).assertDoesNotExist()
+        compose.onNode(isToggleable()).assertIsEnabled().assertIsOn().performClick()
+
+        assertThat(picked).containsExactly(false)
+    }
+
     /** The device's reason wins over the opacity hint. */
     @Test fun aDeviceThatCannotBlurSaysSoEvenBehindASolidDrawer() {
         show(BlurAvailability.DEVICE_CANNOT, checked = true, drawerOpaque = true)

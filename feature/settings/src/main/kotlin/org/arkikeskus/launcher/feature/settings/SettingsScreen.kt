@@ -1284,13 +1284,15 @@ internal fun BlurBehindDrawerRow(
             when {
                 availability == BlurAvailability.NEEDS_ANDROID_12 -> R.string.settings_blur_behind_drawer_needs_12
                 availability == BlurAvailability.DEVICE_CANNOT -> R.string.settings_blur_behind_drawer_unavailable
+                availability == BlurAvailability.PAUSED -> R.string.settings_blur_behind_drawer_paused
                 checked && drawerOpaque -> R.string.settings_blur_behind_drawer_opaque
                 else -> R.string.settings_blur_behind_drawer_desc
             },
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
-        enabled = availability == BlurAvailability.AVAILABLE,
+        // A pause is the system's momentary state, not the device's: the setting stays the user's to change.
+        enabled = availability == BlurAvailability.AVAILABLE || availability == BlurAvailability.PAUSED,
     )
 }
 

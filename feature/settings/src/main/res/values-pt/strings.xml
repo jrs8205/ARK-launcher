@@ -30,6 +30,7 @@
     <string name="settings_blur_behind_drawer_desc">O papel de parede desfoca à medida que a gaveta sobe. Android 12 ou mais recente; o sistema ignora isso na economia de bateria.</string>
     <string name="settings_blur_behind_drawer_needs_12">Precisa do Android 12 ou mais recente; este telefone tem uma versão mais antiga.</string>
     <string name="settings_blur_behind_drawer_unavailable">Este telefone não desfoca atrás das janelas, por isso a opção não pode funcionar aqui.</string>
+    <string name="settings_blur_behind_drawer_paused">Pausado pelo sistema por enquanto (economia de bateria, um vídeo em reprodução ou uma opção de programador); volta sozinho.</string>
     <string name="settings_blur_strength">Intensidade do desfoque</string>
     <string name="settings_blur_behind_drawer_opaque">Reduza acima «Opacidade do fundo da gaveta de apps» para ver o desfoque: a gaveta está opaca agora.</string>
     <string name="settings_theme_all_icons">Aplicar o tema a todos os ícones</string>

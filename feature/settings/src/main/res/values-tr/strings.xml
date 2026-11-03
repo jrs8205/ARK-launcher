@@ -30,6 +30,7 @@
     <string name="settings_blur_behind_drawer_desc">Çekmece yükseldikçe duvar kağıdı bulanıklaşır. Android 12 veya üzeri; pil tasarrufunda sistem bunu atlar.</string>
     <string name="settings_blur_behind_drawer_needs_12">Android 12 veya üzeri gerekir; bu telefonda daha eski bir sürüm var.</string>
     <string name="settings_blur_behind_drawer_unavailable">Bu telefon pencerelerin arkasını bulanıklaştırmıyor, bu yüzden ayar burada çalışamaz.</string>
+    <string name="settings_blur_behind_drawer_paused">Sistem şimdilik duraklattı (pil tasarrufu, oynatılan bir video veya bir geliştirici seçeneği); kendiliğinden geri gelir.</string>
     <string name="settings_blur_strength">Bulanıklık gücü</string>
     <string name="settings_blur_behind_drawer_opaque">Görmek için yukarıdaki “Uygulama çekmecesi arka plan opaklığı” değerini düşürün: çekmece şu anda opak.</string>
     <string name="settings_theme_all_icons">Tüm simgelere tema uygula</string>
