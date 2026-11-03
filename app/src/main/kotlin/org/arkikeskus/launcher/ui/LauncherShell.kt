@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -197,10 +198,15 @@ fun LauncherShell(
                     onShowWidgetsHandled = { showWidgetsFor = null },
                     // Home's icons and widgets fade out as the drawer rises (DrawerEdge.kt), so a see-through
                     // drawer shows only the wallpaper behind it; read at draw time only. The layer's alpha
-                    // leaves pointer input alone: home's gestures keep working under it.
+                    // leaves pointer input alone: home's gestures keep working under it. ModulateAlpha fades
+                    // each draw call in place instead of rendering the whole of home into an offscreen buffer
+                    // on every frame of the rise (that buffer made the drag stutter on a Pixel 8a).
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = homeContentAlpha(currentProgress) },
+                        .graphicsLayer {
+                            alpha = homeContentAlpha(currentProgress)
+                            compositingStrategy = CompositingStrategy.ModulateAlpha
+                        },
                 )
             }
 
