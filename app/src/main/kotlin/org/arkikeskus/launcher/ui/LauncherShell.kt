@@ -259,6 +259,9 @@ fun LauncherShell(
                 // scroll-to-top reset must NOT fire then — it could dispose the dragged item's node and kill
                 // the in-flight gesture. It runs when the drag completes (this flips false), drawer hidden.
                 drawerOpen = drawerOpen || draggingFromDrawer,
+                // What a see-through drawer lets through once open: the wallpaper's hint under the shell's dim
+                // (the same model the system bars use, SystemBarContrast.kt), for the drawer's own text colour.
+                behindLuminance = dimmedUnderDrawer(if (wallpaperDarkText.value) 1f else 0f, drawerScrimAlpha(1f)),
                 // First movement of a drag-out reveals home/dock to drop onto. The drawer is hidden
                 // with alpha rather than translated, so its (still-mounted) gesture keeps reporting
                 // accurate local coordinates; progress is snapped shut so it's closed after the drop.

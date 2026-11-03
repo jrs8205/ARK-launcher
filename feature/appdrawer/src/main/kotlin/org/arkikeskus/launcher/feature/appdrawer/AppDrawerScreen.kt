@@ -147,6 +147,9 @@ fun AppDrawerScreen(
     onDragOutStart: () -> Unit = {},
     homeSignals: Flow<Boolean> = emptyFlow(),
     drawerOpen: Boolean = true,
+    /** The luminance of what shows through a see-through drawer (the wallpaper under the shell's dim, 0 = dark or
+     *  unknown): with the drawer's own opacity it decides whether the drawer's text is dark or light. */
+    behindLuminance: Float = 0f,
     /** The popup's Widgets row: the home screen shows the app's widgets (the drawer closes first). */
     onShowWidgets: ((AppItem) -> Unit)? = null,
     viewModel: AppDrawerViewModel = hiltViewModel(),
@@ -253,9 +256,12 @@ fun AppDrawerScreen(
         LocalIconScale provides uiState.iconScale,
         LocalAppLabelLines provides if (uiState.twoLineLabels) 2 else 1,
     ) {
-    // The user's background colour, with black or white text to match, for everything the drawer shows (DrawerColors.kt).
-    MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, uiState.backgroundColor?.let { Color(it) })) {
-    DrawerExpressiveTheme(uiState.backgroundColor) {
+    // The user's background colour, with black or white text to match what the drawer really looks like at its
+    // opacity over the wallpaper, for everything the drawer shows (DrawerColors.kt).
+    val drawerBackground = uiState.backgroundColor?.let { Color(it) }
+    val textIsDark = drawerTextIsDark(drawerBackground ?: MaterialTheme.colorScheme.surface, uiState.backgroundOpacity, behindLuminance)
+    MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, drawerBackground, textIsDark)) {
+    DrawerExpressiveTheme(drawerBackground) {
     AppDrawerContent(
         apps = uiState.apps,
         backgroundOpacity = uiState.backgroundOpacity,
@@ -546,6 +552,10 @@ private fun AppDrawerContent(
                         cursorColor = Accent,
                         focusedTextColor = searchPalette.text,
                         unfocusedTextColor = searchPalette.text,
+                        // The hint follows the pill's own palette, not the drawer's text (a yellow pill on a
+                        // see-through drawer over a dark wallpaper keeps dark text while the labels are white).
+                        focusedPlaceholderColor = searchPalette.dim,
+                        unfocusedPlaceholderColor = searchPalette.dim,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
