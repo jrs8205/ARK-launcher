@@ -362,6 +362,12 @@ private fun RowScope.DockAppSlot(
                                 abandoned = true
                                 return@withTimeoutOrNull
                             }
+                            // Home's root detector (the Initial pass) took a clear flick up for the drawer:
+                            // the icon lets the gesture go instead of lifting into it at the hold.
+                            if (c.isConsumed) {
+                                abandoned = true
+                                return@withTimeoutOrNull
+                            }
                             c.consume()
                             if (!c.pressed) {
                                 tapped = true

@@ -1039,11 +1039,25 @@ fun HomeScreen(
  * - A real long-press drag — an app/dock item ([HomeDragController.isDragging]) or a folder/shortcut
  *   ([HomeDragController.localGestureActive] / [HomeDragController.localDragging]) — is never stolen;
  *   the detector bails out so the drag owns the gesture.
+ * - From the dock the drawer (and the shade) take only a clear vertical flick ([dockSwipeSlop],
+ *   [dockSwipeIsVertical]); the dock's tap, hold and sideways reorder keep everything else.
  *
  * The velocity tracker is fed the UP position *before* `calculateVelocity()` so a fast flick reports
  * its true release speed (the old detector computed velocity without the final sample, which made fast
  * flicks under-settle and snap shut).
  */
+/** The least a finger must travel vertically from the dock before the drawer takes the gesture: more than
+ *  a drift during a long-press, less than a deliberate flick. */
+internal val DOCK_SWIPE_MIN_TRAVEL = 20.dp
+
+/** The vertical slop for a swipe that starts on the dock: twice home's [touchSlop], at least
+ *  [DOCK_SWIPE_MIN_TRAVEL] ([minTravelPx]). */
+internal fun dockSwipeSlop(touchSlop: Float, minTravelPx: Float): Float = maxOf(2f * touchSlop, minTravelPx)
+
+/** A gesture from the dock counts as the drawer's (or the shade's) only once it is clearly vertical: past
+ *  [slop] and at least twice as far up or down as sideways. A sideways pull is the dock's own. */
+internal fun dockSwipeIsVertical(dx: Float, dy: Float, slop: Float): Boolean = abs(dy) > slop && abs(dy) > 2f * abs(dx)
+
 @Composable
 internal fun Modifier.pixelHomeSwipe(
     swipeUpForDrawer: Boolean,
@@ -1072,12 +1086,15 @@ internal fun Modifier.pixelHomeSwipe(
             // belongs to that widget's own list — bail without consuming so the scroll falls through to
             // the embedded AppWidgetHostView instead of the swipe-up stealing the vertical drag.
             if (dragController.isOverScrollableWidget(down.position)) return@awaitEachGesture
-            // A touch that starts on the dock belongs to the dock's own gestures (tap / long-press for
-            // the shortcut popup / drag to reorder or onto home). Bail so the dock owns it end-to-end —
-            // otherwise this Initial-pass detector steals a small upward drift during a dock long-press,
-            // cancelling the popup and half-opening the drawer (the "2/10 on Samsung" flakiness). Swipe
-            // up to open the drawer still works from anywhere above the dock.
-            if (dragController.isOverDock(down.position)) return@awaitEachGesture
+            // A touch that starts on the dock belongs to the dock's own gestures first (tap / long-press
+            // for the shortcut popup / drag to reorder or onto home): a clear, fast flick up still opens
+            // the drawer from the dock as on a Pixel (an owner decision for 1.0.0), but only past a
+            // longer, steeper travel ([dockSwipeSlop], [dockSwipeIsVertical]) than elsewhere on home —
+            // the small upward drift during a dock long-press that once cancelled the popup and
+            // half-opened the drawer (the "2/10 on Samsung" flakiness) stays well under it, and a hold
+            // that completes first lifts the icon, which this detector never steals.
+            val fromDock = dragController.isOverDock(down.position)
+            val verticalSlop = if (fromDock) dockSwipeSlop(touchSlop, DOCK_SWIPE_MIN_TRAVEL.toPx()) else touchSlop
             val velocityTracker = VelocityTracker()
             velocityTracker.addPosition(down.uptimeMillis, down.position)
             // 0 = undecided, 1 = drawer up-drag, 2 = left-edge action (right-drag on page 0),
@@ -1121,7 +1138,7 @@ internal fun Modifier.pixelHomeSwipe(
 
                 if (mode == 0) {
                     when {
-                        abs(dy) > touchSlop && abs(dy) > abs(dx) -> when {
+                        (if (fromDock) dockSwipeIsVertical(dx, dy, verticalSlop) else abs(dy) > touchSlop && abs(dy) > abs(dx)) -> when {
                             dy < 0f -> {
                                 val pressedFolder = dragController.pressedFolder(down.id.value)
                                 when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer)) {
@@ -1156,7 +1173,10 @@ internal fun Modifier.pixelHomeSwipe(
                         }
                         // Horizontal gesture.
                         abs(dx) > touchSlop && abs(dx) >= abs(dy) -> {
-                            if (leftEdgeEnabled && dx > 0f && atLeftEdge()) {
+                            if (fromDock) {
+                                // Sideways on the dock is the dock's own (a reorder after a hold); never the edge action.
+                                break
+                            } else if (leftEdgeEnabled && dx > 0f && atLeftEdge()) {
                                 // Right-drag on the leftmost page → the configurable left-edge action.
                                 // Consume so the pager doesn't overscroll; commit on release past slop.
                                 mode = 2
