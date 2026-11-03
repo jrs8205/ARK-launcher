@@ -18,7 +18,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
+import org.arkikeskus.launcher.ui.LauncherAppTheme
 import org.arkikeskus.launcher.feature.home.APPWIDGET_HOST_ID
 import org.arkikeskus.launcher.feature.home.LocalAppWidgetHost
 import org.arkikeskus.launcher.feature.home.LocalOrphanWidgetConfigResult
@@ -66,7 +66,7 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         keepHomeOnBack()
         setContent {
-            LauncherTheme {
+            LauncherAppTheme {
                 // Icon re-fetch epochs above EVERY icon surface (home, dock, drawer, folder sheets):
                 // a package update bumps its epoch, which re-keys and re-fetches that icon everywhere
                 // — including AsyncImages already on screen, which only re-load on a model change.

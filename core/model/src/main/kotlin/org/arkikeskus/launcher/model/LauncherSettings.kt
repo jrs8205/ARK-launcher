@@ -35,6 +35,10 @@ data class LauncherSettings(
     /** How fast the home pager settles on a page (its snap and every programmatic page change):
      *  [SPEED_NORMAL], [SPEED_FAST] or [SPEED_FASTEST] (issue #18). */
     val pageSwitchSpeed: String = SPEED_NORMAL,
+    /** The launcher's font for every text it draws itself (home labels, the clock, the drawer, Settings):
+     *  one of [FONTS], device families Android ships (a Telegram request after 0.9.9). Widgets draw
+     *  their own text and keep their own fonts. */
+    val fontFamily: String = FONT_DEFAULT,
     /** Swiping past the last home page continues to the first one, and back from the first to the
      *  last (unless the left-edge app takes that swipe). Off keeps the bounce back from the end. */
     val infiniteScroll: Boolean = true,
@@ -160,6 +164,16 @@ data class LauncherSettings(
         const val SPEED_NORMAL = "normal"
         const val SPEED_FAST = "fast"
         const val SPEED_FASTEST = "fastest"
+
+        /** [fontFamily] choices: the system's default sans, its condensed sans, serif, monospace, the
+         *  casual hand-drawn face and the cursive one -- all shipped with Android, nothing bundled. */
+        const val FONT_DEFAULT = "default"
+        const val FONT_CONDENSED = "condensed"
+        const val FONT_SERIF = "serif"
+        const val FONT_MONOSPACE = "monospace"
+        const val FONT_CASUAL = "casual"
+        const val FONT_CURSIVE = "cursive"
+        val FONTS = listOf(FONT_DEFAULT, FONT_CONDENSED, FONT_SERIF, FONT_MONOSPACE, FONT_CASUAL, FONT_CURSIVE)
 
         const val PRIVACY_ALL = "all"
         const val PRIVACY_SENDER = "sender"

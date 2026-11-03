@@ -128,6 +128,14 @@
     <string name="settings_long_press_delay">Задержка долгого нажатия</string>
     <string name="settings_long_press_delay_desc">Сколько удерживать значок, прежде чем откроется его меню или его можно будет переместить</string>
     <string name="settings_label_color">Цвет подписей</string>
+    <string name="settings_font">Шрифт</string>
+    <string name="settings_font_desc">Для всего, что лаунчер рисует сам; виджеты сохраняют свой.</string>
+    <string name="settings_font_default">По умолчанию</string>
+    <string name="settings_font_condensed">Узкий</string>
+    <string name="settings_font_serif">С засечками</string>
+    <string name="settings_font_monospace">Моноширинный</string>
+    <string name="settings_font_casual">Свободный</string>
+    <string name="settings_font_cursive">Рукописный</string>
     <string name="settings_search">Поиск</string>
     <string name="settings_search_contacts">Поиск контактов</string>
     <string name="settings_left_edge">Левый край</string>

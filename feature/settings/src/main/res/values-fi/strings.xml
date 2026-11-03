@@ -122,6 +122,14 @@
     <string name="settings_long_press_delay">Pitkän painalluksen viive</string>
     <string name="settings_long_press_delay_desc">Kuinka kauan kuvaketta pidetään painettuna, ennen kuin sen valikko avautuu tai sitä voi siirtää</string>
     <string name="settings_label_color">Tekstin väri</string>
+    <string name="settings_font">Fontti</string>
+    <string name="settings_font_desc">Kaikkeen, minkä launcher itse piirtää; widgetit pitävät omansa.</string>
+    <string name="settings_font_default">Oletus</string>
+    <string name="settings_font_condensed">Kapea</string>
+    <string name="settings_font_serif">Antiikva</string>
+    <string name="settings_font_monospace">Tasalevyinen</string>
+    <string name="settings_font_casual">Rento</string>
+    <string name="settings_font_cursive">Käsiala</string>
     <string name="settings_search">Haku</string>
     <string name="settings_search_contacts">Hae yhteystietoja</string>
     <string name="settings_left_edge">Vasen reuna</string>

@@ -761,6 +761,24 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `font family is the default until set, survives a backup round-trip and reads an unknown key as the default`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().fontFamily).isEqualTo(LauncherSettings.FONT_DEFAULT)
+        repo.setFontFamily(LauncherSettings.FONT_SERIF)
+        assertThat(repo.settings.first().fontFamily).isEqualTo(LauncherSettings.FONT_SERIF)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("font_family", LauncherSettings.FONT_SERIF)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().fontFamily).isEqualTo(LauncherSettings.FONT_SERIF)
+        restored.importRaw(mapOf("font_family" to "comic"))
+        assertThat(restored.settings.first().fontFamily).isEqualTo(LauncherSettings.FONT_DEFAULT) // unknown: the default
+        restored.importRaw(mapOf("font_family" to 7))
+        assertThat(restored.settings.first().fontFamily).isEqualTo(LauncherSettings.FONT_DEFAULT) // wrong type dropped
+    }
+
+    @Test
     fun `drawer background colour is the theme until set, survives a backup round-trip and clears back to the theme`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().drawerBackgroundColor).isNull()

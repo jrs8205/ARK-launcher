@@ -122,6 +122,14 @@
     <string name="settings_long_press_delay">Fördröjning för långtryck</string>
     <string name="settings_long_press_delay_desc">Hur länge en ikon hålls intryckt innan dess meny öppnas eller den kan flyttas</string>
     <string name="settings_label_color">Textfärg för appnamn</string>
+    <string name="settings_font">Typsnitt</string>
+    <string name="settings_font_desc">För allt som startskärmen ritar själv; widgetar behåller sitt.</string>
+    <string name="settings_font_default">Standard</string>
+    <string name="settings_font_condensed">Smal</string>
+    <string name="settings_font_serif">Serif</string>
+    <string name="settings_font_monospace">Fast bredd</string>
+    <string name="settings_font_casual">Ledig</string>
+    <string name="settings_font_cursive">Handskrift</string>
     <string name="settings_search">Sökning</string>
     <string name="settings_search_contacts">Sök bland kontakter</string>
     <string name="settings_left_edge">Vänsterkant</string>

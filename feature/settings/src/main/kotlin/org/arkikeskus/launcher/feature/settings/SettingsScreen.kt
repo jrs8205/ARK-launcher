@@ -93,6 +93,7 @@ import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 import org.arkikeskus.launcher.ui.expressive.Accent
+import org.arkikeskus.launcher.ui.launcherFontFamily
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
@@ -457,6 +458,7 @@ fun SettingsScreen(
                         valueText = percentText,
                     )
                     LabelColorRow(selected = s.appLabelColor, onPick = viewModel::setAppLabelColor)
+                    FontRow(selected = s.fontFamily, onPick = viewModel::setFontFamily)
                     // Themed (monochrome) icons need the adaptive-icon monochrome API (Android 13+).
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                         SwitchRow(
@@ -1397,6 +1399,52 @@ private fun ColorSwatch(argb: Int, selected: Boolean, onClick: () -> Unit) {
             .semantics { contentDescription = name; this.selected = selected }
             .clickable { onClick() },
     )
+}
+
+/** A test tag per font chip, by its settings key. */
+internal fun fontChipTag(key: String): String = "font-$key"
+
+/** The name of a font choice, in its own words. */
+private fun fontNameRes(key: String): Int = when (key) {
+    LauncherSettings.FONT_CONDENSED -> R.string.settings_font_condensed
+    LauncherSettings.FONT_SERIF -> R.string.settings_font_serif
+    LauncherSettings.FONT_MONOSPACE -> R.string.settings_font_monospace
+    LauncherSettings.FONT_CASUAL -> R.string.settings_font_casual
+    LauncherSettings.FONT_CURSIVE -> R.string.settings_font_cursive
+    else -> R.string.settings_font_default
+}
+
+/** The launcher's font (a Telegram request after 0.9.9): six families Android ships, each chip set in its
+ *  own face so the choice can be seen before it is made. Widgets keep their own fonts. */
+@Composable
+internal fun FontRow(selected: String, onPick: (String) -> Unit) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_font))
+            Text(stringResource(R.string.settings_font_desc), color = p.dim, fontSize = 12.5.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                LauncherSettings.FONTS.forEach { key ->
+                    FilterChip(
+                        selected = key == selected,
+                        onClick = { onPick(key) },
+                        label = { Text(stringResource(fontNameRes(key)), fontFamily = launcherFontFamily(key)) },
+                        modifier = Modifier.testTag(fontChipTag(key)),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /** The app drawer's background colour (a Telegram request after 0.9.9): the theme's own surface, or one of

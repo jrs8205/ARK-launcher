@@ -125,6 +125,14 @@
     <string name="settings_long_press_delay">Retardo de la pulsación larga</string>
     <string name="settings_long_press_delay_desc">Cuánto tiempo hay que mantener pulsado un icono antes de que se abra su menú o se pueda mover</string>
     <string name="settings_label_color">Color del texto</string>
+    <string name="settings_font">Fuente</string>
+    <string name="settings_font_desc">Para todo lo que dibuja el propio launcher; los widgets conservan la suya.</string>
+    <string name="settings_font_default">Predeterminada</string>
+    <string name="settings_font_condensed">Condensada</string>
+    <string name="settings_font_serif">Serif</string>
+    <string name="settings_font_monospace">Monoespaciada</string>
+    <string name="settings_font_casual">Informal</string>
+    <string name="settings_font_cursive">Manuscrita</string>
     <string name="settings_search">Búsqueda</string>
     <string name="settings_search_contacts">Buscar contactos</string>
     <string name="settings_left_edge">Borde izquierdo</string>

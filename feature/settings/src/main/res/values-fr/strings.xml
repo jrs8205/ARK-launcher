@@ -125,6 +125,14 @@
     <string name="settings_long_press_delay">Délai d’appui long</string>
     <string name="settings_long_press_delay_desc">Durée pendant laquelle maintenir une icône avant que son menu s’ouvre ou qu’elle puisse être déplacée</string>
     <string name="settings_label_color">Couleur du texte</string>
+    <string name="settings_font">Police</string>
+    <string name="settings_font_desc">Pour tout ce que le lanceur dessine lui-même ; les widgets gardent la leur.</string>
+    <string name="settings_font_default">Par défaut</string>
+    <string name="settings_font_condensed">Condensée</string>
+    <string name="settings_font_serif">Serif</string>
+    <string name="settings_font_monospace">À chasse fixe</string>
+    <string name="settings_font_casual">Décontractée</string>
+    <string name="settings_font_cursive">Manuscrite</string>
     <string name="settings_search">Recherche</string>
     <string name="settings_search_contacts">Rechercher dans les contacts</string>
     <string name="settings_left_edge">Bord gauche</string>

@@ -110,6 +110,9 @@ class SettingsRepository @Inject constructor(
             pageSwitchSpeed = (p[Keys.PAGE_SWITCH_SPEED] ?: LauncherSettings.SPEED_NORMAL).let {
                 if (it == LauncherSettings.SPEED_FAST || it == LauncherSettings.SPEED_FASTEST) it else LauncherSettings.SPEED_NORMAL
             },
+            fontFamily = (p[Keys.FONT_FAMILY] ?: LauncherSettings.FONT_DEFAULT).let {
+                if (it in LauncherSettings.FONTS) it else LauncherSettings.FONT_DEFAULT
+            },
             infiniteScroll = p[Keys.INFINITE_SCROLL] ?: true,
             defaultReminderDismissed = p[Keys.DEFAULT_REMINDER_DISMISSED] ?: false,
             showNotificationDots = p[Keys.SHOW_NOTIF_DOTS] ?: true,
@@ -423,6 +426,9 @@ class SettingsRepository @Inject constructor(
 
     /** How fast the home pager settles on a page ([LauncherSettings.SPEED_NORMAL] / FAST / FASTEST). */
     suspend fun setPageSwitchSpeed(speed: String) = edit { it[Keys.PAGE_SWITCH_SPEED] = speed }
+
+    /** The launcher's font, one of [LauncherSettings.FONTS]; anything else reads back as the default. */
+    suspend fun setFontFamily(font: String) = edit { it[Keys.FONT_FAMILY] = font }
     suspend fun setInfiniteScroll(value: Boolean) = edit { it[Keys.INFINITE_SCROLL] = value }
     suspend fun setShowNotificationDots(value: Boolean) = edit { it[Keys.SHOW_NOTIF_DOTS] = value }
     suspend fun setNotificationDotCount(value: Boolean) = edit { it[Keys.NOTIF_DOT_COUNT] = value }
@@ -717,6 +723,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_PAGE_INDICATOR = booleanPreferencesKey("show_page_indicator")
         val HOME_PAGE_MARKER = stringPreferencesKey("home_page_marker")
         val PAGE_SWITCH_SPEED = stringPreferencesKey("page_switch_speed")
+        val FONT_FAMILY = stringPreferencesKey("font_family")
         val INFINITE_SCROLL = booleanPreferencesKey("infinite_scroll")
         val FOLDER_SWIPE_FIRST_APP = booleanPreferencesKey("folder_swipe_first_app")
         val HIDE_HOME_APPS_FROM_DRAWER = booleanPreferencesKey("hide_home_apps_from_drawer")
@@ -836,7 +843,7 @@ class SettingsRepository @Inject constructor(
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
-            "page_switch_speed", "collapsed_settings_sections",
+            "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
             "custom_icons", "folder_icons",
         )

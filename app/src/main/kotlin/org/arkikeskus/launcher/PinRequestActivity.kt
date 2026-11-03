@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
 import org.arkikeskus.launcher.data.systemPinRequest
-import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
+import org.arkikeskus.launcher.ui.LauncherAppTheme
 import org.arkikeskus.launcher.feature.home.PinRequestScreen
 
 /**
@@ -29,7 +29,7 @@ class PinRequestActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            LauncherTheme {
+            LauncherAppTheme {
                 PinRequestScreen(request = request, onFinish = ::finish)
             }
         }

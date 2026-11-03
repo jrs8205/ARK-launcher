@@ -7,7 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
-import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
+import org.arkikeskus.launcher.ui.LauncherAppTheme
 import org.arkikeskus.launcher.feature.backup.BackupImportScreen
 import org.arkikeskus.launcher.feature.backup.backupImportUri
 
@@ -32,7 +32,7 @@ class BackupImportActivity : ComponentActivity() {
         enableEdgeToEdge()
         window.hideOtherAppsOverlays()
         setContent {
-            LauncherTheme {
+            LauncherAppTheme {
                 BackupImportScreen(uri = uri, onFinish = ::finish)
             }
         }

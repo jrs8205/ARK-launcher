@@ -125,6 +125,14 @@
     <string name="settings_long_press_delay">Atraso do toque longo</string>
     <string name="settings_long_press_delay_desc">Quanto tempo manter um ícone pressionado antes de o menu abrir ou de ele poder ser movido</string>
     <string name="settings_label_color">Cor dos nomes</string>
+    <string name="settings_font">Fonte</string>
+    <string name="settings_font_desc">Para tudo o que o launcher desenha; os widgets mantêm a sua.</string>
+    <string name="settings_font_default">Padrão</string>
+    <string name="settings_font_condensed">Condensada</string>
+    <string name="settings_font_serif">Serifada</string>
+    <string name="settings_font_monospace">Monoespaçada</string>
+    <string name="settings_font_casual">Casual</string>
+    <string name="settings_font_cursive">Manuscrita</string>
     <string name="settings_search">Pesquisa</string>
     <string name="settings_search_contacts">Pesquisar contatos</string>
     <string name="settings_left_edge">Borda esquerda</string>

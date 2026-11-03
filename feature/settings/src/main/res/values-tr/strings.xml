@@ -122,6 +122,14 @@
     <string name="settings_long_press_delay">Uzun basma gecikmesi</string>
     <string name="settings_long_press_delay_desc">Menüsü açılmadan veya taşınabilmeden önce bir simgenin ne kadar basılı tutulacağı</string>
     <string name="settings_label_color">Etiket metni rengi</string>
+    <string name="settings_font">Yazı tipi</string>
+    <string name="settings_font_desc">Başlatıcının kendi çizdiği her şey için; widget\'lar kendininkini korur.</string>
+    <string name="settings_font_default">Varsayılan</string>
+    <string name="settings_font_condensed">Dar</string>
+    <string name="settings_font_serif">Serifli</string>
+    <string name="settings_font_monospace">Eş aralıklı</string>
+    <string name="settings_font_casual">Rahat</string>
+    <string name="settings_font_cursive">El yazısı</string>
     <string name="settings_search">Arama</string>
     <string name="settings_search_contacts">Kişilerde ara</string>
     <string name="settings_left_edge">Sol kenar</string>

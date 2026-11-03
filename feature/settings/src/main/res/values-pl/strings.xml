@@ -128,6 +128,14 @@
     <string name="settings_long_press_delay">Opóźnienie długiego naciśnięcia</string>
     <string name="settings_long_press_delay_desc">Jak długo przytrzymać ikonę, zanim otworzy się jej menu lub będzie można ją przesunąć</string>
     <string name="settings_label_color">Kolor tekstu etykiet</string>
+    <string name="settings_font">Czcionka</string>
+    <string name="settings_font_desc">Dla wszystkiego, co launcher rysuje sam; widżety zachowują własną.</string>
+    <string name="settings_font_default">Domyślna</string>
+    <string name="settings_font_condensed">Wąska</string>
+    <string name="settings_font_serif">Szeryfowa</string>
+    <string name="settings_font_monospace">Stałej szerokości</string>
+    <string name="settings_font_casual">Swobodna</string>
+    <string name="settings_font_cursive">Odręczna</string>
     <string name="settings_search">Wyszukiwanie</string>
     <string name="settings_search_contacts">Wyszukuj kontakty</string>
     <string name="settings_left_edge">Lewa krawędź</string>

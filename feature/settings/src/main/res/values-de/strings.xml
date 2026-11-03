@@ -122,6 +122,14 @@
     <string name="settings_long_press_delay">Verzögerung für langes Drücken</string>
     <string name="settings_long_press_delay_desc">Wie lange ein Symbol gehalten wird, bevor sein Menü aufgeht oder es verschoben werden kann</string>
     <string name="settings_label_color">Textfarbe der Beschriftungen</string>
+    <string name="settings_font">Schrift</string>
+    <string name="settings_font_desc">Für alles, was der Launcher selbst zeichnet; Widgets behalten ihre eigene.</string>
+    <string name="settings_font_default">Standard</string>
+    <string name="settings_font_condensed">Schmal</string>
+    <string name="settings_font_serif">Serif</string>
+    <string name="settings_font_monospace">Festbreite</string>
+    <string name="settings_font_casual">Leger</string>
+    <string name="settings_font_cursive">Handschrift</string>
     <string name="settings_search">Suche</string>
     <string name="settings_search_contacts">Kontakte durchsuchen</string>
     <string name="settings_left_edge">Linker Rand</string>
