@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 
 /**
  * The blur strength (a Telegram request after 0.9.9) reads and moves like the other scale sliders: a
- * percent beside the label, 5 % steps felt as ticks, 25–200 % of the 0.9.9 blur, and a chip back to 100 %.
+ * percent beside the label, 5 % steps felt as ticks, 10–200 % of the 0.9.9 blur, and a chip back to 100 %.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
@@ -71,14 +71,19 @@ class DrawerBlurStrengthRowTest {
         assertThat(felt).containsExactly(HapticFeedbackType.SegmentTick)
     }
 
-    /** The range is 25–200 %: a push past the top stops at 200 %. */
-    @Test fun theRangeEndsAtTwiceTheBlur() {
+    /** The range is 10–200 %: a push past the top stops at 200 %, a push past the bottom at 10 % (the owner found
+     *  25 % still too strong to make out the wallpaper). */
+    @Test fun theRangeRunsFromATenthToTwiceTheBlur() {
         show(1f)
 
         compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress))
             .performSemanticsAction(SemanticsActions.SetProgress) { it(3f) }
+        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.SetProgress))
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
 
-        assertThat(picked.single()).isWithin(0.001f).of(2f)
+        assertThat(picked).hasSize(2)
+        assertThat(picked[0]).isWithin(0.001f).of(2f)
+        assertThat(picked[1]).isWithin(0.001f).of(0.1f)
     }
 
     @Test fun offTheDefaultTheChipBringsItBack() {

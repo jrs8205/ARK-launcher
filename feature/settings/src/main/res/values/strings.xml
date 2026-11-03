@@ -31,6 +31,7 @@
     <string name="settings_blur_behind_drawer_needs_12">Needs Android 12 or newer; this phone runs an older version.</string>
     <string name="settings_blur_behind_drawer_unavailable">This phone does not blur behind windows, so the setting cannot work here.</string>
     <string name="settings_blur_strength">Blur strength</string>
+    <string name="settings_blur_behind_drawer_opaque">Lower “App drawer background opacity” above to see it: the drawer is solid now.</string>
     <string name="settings_theme_all_icons">Theme every icon</string>
     <string name="settings_theme_all_icons_desc">Apps without a themed icon of their own get a one-colour silhouette of their icon in the theme\'s colours.</string>
     <string name="settings_dock_bg">Dock background opacity</string>

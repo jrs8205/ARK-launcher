@@ -796,8 +796,9 @@ class SettingsRepository @Inject constructor(
         const val MIN_LONG_PRESS_SCALE = 0.5f
         const val MAX_LONG_PRESS_SCALE = 2.0f
 
-        /** Valid range for the drawer blur strength slider (a multiplier on the 0.9.9 blur radius). */
-        const val MIN_DRAWER_BLUR_STRENGTH = 0.25f
+        /** Valid range for the drawer blur strength slider (a multiplier on the 0.9.9 blur radius); the bottom is a
+         *  tenth because a quarter still hid the wallpaper's detail on the owner's Pixel. */
+        const val MIN_DRAWER_BLUR_STRENGTH = 0.1f
         const val MAX_DRAWER_BLUR_STRENGTH = 2.0f
 
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */

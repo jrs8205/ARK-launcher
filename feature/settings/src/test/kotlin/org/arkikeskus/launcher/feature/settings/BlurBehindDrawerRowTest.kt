@@ -31,11 +31,48 @@ class BlurBehindDrawerRowTest {
     private val res = RuntimeEnvironment.getApplication().resources
     private val picked = mutableListOf<Boolean>()
 
-    private fun show(availability: BlurAvailability, checked: Boolean = false) {
+    private fun show(availability: BlurAvailability, checked: Boolean = false, drawerOpaque: Boolean = false) {
         compose.setContent {
-            BlurBehindDrawerRow(availability = availability, checked = checked, onCheckedChange = { picked += it })
+            BlurBehindDrawerRow(
+                availability = availability,
+                checked = checked,
+                drawerOpaque = drawerOpaque,
+                onCheckedChange = { picked += it },
+            )
         }
         compose.waitForIdle()
+    }
+
+    /** The owner turned the blur on with a solid drawer and saw a black drawer: the row now says what to do. */
+    @Test fun withTheBlurOnBehindASolidDrawerTheRowSaysToLowerTheOpacity() {
+        show(BlurAvailability.AVAILABLE, checked = true, drawerOpaque = true)
+
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_opaque)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_desc)).assertDoesNotExist()
+        compose.onNode(isToggleable()).assertIsEnabled().assertIsOn()
+    }
+
+    /** The hint is for a blur that is on and invisible: with the blur off the usual text stays. */
+    @Test fun aSolidDrawerWithTheBlurOffKeepsTheUsualText() {
+        show(BlurAvailability.AVAILABLE, checked = false, drawerOpaque = true)
+
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_desc)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_opaque)).assertDoesNotExist()
+    }
+
+    @Test fun aSeeThroughDrawerWithTheBlurOnKeepsTheUsualText() {
+        show(BlurAvailability.AVAILABLE, checked = true, drawerOpaque = false)
+
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_desc)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_opaque)).assertDoesNotExist()
+    }
+
+    /** The device's reason wins over the opacity hint. */
+    @Test fun aDeviceThatCannotBlurSaysSoEvenBehindASolidDrawer() {
+        show(BlurAvailability.DEVICE_CANNOT, checked = true, drawerOpaque = true)
+
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_unavailable)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_blur_behind_drawer_opaque)).assertDoesNotExist()
     }
 
     @Test fun whereTheSystemBlursTheSwitchWorksAsBefore() {

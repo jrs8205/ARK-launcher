@@ -71,7 +71,7 @@ data class LauncherSettings(
     val collapsedSettingsSections: Set<String> = emptySet(),
     /** Blur the wallpaper behind the window as the app drawer rises (a Telegram request, Android 12+). */
     val blurBehindDrawer: Boolean = false,
-    /** Multiplier on the drawer blur's radius (1.0 = the 0.9.9 blur, 0.25–2.0; a Telegram request). */
+    /** Multiplier on the drawer blur's radius (1.0 = the 0.9.9 blur, 0.1–2.0; a Telegram request). */
     val drawerBlurStrength: Float = 1.0f,
     /** With themed icons on, apps without a monochrome layer get a silhouette of their icon (a Telegram request). */
     val themeAllIcons: Boolean = false,

@@ -754,8 +754,8 @@ class SettingsRepositoryTest {
         val restored = newRepository()
         restored.importRaw(exported)
         assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(0.5f)
-        restored.importRaw(mapOf("drawer_blur_strength" to 0.1))
-        assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(0.25f) // out of range: clamped on read
+        restored.importRaw(mapOf("drawer_blur_strength" to 0.01))
+        assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(0.1f) // out of range: clamped on read
         restored.importRaw(mapOf("drawer_blur_strength" to "strong"))
         assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(1.0f) // wrong type dropped: the default
     }

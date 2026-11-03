@@ -31,6 +31,7 @@
     <string name="settings_blur_behind_drawer_needs_12">Necesita Android 12 o posterior; este teléfono tiene una versión anterior.</string>
     <string name="settings_blur_behind_drawer_unavailable">Este teléfono no desenfoca detrás de las ventanas, así que el ajuste no puede funcionar aquí.</string>
     <string name="settings_blur_strength">Intensidad del desenfoque</string>
+    <string name="settings_blur_behind_drawer_opaque">Baja arriba «Opacidad del fondo del cajón de aplicaciones» para verlo: ahora el cajón es opaco.</string>
     <string name="settings_theme_all_icons">Aplicar el tema a todos los iconos</string>
     <string name="settings_theme_all_icons_desc">Las aplicaciones sin icono temático propio reciben una silueta de un solo color de su icono en los colores del tema.</string>
     <string name="settings_dock_bg">Opacidad del fondo del dock</string>

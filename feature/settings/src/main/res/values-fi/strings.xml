@@ -31,6 +31,7 @@
     <string name="settings_blur_behind_drawer_needs_12">Vaatii Android 12:n tai uudemman; tässä puhelimessa on vanhempi versio.</string>
     <string name="settings_blur_behind_drawer_unavailable">Tämä puhelin ei sumenna ikkunoiden taustaa, joten asetus ei toimi tässä.</string>
     <string name="settings_blur_strength">Sumennuksen voimakkuus</string>
+    <string name="settings_blur_behind_drawer_opaque">Laske yllä kohtaa ”Sovellusvalikon taustan läpinäkyvyys” nähdäksesi sen: valikko on nyt umpinainen.</string>
     <string name="settings_theme_all_icons">Teemoita kaikki kuvakkeet</string>
     <string name="settings_theme_all_icons_desc">Sovellukset, joilla ei ole omaa teemakuvaketta, saavat kuvakkeestaan yksivärisen siluetin teeman väreissä.</string>
     <string name="settings_dock_bg">Dockin taustan läpinäkyvyys</string>

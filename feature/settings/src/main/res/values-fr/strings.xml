@@ -31,6 +31,7 @@
     <string name="settings_blur_behind_drawer_needs_12">Nécessite Android 12 ou plus récent ; ce téléphone a une version plus ancienne.</string>
     <string name="settings_blur_behind_drawer_unavailable">Ce téléphone ne floute pas derrière les fenêtres, le réglage ne peut donc pas fonctionner ici.</string>
     <string name="settings_blur_strength">Intensité du flou</string>
+    <string name="settings_blur_behind_drawer_opaque">Baissez « Opacité du fond de la liste des applications » ci-dessus pour le voir : la liste est opaque pour l’instant.</string>
     <string name="settings_theme_all_icons">Thémer toutes les icônes</string>
     <string name="settings_theme_all_icons_desc">Les applications sans icône thématique reçoivent une silhouette monochrome de leur icône aux couleurs du thème.</string>
     <string name="settings_dock_bg">Opacité du fond du dock</string>

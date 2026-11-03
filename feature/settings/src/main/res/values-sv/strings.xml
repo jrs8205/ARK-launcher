@@ -31,6 +31,7 @@
     <string name="settings_blur_behind_drawer_needs_12">Kräver Android 12 eller nyare; den här telefonen har en äldre version.</string>
     <string name="settings_blur_behind_drawer_unavailable">Den här telefonen suddar inte bakom fönster, så inställningen kan inte fungera här.</string>
     <string name="settings_blur_strength">Suddningens styrka</string>
+    <string name="settings_blur_behind_drawer_opaque">Sänk ”Bakgrundsopacitet för applådan” ovan för att se den: lådan är helt täckande nu.</string>
     <string name="settings_theme_all_icons">Tema på alla ikoner</string>
     <string name="settings_theme_all_icons_desc">Appar utan egen temaikon får en enfärgad siluett av sin ikon i temats färger.</string>
     <string name="settings_dock_bg">Bakgrundsopacitet för Dock</string>

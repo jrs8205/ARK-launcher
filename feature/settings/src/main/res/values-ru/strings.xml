@@ -31,6 +31,7 @@
     <string name="settings_blur_behind_drawer_needs_12">Нужен Android 12 или новее; на этом телефоне более старая версия.</string>
     <string name="settings_blur_behind_drawer_unavailable">Этот телефон не размывает фон за окнами, поэтому настройка здесь не работает.</string>
     <string name="settings_blur_strength">Сила размытия</string>
+    <string name="settings_blur_behind_drawer_opaque">Уменьшите выше «Непрозрачность фона списка приложений», чтобы увидеть размытие: сейчас список непрозрачный.</string>
     <string name="settings_theme_all_icons">Тема для всех значков</string>
     <string name="settings_theme_all_icons_desc">Приложения без собственного тематического значка получают одноцветный силуэт своего значка в цветах темы.</string>
     <string name="settings_dock_bg">Непрозрачность фона док-панели</string>

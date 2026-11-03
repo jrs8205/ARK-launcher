@@ -287,7 +287,12 @@ fun SettingsScreen(
                     // Greyed with the reason where the system cannot blur behind the window (Android 11, a
                     // Fairphone 6 report), instead of a switch that silently does nothing.
                     val blurAvailability = rememberBlurAvailability()
-                    BlurBehindDrawerRow(blurAvailability, s.blurBehindDrawer, viewModel::setBlurBehindDrawer)
+                    BlurBehindDrawerRow(
+                        availability = blurAvailability,
+                        checked = s.blurBehindDrawer,
+                        drawerOpaque = s.drawerBackgroundOpacity >= 1f,
+                        onCheckedChange = viewModel::setBlurBehindDrawer,
+                    )
                     if (s.blurBehindDrawer && blurAvailability == BlurAvailability.AVAILABLE) {
                         DrawerBlurStrengthRow(s.drawerBlurStrength, viewModel::setDrawerBlurStrength)
                     }
@@ -1263,16 +1268,24 @@ internal fun DrawerBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
     )
 }
 
-/** The wallpaper-blur switch, greyed with the reason where this device cannot blur behind its windows. */
+/** The wallpaper-blur switch, greyed with the reason where this device cannot blur behind its windows. With the blur
+ *  on behind a solid drawer ([drawerOpaque], the opacity slider at 100 %) nothing of it can show, so the description
+ *  then says to lower the opacity instead (the owner saw a black drawer and looked for the blur). */
 @Composable
-internal fun BlurBehindDrawerRow(availability: BlurAvailability, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun BlurBehindDrawerRow(
+    availability: BlurAvailability,
+    checked: Boolean,
+    drawerOpaque: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     SwitchRow(
         label = stringResource(R.string.settings_blur_behind_drawer),
         description = stringResource(
-            when (availability) {
-                BlurAvailability.AVAILABLE -> R.string.settings_blur_behind_drawer_desc
-                BlurAvailability.NEEDS_ANDROID_12 -> R.string.settings_blur_behind_drawer_needs_12
-                BlurAvailability.DEVICE_CANNOT -> R.string.settings_blur_behind_drawer_unavailable
+            when {
+                availability == BlurAvailability.NEEDS_ANDROID_12 -> R.string.settings_blur_behind_drawer_needs_12
+                availability == BlurAvailability.DEVICE_CANNOT -> R.string.settings_blur_behind_drawer_unavailable
+                checked && drawerOpaque -> R.string.settings_blur_behind_drawer_opaque
+                else -> R.string.settings_blur_behind_drawer_desc
             },
         ),
         checked = checked,
@@ -1281,7 +1294,7 @@ internal fun BlurBehindDrawerRow(availability: BlurAvailability, checked: Boolea
     )
 }
 
-/** How strong the wallpaper blur behind the open drawer is, 25–200 % of the 0.9.9 blur (a Telegram request). */
+/** How strong the wallpaper blur behind the open drawer is, 10–200 % of the 0.9.9 blur (a Telegram request). */
 @Composable
 internal fun DrawerBlurStrengthRow(value: Float, onValueChange: (Float) -> Unit) {
     val resources = LocalResources.current
