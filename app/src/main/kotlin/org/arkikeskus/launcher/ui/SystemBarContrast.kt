@@ -67,6 +67,14 @@ internal fun statusBarDarkIcons(
 internal fun ownBarBacksDark(ownBarShown: Boolean, scrimOpacity: Float): Boolean =
     ownBarShown && scrimOpacity >= OWN_BAR_DARK_BACKING
 
+/**
+ * The own bar's scrim as much of it as is on screen: the bar is part of home, which fades out under the
+ * rising drawer ([homeContentAlpha], [homeAlpha]), so a scrim at [scrimOpacity] backs the glyphs with
+ * only [scrimOpacity] × [homeAlpha] of its darkness -- none once home has faded, whatever the setting.
+ */
+internal fun ownBarScrimOnScreen(scrimOpacity: Float, homeAlpha: Float): Float =
+    scrimOpacity.coerceIn(0f, 1f) * homeAlpha.coerceIn(0f, 1f)
+
 /** Whether the navigation bar (gesture handle / buttons) draws dark glyphs: the drawer's surface once
  *  the drawer covers it, a full-screen surface over home while one is shown, the wallpaper's hint
  *  otherwise. */
@@ -199,7 +207,9 @@ private fun wallpaperSupportsDarkText(colors: WallpaperColors?): Boolean = when 
  * The system bars' glyph colours as snapshot state, from inputs read as they are now. Every input is a
  * provider: the bar heights only arrive after the first frame, and a decision that kept the first
  * frame's values never saw the drawer covering the status bar. The drawer providers get the shell's
- * dim over home at the current [progress] ([drawerScrimAlpha]), read here inside the snapshot.
+ * dim over home at the current [progress] ([drawerScrimAlpha]), and the status-bar providers how much
+ * of home -- and so of ARK's own bar -- is still on screen ([homeContentAlpha]), read here inside the
+ * snapshot.
  */
 internal class SystemBarGlyphs(
     progress: () -> Float,
@@ -207,22 +217,24 @@ internal class SystemBarGlyphs(
     statusBarPx: () -> Float,
     navBarPx: () -> Float,
     /** The drawer, over the status bar, is light enough for dark glyphs ([drawerIsLightOverStatusBar])
-     *  with home dimmed by the given amount under it. */
-    drawerIsLightOverStatusBar: (homeDim: Float) -> Boolean,
+     *  with home dimmed by the given amount under it and faded to the given alpha. */
+    drawerIsLightOverStatusBar: (homeDim: Float, homeAlpha: Float) -> Boolean,
     /** The same over the navigation bar ([drawerIsLightOverNavigationBar]). */
     drawerIsLightOverNavBar: (homeDim: Float) -> Boolean,
     coverIsLight: () -> Boolean?,
-    ownBarBacksDark: () -> Boolean,
+    /** ARK's own bar backs the glyphs with a dark scrim ([ownBarBacksDark]) at home's given alpha. */
+    ownBarBacksDark: (homeAlpha: Float) -> Boolean,
     wallpaperSupportsDarkText: () -> Boolean,
 ) {
     /** The status bar draws dark glyphs ([statusBarDarkIcons]). */
     val darkStatus: State<Boolean> = derivedStateOf {
         val progress = progress()
+        val homeAlpha = homeContentAlpha(progress)
         statusBarDarkIcons(
             drawerCoversBar = drawerCoversStatusBar(progress, heightPx(), statusBarPx()),
-            drawerSurfaceIsLight = drawerIsLightOverStatusBar(drawerScrimAlpha(progress)),
+            drawerSurfaceIsLight = drawerIsLightOverStatusBar(drawerScrimAlpha(progress), homeAlpha),
             coverIsLight = coverIsLight(),
-            ownBarBacksDark = ownBarBacksDark(),
+            ownBarBacksDark = ownBarBacksDark(homeAlpha),
             wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
         )
     }
@@ -281,16 +293,22 @@ internal fun SystemBarContrast(
             heightPx = { currentHeight.value() },
             statusBarPx = { statusBarPx.value },
             navBarPx = { navBarPx.value },
-            drawerIsLightOverStatusBar = { homeDim ->
+            // The own bar fades with home under the rising drawer: its scrim counts as much as is on screen.
+            drawerIsLightOverStatusBar = { homeDim, homeAlpha ->
                 drawerIsLightOverStatusBar(
-                    surfaceLuminance.value, currentDrawerOpacity.value, ownBarOnScreen(), currentScrim.value, wallpaperDarkText.value, homeDim,
+                    surfaceLuminance.value,
+                    currentDrawerOpacity.value,
+                    ownBarOnScreen(),
+                    ownBarScrimOnScreen(currentScrim.value, homeAlpha),
+                    wallpaperDarkText.value,
+                    homeDim,
                 )
             },
             drawerIsLightOverNavBar = { homeDim ->
                 drawerIsLightOverNavigationBar(surfaceLuminance.value, currentDrawerOpacity.value, wallpaperDarkText.value, homeDim)
             },
             coverIsLight = { covers.coverIsLight },
-            ownBarBacksDark = { ownBarBacksDark(ownBarOnScreen(), currentScrim.value) },
+            ownBarBacksDark = { homeAlpha -> ownBarBacksDark(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha)) },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },
         )
     }
