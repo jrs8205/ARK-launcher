@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Приложения без собственного тематического значка получают одноцветный силуэт своего значка в цветах темы.</string>
     <string name="settings_dock_bg">Непрозрачность фона док-панели</string>
     <string name="settings_drawer_bg">Непрозрачность фона списка приложений</string>
+    <string name="settings_drawer_color">Цвет фона списка приложений</string>
+    <string name="settings_color_theme">Тема</string>
     <string name="settings_page_indicator">Индикатор страниц</string>
     <string name="settings_home_page_marker">Отметка главной страницы</string>
     <string name="settings_page_switch_speed">Скорость перелистывания страниц</string>

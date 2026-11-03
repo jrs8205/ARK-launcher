@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Apps sem ícone temático próprio recebem uma silhueta de uma cor do seu ícone nas cores do tema.</string>
     <string name="settings_dock_bg">Opacidade do fundo do dock</string>
     <string name="settings_drawer_bg">Opacidade do fundo da gaveta de apps</string>
+    <string name="settings_drawer_color">Cor de fundo da gaveta de apps</string>
+    <string name="settings_color_theme">Tema</string>
     <string name="settings_page_indicator">Indicador de página</string>
     <string name="settings_home_page_marker">Marcador da página inicial</string>
     <string name="settings_page_switch_speed">Velocidade de troca de página</string>

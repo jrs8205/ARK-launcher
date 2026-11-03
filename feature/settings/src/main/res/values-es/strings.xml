@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Las aplicaciones sin icono temático propio reciben una silueta de un solo color de su icono en los colores del tema.</string>
     <string name="settings_dock_bg">Opacidad del fondo del dock</string>
     <string name="settings_drawer_bg">Opacidad del fondo del cajón de aplicaciones</string>
+    <string name="settings_drawer_color">Color de fondo del cajón de aplicaciones</string>
+    <string name="settings_color_theme">Tema</string>
     <string name="settings_page_indicator">Indicador de páginas</string>
     <string name="settings_home_page_marker">Marca de la página de inicio</string>
     <string name="settings_page_switch_speed">Velocidad de cambio de página</string>

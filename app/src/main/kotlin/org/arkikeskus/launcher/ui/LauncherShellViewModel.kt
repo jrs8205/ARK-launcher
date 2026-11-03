@@ -20,6 +20,8 @@ data class StatusBarSettings(
     val systemBarHidden: Boolean = false,
     val scrimOpacity: Float = 0.6f,
     val drawerOpacity: Float = 1f,
+    /** The drawer's own ARGB background colour, or null for the theme's surface (its lightness decides the glyphs). */
+    val drawerColor: Int? = null,
 )
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
@@ -57,6 +59,7 @@ class LauncherShellViewModel @Inject constructor(
                 systemBarHidden = it.hideSystemStatusBar,
                 scrimOpacity = it.statusBarScrimOpacity,
                 drawerOpacity = it.drawerBackgroundOpacity,
+                drawerColor = it.drawerBackgroundColor,
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())

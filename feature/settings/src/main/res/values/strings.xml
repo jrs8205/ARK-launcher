@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Apps without a themed icon of their own get a one-colour silhouette of their icon in the theme\'s colours.</string>
     <string name="settings_dock_bg">Dock background opacity</string>
     <string name="settings_drawer_bg">App drawer background opacity</string>
+    <string name="settings_drawer_color">App drawer background color</string>
+    <string name="settings_color_theme">Theme</string>
     <string name="settings_page_indicator">Page dots</string>
     <string name="settings_home_page_marker">Home page marker</string>
     <string name="settings_page_switch_speed">Page switch speed</string>

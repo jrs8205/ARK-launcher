@@ -79,6 +79,8 @@ data class AppDrawerUiState(
     val showSearch: Boolean = true,
     /** The drawer surface's opacity over the wallpaper (settings, issue #21). */
     val backgroundOpacity: Float = 1f,
+    /** The drawer surface's ARGB colour, or null for the theme's own (settings, a Telegram request). */
+    val backgroundColor: Int? = null,
     val badges: Map<String, Int> = emptyMap(),
     val showNotificationDots: Boolean = true,
     val notificationDotCount: Boolean = true,
@@ -172,6 +174,7 @@ class AppDrawerViewModel @Inject constructor(
             showFolderNames = settings.showDrawerFolderNames,
             showSearch = settings.showDrawerSearch,
             backgroundOpacity = settings.drawerBackgroundOpacity,
+            backgroundColor = settings.drawerBackgroundColor,
             showNotificationDots = settings.showNotificationDots,
             notificationDotCount = settings.notificationDotCount,
             notificationDotScale = settings.notificationDotScale,

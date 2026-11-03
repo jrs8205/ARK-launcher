@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Apps ohne eigenes Themen-Symbol erhalten eine einfarbige Silhouette ihres Symbols in den Farben des Themas.</string>
     <string name="settings_dock_bg">Deckkraft des Dock-Hintergrunds</string>
     <string name="settings_drawer_bg">Deckkraft des App-Drawer-Hintergrunds</string>
+    <string name="settings_drawer_color">Hintergrundfarbe des App-Drawers</string>
+    <string name="settings_color_theme">Design</string>
     <string name="settings_page_indicator">Seitenpunkte</string>
     <string name="settings_home_page_marker">Markierung der Startseite</string>
     <string name="settings_page_switch_speed">Geschwindigkeit des Seitenwechsels</string>

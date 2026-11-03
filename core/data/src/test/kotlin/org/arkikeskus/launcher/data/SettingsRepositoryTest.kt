@@ -761,6 +761,29 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `drawer background colour is the theme until set, survives a backup round-trip and clears back to the theme`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().drawerBackgroundColor).isNull()
+        repo.setDrawerBackgroundColor(0xFF42A5F5.toInt())
+        assertThat(repo.settings.first().drawerBackgroundColor).isEqualTo(0xFF42A5F5.toInt())
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_background_color", 0xFF42A5F5.toInt())
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerBackgroundColor).isEqualTo(0xFF42A5F5.toInt())
+        // JSON hands an ARGB colour back as the unsigned Long: it wraps to the same Int.
+        restored.importRaw(mapOf("drawer_background_color" to 0xFFFFFFFFL))
+        assertThat(restored.settings.first().drawerBackgroundColor).isEqualTo(0xFFFFFFFF.toInt())
+        restored.importRaw(mapOf("drawer_background_color" to "blue"))
+        assertThat(restored.settings.first().drawerBackgroundColor).isNull() // wrong type dropped: the theme
+
+        repo.setDrawerBackgroundColor(null)
+        assertThat(repo.settings.first().drawerBackgroundColor).isNull()
+        assertThat(repo.exportRaw()).doesNotContainKey("drawer_background_color")
+    }
+
+    @Test
     fun `long-press scale clamps on write and read, survives a backup round-trip and rejects a wrong type`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().longPressScale).isEqualTo(1.0f)

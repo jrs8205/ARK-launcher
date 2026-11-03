@@ -253,7 +253,9 @@ fun AppDrawerScreen(
         LocalIconScale provides uiState.iconScale,
         LocalAppLabelLines provides if (uiState.twoLineLabels) 2 else 1,
     ) {
-    ExpressiveTheme {
+    // The user's background colour, with black or white text to match, for everything the drawer shows (DrawerColors.kt).
+    MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, uiState.backgroundColor?.let { Color(it) })) {
+    DrawerExpressiveTheme(uiState.backgroundColor) {
     AppDrawerContent(
         apps = uiState.apps,
         backgroundOpacity = uiState.backgroundOpacity,
@@ -400,6 +402,7 @@ fun AppDrawerScreen(
             },
             onDismiss = { editFolderId = null },
         )
+    }
     }
     }
     }

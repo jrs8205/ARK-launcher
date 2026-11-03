@@ -295,6 +295,19 @@ class AppDrawerScreenTest {
         awaitState("the chosen opacity") { it.backgroundOpacity == 0.6f }
     }
 
+    /** A Telegram request after 0.9.9: the drawer's surface takes the background colour setting; the theme's by default,
+     *  and the theme's again once the colour is cleared. */
+    @Test fun theDrawerSurfaceFollowsTheBackgroundColourSetting() {
+        show()
+        awaitState("the theme's colour") { it.backgroundColor == null }
+
+        runBlocking { wiring.settingsRepository.setDrawerBackgroundColor(0xFF42A5F5.toInt()) }
+        awaitState("the chosen colour") { it.backgroundColor == 0xFF42A5F5.toInt() }
+
+        runBlocking { wiring.settingsRepository.setDrawerBackgroundColor(null) }
+        awaitState("the theme's colour again") { it.backgroundColor == null }
+    }
+
     /** A Telegram request after 0.9.7: with "Hide apps that are on the home screen" on, an app placed on home
      *  leaves the drawer's list; the search still finds it. Off (the default) it stays listed. */
     @Test fun appsOnTheHomeScreenLeaveTheDrawerWhenTheSettingIsOn() {

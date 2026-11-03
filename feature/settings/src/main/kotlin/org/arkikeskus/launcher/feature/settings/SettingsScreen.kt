@@ -45,6 +45,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -284,6 +289,7 @@ fun SettingsScreen(
                     )
                     SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
                     DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
+                    DrawerColorRow(selected = s.drawerBackgroundColor, onPick = viewModel::setDrawerBackgroundColor)
                     // Greyed with the reason where the system cannot blur behind the window (Android 11, a
                     // Fairphone 6 report), instead of a switch that silently does nothing.
                     val blurAvailability = rememberBlurAvailability()
@@ -1344,12 +1350,6 @@ private fun SliderRow(
 @Composable
 private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
     val p = LocalExpressivePalette.current
-    val swatches = remember {
-        listOf(
-            0xFFFFFFFF, 0xFF000000, 0xFFBDBDBD, 0xFFEF5350,
-            0xFFFFA726, 0xFFFFEE58, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC,
-        ).map { it.toInt() }
-    }
     Surface(
         color = p.surfaceHi,
         shape = RoundedCornerShape(20.dp),
@@ -1363,21 +1363,67 @@ private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
-                swatches.forEach { c ->
-                    val isSel = c == selected
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Color(c))
-                            .border(
-                                width = if (isSel) 3.dp else 1.dp,
-                                color = if (isSel) Accent else p.faint,
-                                shape = CircleShape,
-                            )
-                            .clickable { onPick(c) },
-                    )
-                }
+                COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }
+            }
+        }
+    }
+}
+
+/** The colours offered for app labels and the drawer's background: white, black, grey and six Material hues. */
+internal val COLOR_SWATCHES: List<Int> = listOf(
+    0xFFFFFFFF, 0xFF000000, 0xFFBDBDBD, 0xFFEF5350,
+    0xFFFFA726, 0xFFFFEE58, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC,
+).map { it.toInt() }
+
+/** A test tag per swatch, by its colour. */
+internal fun colorSwatchTag(argb: Int): String = "color-swatch-%06X".format(argb and 0xFFFFFF)
+
+/** One round colour swatch; the chosen one wears the accent ring. */
+@Composable
+private fun ColorSwatch(argb: Int, selected: Boolean, onClick: () -> Unit) {
+    val p = LocalExpressivePalette.current
+    val name = "#%06X".format(argb and 0xFFFFFF)
+    Box(
+        modifier = Modifier
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(Color(argb))
+            .border(
+                width = if (selected) 3.dp else 1.dp,
+                color = if (selected) Accent else p.faint,
+                shape = CircleShape,
+            )
+            .testTag(colorSwatchTag(argb))
+            .semantics { contentDescription = name; this.selected = selected }
+            .clickable { onClick() },
+    )
+}
+
+/** The app drawer's background colour (a Telegram request after 0.9.9): the theme's own surface, or one of
+ *  the label swatches; the drawer's text turns black or white to match by itself. */
+@Composable
+internal fun DrawerColorRow(selected: Int?, onPick: (Int?) -> Unit) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_drawer_color))
+            Spacer(Modifier.height(14.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                FilterChip(
+                    selected = selected == null,
+                    onClick = { onPick(null) },
+                    label = { Text(stringResource(R.string.settings_color_theme)) },
+                )
+                COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }
             }
         }
     }

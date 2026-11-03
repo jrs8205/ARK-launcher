@@ -110,6 +110,11 @@ internal fun behindStatusBarLuminance(ownBarVisible: Boolean, scrimOpacity: Floa
     return if (ownBarVisible) wallpaper * (1f - scrimOpacity.coerceIn(0f, 1f)) else wallpaper
 }
 
+/** The luminance of the drawer's background: the user's own colour ([drawerColor], ARGB) when one is set
+ *  (Settings > App drawer), the theme's [themeSurface] otherwise. */
+internal fun drawerSurfaceLuminance(drawerColor: Int?, themeSurface: Color): Float =
+    (drawerColor?.let { Color(it) } ?: themeSurface).luminance()
+
 /**
  * Whether the drawer's background, at the user's [opacity] over what it lets through, is light enough
  * for dark glyphs: the surface's [surfaceLuminance] weighted by the opacity, [behindLuminance] by the
@@ -270,13 +275,16 @@ internal fun SystemBarContrast(
     wallpaperDarkText: State<Boolean>,
     /** The app drawer's background opacity ([drawerSurfaceIsLight]). */
     drawerOpacity: Float = 1f,
+    /** The app drawer's own ARGB background colour, or null for the theme's surface ([drawerSurfaceIsLight]). */
+    drawerColor: Int? = null,
 ) {
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window } ?: return
     val density = LocalDensity.current
     val statusBarPx = rememberUpdatedState(WindowInsets.statusBars.getTop(density).toFloat())
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
-    val surfaceLuminance = rememberUpdatedState(MaterialTheme.colorScheme.surface.luminance())
+    val themeSurface = MaterialTheme.colorScheme.surface
+    val surfaceLuminance = rememberUpdatedState(drawerSurfaceLuminance(drawerColor, themeSurface))
     val currentDrawerOpacity = rememberUpdatedState(drawerOpacity)
     val currentOwnBarShown = rememberUpdatedState(ownBarShown)
     val currentSystemBarHidden = rememberUpdatedState(systemBarHidden)

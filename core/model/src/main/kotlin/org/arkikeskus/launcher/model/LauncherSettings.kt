@@ -25,6 +25,9 @@ data class LauncherSettings(
     val dockBackgroundOpacity: Float = DEFAULT_DOCK_BACKGROUND,
     /** Opacity of the app drawer's background (0 = the wallpaper shows through, 1 = solid); issue #21. */
     val drawerBackgroundOpacity: Float = DEFAULT_DRAWER_BACKGROUND,
+    /** ARGB colour of the app drawer's background, or null for the theme's own surface (a Telegram request after
+     *  0.9.9). The drawer's text takes black or white by the colour's lightness. */
+    val drawerBackgroundColor: Int? = null,
     val showPageIndicator: Boolean = true,
     /** How the page dots mark the home page: a ring around its dot ([MARKER_RING]) or a house glyph
      *  in place of the dot ([MARKER_HOUSE]). */

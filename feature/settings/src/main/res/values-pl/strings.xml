@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Aplikacje bez własnej ikony motywu dostają jednokolorową sylwetkę swojej ikony w kolorach motywu.</string>
     <string name="settings_dock_bg">Krycie tła Docka</string>
     <string name="settings_drawer_bg">Krycie tła szuflady aplikacji</string>
+    <string name="settings_drawer_color">Kolor tła szuflady aplikacji</string>
+    <string name="settings_color_theme">Motyw</string>
     <string name="settings_page_indicator">Kropki stron</string>
     <string name="settings_home_page_marker">Oznaczenie strony głównej</string>
     <string name="settings_page_switch_speed">Szybkość zmiany strony</string>

@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Appar utan egen temaikon får en enfärgad siluett av sin ikon i temats färger.</string>
     <string name="settings_dock_bg">Bakgrundsopacitet för Dock</string>
     <string name="settings_drawer_bg">Bakgrundsopacitet för applådan</string>
+    <string name="settings_drawer_color">Bakgrundsfärg för applådan</string>
+    <string name="settings_color_theme">Tema</string>
     <string name="settings_page_indicator">Sidprickar</string>
     <string name="settings_home_page_marker">Markering av startsidan</string>
     <string name="settings_page_switch_speed">Hastighet för sidbyte</string>

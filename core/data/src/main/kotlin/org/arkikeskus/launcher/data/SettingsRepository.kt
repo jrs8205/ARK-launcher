@@ -75,7 +75,7 @@ class SettingsRepository @Inject constructor(
                             Keys.HOME_PAGE.name, Keys.HOME_PAGE_COUNT.name ->
                                 it.toLong().coerceIn(0L, HomeLayoutRepository.MAX_PAGES.toLong()).toInt()
                             // An ARGB colour arrives as the signed Int's Long, or its unsigned form: wrap.
-                            Keys.APP_LABEL_COLOR.name -> it.toInt()
+                            Keys.APP_LABEL_COLOR.name, Keys.DRAWER_BACKGROUND_COLOR.name -> it.toInt()
                             else -> it.toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
                         }
                     }
@@ -127,8 +127,9 @@ class SettingsRepository @Inject constructor(
             mixDrawerFolders = p[Keys.MIX_DRAWER_FOLDERS] ?: false,
             folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
             collapsedSettingsSections = parseSections(p[Keys.COLLAPSED_SETTINGS_SECTIONS]),
+            drawerBackgroundColor = p[Keys.DRAWER_BACKGROUND_COLOR],
             blurBehindDrawer = p[Keys.BLUR_BEHIND_DRAWER] ?: false,
-            drawerBlurStrength = (p[Keys.DRAWER_BLUR_STRENGTH] ?: 1.0f).coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH),
+            drawerBlurStrength =(p[Keys.DRAWER_BLUR_STRENGTH] ?: 1.0f).coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH),
             themeAllIcons = p[Keys.THEME_ALL_ICONS] ?: false,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
@@ -459,6 +460,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setDrawerBlurStrength(value: Float) =
         edit { it[Keys.DRAWER_BLUR_STRENGTH] = value.coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH) }
 
+    /** ARGB colour of the app drawer's background; null brings the theme's own surface back. */
+    suspend fun setDrawerBackgroundColor(argb: Int?) = edit {
+        if (argb == null) it.remove(Keys.DRAWER_BACKGROUND_COLOR) else it[Keys.DRAWER_BACKGROUND_COLOR] = argb
+    }
+
     suspend fun setThemeAllIcons(value: Boolean) = edit { it[Keys.THEME_ALL_ICONS] = value }
     suspend fun setFolderColumns(value: Int) =
         edit { it[Keys.FOLDER_COLUMNS] = value.coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS) }
@@ -738,6 +744,7 @@ class SettingsRepository @Inject constructor(
         val COLLAPSED_SETTINGS_SECTIONS = stringPreferencesKey("collapsed_settings_sections")
         val BLUR_BEHIND_DRAWER = booleanPreferencesKey("blur_behind_drawer")
         val DRAWER_BLUR_STRENGTH = floatPreferencesKey("drawer_blur_strength")
+        val DRAWER_BACKGROUND_COLOR = intPreferencesKey("drawer_background_color")
         val THEME_ALL_ICONS = booleanPreferencesKey("theme_all_icons")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
@@ -808,7 +815,7 @@ class SettingsRepository @Inject constructor(
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",
-            "home_page", "home_page_count", "folder_columns",
+            "home_page", "home_page_count", "folder_columns", "drawer_background_color",
         )
 
         /** Known boolean/string preference keys. importRaw writes a known key ONLY with its

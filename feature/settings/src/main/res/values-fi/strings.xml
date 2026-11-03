@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Sovellukset, joilla ei ole omaa teemakuvaketta, saavat kuvakkeestaan yksivärisen siluetin teeman väreissä.</string>
     <string name="settings_dock_bg">Dockin taustan läpinäkyvyys</string>
     <string name="settings_drawer_bg">Sovellusvalikon taustan läpinäkyvyys</string>
+    <string name="settings_drawer_color">Sovellusvalikon taustaväri</string>
+    <string name="settings_color_theme">Teema</string>
     <string name="settings_page_indicator">Sivupisteet</string>
     <string name="settings_home_page_marker">Kotisivun merkki</string>
     <string name="settings_page_switch_speed">Sivunvaihdon nopeus</string>

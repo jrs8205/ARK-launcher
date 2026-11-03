@@ -37,6 +37,8 @@
     <string name="settings_theme_all_icons_desc">Kendi tema simgesi olmayan uygulamalar, simgelerinin tema renklerinde tek renkli bir siluetini alır.</string>
     <string name="settings_dock_bg">Dock arka plan opaklığı</string>
     <string name="settings_drawer_bg">Uygulama çekmecesi arka plan opaklığı</string>
+    <string name="settings_drawer_color">Uygulama çekmecesi arka plan rengi</string>
+    <string name="settings_color_theme">Tema</string>
     <string name="settings_page_indicator">Sayfa noktaları</string>
     <string name="settings_home_page_marker">Ana sayfa işareti</string>
     <string name="settings_page_switch_speed">Sayfa geçiş hızı</string>
