@@ -37,4 +37,20 @@ class DrawerEdgeTest {
         assertThat(drawerScrimAlpha(1f)).isEqualTo(DRAWER_SCRIM_MAX_ALPHA)
         assertThat(DRAWER_SCRIM_MAX_ALPHA).isAtMost(0.4f)
     }
+
+    /** A Telegram request: through a see-through drawer only the wallpaper should show, so home's icons
+     *  and widgets fade out over the first stretch of the rise and are gone well before the drawer is open. */
+    @Test fun homeContentFadesOutOverTheFirstStretchOfTheRise() {
+        assertThat(homeContentAlpha(0f)).isEqualTo(1f)
+        assertThat(homeContentAlpha(-0.1f)).isEqualTo(1f)
+        assertThat(homeContentAlpha(HOME_FADE_SPAN / 2)).isWithin(1e-5f).of(0.5f)
+        assertThat(homeContentAlpha(HOME_FADE_SPAN)).isEqualTo(0f)
+        assertThat(homeContentAlpha(0.8f)).isEqualTo(0f)
+        assertThat(homeContentAlpha(1f)).isEqualTo(0f)
+        assertThat(homeContentAlpha(1.2f)).isEqualTo(0f)
+        val samples = (0..20).map { homeContentAlpha(it / 20f) }
+        assertThat(samples).isInOrder(Comparator.reverseOrder<Float>())
+        assertThat(HOME_FADE_SPAN).isAtLeast(0.4f)
+        assertThat(HOME_FADE_SPAN).isAtMost(0.8f)
+    }
 }

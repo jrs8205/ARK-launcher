@@ -31,3 +31,12 @@ internal fun drawerShadowFraction(progress: Float): Float =
 /** How dark home is behind the drawer at [progress]: it dims as the drawer rises. */
 internal fun drawerScrimAlpha(progress: Float): Float =
     DRAWER_SCRIM_MAX_ALPHA * progress.coerceIn(0f, 1f)
+
+/** The first share of the rise over which home's icons and widgets fade out (a Telegram request: through
+ *  a see-through drawer only the wallpaper should show, not the home screen under it). */
+internal const val HOME_FADE_SPAN = 0.6f
+
+/** How visible home's content is at [progress]: whole while the drawer is parked, gone from
+ *  [HOME_FADE_SPAN] on, so an open drawer has only the wallpaper (blurred, if set) behind it. */
+internal fun homeContentAlpha(progress: Float): Float =
+    (1f - progress / HOME_FADE_SPAN).coerceIn(0f, 1f)

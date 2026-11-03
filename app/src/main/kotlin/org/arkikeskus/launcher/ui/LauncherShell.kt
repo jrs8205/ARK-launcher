@@ -6,6 +6,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -24,7 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -193,16 +194,26 @@ fun LauncherShell(
                     dragController = dragController,
                     showWidgetsFor = showWidgetsFor,
                     onShowWidgetsHandled = { showWidgetsFor = null },
-                    // Home dims as the drawer rises over it (DrawerEdge.kt); read at draw time only.
+                    // Home's icons and widgets fade out as the drawer rises (DrawerEdge.kt), so a see-through
+                    // drawer shows only the wallpaper behind it; read at draw time only. The layer's alpha
+                    // leaves pointer input alone: home's gestures keep working under it.
                     modifier = Modifier
                         .fillMaxSize()
-                        .drawWithContent {
-                            drawContent()
-                            val scrim = drawerScrimAlpha(currentProgress)
-                            if (scrim > 0f) drawRect(Color.Black.copy(alpha = scrim))
-                        },
+                        .graphicsLayer { alpha = homeContentAlpha(currentProgress) },
                 )
             }
+
+            // Home dims as the drawer rises over it (DrawerEdge.kt): a layer of its own, so the dim stays on
+            // the wallpaper once home's content has faded; read at draw time only. No pointer input, so
+            // touches pass through to home.
+            Spacer(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        val scrim = drawerScrimAlpha(currentProgress)
+                        if (scrim > 0f) drawRect(Color.Black.copy(alpha = scrim))
+                    },
+            )
 
             // Light system-bar glyphs on home get a soft dark gradient behind them (SystemBarContrast.kt).
             HomeTopScrim(
