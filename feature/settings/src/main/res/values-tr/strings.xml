@@ -28,6 +28,9 @@
     <string name="settings_section_collapsed">Daraltıldı</string>
     <string name="settings_blur_behind_drawer">Uygulama çekmecesinin arkasındaki duvar kağıdını bulanıklaştır</string>
     <string name="settings_blur_behind_drawer_desc">Çekmece yükseldikçe duvar kağıdı bulanıklaşır. Android 12 veya üzeri; pil tasarrufunda sistem bunu atlar.</string>
+    <string name="settings_blur_behind_drawer_needs_12">Android 12 veya üzeri gerekir; bu telefonda daha eski bir sürüm var.</string>
+    <string name="settings_blur_behind_drawer_unavailable">Bu telefon pencerelerin arkasını bulanıklaştırmıyor, bu yüzden ayar burada çalışamaz.</string>
+    <string name="settings_blur_strength">Bulanıklık gücü</string>
     <string name="settings_theme_all_icons">Tüm simgelere tema uygula</string>
     <string name="settings_theme_all_icons_desc">Kendi tema simgesi olmayan uygulamalar, simgelerinin tema renklerinde tek renkli bir siluetini alır.</string>
     <string name="settings_dock_bg">Dock arka plan opaklığı</string>

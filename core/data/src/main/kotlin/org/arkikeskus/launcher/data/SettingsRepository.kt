@@ -128,6 +128,7 @@ class SettingsRepository @Inject constructor(
             folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
             collapsedSettingsSections = parseSections(p[Keys.COLLAPSED_SETTINGS_SECTIONS]),
             blurBehindDrawer = p[Keys.BLUR_BEHIND_DRAWER] ?: false,
+            drawerBlurStrength = (p[Keys.DRAWER_BLUR_STRENGTH] ?: 1.0f).coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH),
             themeAllIcons = p[Keys.THEME_ALL_ICONS] ?: false,
             appLabelTextScale = (p[Keys.APP_LABEL_SCALE] ?: 1.0f).coerceIn(MIN_LABEL_SCALE, MAX_LABEL_SCALE),
             iconScale = (p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
@@ -453,6 +454,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setSortDrawerFolders(value: Boolean) = edit { it[Keys.SORT_DRAWER_FOLDERS] = value }
     suspend fun setMixDrawerFolders(value: Boolean) = edit { it[Keys.MIX_DRAWER_FOLDERS] = value }
     suspend fun setBlurBehindDrawer(value: Boolean) = edit { it[Keys.BLUR_BEHIND_DRAWER] = value }
+
+    /** Multiplier on the drawer blur's radius (clamped to the slider's range). */
+    suspend fun setDrawerBlurStrength(value: Float) =
+        edit { it[Keys.DRAWER_BLUR_STRENGTH] = value.coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH) }
+
     suspend fun setThemeAllIcons(value: Boolean) = edit { it[Keys.THEME_ALL_ICONS] = value }
     suspend fun setFolderColumns(value: Int) =
         edit { it[Keys.FOLDER_COLUMNS] = value.coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS) }
@@ -731,6 +737,7 @@ class SettingsRepository @Inject constructor(
         val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
         val COLLAPSED_SETTINGS_SECTIONS = stringPreferencesKey("collapsed_settings_sections")
         val BLUR_BEHIND_DRAWER = booleanPreferencesKey("blur_behind_drawer")
+        val DRAWER_BLUR_STRENGTH = floatPreferencesKey("drawer_blur_strength")
         val THEME_ALL_ICONS = booleanPreferencesKey("theme_all_icons")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
@@ -789,10 +796,14 @@ class SettingsRepository @Inject constructor(
         const val MIN_LONG_PRESS_SCALE = 0.5f
         const val MAX_LONG_PRESS_SCALE = 2.0f
 
+        /** Valid range for the drawer blur strength slider (a multiplier on the 0.9.9 blur radius). */
+        const val MIN_DRAWER_BLUR_STRENGTH = 0.25f
+        const val MAX_DRAWER_BLUR_STRENGTH = 2.0f
+
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf(
             "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "drawer_icon_scale",
-            "status_bar_scrim", "long_press_scale",
+            "status_bar_scrim", "long_press_scale", "drawer_blur_strength",
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",

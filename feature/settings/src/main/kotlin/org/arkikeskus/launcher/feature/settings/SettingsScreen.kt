@@ -284,12 +284,13 @@ fun SettingsScreen(
                     )
                     SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
                     DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
-                    SwitchRow(
-                        stringResource(R.string.settings_blur_behind_drawer),
-                        stringResource(R.string.settings_blur_behind_drawer_desc),
-                        s.blurBehindDrawer,
-                        viewModel::setBlurBehindDrawer,
-                    )
+                    // Greyed with the reason where the system cannot blur behind the window (Android 11, a
+                    // Fairphone 6 report), instead of a switch that silently does nothing.
+                    val blurAvailability = rememberBlurAvailability()
+                    BlurBehindDrawerRow(blurAvailability, s.blurBehindDrawer, viewModel::setBlurBehindDrawer)
+                    if (s.blurBehindDrawer && blurAvailability == BlurAvailability.AVAILABLE) {
+                        DrawerBlurStrengthRow(s.drawerBlurStrength, viewModel::setDrawerBlurStrength)
+                    }
                     DrawerIconSizeRow(s.drawerIconScale, viewModel::setDrawerIconScale)
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_hidden_apps),
@@ -1113,29 +1114,38 @@ private fun ContactsSearchToggle(enabled: Boolean, onSetEnabled: (Boolean) -> Un
 }
 
 @Composable
-private fun RowLabel(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier = modifier, color = LocalExpressivePalette.current.text, fontSize = 16.sp)
+private fun RowLabel(text: String, modifier: Modifier = Modifier, color: Color = LocalExpressivePalette.current.text) {
+    Text(text, modifier = modifier, color = color, fontSize = 16.sp)
 }
 
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) =
     SwitchRow(label, description = null, checked, onCheckedChange)
 
+/** A setting switch; [enabled] false greys the label and the switch, the description then says why. */
 @Composable
-internal fun SwitchRow(label: String, description: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun SwitchRow(
+    label: String,
+    description: String?,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
     val p = LocalExpressivePalette.current
+    val labelColor = if (enabled) p.text else p.dim
     ExpressiveCard {
         if (description == null) {
-            RowLabel(label, Modifier.weight(1f))
+            RowLabel(label, Modifier.weight(1f), color = labelColor)
         } else {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                RowLabel(label)
+                RowLabel(label, color = labelColor)
                 Text(description, color = p.dim, fontSize = 12.5.sp)
             }
         }
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedTrackColor = Accent,
                 checkedThumbColor = Color.White,
@@ -1250,6 +1260,37 @@ internal fun DrawerBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
         valueRange = 0f..1f,
         valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
         default = LauncherSettings.DEFAULT_DRAWER_BACKGROUND,
+    )
+}
+
+/** The wallpaper-blur switch, greyed with the reason where this device cannot blur behind its windows. */
+@Composable
+internal fun BlurBehindDrawerRow(availability: BlurAvailability, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    SwitchRow(
+        label = stringResource(R.string.settings_blur_behind_drawer),
+        description = stringResource(
+            when (availability) {
+                BlurAvailability.AVAILABLE -> R.string.settings_blur_behind_drawer_desc
+                BlurAvailability.NEEDS_ANDROID_12 -> R.string.settings_blur_behind_drawer_needs_12
+                BlurAvailability.DEVICE_CANNOT -> R.string.settings_blur_behind_drawer_unavailable
+            },
+        ),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        enabled = availability == BlurAvailability.AVAILABLE,
+    )
+}
+
+/** How strong the wallpaper blur behind the open drawer is, 25–200 % of the 0.9.9 blur (a Telegram request). */
+@Composable
+internal fun DrawerBlurStrengthRow(value: Float, onValueChange: (Float) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_blur_strength),
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = SettingsRepository.MIN_DRAWER_BLUR_STRENGTH..SettingsRepository.MAX_DRAWER_BLUR_STRENGTH,
+        valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
     )
 }
 

@@ -28,6 +28,9 @@
     <string name="settings_section_collapsed">Replié</string>
     <string name="settings_blur_behind_drawer">Flouter le fond d\'écran derrière la liste des applications</string>
     <string name="settings_blur_behind_drawer_desc">Le fond d\'écran se floute à mesure que la liste monte. Android 12 ou plus récent ; le système l\'ignore en économie de batterie.</string>
+    <string name="settings_blur_behind_drawer_needs_12">Nécessite Android 12 ou plus récent ; ce téléphone a une version plus ancienne.</string>
+    <string name="settings_blur_behind_drawer_unavailable">Ce téléphone ne floute pas derrière les fenêtres, le réglage ne peut donc pas fonctionner ici.</string>
+    <string name="settings_blur_strength">Intensité du flou</string>
     <string name="settings_theme_all_icons">Thémer toutes les icônes</string>
     <string name="settings_theme_all_icons_desc">Les applications sans icône thématique reçoivent une silhouette monochrome de leur icône aux couleurs du thème.</string>
     <string name="settings_dock_bg">Opacité du fond du dock</string>

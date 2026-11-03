@@ -28,6 +28,9 @@
     <string name="settings_section_collapsed">Collapsed</string>
     <string name="settings_blur_behind_drawer">Blur the wallpaper behind the app drawer</string>
     <string name="settings_blur_behind_drawer_desc">The wallpaper blurs as the drawer rises. Android 12 or newer; the system skips it in battery saver.</string>
+    <string name="settings_blur_behind_drawer_needs_12">Needs Android 12 or newer; this phone runs an older version.</string>
+    <string name="settings_blur_behind_drawer_unavailable">This phone does not blur behind windows, so the setting cannot work here.</string>
+    <string name="settings_blur_strength">Blur strength</string>
     <string name="settings_theme_all_icons">Theme every icon</string>
     <string name="settings_theme_all_icons_desc">Apps without a themed icon of their own get a one-colour silhouette of their icon in the theme\'s colours.</string>
     <string name="settings_dock_bg">Dock background opacity</string>

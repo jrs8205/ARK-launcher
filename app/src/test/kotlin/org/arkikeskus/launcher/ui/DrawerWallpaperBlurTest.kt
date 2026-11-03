@@ -31,4 +31,15 @@ class DrawerWallpaperBlurTest {
         assertThat(drawerBlurRadiusPx(1f, maxPx = 60, enabled = false)).isEqualTo(0)
         assertThat(drawerBlurRadiusPx(1f, maxPx = 60, enabled = true, supported = false)).isEqualTo(0)
     }
+
+    /** The strength slider (a Telegram request) scales the maximum: 100 % is the 0.9.9 blur, 50 % half of
+     *  it, 200 % twice, in whole pixels and never below one pixel for a non-zero strength. */
+    @Test fun theStrengthSettingScalesTheMaximum() {
+        assertThat(drawerBlurMaxPx(basePx = 60, strength = 1f)).isEqualTo(60)
+        assertThat(drawerBlurMaxPx(basePx = 60, strength = 0.5f)).isEqualTo(30)
+        assertThat(drawerBlurMaxPx(basePx = 60, strength = 2f)).isEqualTo(120)
+        assertThat(drawerBlurMaxPx(basePx = 63, strength = 0.25f)).isEqualTo(16)
+        assertThat(drawerBlurMaxPx(basePx = 1, strength = 0.25f)).isEqualTo(1)
+        assertThat(drawerBlurRadiusPx(1f, maxPx = drawerBlurMaxPx(60, 0.5f))).isEqualTo(30)
+    }
 }

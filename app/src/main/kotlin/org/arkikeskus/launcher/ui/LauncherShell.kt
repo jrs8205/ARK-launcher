@@ -71,7 +71,7 @@ fun LauncherShell(
     val shellViewModel = hiltViewModel<LauncherShellViewModel>()
     val iconStyle by shellViewModel.iconStyle.collectAsStateWithLifecycle()
     val longPressScale by shellViewModel.longPressScale.collectAsStateWithLifecycle()
-    val blurBehindDrawer by shellViewModel.blurBehindDrawer.collectAsStateWithLifecycle()
+    val drawerBlur by shellViewModel.drawerBlur.collectAsStateWithLifecycle()
     val statusBars by shellViewModel.statusBars.collectAsStateWithLifecycle()
     val headsUpActive by shellViewModel.headsUpActive.collectAsStateWithLifecycle()
     val wallpaperDarkText = rememberWallpaperSupportsDarkText()
@@ -174,7 +174,7 @@ fun LauncherShell(
         drawerOpacity = statusBars.drawerOpacity,
     )
     // The wallpaper behind the window softens as the drawer rises (opt-in, Android 12 and newer).
-    DrawerWallpaperBlur(enabled = blurBehindDrawer, progress = { currentProgress })
+    DrawerWallpaperBlur(enabled = drawerBlur.enabled, strength = drawerBlur.strength, progress = { currentProgress })
 
     LongPressDelay(longPressScale) {
         Box(

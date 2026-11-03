@@ -103,7 +103,8 @@ the app: **Settings ▸ Feedback**.
   that opens the folder's first app.
 - **Customizable look** — adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
-  drawer opacity, an optional **wallpaper blur** behind the rising app drawer (Android 12+), widget
+  drawer opacity, an optional **wallpaper blur** behind the rising app drawer (Android 12+, with a
+  strength slider; the home screen fades out under a see-through drawer so only the wallpaper shows), widget
   edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder
   columns**, page indicator, and more. App drawer folders can lead the list or sit among the apps
   A–Z, and every settings section folds under its title.

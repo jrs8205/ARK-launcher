@@ -66,8 +66,11 @@ class LauncherShellViewModel @Inject constructor(
         .map { it.longPressScale }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1f)
 
-    /** The wallpaper blurs behind the rising drawer (Settings > App drawer, opt-in). */
-    val blurBehindDrawer: StateFlow<Boolean> = settingsRepository.settings
-        .map { it.blurBehindDrawer }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    /** The wallpaper blurs behind the rising drawer (Settings > App drawer, opt-in), at the chosen strength. */
+    val drawerBlur: StateFlow<DrawerBlur> = settingsRepository.settings
+        .map { DrawerBlur(enabled = it.blurBehindDrawer, strength = it.drawerBlurStrength) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DrawerBlur())
 }
+
+/** The wallpaper blur behind the rising drawer: on or off, and its radius as a multiple of the 0.9.9 blur. */
+data class DrawerBlur(val enabled: Boolean = false, val strength: Float = 1f)

@@ -28,6 +28,9 @@
     <string name="settings_section_collapsed">Zwinięte</string>
     <string name="settings_blur_behind_drawer">Rozmyj tapetę za szufladą aplikacji</string>
     <string name="settings_blur_behind_drawer_desc">Tapeta rozmywa się, gdy szuflada się unosi. Android 12 lub nowszy; w trybie oszczędzania baterii system to pomija.</string>
+    <string name="settings_blur_behind_drawer_needs_12">Wymaga Androida 12 lub nowszego; ten telefon ma starszą wersję.</string>
+    <string name="settings_blur_behind_drawer_unavailable">Ten telefon nie rozmywa tła za oknami, więc to ustawienie nie może tu działać.</string>
+    <string name="settings_blur_strength">Siła rozmycia</string>
     <string name="settings_theme_all_icons">Motyw dla wszystkich ikon</string>
     <string name="settings_theme_all_icons_desc">Aplikacje bez własnej ikony motywu dostają jednokolorową sylwetkę swojej ikony w kolorach motywu.</string>
     <string name="settings_dock_bg">Krycie tła Docka</string>

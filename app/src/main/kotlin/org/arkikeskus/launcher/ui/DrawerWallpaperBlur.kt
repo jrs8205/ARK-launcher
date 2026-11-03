@@ -12,8 +12,12 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.roundToInt
 
-/** The blur at a fully open drawer. */
+/** The blur at a fully open drawer and 100 % strength (the 0.9.9 blur). */
 internal val DRAWER_BLUR_MAX = 24.dp
+
+/** [basePx] scaled by the strength setting (Settings > App drawer), in whole pixels and at least one. */
+internal fun drawerBlurMaxPx(basePx: Int, strength: Float): Int =
+    (basePx * strength).roundToInt().coerceAtLeast(1)
 
 /**
  * The window's background blur radius for the drawer at [progress] (0 closed, 1 open): nothing while
@@ -35,11 +39,11 @@ internal fun drawerBlurRadiusPx(progress: Float, maxPx: Int, enabled: Boolean = 
  * radius is set on every change and cleared when the shell goes.
  */
 @Composable
-internal fun DrawerWallpaperBlur(enabled: Boolean, progress: () -> Float) {
+internal fun DrawerWallpaperBlur(enabled: Boolean, strength: Float, progress: () -> Float) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window } ?: return
-    val maxPx = with(LocalDensity.current) { DRAWER_BLUR_MAX.roundToPx() }
+    val maxPx = with(LocalDensity.current) { drawerBlurMaxPx(DRAWER_BLUR_MAX.roundToPx(), strength) }
     LaunchedEffect(window, enabled, maxPx) {
         snapshotFlow { drawerBlurRadiusPx(progress(), maxPx, enabled) }
             .distinctUntilChanged()

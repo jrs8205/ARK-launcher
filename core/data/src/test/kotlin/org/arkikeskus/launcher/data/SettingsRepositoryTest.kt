@@ -742,6 +742,25 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `drawer blur strength clamps on write and read, survives a backup round-trip and rejects a wrong type`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().drawerBlurStrength).isEqualTo(1.0f)
+        repo.setDrawerBlurStrength(5f)
+        assertThat(repo.settings.first().drawerBlurStrength).isEqualTo(2.0f) // clamped on write
+        repo.setDrawerBlurStrength(0.5f)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_blur_strength", 0.5f)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(0.5f)
+        restored.importRaw(mapOf("drawer_blur_strength" to 0.1))
+        assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(0.25f) // out of range: clamped on read
+        restored.importRaw(mapOf("drawer_blur_strength" to "strong"))
+        assertThat(restored.settings.first().drawerBlurStrength).isEqualTo(1.0f) // wrong type dropped: the default
+    }
+
+    @Test
     fun `long-press scale clamps on write and read, survives a backup round-trip and rejects a wrong type`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().longPressScale).isEqualTo(1.0f)
