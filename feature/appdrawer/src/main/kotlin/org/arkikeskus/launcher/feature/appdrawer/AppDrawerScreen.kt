@@ -920,8 +920,10 @@ private fun DrawerFolderCard(
     val width = with(LocalDensity.current) { minOf(FOLDER_CARD_WIDTH, windowSize.width.toDp() - 16.dp) }
     // The grid's rule: the icon shrinks to its cell when the icon-size setting would overflow it.
     val iconSize = iconSizeForCell((width - 16.dp) / columns, 56.dp * LocalIconScale.current)
+    // The drawer's palette (the user's colour) for the card AND its texts: the popup is its own window, where the
+    // system palette would otherwise paint a light card under this palette's light text (round 11).
     val palette = LocalExpressivePalette.current
-    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width) {
+    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width, palette = palette) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

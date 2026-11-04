@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +64,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressiveTheme
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -228,6 +230,9 @@ fun AnchoredPopupCard(
     showCaret: Boolean = true,
     blockTouches: Boolean = false,
     width: Dp = CARD_WIDTH,
+    /** The palette the card and its content take: the caller's own (the drawer's, following the user's colour) --
+     *  the popup is its own window, so the caller's ambient palette does not reach it by itself; null = the system's. */
+    palette: ExpressivePalette? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val windowWidthPx = LocalWindowInfo.current.containerSize.width.toFloat()
@@ -240,8 +245,14 @@ fun AnchoredPopupCard(
         // = PopupProperties(focusable = true), plus split touch.
         properties = PopupProperties(flags = FLAG_WATCH_OUTSIDE_TOUCH or FLAG_SPLIT_TOUCH),
     ) {
-        ExpressiveTheme {
-            PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, width, content)
+        if (palette != null) {
+            CompositionLocalProvider(LocalExpressivePalette provides palette) {
+                PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, width, content)
+            }
+        } else {
+            ExpressiveTheme {
+                PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, width, content)
+            }
         }
     }
 }

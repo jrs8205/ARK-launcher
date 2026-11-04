@@ -65,8 +65,16 @@ internal fun drawerColorScheme(base: ColorScheme, background: Color?, textIsDark
     fun tint(alpha: Float) = tintWith(ladder, alpha)
     // The secondary text (dialog bodies, descriptions) must read on every container: pushed toward the text until it
     // does on the one nearest the text -- the strongest container when they lean toward it, the surface when away.
-    val onSurfaceVariant = readableOn(tintWith(onBackground, 0.72f), if (away) surface else towardHighest, onBackground)
+    val nearest = if (away) surface else towardHighest
+    val onSurfaceVariant = readableOn(tintWith(onBackground, 0.72f), nearest, onBackground)
+    // The primary (the dialogs' text buttons, the focused field, the checkboxes) likewise, on a chosen colour: the
+    // light theme's #1B53C0 read 1.2:1 on purple's dialog, the dark theme's #B0C6FF 1.3:1 on white's. Its on-colour
+    // follows it by contrast (a primary pushed to pale takes black). The theme's own surface keeps the theme's primary.
+    val primary = if (background != null) readableOn(base.primary, nearest, onBackground) else base.primary
+    val onPrimary = if (background != null) (if (darkReadsBetter(primary.luminance())) Color.Black else Color.White) else base.onPrimary
     return base.copy(
+        primary = primary,
+        onPrimary = onPrimary,
         background = surface,
         onBackground = onBackground,
         surface = surface,

@@ -190,13 +190,16 @@ class DrawerColorSchemeTest {
      *  so on purple #AB47BC a dialog's body (onSurfaceVariant #E7CBEC on surfaceContainerHigh #B55DC4) read 2.7:1. Now
      *  the containers take the tone that carries the text -- toward it unless the strongest container would leave the
      *  text under 4.5:1, then away (purple's dialogs darken, red's lighten) -- and the secondary text is pushed toward
-     *  the text until it reads on the container nearest the text. Every offered swatch, every container. */
+     *  the text until it reads on the container nearest the text. Every offered swatch, every container. Round 11: the
+     *  PRIMARY (the dialogs' text buttons, the focused field, the checkboxes) stayed the theme's -- the light theme's
+     *  #1B53C0 read 1.2:1 on purple's dialog, the dark theme's #B0C6FF 1.3:1 on white's -- so it is pushed toward the
+     *  text like the secondary text, with its own on-colour by contrast; and both system themes are covered. */
     @Test fun theMaterialSchemeReadsOnEveryOfferedSwatch() {
         val swatches = listOf(0xFFFFFFFF, 0xFF000000, 0xFFBDBDBD, 0xFFEF5350, 0xFFFFA726, 0xFFFFEE58, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC)
-        for (argb in swatches) {
+        for (base in listOf(lightTheme, darkTheme)) for (argb in swatches) {
             val colour = Color(argb)
-            val s = opaqueDrawerColorScheme(lightTheme, colour)
-            val name = "swatch %06X".format(argb and 0xFFFFFF)
+            val s = opaqueDrawerColorScheme(base, colour)
+            val name = "swatch %06X on the %s theme".format(argb and 0xFFFFFF, if (base === lightTheme) "light" else "dark")
             val containers = mapOf(
                 "surface" to s.surface, "surfaceVariant" to s.surfaceVariant, "low" to s.surfaceContainerLow,
                 "container" to s.surfaceContainer, "high" to s.surfaceContainerHigh, "highest" to s.surfaceContainerHighest,
@@ -204,7 +207,9 @@ class DrawerColorSchemeTest {
             for ((slot, container) in containers) {
                 assertWithMessage("$name onSurface on $slot").that(contrast(s.onSurface, container)).isAtLeast(4.5f)
                 assertWithMessage("$name onSurfaceVariant on $slot").that(contrast(s.onSurfaceVariant, container)).isAtLeast(4.5f)
+                assertWithMessage("$name primary on $slot").that(contrast(s.primary, container)).isAtLeast(4.5f)
             }
+            assertWithMessage("$name onPrimary on primary").that(contrast(s.onPrimary, s.primary)).isAtLeast(4.5f)
             assertWithMessage("$name dialog distinct").that(contrast(s.surfaceContainerHigh, s.surface)).isAtLeast(1.1f)
             assertWithMessage("$name family").that(s.onSurface).isEqualTo(if (drawerTextIsDark(colour, 1f, 0f)) Color.Black else Color.White)
         }
@@ -214,11 +219,16 @@ class DrawerColorSchemeTest {
         assertThat(opaqueDrawerColorScheme(lightTheme, purple).surfaceContainerHigh.luminance()).isLessThan(purple.luminance())
     }
 
-    /** The accent slots stay the theme's: the Personal/Work tabs and the folder editor keep their colours. */
-    @Test fun theAccentsStayTheThemes() {
-        val scheme = drawerColorScheme(lightTheme, Color(0xFF42A5F5), textIsDark = false)
-        assertThat(scheme.primary).isEqualTo(lightTheme.primary)
+    /** The theme's secondary and error slots stay (the Personal/Work tabs, errors); the PRIMARY follows the colour
+     *  since round 11 (the light theme's #1B53C0 read 1.2:1 on purple's dialog) -- and stays the theme's own when no
+     *  colour is chosen. */
+    @Test fun theSecondaryAndErrorSlotsStayTheThemesThePrimaryReads() {
+        val scheme = drawerColorScheme(lightTheme, Color(0xFF42A5F5), textIsDark = true)
         assertThat(scheme.secondaryContainer).isEqualTo(lightTheme.secondaryContainer)
         assertThat(scheme.error).isEqualTo(lightTheme.error)
+        assertThat(contrast(scheme.primary, scheme.surfaceContainerHigh)).isAtLeast(4.5f)
+        assertThat(contrast(scheme.onPrimary, scheme.primary)).isAtLeast(4.5f)
+        assertThat(drawerColorScheme(lightTheme, null, textIsDark = false).primary).isEqualTo(lightTheme.primary)
+        assertThat(opaqueDrawerColorScheme(darkTheme, null).primary).isEqualTo(darkTheme.primary)
     }
 }
