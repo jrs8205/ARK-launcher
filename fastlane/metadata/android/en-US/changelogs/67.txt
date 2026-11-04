@@ -1,0 +1,9 @@
+New
+- A font for everything the launcher draws (six families Android ships).
+- App drawer background colour, or none at all; the text turns black or white to match.
+- A picture of your own behind the app drawer, with a dim for legibility.
+- A strength slider for the drawer's wallpaper blur; home fades out under a see-through drawer.
+- Swipe up from the dock to open the app drawer.
+
+Fixed
+- Text, cards, dialogs and the system bars' glyphs read on every drawer colour and picture.

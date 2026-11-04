@@ -75,6 +75,7 @@ the app: **Settings ▸ Feedback**.
   page, across pages, and between the home grid and the dock. Drag an app from the drawer straight
   onto any page.
 - **Dock** of favorite apps and folders (reorder, drag in/out; drop an app onto a dock app to make a folder).
+- **Swipe up from the dock** to open the app drawer, as from anywhere on the home screen.
 - **App drawer with universal search** — one search box finds:
   - installed **apps**,
   - common **system settings** pages (type "wifi", "battery", …),
