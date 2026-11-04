@@ -367,14 +367,15 @@ fun AppDrawerScreen(
         )
     }
 
-    renameTarget?.let { app ->
+    // A window of its own, opaque: the text its surface calls for, not the see-through drawer's (OpaqueDrawerSurface).
+    renameTarget?.let { app -> OpaqueDrawerSurface {
         EditAppDialog(
             app = app,
             onSave = { name, icon -> viewModel.editApp(app, name, icon) },
             onReset = { viewModel.resetApp(app) },
             onDismiss = { renameTarget = null },
         )
-    }
+    } }
 
     // Close the folder's card/editor if its folder was deleted (or all members removed and it's gone).
     LaunchedEffect(editFolderId, folderCard, uiState.folders) {
@@ -1179,7 +1180,7 @@ private fun AddAppsDialog(apps: List<AppItem>, onConfirm: (List<String>) -> Unit
  *  the drawer columns (left-aligned), so the row tracks the icon-count setting. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FrequentAppsCard(
+internal fun FrequentAppsCard(
     apps: List<AppItem>,
     columns: Int,
     badges: Map<String, Int>,
@@ -1210,9 +1211,10 @@ private fun FrequentAppsCard(
             Row(modifier = Modifier.fillMaxWidth()) {
                 apps.forEach { app ->
                     var bounds by remember(app.key) { mutableStateOf(Rect.Zero) }
+                    // On the card's own solid surface: the palette's text, not the see-through drawer's.
                     AppIcon(
                         appItem = app,
-                        labelColor = MaterialTheme.colorScheme.onSurface,
+                        labelColor = p.text,
                         showLabel = showLabels,
                         iconSize = iconSize,
                         badgeCount = badges[app.badgeKey] ?: 0,

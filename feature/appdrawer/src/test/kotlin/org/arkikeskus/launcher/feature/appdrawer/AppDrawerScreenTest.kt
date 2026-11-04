@@ -18,7 +18,11 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -477,6 +481,31 @@ class AppDrawerScreenTest {
         settle()
 
         compose.onNodeWithText(editTitle()).assertDoesNotExist()
+    }
+
+    /** The drawer's own windows are opaque: over a dark picture the see-through drawer's labels turn white, but the
+     *  Edit dialog, a light surface in this light theme, keeps dark text. */
+    @Test fun theEditDialogKeepsItsOwnTextOverADarkPicture() {
+        showWithApp()
+        val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
+        runBlocking { wiring.drawerWallpaper.set(dark) }
+        awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
+        settle()
+        assertThat(textColorOf(mailApp).luminance()).isGreaterThan(0.5f)
+
+        holdIcon()
+        compose.onNodeWithText(context.getString(R.string.rename)).performClick()
+        settle()
+
+        assertThat(textColorOf(editTitle()).luminance()).isLessThan(0.5f)
+    }
+
+    /** The colour a text is laid out with (its Text's colour merged into its style). */
+    private fun textColorOf(text: String): Color {
+        val node = compose.onAllNodesWithText(text, useUnmergedTree = true).onFirst().fetchSemanticsNode()
+        val results = mutableListOf<TextLayoutResult>()
+        node.config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results)
+        return results.single().layoutInput.style.color
     }
 
     @Test fun aClosingDrawerOpensNoAppMenu() {
