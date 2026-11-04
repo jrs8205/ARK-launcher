@@ -178,6 +178,37 @@ class DrawerWallpaperStoreTest {
         assertThat(DrawerWallpaperStore(context).current.value!!.luminance).isWithin(0.01f).of(0f)
     }
 
+    /** A crash between a pick's rename and the deletion of the picture it replaced leaves two published pictures: the
+     *  next start shows the newest and sweeps the other, so nothing older can come back later. */
+    @Test fun aReplacedPictureLeftBehindByACrashIsSweptAtTheNextStart() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.BLACK))
+        val published = store.current.value!!
+        val leftover = File(dir, "leftover-0.900.jpg").apply { writeBytes(ByteArray(10)) }
+        leftover.setLastModified(published.file.lastModified() - 60_000)
+
+        val next = DrawerWallpaperStore(context)
+
+        assertThat(next.current.value).isEqualTo(published)
+        assertThat(leftover.exists()).isFalse()
+        assertThat(jpgs()).containsExactly(published.file)
+    }
+
+    /** The owner's review: with two published pictures on disk (a crash's leftover beside the current one) a removal
+     *  must leave nothing for the next start to bring back. */
+    @Test fun aRemovalWithTwoPublishedPicturesOnDiskLeavesNothingToComeBack() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.BLACK))
+        val leftover = File(dir, "leftover-0.900.jpg").apply { writeBytes(ByteArray(10)) }
+        leftover.setLastModified(store.current.value!!.file.lastModified() - 60_000)
+
+        store.clear()
+
+        assertThat(store.current.value).isNull()
+        assertThat(jpgs()).isEmpty()
+        assertThat(DrawerWallpaperStore(context).current.value).isNull()
+    }
+
     /** Runs what is dispatched to it in reverse order, on the caller's thread, when asked. */
     private class LastInFirstOutDispatcher : CoroutineDispatcher() {
         private val queue = ArrayDeque<Runnable>()

@@ -80,17 +80,19 @@ class DrawerWallpaperStore internal constructor(
         return withContext(io) { save(picture, ticket) }
     }
 
-    /** Removes the picture; the drawer shows the system wallpaper through again. A removal the pool runs only after
-     *  a pick issued later stands down: that pick is the user's last action, and it clears the old file itself. */
+    /** Removes the picture; the drawer shows the system wallpaper through again. Every published picture on disk goes,
+     *  not only the current one: a crash between a pick's rename and the deletion of the picture it replaced leaves two,
+     *  and the next start would otherwise bring the older one back after the removal. A removal the pool runs only
+     *  after a pick issued later stands down: that pick is the user's last action, and it clears the old file itself. */
     suspend fun clear() {
         val ticket = latest.incrementAndGet()
         withContext(io) {
-            val old = synchronized(publishLock) {
+            synchronized(publishLock) {
                 if (ticket != latest.get()) return@withContext
                 File(dir, LEGACY_LUMINANCE_FILE).delete()
-                _current.value.also { _current.value = null }
+                _current.value = null
+                publishedPictures().forEach { it.delete() }
             }
-            old?.file?.delete()
         }
     }
 
@@ -132,16 +134,23 @@ class DrawerWallpaperStore internal constructor(
         return true
     }
 
-    /** The newest published picture with the lightness in its name; part-files of saves the process did not live to
-     *  publish are swept here. A picture an older build saved (no lightness in its name) reads the shared file it wrote. */
+    /** The newest published picture with the lightness in its name. Swept here: part-files of saves the process did
+     *  not live to publish, and any older published picture a crash left beside the newest (between a pick's rename
+     *  and the deletion of the picture it replaced), so a later removal has nothing to leave behind. A picture an
+     *  older build saved (no lightness in its name) reads the shared file it wrote. */
     private fun load(): DrawerWallpaper? {
         val files = dir.listFiles()?.filter { it.isFile } ?: return null
         files.filter { it.name.endsWith(PART_SUFFIX) }.forEach { it.delete() }
-        val file = files.filter { it.extension == "jpg" }.maxByOrNull { it.lastModified() } ?: return null
+        val pictures = files.filter { it.extension == "jpg" }.sortedByDescending { it.lastModified() }
+        val file = pictures.firstOrNull() ?: return null
+        pictures.drop(1).forEach { it.delete() }
         val luminance = luminanceInName(file.name)
             ?: runCatching { File(dir, LEGACY_LUMINANCE_FILE).readText().trim().toFloat() }.getOrDefault(0f)
         return DrawerWallpaper(file, luminance.coerceIn(0f, 1f))
     }
+
+    /** Every published picture on disk: the current one and, after a crash, the one it replaced. */
+    private fun publishedPictures(): List<File> = dir.listFiles()?.filter { it.isFile && it.extension == "jpg" }.orEmpty()
 
     /** The picture at [uri] upright (ImageDecoder reads the EXIF orientation) and within
      *  [DRAWER_WALLPAPER_MAX_SIDE]; BitmapFactory where ImageDecoder cannot decode. */
