@@ -43,6 +43,20 @@ class DrawerColorSchemeTest {
         assertThat(drawerColorScheme(darkTheme, null, textIsDark = false)).isSameInstanceAs(darkTheme)
     }
 
+    /** The drawer's OPAQUE surfaces (the folder editor sheet, the add-apps dialog) sit on their own solid colour, so
+     *  their text follows that colour alone: a light theme's sheet keeps dark text even while the see-through drawer
+     *  around it, over a dark picture, has turned its text white (and the other way round for a dark theme). */
+    @Test fun theOpaqueSurfacesKeepTheirOwnText() {
+        assertThat(opaqueDrawerColorScheme(lightTheme, null)).isSameInstanceAs(lightTheme)
+        assertThat(opaqueDrawerColorScheme(darkTheme, null)).isSameInstanceAs(darkTheme)
+        val onYellow = opaqueDrawerColorScheme(darkTheme, yellow)
+        assertThat(onYellow.surface).isEqualTo(yellow)
+        assertThat(onYellow.onSurface).isEqualTo(Color.Black)
+        val onNavy = opaqueDrawerColorScheme(lightTheme, navy)
+        assertThat(onNavy.surface).isEqualTo(navy)
+        assertThat(onNavy.onSurface).isEqualTo(Color.White)
+    }
+
     /** A light theme's see-through drawer over a dark wallpaper: no colour chosen, but the text must turn light. */
     @Test fun noColourButTheWrongTextFlipsTheThemesText() {
         val scheme = drawerColorScheme(lightTheme, null, textIsDark = false)

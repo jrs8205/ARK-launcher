@@ -2,8 +2,10 @@ package org.arkikeskus.launcher.feature.appdrawer
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
@@ -58,6 +60,25 @@ internal fun drawerColorScheme(base: ColorScheme, background: Color?, textIsDark
         outline = tint(0.5f),
         outlineVariant = tint(0.2f),
     )
+}
+
+/**
+ * The scheme for the drawer's OPAQUE surfaces (the folder editor sheet, the add-apps dialog): they sit on their own
+ * solid colour -- the user's [background] or the theme's surface -- so that colour alone decides their text, never
+ * what shows through the see-through drawer around them (a light theme's sheet keeps dark text while the drawer's
+ * labels, over a dark picture, have turned white).
+ */
+internal fun opaqueDrawerColorScheme(base: ColorScheme, background: Color?): ColorScheme =
+    drawerColorScheme(base, background, drawerTextIsDark(background ?: base.surface, opacity = 1f, behindLuminance = 0f))
+
+/** [opaqueDrawerColorScheme] for the drawer's own windows ([OpaqueDrawerSurface]); null outside the drawer. */
+internal val LocalDrawerOpaqueColors = staticCompositionLocalOf<ColorScheme?> { null }
+
+/** Wraps an opaque surface of the drawer in the scheme its own colour calls for ([LocalDrawerOpaqueColors]) instead of
+ *  the see-through drawer's, whose text may have flipped for what shows through it. */
+@Composable
+internal fun OpaqueDrawerSurface(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = LocalDrawerOpaqueColors.current ?: MaterialTheme.colorScheme, content = content)
 }
 
 /**

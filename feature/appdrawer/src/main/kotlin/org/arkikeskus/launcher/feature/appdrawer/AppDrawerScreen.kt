@@ -261,7 +261,8 @@ fun AppDrawerScreen(
     ) {
     // What the drawer paints over what is behind it (DrawerSurface.kt): the user's colour at its opacity, nothing for
     // "Transparent", or a black dim over the user's own picture; its text black or white to match what the drawer
-    // really looks like, and its chips and fields on the user's colour (DrawerColors.kt).
+    // really looks like, and its chips and fields on the user's colour (DrawerColors.kt). The drawer's own windows
+    // (the folder editor sheet, the add-apps dialog) are opaque and keep the text their solid colour calls for.
     val surface = drawerSurface(uiState.backgroundColor, uiState.backgroundOpacity, uiState.wallpaper != null, uiState.pictureDim)
     val drawerBackground = surface.tint?.let { Color(it) }
     val textIsDark = drawerTextIsDark(
@@ -269,8 +270,10 @@ fun AppDrawerScreen(
         surface.opacity,
         uiState.wallpaper?.luminance ?: behindLuminance,
     )
+    val opaqueColors = opaqueDrawerColorScheme(MaterialTheme.colorScheme, drawerBackground)
     MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, drawerBackground, textIsDark)) {
     DrawerExpressiveTheme(drawerBackground) {
+    CompositionLocalProvider(LocalDrawerOpaqueColors provides opaqueColors) {
     AppDrawerContent(
         apps = uiState.apps,
         surfacePaint = surface.paint?.let { Color(it) },
@@ -393,7 +396,7 @@ fun AppDrawerScreen(
         )
     }
     val openFolder = editFolderId?.let { id -> uiState.folders.firstOrNull { it.id == id } }
-    if (openFolder != null) {
+    if (openFolder != null) OpaqueDrawerSurface {
         DrawerFolderSheet(
             folder = openFolder,
             candidateApps = uiState.folderCandidates,
@@ -420,6 +423,7 @@ fun AppDrawerScreen(
             },
             onDismiss = { editFolderId = null },
         )
+    }
     }
     }
     }
@@ -1090,7 +1094,7 @@ private fun DrawerFolderSheet(
             },
         )
     }
-    if (showAdd) {
+    if (showAdd) OpaqueDrawerSurface {
         AddAppsDialog(
             apps = candidateApps,
             onConfirm = {
