@@ -32,10 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.model.DrawerSurface
 
 /**
@@ -285,8 +287,9 @@ internal fun SystemBarContrast(
     wallpaperDarkText: State<Boolean>,
     /** What the app drawer paints over what is behind it, and how much of it shows ([drawerSurfaceIsLight]). */
     drawerSurface: DrawerSurface = DrawerSurface(tint = null, paint = null, opacity = 1f),
-    /** The mean lightness of the user's own picture behind the drawer, or null without one ([behindDrawerLuminance]). */
-    drawerPictureLuminance: Float? = null,
+    /** The user's own picture behind the drawer, or null without one: the lightness of the window's crop of it is what
+     *  shows through ([behindDrawerLuminance]). */
+    drawerPicture: DrawerWallpaper? = null,
 ) {
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window } ?: return
@@ -296,7 +299,11 @@ internal fun SystemBarContrast(
     val themeSurface = MaterialTheme.colorScheme.surface
     val surfaceColor = rememberUpdatedState(drawerSurfaceColor(drawerSurface.paint, themeSurface))
     val currentDrawerOpacity = rememberUpdatedState(drawerSurface.opacity)
-    val currentPicture = rememberUpdatedState(drawerPictureLuminance)
+    // The drawer shows the picture's centre at the window's aspect (ContentScale.Crop): that part's lightness, not
+    // the whole picture's -- a wide picture with a black middle is black on a tall phone.
+    val windowSize = LocalWindowInfo.current.containerSize
+    val windowAspect = if (windowSize.height > 0) windowSize.width.toFloat() / windowSize.height else 0f
+    val currentPicture = rememberUpdatedState(drawerPicture?.luminanceFor(windowAspect))
     val currentOwnBarShown = rememberUpdatedState(ownBarShown)
     val currentSystemBarHidden = rememberUpdatedState(systemBarHidden)
     val currentScrim = rememberUpdatedState(scrimOpacity)

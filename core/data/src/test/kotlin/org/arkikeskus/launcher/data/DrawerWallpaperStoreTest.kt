@@ -16,6 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import kotlin.coroutines.CoroutineContext
 
@@ -26,6 +27,7 @@ import kotlin.coroutines.CoroutineContext
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE) // the JPEG round trip: the legacy shadows keep no pixels across compress + decode
 class DrawerWallpaperStoreTest {
     private val context: Application = RuntimeEnvironment.getApplication()
     private val dir = File(context.filesDir, "drawer_wallpaper")
@@ -45,6 +47,61 @@ class DrawerWallpaperStoreTest {
         assertThat(sampleSizeFor(4000, 3000, 1600)).isEqualTo(3)
         assertThat(sampleSizeFor(3000, 4000, 1600)).isEqualTo(3)
         assertThat(sampleSizeFor(0, 0, 1600)).isEqualTo(1)
+    }
+
+    /** Round 12: the drawer shows the picture's CENTRE at the window's aspect (ContentScale.Crop), so the lightness that
+     *  picks the text and the glyphs must be the shown part's. A 1600 x 900 picture, black in its middle 800 columns and
+     *  white at the sides, is 0.5 all over -- but black on a 9:20 phone, where the whole picture's mean put dark text
+     *  and dark glyphs on black. The grid is 32 x 32 cells of the picture; a view takes the centre cells at its aspect. */
+    @Test fun theLightnessFollowsTheShownCrop() {
+        val side = PictureLightness.SIDE
+        val wide = PictureLightness(1600, 900, FloatArray(side * side) { i -> if (i % side in 8 until 24) 0f else 1f })
+        assertThat(wide.mean).isWithin(0.001f).of(0.5f)
+        assertThat(wide.shown(9f / 20f)).isWithin(0.001f).of(0f) // a tall phone: 8 of 32 columns, all black
+        assertThat(wide.shown(16f / 9f)).isWithin(0.001f).of(0.5f) // the picture's own aspect: all of it
+        assertThat(wide.shown(1f)).isWithin(0.001f).of(2f / 18f) // square: 18 columns, two of them white
+        assertThat(wide.shown(0f)).isWithin(0.001f).of(0.5f) // no view yet: the whole picture
+        assertThat(wide.shown(Float.NaN)).isWithin(0.001f).of(0.5f)
+        // A tall picture on a squarer view loses its top and bottom instead: the top quarter black, the rest white.
+        val tall = PictureLightness(900, 1600, FloatArray(side * side) { i -> if (i / side < 8) 0f else 1f })
+        assertThat(tall.mean).isWithin(0.001f).of(0.75f)
+        assertThat(tall.shown(1f)).isWithin(0.001f).of(17f / 18f) // rows 7..24: one black row of 18
+        assertThat(tall.shown(0.45f)).isWithin(0.001f).of(0.75f) // a view taller than the picture: the sides go, every row stays
+    }
+
+    /** The grid from a picture's pixels: each cell the mean of its own patch, sampled, so a save stays cheap. */
+    @Test fun theGridIsBuiltFromThePicturesOwnPatches() {
+        val width = 160
+        val height = 90
+        val pixels = IntArray(width * height) { i -> if (i % width in 40 until 120) Color.BLACK else Color.WHITE }
+        val lightness = pictureLightness(pixels, width, height)
+        assertThat(lightness.width).isEqualTo(width)
+        assertThat(lightness.height).isEqualTo(height)
+        assertThat(lightness.mean).isWithin(0.01f).of(0.5f)
+        assertThat(lightness.shown(9f / 20f)).isWithin(0.01f).of(0f)
+        assertThat(lightness.cells[0]).isWithin(0.001f).of(1f)
+        assertThat(lightness.cells[PictureLightness.SIDE / 2]).isWithin(0.001f).of(0f)
+    }
+
+    /** The store: a saved picture answers for its shown crop at once, and so does the picture a fresh store loads
+     *  (from a small decode of the file); the whole picture's mean stays the lightness the file's name carries. */
+    @Test fun aSavedPictureAnswersForItsShownCropAlsoAfterARestart() = runTest {
+        val width = 1600
+        val height = 900
+        val picture = createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+            setPixels(IntArray(width * height) { i -> if (i % width in 400 until 1200) Color.BLACK else Color.WHITE }, 0, width, 0, 0, width, height)
+        }
+        val store = DrawerWallpaperStore(context)
+        store.set(picture)
+        val saved = store.current.value!!
+        assertThat(saved.luminance).isWithin(0.05f).of(0.5f)
+        assertThat(saved.luminanceFor(9f / 20f)).isLessThan(0.05f)
+        assertThat(saved.luminanceFor(16f / 9f)).isWithin(0.05f).of(0.5f)
+
+        val loaded = DrawerWallpaperStore(context).current.value!!
+        assertThat(loaded).isEqualTo(saved)
+        assertThat(loaded.luminanceFor(9f / 20f)).isLessThan(0.1f)
+        assertThat(loaded.luminanceFor(16f / 9f)).isWithin(0.05f).of(0.5f)
     }
 
     @Test fun aPictureIsSavedWithItsLightnessAndReplacesTheLastOne() = runTest {

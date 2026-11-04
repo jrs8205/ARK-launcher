@@ -173,7 +173,7 @@ fun LauncherShell(
         headsUpActive = headsUpActive,
         wallpaperDarkText = wallpaperDarkText,
         drawerSurface = statusBars.drawerSurface,
-        drawerPictureLuminance = statusBars.drawerPictureLuminance,
+        drawerPicture = statusBars.drawerPicture,
     )
     // The wallpaper behind the window softens as the drawer rises (opt-in, Android 12 and newer).
     DrawerWallpaperBlur(enabled = drawerBlur.enabled, strength = drawerBlur.strength, progress = { currentProgress })

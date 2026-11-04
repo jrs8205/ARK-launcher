@@ -176,6 +176,8 @@ fun AppDrawerScreen(
     var folderCard by remember { mutableStateOf<Pair<Long, Rect>?>(null) }
     var editFolderId by remember { mutableStateOf<Long?>(null) }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
+    // The drawer fills the window and shows its own picture's centre at the window's aspect: that part's lightness.
+    val windowAspect = LocalWindowInfo.current.containerSize.let { if (it.height > 0) it.width.toFloat() / it.height else 0f }
     val focusManager = LocalFocusManager.current
     // The drawer stays composed while closed (translated off-screen), so its grid scroll persists
     // across opens. When "open at top" is on, reset it to the top as the drawer closes (invisible),
@@ -267,7 +269,7 @@ fun AppDrawerScreen(
     val textIsDark = drawerTextIsDark(
         surface.paint?.let { Color(it) } ?: MaterialTheme.colorScheme.surface,
         surface.opacity,
-        uiState.wallpaper?.luminance ?: behindLuminance,
+        uiState.wallpaper?.luminanceFor(windowAspect) ?: behindLuminance,
     )
     val opaqueColors = opaqueDrawerColorScheme(MaterialTheme.colorScheme, drawerBackground)
     MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, drawerBackground, textIsDark)) {

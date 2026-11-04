@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -25,9 +26,10 @@ data class StatusBarSettings(
     val scrimOpacity: Float = 0.6f,
     /** What the drawer paints and how much of it shows: its lightness, weighted by the opacity, decides the glyphs. */
     val drawerSurface: DrawerSurface = DrawerSurface(tint = null, paint = null, opacity = 1f),
-    /** The mean lightness of the user's own picture behind the drawer, or null without one: with a picture it is
-     *  what a see-through drawer lets through, in place of home and the wallpaper. */
-    val drawerPictureLuminance: Float? = null,
+    /** The user's own picture behind the drawer, or null without one: with a picture it is what a see-through drawer
+     *  lets through, in place of home and the wallpaper -- its lightness for the window's crop of it
+     *  ([DrawerWallpaper.luminanceFor]). */
+    val drawerPicture: DrawerWallpaper? = null,
 )
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
@@ -66,7 +68,7 @@ class LauncherShellViewModel @Inject constructor(
                 systemBarHidden = it.hideSystemStatusBar,
                 scrimOpacity = it.statusBarScrimOpacity,
                 drawerSurface = drawerSurface(it.drawerBackgroundColor, it.drawerBackgroundOpacity, picture != null, it.drawerPictureDim),
-                drawerPictureLuminance = picture?.luminance,
+                drawerPicture = picture,
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())
