@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -86,7 +87,7 @@ class DrawerWallpaperStore internal constructor(
         withContext(io) {
             val old = synchronized(publishLock) {
                 if (ticket != latest.get()) return@withContext
-                File(dir, LUMINANCE_FILE).delete()
+                File(dir, LEGACY_LUMINANCE_FILE).delete()
                 _current.value.also { _current.value = null }
             }
             old?.file?.delete()
@@ -94,41 +95,51 @@ class DrawerWallpaperStore internal constructor(
     }
 
     /**
-     * Writes [picture] under a new name, then -- if [ticket] is still the latest action -- writes its lightness and
-     * publishes it, all under the lock, so the shared lightness file only ever describes the published picture and a
-     * removal cannot slip in between. The picture this one replaces is deleted whatever happens to the new one
-     * afterwards (a removal right after the publish deletes the new one itself). A write that fails half-way (no space
-     * left, a folder in the way) leaves nothing behind and keeps the picture that was there: it is reported as false,
-     * never thrown into the caller's coroutine (that took the launcher down).
+     * Encodes [picture] into a part-file (not a picture yet: [load] never takes one), then -- if [ticket] is still the
+     * latest action -- renames it under the lock to its final name, which carries its lightness ([pictureFileName]),
+     * and publishes it. The rename is atomic, so the next start can only ever load a picture that was published whole,
+     * with its own lightness; a process that dies mid-save leaves a part-file that [load] sweeps. The picture this one
+     * replaces is deleted whatever happens to the new one afterwards (a removal right after the publish deletes the new
+     * one itself). A write that fails half-way (no space left, a picture that cannot be encoded) leaves nothing behind
+     * and keeps the picture that was there: it is reported as false, never thrown into the caller's coroutine (that
+     * took the launcher down).
      */
     private fun save(picture: Bitmap, ticket: Int): Boolean {
         dir.mkdirs()
-        val file = File(dir, "${UUID.randomUUID()}.jpg")
+        val part = File(dir, "${UUID.randomUUID()}$PART_SUFFIX")
         val luminance = runCatching {
-            file.outputStream().use { out ->
+            check(!picture.isRecycled) { "the picture was recycled" }
+            part.outputStream().use { out ->
                 check(picture.compress(Bitmap.CompressFormat.JPEG, 90, out)) { "the picture could not be encoded" }
             }
-            luminanceOf(picture)
+            storedLuminance(luminanceOf(picture))
         }.getOrNull()
         var replaced: DrawerWallpaper? = null
-        val published = synchronized(publishLock) {
-            if (luminance == null || ticket != latest.get()) return@synchronized false
-            if (runCatching { File(dir, LUMINANCE_FILE).writeText(luminance.toString()) }.isFailure) return@synchronized false
+        var published: DrawerWallpaper? = null
+        synchronized(publishLock) {
+            if (luminance == null || ticket != latest.get()) return@synchronized
+            val target = File(dir, pictureFileName(luminance))
+            if (!part.renameTo(target)) return@synchronized
             replaced = _current.value
-            _current.value = DrawerWallpaper(file, luminance)
-            true
+            published = DrawerWallpaper(target, luminance)
+            _current.value = published
         }
-        if (!published) {
-            file.delete()
+        if (published == null) {
+            part.delete()
             return false
         }
         replaced?.file?.delete()
         return true
     }
 
+    /** The newest published picture with the lightness in its name; part-files of saves the process did not live to
+     *  publish are swept here. A picture an older build saved (no lightness in its name) reads the shared file it wrote. */
     private fun load(): DrawerWallpaper? {
-        val file = dir.listFiles { f -> f.isFile && f.extension == "jpg" }?.maxByOrNull { it.lastModified() } ?: return null
-        val luminance = runCatching { File(dir, LUMINANCE_FILE).readText().trim().toFloat() }.getOrDefault(0f)
+        val files = dir.listFiles()?.filter { it.isFile } ?: return null
+        files.filter { it.name.endsWith(PART_SUFFIX) }.forEach { it.delete() }
+        val file = files.filter { it.extension == "jpg" }.maxByOrNull { it.lastModified() } ?: return null
+        val luminance = luminanceInName(file.name)
+            ?: runCatching { File(dir, LEGACY_LUMINANCE_FILE).readText().trim().toFloat() }.getOrDefault(0f)
         return DrawerWallpaper(file, luminance.coerceIn(0f, 1f))
     }
 
@@ -161,7 +172,19 @@ class DrawerWallpaperStore internal constructor(
     }
 
     private companion object {
-        const val LUMINANCE_FILE = "luminance.txt"
+        /** The shared lightness file of builds before the lightness moved into the picture's name. */
+        const val LEGACY_LUMINANCE_FILE = "luminance.txt"
+        const val PART_SUFFIX = ".part"
         const val SAMPLE_SIDE = 16
+        private val LUMINANCE_IN_NAME = Regex("""-(\d\.\d{3})\.jpg$""")
+
+        /** The lightness as the file name carries it: three decimals, the same value in memory and after a restart. */
+        fun storedLuminance(luminance: Float): Float = "%.3f".format(Locale.ROOT, luminance.coerceIn(0f, 1f)).toFloat()
+
+        /** `<uuid>-<lightness>.jpg`: a new name for every pick (no image cache shows the old one) with its lightness. */
+        fun pictureFileName(luminance: Float): String = "${UUID.randomUUID()}-${"%.3f".format(Locale.ROOT, luminance)}.jpg"
+
+        /** The lightness a published picture's name carries, or null for a name without one. */
+        fun luminanceInName(name: String): Float? = LUMINANCE_IN_NAME.find(name)?.groupValues?.get(1)?.toFloatOrNull()
     }
 }

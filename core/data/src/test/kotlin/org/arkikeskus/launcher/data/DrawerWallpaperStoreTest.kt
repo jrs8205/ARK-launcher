@@ -82,22 +82,51 @@ class DrawerWallpaperStoreTest {
 
     private fun jpgs() = dir.listFiles { f -> f.isFile && f.extension == "jpg" }.orEmpty().toList()
 
-    /** A save that fails half-way (here: the lightness file cannot be written because a folder sits in its place) is
-     *  reported, leaves no half-written picture behind, and keeps the picture that was there -- it must not throw
-     *  into the caller's coroutine and take the launcher down. */
+    /** A save that fails half-way (here: a recycled bitmap, which cannot be encoded) is reported, leaves no half-written
+     *  picture behind, and keeps the picture that was there -- it must not throw into the caller's coroutine and take
+     *  the launcher down. */
     @Test fun aFailedSaveKeepsThePreviousPictureAndSaysSo() = runTest {
         val store = DrawerWallpaperStore(context)
         assertThat(store.set(picture(Color.WHITE))).isTrue()
         val kept = store.current.value!!
-        val luminanceFile = File(dir, "luminance.txt")
-        assertThat(luminanceFile.delete()).isTrue()
-        assertThat(luminanceFile.mkdir()).isTrue()
+        val broken = picture(Color.BLACK).apply { recycle() }
 
-        assertThat(store.set(picture(Color.BLACK))).isFalse()
+        assertThat(store.set(broken)).isFalse()
 
         assertThat(store.current.value).isEqualTo(kept)
         assertThat(kept.file.exists()).isTrue()
         assertThat(jpgs()).containsExactly(kept.file)
+        assertThat(dir.listFiles { f -> f.extension == "part" }.orEmpty()).isEmpty()
+    }
+
+    /** The lightness is part of the picture's own file name, so the next start can never pair a picture with another
+     *  picture's lightness: a shared file (as older builds wrote) counts only for a picture whose name has none. */
+    @Test fun theLightnessTravelsWithThePictureItself() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.WHITE))
+        val saved = store.current.value!!
+        assertThat(saved.luminance).isWithin(0.01f).of(1f)
+        File(dir, "luminance.txt").writeText("0.0")
+
+        val next = DrawerWallpaperStore(context)
+
+        assertThat(next.current.value).isEqualTo(saved)
+        assertThat(next.current.value!!.luminance).isWithin(0.01f).of(1f)
+    }
+
+    /** A save the process did not live to publish leaves only its part-file behind: the next start ignores it, sweeps
+     *  it, and keeps the picture that was published whole. */
+    @Test fun aSaveInterruptedBeforeItsPublishIsSweptAtTheNextStart() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.BLACK))
+        val published = store.current.value!!
+        val leftover = File(dir, "half-written.part").apply { writeBytes(ByteArray(10)) }
+        leftover.setLastModified(published.file.lastModified() + 60_000)
+
+        val next = DrawerWallpaperStore(context)
+
+        assertThat(next.current.value).isEqualTo(published)
+        assertThat(leftover.exists()).isFalse()
     }
 
     /** A removal issued while a pick is still saving wins, even though the pick finishes later: the pick's result is
@@ -130,7 +159,7 @@ class DrawerWallpaperStoreTest {
 
         assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
         assertThat(jpgs()).containsExactly(store.current.value!!.file)
-        assertThat(File(dir, "luminance.txt").isFile).isTrue()
+        assertThat(DrawerWallpaperStore(context).current.value!!.luminance).isWithin(0.01f).of(0f) // its lightness too
     }
 
     /** A stale pick (one a later pick overtook) must not touch the shared lightness file either: the next start would
