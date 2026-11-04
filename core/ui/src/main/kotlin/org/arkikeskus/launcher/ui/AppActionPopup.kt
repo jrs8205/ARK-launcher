@@ -63,7 +63,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveTheme
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -196,7 +195,7 @@ fun IconMenuPopup(
                 Icon(
                     painter = painterResource(item.icon),
                     contentDescription = null,
-                    tint = Accent,
+                    tint = LocalExpressivePalette.current.accent,
                     modifier = Modifier.size(22.dp),
                 )
                 Text(
@@ -372,7 +371,7 @@ internal fun ShortcutPopupRow(
                 Icon(
                     painter = painterResource(LauncherIcons.Add),
                     contentDescription = stringResource(R.string.shortcut_pin),
-                    tint = Accent,
+                    tint = LocalExpressivePalette.current.accent,
                     modifier = Modifier.size(22.dp),
                 )
             }
@@ -393,7 +392,7 @@ private fun PopupRow(text: String, @DrawableRes icon: Int?, onClick: () -> Unit)
             Icon(
                 painter = painterResource(icon),
                 contentDescription = null,
-                tint = Accent,
+                tint = LocalExpressivePalette.current.accent,
                 modifier = Modifier.size(20.dp),
             )
         }

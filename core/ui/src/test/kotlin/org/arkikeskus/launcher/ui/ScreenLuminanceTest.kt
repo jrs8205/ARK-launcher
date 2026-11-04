@@ -45,6 +45,21 @@ class ScreenLuminanceTest {
         assertThat(shownLuminance(Color.White, 2f, 0f)).isWithin(1e-4f).of(1f) // clamped
     }
 
+    /** A foreground that does not read on its background is pushed toward the text colour that does, just far enough:
+     *  the accent #E2714A on a red card #F16865 (1.03:1) becomes a darker accent at 4.5:1 or better; one that already
+     *  reads is left as it is; one that cannot reach the target short of the text colour becomes the text colour. */
+    @Test fun aForegroundIsPushedTowardTheTextUntilItReads() {
+        val accent = Color(0xFFE2714A)
+        val redCard = Color(0xFFF16865)
+        val pushed = readableOn(accent, redCard, Color.Black)
+        assertThat(contrastRatio(pushed.luminance(), redCard.luminance())).isAtLeast(4.5f)
+        assertThat(pushed.luminance()).isLessThan(accent.luminance())
+        assertThat(pushed.red).isGreaterThan(pushed.blue) // still the accent's hue
+        assertThat(readableOn(Color.Black, Color.White, Color.Black)).isEqualTo(Color.Black)
+        assertThat(readableOn(Color.White, Color.White, Color.Black, target = 21f)).isEqualTo(Color.Black)
+        assertThat(contrastRatio(readableOn(Color(0xFFE2714A), Color(0xFF963EA5), Color.White).luminance(), Color(0xFF963EA5).luminance())).isAtLeast(4.5f)
+    }
+
     /** Black reads better than white from a relative luminance of 0.179 (L* 50, the perceptual mid grey) up; the WCAG
      *  ratio runs from 1 (equal) to 21 (black and white). Orange #FFA726 (0.49): black 10.8:1, white 1.9:1. */
     @Test fun blackReadsBetterFromMidGreyUp() {

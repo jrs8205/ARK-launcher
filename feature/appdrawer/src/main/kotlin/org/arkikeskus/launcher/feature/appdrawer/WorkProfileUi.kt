@@ -213,7 +213,7 @@ internal fun WorkPausedCard(canPause: Boolean, enabled: Boolean, onUnpause: () -
                 Icon(
                     painter = painterResource(LauncherIcons.Work),
                     contentDescription = null,
-                    tint = Accent,
+                    tint = palette.accent,
                     modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(16.dp))

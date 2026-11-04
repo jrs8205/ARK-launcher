@@ -66,13 +66,13 @@ fun ExpressiveActionRow(
     val p = LocalExpressivePalette.current
     ExpressiveCard(onClick = onClick) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(label, color = Accent, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = p.accent, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Text(description, color = p.dim, fontSize = 12.5.sp)
         }
         Icon(
             painter = painterResource(trailingIcon),
             contentDescription = null,
-            tint = if (trailingIcon == LauncherIcons.Add) Accent else p.faint,
+            tint = if (trailingIcon == LauncherIcons.Add) p.accent else p.faint,
             modifier = Modifier.size(22.dp),
         )
     }

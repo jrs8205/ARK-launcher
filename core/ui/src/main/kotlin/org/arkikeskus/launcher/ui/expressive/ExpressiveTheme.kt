@@ -21,6 +21,10 @@ data class ExpressivePalette(
     val thumbOff: Color,
     val btn: Color,
     val shadow: Dp,
+    /** The accent as a FOREGROUND on [surfaceHi] (titles, result text, icon tints): [Accent] itself on the system
+     *  palettes, pushed toward the text on a chosen drawer colour whose cards it would vanish on (see the drawer's
+     *  palette). Accent-filled surfaces (a selected tab, a button) keep [Accent] with their own white text. */
+    val accent: Color = Accent,
 )
 
 val DarkExpressivePalette = ExpressivePalette(

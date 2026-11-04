@@ -39,3 +39,17 @@ fun contrastRatio(a: Float, b: Float): Float = (maxOf(a, b) + 0.05f) / (minOf(a,
 /** Whether black text or glyphs contrast at least as much as white against something of [luminance] on screen: from a
  *  relative luminance of 0.179 (L* 50, the perceptual mid grey) up. */
 fun darkReadsBetter(luminance: Float): Boolean = contrastRatio(0f, luminance) >= contrastRatio(1f, luminance)
+
+/** The WCAG contrast ratio normal text needs (AA). */
+const val READABLE_TEXT = 4.5f
+
+/** [fg] as it is when it reads on [on] at [target]; otherwise [fg] blended toward [toward] -- the text colour that
+ *  reads on [on] -- just far enough (in twentieths) that it does, or [toward] itself when nothing short of it does. */
+fun readableOn(fg: Color, on: Color, toward: Color, target: Float = READABLE_TEXT): Color {
+    val onLuminance = on.luminance()
+    for (step in 0..20) {
+        val candidate = if (step == 0) fg else toward.copy(alpha = step / 20f).compositeOver(fg)
+        if (contrastRatio(candidate.luminance(), onLuminance) >= target) return candidate
+    }
+    return toward
+}

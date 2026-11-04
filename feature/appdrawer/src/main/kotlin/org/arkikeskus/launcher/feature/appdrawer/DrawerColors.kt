@@ -12,9 +12,12 @@ import androidx.compose.ui.graphics.luminance
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
+import org.arkikeskus.launcher.ui.READABLE_TEXT
 import org.arkikeskus.launcher.ui.contrastRatio
 import org.arkikeskus.launcher.ui.darkReadsBetter
+import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.readableOn
 import org.arkikeskus.launcher.ui.shownLuminance
 
 /** A colour scheme's onSurface darker than this (relative luminance) is dark text: schemes' text is near black or
@@ -51,21 +54,32 @@ internal fun drawerColorScheme(base: ColorScheme, background: Color?, textIsDark
     if (background == null && base.textIsDark() == textIsDark) return base
     val surface = background ?: base.surface
     val onBackground = if (textIsDark) Color.Black else Color.White
-    fun tint(alpha: Float) = onBackground.copy(alpha = alpha).compositeOver(surface)
+    fun tintWith(colour: Color, alpha: Float) = colour.copy(alpha = alpha).compositeOver(surface)
+    // The containers (the dialogs, the sheet, the fields) take the tone that carries the text: tinted toward it as
+    // Material's are, unless the strongest tint would leave the text under 4.5:1 on a chosen mid-light colour (red,
+    // purple) -- then away from it, which always clears it, as the text was chosen for the colour itself. The theme's
+    // own surface keeps the tint toward the text (its see-through case shows the wallpaper, not the surface).
+    val towardHighest = tintWith(onBackground, 0.16f)
+    val away = background != null && contrastRatio(onBackground.luminance(), towardHighest.luminance()) < READABLE_TEXT
+    val ladder = if (away) (if (textIsDark) Color.White else Color.Black) else onBackground
+    fun tint(alpha: Float) = tintWith(ladder, alpha)
+    // The secondary text (dialog bodies, descriptions) must read on every container: pushed toward the text until it
+    // does on the one nearest the text -- the strongest container when they lean toward it, the surface when away.
+    val onSurfaceVariant = readableOn(tintWith(onBackground, 0.72f), if (away) surface else towardHighest, onBackground)
     return base.copy(
         background = surface,
         onBackground = onBackground,
         surface = surface,
         onSurface = onBackground,
         surfaceVariant = tint(0.12f),
-        onSurfaceVariant = tint(0.72f),
+        onSurfaceVariant = onSurfaceVariant,
         surfaceContainerLowest = surface,
         surfaceContainerLow = tint(0.04f),
         surfaceContainer = tint(0.08f),
         surfaceContainerHigh = tint(0.12f),
         surfaceContainerHighest = tint(0.16f),
-        outline = tint(0.5f),
-        outlineVariant = tint(0.2f),
+        outline = tintWith(onBackground, 0.5f),
+        outlineVariant = tintWith(onBackground, 0.2f),
     )
 }
 
@@ -114,14 +128,13 @@ internal fun drawerExpressivePalette(system: ExpressivePalette, background: Colo
         dim = base.text.copy(alpha = DIM_TEXT).compositeOver(card),
         faint = base.text.copy(alpha = FAINT_TEXT).compositeOver(card),
         btn = onBackground.copy(alpha = 0.07f),
+        // The accent (result text, titles, icon tints) vanished on a red or orange card (1.0:1): pushed toward the text.
+        accent = readableOn(Accent, card, base.text),
     )
 }
 
 /** How much of the text colour (or its opposite) tints the drawer's colour into its cards and fields. */
 private const val CARD_TINT = 0.12f
-
-/** The WCAG ratio normal text needs (AA): a card whose tint leaves the text under it is tinted the other way. */
-private const val READABLE_TEXT = 4.5f
 
 /** The secondary (dim) and tertiary (faint) text as the text blended into the card: the light palette's own
  *  #5B616A on #F4F6F9 is the text at about 70 %. */

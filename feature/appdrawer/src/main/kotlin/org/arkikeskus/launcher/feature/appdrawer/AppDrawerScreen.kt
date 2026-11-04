@@ -130,7 +130,6 @@ import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.component.NotificationBadge
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.ExpressiveSectionTitle
@@ -567,7 +566,7 @@ private fun AppDrawerContent(
                                 Icon(
                                     painter = painterResource(LauncherIcons.Close),
                                     contentDescription = stringResource(R.string.search_clear),
-                                    tint = Accent,
+                                    tint = searchPalette.accent,
                                 )
                             }
                         }
@@ -578,7 +577,7 @@ private fun AppDrawerContent(
                         unfocusedContainerColor = searchPalette.surfaceHi,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = Accent,
+                        cursorColor = searchPalette.accent,
                         focusedTextColor = searchPalette.text,
                         unfocusedTextColor = searchPalette.text,
                         // The hint follows the pill's own palette, not the drawer's text (a yellow pill on a
@@ -1421,7 +1420,7 @@ private fun CalcResultCard(calc: SearchResult.Calculation, onCopy: () -> Unit) {
     val p = LocalExpressivePalette.current
     ExpressiveCard(onClick = onCopy) {
         Text("${calc.expression} = ", color = p.dim, fontSize = 18.sp)
-        Text(calc.result, color = Accent, fontSize = 22.sp,
+        Text(calc.result, color = p.accent, fontSize = 22.sp,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
     }
 }
@@ -1453,7 +1452,7 @@ private fun ContactResultRow(contact: SearchResult.Contact) {
                             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
                 }
-            }) { Icon(painter = painterResource(LauncherIcons.Call), contentDescription = callDesc, tint = Accent) }
+            }) { Icon(painter = painterResource(LauncherIcons.Call), contentDescription = callDesc, tint = p.accent) }
             IconButton(onClick = {
                 runCatching {
                     context.startActivity(
@@ -1462,7 +1461,7 @@ private fun ContactResultRow(contact: SearchResult.Contact) {
                             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
                     )
                 }
-            }) { Icon(painter = painterResource(LauncherIcons.Message), contentDescription = messageDesc, tint = Accent) }
+            }) { Icon(painter = painterResource(LauncherIcons.Message), contentDescription = messageDesc, tint = p.accent) }
         }
     }
 }
