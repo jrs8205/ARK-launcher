@@ -121,7 +121,9 @@ internal fun drawerSurfaceLuminance(paint: Int?, themeSurface: Color): Float =
  * for dark glyphs: the surface's [surfaceLuminance] weighted by the opacity, [behindLuminance] by the
  * rest. Opaque, the surface decides as before; see-through, what is behind does -- a light theme over a
  * dark wallpaper drew dark glyphs on dark once the drawer could be transparent (issue #21's opacity
- * setting).
+ * setting). The bar's thin glyphs keep the system bars' own stricter rule -- dark only on a clearly light
+ * backing (Android's wallpaper hint counts a pixel dark below 0.45) -- not the drawer text's contrast rule
+ * (DrawerColors.kt), which turns the body text black from a relative luminance of 0.18 up.
  */
 internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, behindLuminance: Float): Boolean =
     surfaceLuminance * opacity + behindLuminance * (1f - opacity) > 0.5f

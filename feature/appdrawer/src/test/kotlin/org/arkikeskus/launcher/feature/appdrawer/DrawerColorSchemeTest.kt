@@ -5,6 +5,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
 import org.junit.Test
@@ -88,12 +89,41 @@ class DrawerColorSchemeTest {
         assertThat(scheme.outline.luminance()).isGreaterThan(scheme.outlineVariant.luminance())
     }
 
-    /** The label swatches, solid: white, grey and yellow read dark text; black, red, orange (relative luminance
-     *  0.48), green, blue and purple light. */
-    @Test fun theSolidSwatchesSplitAsExpected() {
-        assertThat(listOf(0xFFFFFFFF, 0xFFBDBDBD, 0xFFFFEE58).map { drawerTextIsDark(Color(it), 1f, 0f) }).containsExactly(true, true, true)
-        assertThat(listOf(0xFF000000, 0xFFEF5350, 0xFFFFA726, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC).map { drawerTextIsDark(Color(it), 1f, 1f) })
-            .containsExactly(false, false, false, false, false, false)
+    /** The WCAG contrast ratio of two colours by their relative luminance, 1 (none) to 21 (black on white). */
+    private fun contrast(a: Color, b: Color): Float {
+        val l1 = maxOf(a.luminance(), b.luminance())
+        val l2 = minOf(a.luminance(), b.luminance())
+        return (l1 + 0.05f) / (l2 + 0.05f)
+    }
+
+    /** The swatches, solid: each takes the text that contrasts more with it -- the round-7 finding: orange #FFA726
+     *  (relative luminance 0.49, under the old 0.5 "mid grey") took white at 1.9:1 where black reads 10.8:1, and so
+     *  did green, blue and red. Black contrasts more down to a relative luminance of 0.18 (L* 50, the perceptual mid
+     *  grey); purple #AB47BC (0.17) still takes white (4.8:1 against black's 4.4:1). */
+    @Test fun aSolidSwatchTakesTheTextThatContrastsMore() {
+        val swatches = listOf(0xFFFFFFFF, 0xFF000000, 0xFFBDBDBD, 0xFFEF5350, 0xFFFFA726, 0xFFFFEE58, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC)
+        for (argb in swatches) {
+            val swatch = Color(argb)
+            val text = if (drawerTextIsDark(swatch, 1f, 0f)) Color.Black else Color.White
+            val other = if (text == Color.Black) Color.White else Color.Black
+            assertWithMessage("swatch %06X".format(argb and 0xFFFFFF)).that(contrast(text, swatch)).isAtLeast(contrast(other, swatch))
+        }
+        assertThat(drawerTextIsDark(Color(0xFFFFA726), 1f, 1f)).isTrue()
+        assertThat(contrast(Color.Black, Color(0xFFFFA726))).isGreaterThan(4.5f)
+        assertThat(drawerTextIsDark(Color(0xFFAB47BC), 1f, 0f)).isFalse()
+    }
+
+    /** The decision follows what is on screen: the window composites in sRGB (gamma) space, so a light theme's
+     *  surface at 30 % over a dark wallpaper is a dark grey (#4B4B4B, relative luminance 0.07) that takes white --
+     *  a linear mix of the luminances (0.29) would have put black on it at 2.4:1. At 60 % it is a light grey (0.31)
+     *  and takes black. The user's own picture (mean relative luminance 0.5) under the black dim likewise: half
+     *  dimmed it is dark and takes white, undimmed black. */
+    @Test fun aSeeThroughSurfaceIsJudgedAsTheScreenComposesIt() {
+        val lightSurface = Color(0xFFFBFCFF)
+        assertThat(drawerTextIsDark(lightSurface, opacity = 0.3f, behindLuminance = darkWallpaper)).isFalse()
+        assertThat(drawerTextIsDark(lightSurface, opacity = 0.6f, behindLuminance = darkWallpaper)).isTrue()
+        assertThat(drawerTextIsDark(Color.Black, opacity = 0.5f, behindLuminance = 0.5f)).isFalse()
+        assertThat(drawerTextIsDark(Color.Black, opacity = 0f, behindLuminance = 0.5f)).isTrue()
     }
 
     /** The search field and the folder cards draw from the expressive palette: on a chosen colour their
