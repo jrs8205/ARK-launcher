@@ -4,6 +4,9 @@ import androidx.compose.ui.text.font.DeviceFontFamilyName
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import org.arkikeskus.launcher.model.LauncherSettings
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.LocalTextStyle
 
 /** Android's condensed sans, by its system family name (every Android ships it). */
 private val CondensedFontFamily = FontFamily(Font(DeviceFontFamilyName("sans-serif-condensed")))
@@ -23,3 +26,12 @@ fun launcherFontFamily(key: String): FontFamily = when (key) {
     LauncherSettings.FONT_CURSIVE -> FontFamily.Cursive
     else -> FontFamily.Default
 }
+
+/**
+ * [style] on top of the theme's text style. A Text given a style of its own replaces [LocalTextStyle] wholesale, so
+ * the font the user chose (the theme's typography, [launcherFontFamily]) would fall back to the platform's default;
+ * merged, the font stays and [style]'s own fields -- size, weight, shadow, platform options -- win. Every text the
+ * launcher draws with a style of its own (the clock, the status bar, the built-in widgets) goes through this.
+ */
+@Composable
+fun themedTextStyle(style: TextStyle): TextStyle = LocalTextStyle.current.merge(style)

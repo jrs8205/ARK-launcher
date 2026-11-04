@@ -81,6 +81,7 @@ import org.arkikeskus.launcher.model.WifiBand
 import org.arkikeskus.launcher.model.WifiStatus
 import java.util.Date
 import javax.inject.Inject
+import org.arkikeskus.launcher.ui.themedTextStyle
 
 /** Combined live system status driving the home status bar. */
 data class StatusBarState(
@@ -234,7 +235,7 @@ fun StatusBar(
         content = {
             // [0] clock (left edge).
             MainLineBox {
-                Text(time, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, style = StatusTextStyle)
+                Text(time, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, style = themedTextStyle(StatusTextStyle))
             }
 
             // [1..notifCount] active notification icons (most-recent first), placed after the clock and
@@ -390,7 +391,7 @@ private fun StatusItem(sub: String?, subColor: Color, primary: @Composable () ->
                 fontWeight = FontWeight.SemiBold,
                 // In sp at the bar's fixed font scale of 1: the line is STATUS_SUB_LINE tall.
                 lineHeight = STATUS_SUB_LINE.value.sp,
-                style = StatusTextStyle,
+                style = themedTextStyle(StatusTextStyle),
             )
         }
     }

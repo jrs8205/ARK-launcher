@@ -47,6 +47,7 @@ import org.arkikeskus.launcher.designsystem.theme.LocalLauncherColors
 import org.arkikeskus.launcher.launcher.system.BatteryMonitor
 import org.arkikeskus.launcher.model.BatteryStatus
 import javax.inject.Inject
+import org.arkikeskus.launcher.ui.themedTextStyle
 
 @HiltViewModel
 class BatteryWidgetViewModel @Inject constructor(
@@ -130,11 +131,11 @@ fun BatteryWidget(
                 Text(
                     text = "${s.percent.coerceIn(0, 100)}%",
                     color = ink,
-                    style = TextStyle(
+                    style = themedTextStyle(TextStyle(
                         fontSize = with(density) { (diameter * 0.23f).toSp() },
                         fontWeight = FontWeight.Medium,
                         shadow = shadow,
-                    ),
+                    )),
                     maxLines = 1,
                 )
             }

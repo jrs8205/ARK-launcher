@@ -81,6 +81,7 @@ import org.arkikeskus.launcher.model.AppItem
 import kotlin.math.roundToInt
 import java.util.Date
 import javax.inject.Inject
+import org.arkikeskus.launcher.ui.themedTextStyle
 
 @HiltViewModel
 class SmartspaceViewModel @Inject constructor(
@@ -369,7 +370,7 @@ internal fun SmartspaceContent(
             Text(
                 text = timeText,
                 color = widgetContentColor(),
-                style = TextStyle(fontSize = (46 * scale).sp, fontWeight = FontWeight.Medium, shadow = shadow),
+                style = themedTextStyle(TextStyle(fontSize = (46 * scale).sp, fontWeight = FontWeight.Medium, shadow = shadow)),
                 maxLines = 1,
             )
         }
@@ -384,7 +385,7 @@ internal fun SmartspaceContent(
                         Text(
                             text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
                             color = widgetContentColor(),
-                            style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+                            style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -395,7 +396,7 @@ internal fun SmartspaceContent(
                     Text(
                         text = dateText,
                         color = widgetContentColor(),
-                        style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+                        style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                         maxLines = 1,
                     )
                 }
@@ -413,7 +414,7 @@ internal fun SmartspaceContent(
                             Text(
                                 text = alarmText,
                                 color = widgetContentColor().copy(alpha = 0.9f),
-                                style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+                                style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                                 maxLines = 1,
                             )
                         }
@@ -429,7 +430,7 @@ internal fun SmartspaceContent(
                     Text(
                         text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
                         color = widgetContentColor(),
-                        style = TextStyle(fontSize = (16 * scale).sp, shadow = shadow),
+                        style = themedTextStyle(TextStyle(fontSize = (16 * scale).sp, shadow = shadow)),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -439,7 +440,7 @@ internal fun SmartspaceContent(
                 Text(
                     text = dateText,
                     color = widgetContentColor(),
-                    style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+                    style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -458,7 +459,7 @@ internal fun SmartspaceContent(
                         Text(
                             text = alarmText,
                             color = widgetContentColor().copy(alpha = 0.9f),
-                            style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                            style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                             maxLines = 1,
                         )
                     }
@@ -474,7 +475,7 @@ internal fun SmartspaceContent(
                 Text(
                     text = stringResource(R.string.smartspace_allow_calendar),
                     color = widgetContentColor().copy(alpha = 0.85f),
-                    style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                    style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -515,7 +516,7 @@ internal fun SmartspaceContent(
                     Text(
                         text = eventText.ifBlank { stringResource(R.string.smartspace_no_title) },
                         color = widgetContentColor().copy(alpha = 0.92f),
-                        style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                        style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                         maxLines = if (expanded) 2 else 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -535,7 +536,7 @@ internal fun SmartspaceContent(
                 Text(
                     text = stringResource(R.string.smartspace_allow_location),
                     color = widgetContentColor().copy(alpha = 0.85f),
-                    style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                    style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -661,7 +662,7 @@ private fun MiddleDot(scale: Float, shadow: Shadow) {
     Text(
         text = "·",
         color = widgetContentColor().copy(alpha = 0.8f),
-        style = TextStyle(fontSize = (15 * scale).sp, shadow = shadow),
+        style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
         modifier = Modifier.padding(horizontal = (5 * scale).dp),
     )
 }

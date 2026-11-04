@@ -65,6 +65,7 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.NotificationBadge
 import javax.inject.Inject
+import org.arkikeskus.launcher.ui.themedTextStyle
 
 @HiltViewModel
 class NotificationsWidgetViewModel @Inject constructor(
@@ -173,7 +174,7 @@ fun NotificationsWidget(
             !hasAccess -> Text(
                 text = stringResource(R.string.notifications_widget_allow_access),
                 color = widgetContentColor().copy(alpha = 0.85f),
-                style = TextStyle(fontSize = (14 * scale).sp, shadow = shadow),
+                style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
@@ -207,11 +208,11 @@ fun NotificationsWidget(
                         Text(
                             text = "+$overflow",
                             color = widgetContentColor(),
-                            style = TextStyle(
+                            style = themedTextStyle(TextStyle(
                                 fontSize = (14 * scale).sp,
                                 fontWeight = FontWeight.Medium,
                                 shadow = shadow,
-                            ),
+                            )),
                             maxLines = 1,
                             // The chip opens the shade — the hidden notifications are one tap away
                             // instead of unreachable from the widget.
