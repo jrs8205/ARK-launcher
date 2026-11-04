@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.luminance
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
+import org.arkikeskus.launcher.ui.contrastRatio
 import org.arkikeskus.launcher.ui.darkReadsBetter
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.shownLuminance
@@ -88,11 +89,15 @@ internal fun OpaqueDrawerSurface(content: @Composable () -> Unit) {
 }
 
 /**
- * The expressive palette (the search field, the folder cards, the popups) for the drawer: the
- * [system] light/dark palette when no [background] is chosen; otherwise the field and card
- * backgrounds tinted from the colour itself, with the light palette's text on a light colour and the
- * dark palette's on a dark one. These elements are opaque, so their own colour decides their text
- * whatever the drawer's opacity: a yellow pill on a 10 % yellow drawer over a dark wallpaper keeps
+ * The expressive palette (the search field, the folder cards, the popups) for the drawer: the [system] light/dark
+ * palette when no [background] is chosen; otherwise the drawer's colour with the text family its labels take
+ * ([drawerTextIsDark]: the light palette's near-black text on a light colour, the dark palette's near-white on a dark
+ * one -- one rule with the labels around them) and the card tone that carries that text: tinted toward the text as
+ * Material's containers are, unless that would leave the text under [READABLE_TEXT] on a mid-light colour (red,
+ * purple), then away from it -- which always clears it, as the text was chosen for the colour itself. The secondary
+ * and faint text are the text blended into the FINAL card, not the base palette's greys made for near-white or
+ * near-black cards (round 9: #5B616A read 1.4:1 on a darkened red card). These elements are opaque, so their own
+ * colour decides whatever the drawer's opacity: a yellow pill on a 10 % yellow drawer over a dark wallpaper keeps
  * dark text while the app labels around it are white.
  */
 internal fun drawerExpressivePalette(system: ExpressivePalette, background: Color?): ExpressivePalette {
@@ -100,12 +105,28 @@ internal fun drawerExpressivePalette(system: ExpressivePalette, background: Colo
     val textIsDark = drawerTextIsDark(background, opacity = 1f, behindLuminance = 0f)
     val onBackground = if (textIsDark) Color.Black else Color.White
     val base = if (textIsDark) LightExpressivePalette else DarkExpressivePalette
+    val toward = onBackground.copy(alpha = CARD_TINT).compositeOver(background)
+    val card = if (contrastRatio(base.text.luminance(), toward.luminance()) >= READABLE_TEXT) toward
+    else (if (textIsDark) Color.White else Color.Black).copy(alpha = CARD_TINT).compositeOver(background)
     return base.copy(
         bg = background,
-        surfaceHi = onBackground.copy(alpha = 0.12f).compositeOver(background),
+        surfaceHi = card,
+        dim = base.text.copy(alpha = DIM_TEXT).compositeOver(card),
+        faint = base.text.copy(alpha = FAINT_TEXT).compositeOver(card),
         btn = onBackground.copy(alpha = 0.07f),
     )
 }
+
+/** How much of the text colour (or its opposite) tints the drawer's colour into its cards and fields. */
+private const val CARD_TINT = 0.12f
+
+/** The WCAG ratio normal text needs (AA): a card whose tint leaves the text under it is tinted the other way. */
+private const val READABLE_TEXT = 4.5f
+
+/** The secondary (dim) and tertiary (faint) text as the text blended into the card: the light palette's own
+ *  #5B616A on #F4F6F9 is the text at about 70 %. */
+private const val DIM_TEXT = 0.76f
+private const val FAINT_TEXT = 0.5f
 
 /** [ExpressiveTheme][org.arkikeskus.launcher.ui.expressive.ExpressiveTheme] for the drawer, following
  *  the user's background colour ([drawerExpressivePalette]). */

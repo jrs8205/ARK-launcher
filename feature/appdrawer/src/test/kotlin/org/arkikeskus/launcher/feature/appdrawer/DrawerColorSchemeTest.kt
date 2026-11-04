@@ -156,6 +156,32 @@ class DrawerColorSchemeTest {
         assertThat(onNavy.surfaceHi.luminance()).isGreaterThan(navy.luminance())
     }
 
+    /** The round-9 finding: the search field, the folder cards and the work-profile card draw their text from the
+     *  palette on their own tinted surface (surfaceHi), and the base palettes' fixed greys were made for near-white or
+     *  near-black cards: on red #EF5350 the light palette's dim #5B616A read 1.4:1 on the darkened red card, on purple
+     *  #AB47BC the dark palette's text 3.3:1. Now the card keeps the drawer's text family (black on red, white on
+     *  purple -- one rule with the labels) and takes the tone that carries it: tinted toward the text as before, or
+     *  away from it when that would leave the text under 4.5:1 (red lightens, purple darkens); dim and faint are the
+     *  text blended into the final card. Every offered swatch: text at least 4.5:1, dim 3.5:1, the card distinct. */
+    @Test fun theCardsTextReadsOnEveryOfferedSwatch() {
+        val swatches = listOf(0xFFFFFFFF, 0xFF000000, 0xFFBDBDBD, 0xFFEF5350, 0xFFFFA726, 0xFFFFEE58, 0xFF66BB6A, 0xFF42A5F5, 0xFFAB47BC)
+        for (argb in swatches) {
+            val colour = Color(argb)
+            val p = drawerExpressivePalette(DarkExpressivePalette, colour)
+            val name = "swatch %06X".format(argb and 0xFFFFFF)
+            assertWithMessage("$name text").that(contrast(p.text, p.surfaceHi)).isAtLeast(4.5f)
+            assertWithMessage("$name dim").that(contrast(p.dim, p.surfaceHi)).isAtLeast(3.5f)
+            assertWithMessage("$name faint").that(contrast(p.faint, p.surfaceHi)).isAtLeast(1.5f)
+            assertWithMessage("$name family").that(p.text.luminance() < 0.5f).isEqualTo(drawerTextIsDark(colour, 1f, 0f))
+            assertWithMessage("$name card").that(contrast(p.surfaceHi, p.bg)).isAtLeast(1.1f)
+            assertWithMessage("$name same from either system palette").that(drawerExpressivePalette(LightExpressivePalette, colour)).isEqualTo(p)
+        }
+        val red = Color(0xFFEF5350)
+        val purple = Color(0xFFAB47BC)
+        assertThat(drawerExpressivePalette(LightExpressivePalette, red).surfaceHi.luminance()).isGreaterThan(red.luminance())
+        assertThat(drawerExpressivePalette(LightExpressivePalette, purple).surfaceHi.luminance()).isLessThan(purple.luminance())
+    }
+
     /** The accent slots stay the theme's: the Personal/Work tabs and the folder editor keep their colours. */
     @Test fun theAccentsStayTheThemes() {
         val scheme = drawerColorScheme(lightTheme, Color(0xFF42A5F5), textIsDark = false)
