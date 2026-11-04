@@ -47,6 +47,12 @@ internal fun blurAvailability(sdkInt: Int, crossWindowBlurEnabled: Boolean, devi
         else -> BlurAvailability.PAUSED
     }
 
+/** [BlurAvailability] for the user's own picture behind the drawer: it is blurred inside the window (Android 12's
+ *  render effects), not across windows, so a device that cannot blur behind its windows (a Fairphone 6) and a system
+ *  pausing that blur still blur the picture -- only the Android version limits it. */
+internal fun BlurAvailability.forOwnPicture(): BlurAvailability =
+    if (this == BlurAvailability.NEEDS_ANDROID_12) this else BlurAvailability.AVAILABLE
+
 /** [BLUR_SUPPORT_PROPERTY]'s value as the window manager reads it: 1/true = supported, 0/false = not,
  *  anything else (unset, unreadable) = unknown. */
 internal fun parseBlurSupport(value: String?): Boolean? = when (value?.trim()?.lowercase()) {

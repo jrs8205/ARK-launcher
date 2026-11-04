@@ -10,6 +10,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -42,14 +43,18 @@ class DrawerBackdropRowsTest {
     private val dims = mutableListOf<Float>()
     private val picture = DrawerWallpaper(File.createTempFile("wallpaper", ".jpg").apply { deleteOnExit() }, luminance = 0.3f)
 
-    private fun show(settings: LauncherSettings, wallpaper: DrawerWallpaper? = null) {
+    private fun show(
+        settings: LauncherSettings,
+        wallpaper: DrawerWallpaper? = null,
+        blurAvailability: BlurAvailability = BlurAvailability.AVAILABLE,
+    ) {
         compose.setContent {
             // Stacked in a scrolling column as the settings page stacks them.
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 DrawerBackdropRows(
                     settings = settings,
                     wallpaper = wallpaper,
-                    blurAvailability = BlurAvailability.AVAILABLE,
+                    blurAvailability = blurAvailability,
                     actions = DrawerBackdropActions(onPictureDim = { dims += it }),
                 )
             }
@@ -111,6 +116,24 @@ class DrawerBackdropRowsTest {
         )
         text(R.string.settings_blur_behind_drawer_opaque).assertDoesNotExist()
         text(R.string.settings_blur_behind_drawer_desc).performScrollTo().assertIsDisplayed()
+    }
+
+    /** A device that cannot blur behind its windows (a Fairphone 6) still blurs the user's own picture inside the
+     *  window: with a picture the switch and its strength stay usable; without one they are greyed as before. */
+    @Test fun aPictureKeepsTheBlurUsableWhereTheSystemCannotBlur() {
+        show(LauncherSettings(blurBehindDrawer = true), wallpaper = picture, blurAvailability = BlurAvailability.DEVICE_CANNOT)
+
+        compose.onNode(isToggleable()).assertIsEnabled()
+        text(R.string.settings_blur_strength).performScrollTo().assertIsDisplayed()
+        text(R.string.settings_blur_behind_drawer_unavailable).assertDoesNotExist()
+    }
+
+    @Test fun withoutAPictureTheSystemsInabilityStillGreysTheBlur() {
+        show(LauncherSettings(blurBehindDrawer = true), blurAvailability = BlurAvailability.DEVICE_CANNOT)
+
+        compose.onNode(isToggleable()).assertIsNotEnabled()
+        text(R.string.settings_blur_strength).assertDoesNotExist()
+        text(R.string.settings_blur_behind_drawer_unavailable).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun aPictureDimmedAllTheWayIsASolidDrawerToTheBlurHint() {

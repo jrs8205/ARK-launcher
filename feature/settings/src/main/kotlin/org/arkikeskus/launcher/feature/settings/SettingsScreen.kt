@@ -1371,14 +1371,16 @@ internal fun DrawerBackdropRows(
     DrawerWallpaperRow(wallpaper = wallpaper, onPick = actions.onPickPicture, onClear = actions.onClearPicture)
     if (hasPicture) DrawerPictureDimRow(settings.drawerPictureDim, actions.onPictureDim)
     // Greyed with the reason where the system cannot blur behind the window (Android 11, a Fairphone 6 report),
-    // instead of a switch that silently does nothing.
+    // instead of a switch that silently does nothing -- except with the user's own picture, which is blurred inside
+    // the window on any Android 12 (forOwnPicture).
+    val blur = if (hasPicture) blurAvailability.forOwnPicture() else blurAvailability
     BlurBehindDrawerRow(
-        availability = blurAvailability,
+        availability = blur,
         checked = settings.blurBehindDrawer,
         drawerOpaque = surface.opacity >= 1f,
         onCheckedChange = actions.onBlur,
     )
-    if (settings.blurBehindDrawer && blurAvailability == BlurAvailability.AVAILABLE) {
+    if (settings.blurBehindDrawer && blur == BlurAvailability.AVAILABLE) {
         DrawerBlurStrengthRow(settings.drawerBlurStrength, actions.onBlurStrength)
     }
 }

@@ -12,6 +12,15 @@ import org.junit.Test
  * the device, so it never greys the switch, and only the device's own "no" does.
  */
 class BlurAvailabilityTest {
+    /** The user's own picture is blurred inside the window (Android 12's RenderEffect), so only the Android version
+     *  limits it: a device without cross-window blur, or a system pausing it, still blurs the picture. */
+    @Test fun theOwnPictureNeedsOnlyAndroid12() {
+        assertThat(BlurAvailability.NEEDS_ANDROID_12.forOwnPicture()).isEqualTo(BlurAvailability.NEEDS_ANDROID_12)
+        assertThat(BlurAvailability.DEVICE_CANNOT.forOwnPicture()).isEqualTo(BlurAvailability.AVAILABLE)
+        assertThat(BlurAvailability.PAUSED.forOwnPicture()).isEqualTo(BlurAvailability.AVAILABLE)
+        assertThat(BlurAvailability.AVAILABLE.forOwnPicture()).isEqualTo(BlurAvailability.AVAILABLE)
+    }
+
 
     @Test fun android11NeedsANewerSystemWhateverTheDisplayStackSays() {
         assertThat(blurAvailability(sdkInt = 30, crossWindowBlurEnabled = true, deviceSupportsBlur = true))
