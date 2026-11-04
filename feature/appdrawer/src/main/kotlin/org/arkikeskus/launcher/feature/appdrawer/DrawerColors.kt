@@ -12,8 +12,9 @@ import androidx.compose.ui.graphics.luminance
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
+import org.arkikeskus.launcher.ui.darkReadsBetter
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
-import kotlin.math.pow
+import org.arkikeskus.launcher.ui.shownLuminance
 
 /** A colour scheme's onSurface darker than this (relative luminance) is dark text: schemes' text is near black or
  *  near white, so any mid value tells them apart. */
@@ -22,26 +23,16 @@ private const val LIGHT_BACKGROUND = 0.5f
 /**
  * Whether the drawer's text reads best dark (black) rather than light (white): what the drawer shows -- its
  * [surface] colour at its [opacity] over what is behind it ([behindLuminance]: the wallpaper under the shell's dim or
- * the user's own picture, 0 when unknown), composited as the window composites it, in sRGB (gamma) space -- takes the
- * text that contrasts more with it (the WCAG contrast ratio): black down to a relative luminance of 0.18 (L* 50, the
- * perceptual mid grey), white below. A yellow drawer at 10 % over a dark wallpaper is a dark drawer and takes white;
- * orange #FFA726 (0.49) is a light one and takes black (10.8:1 where white would be 1.9:1); a light theme's surface
- * at 30 % over a dark wallpaper is the dark grey the screen shows (0.07), not the linear mix of the luminances (0.29),
- * and takes white.
+ * the user's own picture, 0 when unknown), composited as the window composites it, in sRGB (gamma) space
+ * ([shownLuminance]) -- takes the text that contrasts more with it ([darkReadsBetter], the WCAG contrast ratio): black
+ * down to a relative luminance of 0.18 (L* 50, the perceptual mid grey), white below. A yellow drawer at 10 % over a
+ * dark wallpaper is a dark drawer and takes white; orange #FFA726 (0.49) is a light one and takes black (10.8:1 where
+ * white would be 1.9:1); a light theme's surface at 30 % over a dark wallpaper is the dark grey the screen shows (0.07),
+ * not the linear mix of the luminances (0.29), and takes white. The system bars' glyphs over the drawer follow the
+ * same rule (SystemBarContrast.kt in app), so labels and glyphs never disagree.
  */
-internal fun drawerTextIsDark(surface: Color, opacity: Float, behindLuminance: Float): Boolean {
-    val behind = srgbGrey(behindLuminance.coerceIn(0f, 1f))
-    val shown = surface.copy(alpha = opacity.coerceIn(0f, 1f)).compositeOver(Color(behind, behind, behind)).luminance()
-    return contrastRatio(0f, shown) >= contrastRatio(1f, shown)
-}
-
-/** The WCAG contrast ratio between two relative luminances, 1 (equal) to 21 (black and white). */
-private fun contrastRatio(a: Float, b: Float): Float = (maxOf(a, b) + 0.05f) / (minOf(a, b) + 0.05f)
-
-/** The sRGB grey level (0..1, gamma-encoded as the screen holds it) of a relative [luminance]: the sRGB transfer
- *  function, the inverse of what [luminance] applies. */
-private fun srgbGrey(luminance: Float): Float =
-    if (luminance <= 0.0031308f) luminance * 12.92f else 1.055f * luminance.toDouble().pow(1 / 2.4).toFloat() - 0.055f
+internal fun drawerTextIsDark(surface: Color, opacity: Float, behindLuminance: Float): Boolean =
+    darkReadsBetter(shownLuminance(surface, opacity, behindLuminance))
 
 /** Whether a colour scheme's text is dark (its onSurface darker than mid grey). */
 private fun ColorScheme.textIsDark(): Boolean = onSurface.luminance() < LIGHT_BACKGROUND

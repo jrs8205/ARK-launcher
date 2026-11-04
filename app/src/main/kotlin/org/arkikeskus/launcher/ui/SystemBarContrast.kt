@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -103,37 +102,39 @@ internal fun ownBarVisible(ownBarShown: Boolean, systemBarHidden: Boolean, statu
 /**
  * The luminance behind the status bar on home: the wallpaper's dark-text hint taken as white or black,
  * under ARK's own bar's black scrim at [scrimOpacity] while the bar is on screen ([ownBarVisible]). The
- * scrim counts only as strong as it is: the default 60 % over a white wallpaper leaves a mid grey, not
- * black.
+ * scrim counts only as strong as it is, as the screen shows it ([dimmedLuminance], sRGB compositing): the
+ * default 60 % over a white wallpaper leaves sRGB 0.4 -- relative luminance 0.13 -- not black.
  */
 internal fun behindStatusBarLuminance(ownBarVisible: Boolean, scrimOpacity: Float, wallpaperSupportsDarkText: Boolean): Float {
     val wallpaper = if (wallpaperSupportsDarkText) 1f else 0f
-    return if (ownBarVisible) wallpaper * (1f - scrimOpacity.coerceIn(0f, 1f)) else wallpaper
+    return if (ownBarVisible) dimmedLuminance(wallpaper, scrimOpacity) else wallpaper
 }
 
-/** The luminance of what the drawer paints ([DrawerSurface.paint], ARGB: the user's colour, or black over the
- *  own picture) when it paints a colour of its own, the theme's [themeSurface] otherwise. */
-internal fun drawerSurfaceLuminance(paint: Int?, themeSurface: Color): Float =
-    (paint?.let { Color(it) } ?: themeSurface).luminance()
+/** What the drawer paints ([DrawerSurface.paint], ARGB: the user's colour, or black over the own picture) when it
+ *  paints a colour of its own, the theme's [themeSurface] otherwise. */
+internal fun drawerSurfaceColor(paint: Int?, themeSurface: Color): Color = paint?.let { Color(it) } ?: themeSurface
 
 /**
- * Whether the drawer's background, at the user's [opacity] over what it lets through, is light enough
- * for dark glyphs: the surface's [surfaceLuminance] weighted by the opacity, [behindLuminance] by the
- * rest. Opaque, the surface decides as before; see-through, what is behind does -- a light theme over a
+ * Whether the drawer's background ([surface]), at the user's [opacity] over what it lets through
+ * ([behindLuminance]), reads better with dark glyphs: the same rule as the drawer's own text
+ * (DrawerColors.kt) -- what the screen shows, the surface composited over what is behind in sRGB space
+ * ([shownLuminance]), and the WCAG contrast of black and white against it ([darkReadsBetter]) -- so the
+ * bars' glyphs and the drawer's labels never disagree (an opaque orange drawer had black labels under
+ * white glyphs). Opaque, the surface decides; see-through, what is behind does -- a light theme over a
  * dark wallpaper drew dark glyphs on dark once the drawer could be transparent (issue #21's opacity
- * setting). The bar's thin glyphs keep the system bars' own stricter rule -- dark only on a clearly light
- * backing (Android's wallpaper hint counts a pixel dark below 0.45) -- not the drawer text's contrast rule
- * (DrawerColors.kt), which turns the body text black from a relative luminance of 0.18 up.
+ * setting).
  */
-internal fun drawerSurfaceIsLight(surfaceLuminance: Float, opacity: Float, behindLuminance: Float): Boolean =
-    surfaceLuminance * opacity + behindLuminance * (1f - opacity) > 0.5f
+internal fun drawerSurfaceIsLight(surface: Color, opacity: Float, behindLuminance: Float): Boolean =
+    darkReadsBetter(shownLuminance(surface, opacity, behindLuminance))
 
 /**
  * Home as it shows through the rising drawer: the shell dims the whole of home under the drawer by
  * [drawerScrimAlpha] ([homeDim], 32 % when open), so what a see-through drawer lets through is home's
- * [luminance] darkened by that.
+ * [luminance] darkened by that, as the screen shows it ([dimmedLuminance]: 32 % black over white leaves
+ * sRGB 0.68 = relative luminance 0.42, not 0.68 -- the linear mix put black text on a black drawer at
+ * 40 % over a white wallpaper, a dark grey on screen).
  */
-internal fun dimmedUnderDrawer(luminance: Float, homeDim: Float): Float = luminance * (1f - homeDim.coerceIn(0f, 1f))
+internal fun dimmedUnderDrawer(luminance: Float, homeDim: Float): Float = dimmedLuminance(luminance, homeDim)
 
 /** What a see-through drawer lets through: the user's own picture behind the drawer
  *  ([pictureLuminance], its mean lightness) when one is set -- it sits inside the drawer and covers
@@ -145,22 +146,22 @@ internal fun behindDrawerLuminance(pictureLuminance: Float?, behindHome: Float):
  *  [behindStatusBarLuminance] (the own bar's scrim, when on screen, over the wallpaper), under the
  *  shell's dim ([dimmedUnderDrawer]). */
 internal fun drawerIsLightOverStatusBar(
-    surfaceLuminance: Float,
+    surface: Color,
     opacity: Float,
     ownBarVisible: Boolean,
     scrimOpacity: Float,
     wallpaperSupportsDarkText: Boolean,
     homeDim: Float,
 ): Boolean = drawerSurfaceIsLight(
-    surfaceLuminance,
+    surface,
     opacity,
     dimmedUnderDrawer(behindStatusBarLuminance(ownBarVisible, scrimOpacity, wallpaperSupportsDarkText), homeDim),
 )
 
 /** [drawerSurfaceIsLight] over the navigation bar: behind a see-through drawer is the wallpaper under
  *  the shell's dim ([dimmedUnderDrawer]). */
-internal fun drawerIsLightOverNavigationBar(surfaceLuminance: Float, opacity: Float, wallpaperSupportsDarkText: Boolean, homeDim: Float): Boolean =
-    drawerSurfaceIsLight(surfaceLuminance, opacity, dimmedUnderDrawer(if (wallpaperSupportsDarkText) 1f else 0f, homeDim))
+internal fun drawerIsLightOverNavigationBar(surface: Color, opacity: Float, wallpaperSupportsDarkText: Boolean, homeDim: Float): Boolean =
+    drawerSurfaceIsLight(surface, opacity, dimmedUnderDrawer(if (wallpaperSupportsDarkText) 1f else 0f, homeDim))
 
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
@@ -293,7 +294,7 @@ internal fun SystemBarContrast(
     val statusBarPx = rememberUpdatedState(WindowInsets.statusBars.getTop(density).toFloat())
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
     val themeSurface = MaterialTheme.colorScheme.surface
-    val surfaceLuminance = rememberUpdatedState(drawerSurfaceLuminance(drawerSurface.paint, themeSurface))
+    val surfaceColor = rememberUpdatedState(drawerSurfaceColor(drawerSurface.paint, themeSurface))
     val currentDrawerOpacity = rememberUpdatedState(drawerSurface.opacity)
     val currentPicture = rememberUpdatedState(drawerPictureLuminance)
     val currentOwnBarShown = rememberUpdatedState(ownBarShown)
@@ -318,11 +319,11 @@ internal fun SystemBarContrast(
                     behindStatusBarLuminance(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha), wallpaperDarkText.value),
                     homeDim,
                 )
-                drawerSurfaceIsLight(surfaceLuminance.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
+                drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
             },
             drawerIsLightOverNavBar = { homeDim ->
                 val behindHome = dimmedUnderDrawer(if (wallpaperDarkText.value) 1f else 0f, homeDim)
-                drawerSurfaceIsLight(surfaceLuminance.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
+                drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
             },
             coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { homeAlpha -> ownBarBacksDark(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha)) },

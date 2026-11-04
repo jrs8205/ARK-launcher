@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.luminance
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
+import org.arkikeskus.launcher.ui.dimmedLuminance
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
 import org.junit.Test
 
@@ -22,7 +23,7 @@ class DrawerColorSchemeTest {
     private val yellow = Color(0xFFFFEE58)
     private val navy = Color(0xFF0D1B3E)
     private val darkWallpaper = 0f
-    private val lightWallpaper = 0.68f // white under the shell's 32 % dim
+    private val lightWallpaper = dimmedLuminance(1f, 0.32f) // white under the shell's 32 % dim, as the screen shows it (0.42)
 
     /** A solid drawer: the colour alone decides. */
     @Test fun aSolidColourDecidesByItself() {
@@ -124,6 +125,16 @@ class DrawerColorSchemeTest {
         assertThat(drawerTextIsDark(lightSurface, opacity = 0.6f, behindLuminance = darkWallpaper)).isTrue()
         assertThat(drawerTextIsDark(Color.Black, opacity = 0.5f, behindLuminance = 0.5f)).isFalse()
         assertThat(drawerTextIsDark(Color.Black, opacity = 0f, behindLuminance = 0.5f)).isTrue()
+    }
+
+    /** The round-8 finding: a black drawer at 40 % over a WHITE wallpaper under the shell's 32 % dim. The shell had mixed
+     *  the dim linearly (0.68, where the screen shows sRGB 0.68 = 0.42), which this model read as too light a grey and
+     *  put black text (3.8:1) on a dark grey that takes white (5.6:1). Fed what the screen shows, it takes white; at 20 %
+     *  the grey is light enough (0.26) for black. */
+    @Test fun aBlackDrawerOverTheDimmedWhiteWallpaperTakesWhite() {
+        val dimmedWhite = dimmedLuminance(1f, 0.32f)
+        assertThat(drawerTextIsDark(Color.Black, opacity = 0.4f, behindLuminance = dimmedWhite)).isFalse()
+        assertThat(drawerTextIsDark(Color.Black, opacity = 0.2f, behindLuminance = dimmedWhite)).isTrue()
     }
 
     /** The search field and the folder cards draw from the expressive palette: on a chosen colour their
