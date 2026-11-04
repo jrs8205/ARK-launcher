@@ -5,7 +5,11 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -72,5 +76,56 @@ class DrawerWallpaperStoreTest {
         assertThat(store.current.value).isNull()
         assertThat(file.exists()).isFalse()
         assertThat(DrawerWallpaperStore(context).current.value).isNull()
+    }
+
+    private fun jpgs() = dir.listFiles { f -> f.isFile && f.extension == "jpg" }.orEmpty().toList()
+
+    /** A save that fails half-way (here: the lightness file cannot be written because a folder sits in its place) is
+     *  reported, leaves no half-written picture behind, and keeps the picture that was there -- it must not throw
+     *  into the caller's coroutine and take the launcher down. */
+    @Test fun aFailedSaveKeepsThePreviousPictureAndSaysSo() = runTest {
+        val store = DrawerWallpaperStore(context)
+        assertThat(store.set(picture(Color.WHITE))).isTrue()
+        val kept = store.current.value!!
+        val luminanceFile = File(dir, "luminance.txt")
+        assertThat(luminanceFile.delete()).isTrue()
+        assertThat(luminanceFile.mkdir()).isTrue()
+
+        assertThat(store.set(picture(Color.BLACK))).isFalse()
+
+        assertThat(store.current.value).isEqualTo(kept)
+        assertThat(kept.file.exists()).isTrue()
+        assertThat(jpgs()).containsExactly(kept.file)
+    }
+
+    /** A removal issued while a pick is still saving wins, even though the pick finishes later: the pick's result is
+     *  dropped and its file removed, so the user's last action is what shows. */
+    @Test fun aRemovalIssuedAfterAPickWinsEvenWhenThePickFinishesLater() = runBlocking<Unit> {
+        val io = StandardTestDispatcher()
+        val store = DrawerWallpaperStore(context, io)
+        val pick = launch { store.set(picture(Color.WHITE)) }
+        val removal = launch { store.clear() }
+        yield() // both have started: the pick came first, the removal after it; neither has saved yet
+        io.scheduler.advanceUntilIdle()
+        pick.join()
+        removal.join()
+
+        assertThat(store.current.value).isNull()
+        assertThat(jpgs()).isEmpty()
+    }
+
+    /** Of two picks in a row the later one shows, whatever order their saves finish in. */
+    @Test fun theLaterOfTwoPicksWins() = runBlocking<Unit> {
+        val io = StandardTestDispatcher()
+        val store = DrawerWallpaperStore(context, io)
+        val first = launch { store.set(picture(Color.WHITE)) }
+        val second = launch { store.set(picture(Color.BLACK)) }
+        yield()
+        io.scheduler.advanceUntilIdle()
+        first.join()
+        second.join()
+
+        assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
+        assertThat(jpgs()).containsExactly(store.current.value!!.file)
     }
 }

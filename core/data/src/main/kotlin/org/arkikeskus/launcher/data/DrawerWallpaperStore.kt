@@ -9,12 +9,14 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.graphics.scale
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.ceil
@@ -41,38 +43,75 @@ internal fun sampleSizeFor(width: Int, height: Int, maxSide: Int): Int =
  * never shows the old one; the old file goes.
  */
 @Singleton
-class DrawerWallpaperStore @Inject constructor(@ApplicationContext private val context: Context) {
+class DrawerWallpaperStore internal constructor(
+    private val context: Context,
+    /** Where the files are read and written; a test hands in one it can pace. */
+    private val io: CoroutineDispatcher,
+) {
+    @Inject constructor(@ApplicationContext context: Context) : this(context, Dispatchers.IO)
+
     private val dir = File(context.filesDir, "drawer_wallpaper")
     private val _current = MutableStateFlow(load())
+
+    /** The ticket of the user's latest pick or removal, taken the moment it is asked for. A pick publishes only while
+     *  it still holds the latest ticket, so the last action wins whatever order the saves finish in: a removal issued
+     *  during a slow pick stays a removal, and of two picks in a row the later one shows. */
+    private val latest = AtomicInteger()
+
+    /** Guards the ticket check and the publish, so a removal cannot slip between them. */
+    private val publishLock = Any()
 
     /** The picture, or null when none is set. */
     val current: StateFlow<DrawerWallpaper?> = _current
 
-    /** Saves the picture at [uri]; false when it cannot be read. */
-    suspend fun import(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val picture = runCatching { decode(uri) }.getOrNull() ?: return@withContext false
-        set(picture)
-        true
+    /** Saves the picture at [uri]; false when it cannot be read or saved, or a later pick or removal overtook it. */
+    suspend fun import(uri: Uri): Boolean {
+        val ticket = latest.incrementAndGet()
+        return withContext(io) {
+            val picture = runCatching { decode(uri) }.getOrNull() ?: return@withContext false
+            save(picture, ticket)
+        }
     }
 
-    /** Saves [picture] as the drawer's wallpaper (also the test seam). */
-    suspend fun set(picture: Bitmap): Unit = withContext(Dispatchers.IO) {
-        dir.mkdirs()
-        val file = File(dir, "${UUID.randomUUID()}.jpg")
-        file.outputStream().use { picture.compress(Bitmap.CompressFormat.JPEG, 90, it) }
-        val luminance = luminanceOf(picture)
-        File(dir, LUMINANCE_FILE).writeText(luminance.toString())
-        val old = _current.value
-        _current.value = DrawerWallpaper(file, luminance)
-        old?.file?.delete()
+    /** Saves [picture] as the drawer's wallpaper (also the test seam); false as for [import]. */
+    suspend fun set(picture: Bitmap): Boolean {
+        val ticket = latest.incrementAndGet()
+        return withContext(io) { save(picture, ticket) }
     }
 
     /** Removes the picture; the drawer shows the system wallpaper through again. */
-    suspend fun clear(): Unit = withContext(Dispatchers.IO) {
-        val old = _current.value
-        _current.value = null
+    suspend fun clear() {
+        latest.incrementAndGet()
+        withContext(io) {
+            val old = synchronized(publishLock) { _current.value.also { _current.value = null } }
+            old?.file?.delete()
+            File(dir, LUMINANCE_FILE).delete()
+        }
+    }
+
+    /**
+     * Writes [picture] and its lightness under a new name, then publishes them if [ticket] is still the latest action.
+     * A write that fails half-way (no space left, a folder in the way) leaves nothing behind and keeps the picture that
+     * was there: it is reported as false, never thrown into the caller's coroutine (that took the launcher down).
+     */
+    private fun save(picture: Bitmap, ticket: Int): Boolean {
+        dir.mkdirs()
+        val file = File(dir, "${UUID.randomUUID()}.jpg")
+        val saved = runCatching {
+            file.outputStream().use { out ->
+                check(picture.compress(Bitmap.CompressFormat.JPEG, 90, out)) { "the picture could not be encoded" }
+            }
+            val luminance = luminanceOf(picture)
+            File(dir, LUMINANCE_FILE).writeText(luminance.toString())
+            DrawerWallpaper(file, luminance)
+        }.getOrNull()
+        val old = synchronized(publishLock) {
+            if (saved == null || ticket != latest.get()) return@synchronized null.also { file.delete() }
+            _current.value.also { _current.value = saved }
+        }
+        if (_current.value != saved) return false
         old?.file?.delete()
-        File(dir, LUMINANCE_FILE).delete()
+        return true
     }
 
     private fun load(): DrawerWallpaper? {
