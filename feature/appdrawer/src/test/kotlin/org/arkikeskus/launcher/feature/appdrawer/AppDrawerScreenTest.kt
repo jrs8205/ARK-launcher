@@ -500,6 +500,24 @@ class AppDrawerScreenTest {
         assertThat(textColorOf(editTitle()).luminance()).isLessThan(0.5f)
     }
 
+    /** The search's section titles sit on the see-through background like the app labels, so over a dark picture they
+     *  turn white with them (the expressive palette, which the opaque cards keep, would leave them dark on dark). */
+    @Test fun theSearchSectionTitlesFollowTheDrawersTextOverADarkPicture() {
+        showWithApp()
+        val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
+        runBlocking { wiring.drawerWallpaper.set(dark) }
+        awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
+        settle()
+
+        compose.onNode(hasSetTextAction()).performTextInput(mailApp.take(3))
+        settle()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(500)) // the debounce elapses
+        val appsTitle = context.getString(R.string.search_section_apps)
+        awaitText(appsTitle, unmerged = true)
+
+        assertThat(textColorOf(appsTitle).luminance()).isGreaterThan(0.5f)
+    }
+
     /** The colour a text is laid out with (its Text's colour merged into its style). */
     private fun textColorOf(text: String): Color {
         val node = compose.onAllNodesWithText(text, useUnmergedTree = true).onFirst().fetchSemanticsNode()

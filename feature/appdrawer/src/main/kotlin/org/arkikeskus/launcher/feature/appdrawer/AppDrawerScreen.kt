@@ -678,14 +678,14 @@ private fun AppDrawerContent(
                     }
                     if (apps.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
-                            ExpressiveSectionTitle(stringResource(R.string.search_section_apps))
+                            ExpressiveSectionTitle(stringResource(R.string.search_section_apps), color = MaterialTheme.colorScheme.onSurface)
                         }
                         appCells(apps, badges, badgeShowCount, badgeScale, showLabels, drawerIconSize, onAppClick,
                             onAppLongClick, dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
                     }
                     if (settingResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
-                            ExpressiveSectionTitle(stringResource(R.string.search_section_settings))
+                            ExpressiveSectionTitle(stringResource(R.string.search_section_settings), color = MaterialTheme.colorScheme.onSurface)
                         }
                         items(items = settingResults, key = { it.id }, span = { GridItemSpan(maxLineSpan) },
                             contentType = { "setting" }) { setting ->
@@ -701,7 +701,7 @@ private fun AppDrawerContent(
                     }
                     if (contactResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
-                            ExpressiveSectionTitle(stringResource(R.string.search_section_contacts))
+                            ExpressiveSectionTitle(stringResource(R.string.search_section_contacts), color = MaterialTheme.colorScheme.onSurface)
                         }
                         items(items = contactResults, key = { it.id }, span = { GridItemSpan(maxLineSpan) },
                             contentType = { "contact" }) { contact ->

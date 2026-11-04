@@ -20,12 +20,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.ui.LauncherIcons
+import androidx.compose.ui.graphics.Color
 
 @Composable
-fun ExpressiveSectionTitle(text: String) {
-    val p = LocalExpressivePalette.current
+fun ExpressiveSectionTitle(text: String, color: Color = LocalExpressivePalette.current.text) {
     Text(
-        text = text, color = p.text, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+        text = text, color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold,
         letterSpacing = (-0.2).sp,
         modifier = Modifier.padding(top = 26.dp, start = 4.dp, bottom = 12.dp),
     )
