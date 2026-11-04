@@ -133,6 +133,22 @@ class DrawerWallpaperStoreTest {
         assertThat(File(dir, "luminance.txt").isFile).isTrue()
     }
 
+    /** A stale pick (one a later pick overtook) must not touch the shared lightness file either: the next start would
+     *  pair the accepted dark picture with the stale light one's lightness and draw black text on black. */
+    @Test fun aStalePickLeavesTheAcceptedPicturesLightnessAlone() = runBlocking<Unit> {
+        val io = LastInFirstOutDispatcher()
+        val store = DrawerWallpaperStore(context, io)
+        val stale = launch { store.set(picture(Color.WHITE)) }
+        val accepted = launch { store.set(picture(Color.BLACK)) }
+        yield()
+        io.runAll() // the later (black) pick saves first, the stale (white) one after it
+        stale.join()
+        accepted.join()
+
+        assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
+        assertThat(DrawerWallpaperStore(context).current.value!!.luminance).isWithin(0.01f).of(0f)
+    }
+
     /** Runs what is dispatched to it in reverse order, on the caller's thread, when asked. */
     private class LastInFirstOutDispatcher : CoroutineDispatcher() {
         private val queue = ArrayDeque<Runnable>()

@@ -86,35 +86,43 @@ class DrawerWallpaperStore internal constructor(
         withContext(io) {
             val old = synchronized(publishLock) {
                 if (ticket != latest.get()) return@withContext
+                File(dir, LUMINANCE_FILE).delete()
                 _current.value.also { _current.value = null }
             }
             old?.file?.delete()
-            File(dir, LUMINANCE_FILE).delete()
         }
     }
 
     /**
-     * Writes [picture] and its lightness under a new name, then publishes them if [ticket] is still the latest action.
-     * A write that fails half-way (no space left, a folder in the way) leaves nothing behind and keeps the picture that
-     * was there: it is reported as false, never thrown into the caller's coroutine (that took the launcher down).
+     * Writes [picture] under a new name, then -- if [ticket] is still the latest action -- writes its lightness and
+     * publishes it, all under the lock, so the shared lightness file only ever describes the published picture and a
+     * removal cannot slip in between. The picture this one replaces is deleted whatever happens to the new one
+     * afterwards (a removal right after the publish deletes the new one itself). A write that fails half-way (no space
+     * left, a folder in the way) leaves nothing behind and keeps the picture that was there: it is reported as false,
+     * never thrown into the caller's coroutine (that took the launcher down).
      */
     private fun save(picture: Bitmap, ticket: Int): Boolean {
         dir.mkdirs()
         val file = File(dir, "${UUID.randomUUID()}.jpg")
-        val saved = runCatching {
+        val luminance = runCatching {
             file.outputStream().use { out ->
                 check(picture.compress(Bitmap.CompressFormat.JPEG, 90, out)) { "the picture could not be encoded" }
             }
-            val luminance = luminanceOf(picture)
-            File(dir, LUMINANCE_FILE).writeText(luminance.toString())
-            DrawerWallpaper(file, luminance)
+            luminanceOf(picture)
         }.getOrNull()
-        val old = synchronized(publishLock) {
-            if (saved == null || ticket != latest.get()) return@synchronized null.also { file.delete() }
-            _current.value.also { _current.value = saved }
+        var replaced: DrawerWallpaper? = null
+        val published = synchronized(publishLock) {
+            if (luminance == null || ticket != latest.get()) return@synchronized false
+            if (runCatching { File(dir, LUMINANCE_FILE).writeText(luminance.toString()) }.isFailure) return@synchronized false
+            replaced = _current.value
+            _current.value = DrawerWallpaper(file, luminance)
+            true
         }
-        if (_current.value != saved) return false
-        old?.file?.delete()
+        if (!published) {
+            file.delete()
+            return false
+        }
+        replaced?.file?.delete()
         return true
     }
 
