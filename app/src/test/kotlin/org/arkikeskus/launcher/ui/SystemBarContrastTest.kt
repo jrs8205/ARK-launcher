@@ -1,12 +1,16 @@
 package org.arkikeskus.launcher.ui
 
 import android.app.WallpaperColors
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.mutableFloatStateOf
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.arkikeskus.launcher.model.DrawerSurface
+import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.drawerSurface
 import org.junit.Test
 
 /**
@@ -143,6 +147,21 @@ class SystemBarContrastTest {
         val darkTheme = 0.01f
         assertThat(drawerSurfaceIsLight(darkTheme, 0f, behindDrawerLuminance(0.9f, behindHome = 0f))).isTrue()
         assertThat(drawerSurfaceIsLight(darkTheme, 0f, behindDrawerLuminance(0.1f, behindHome = 1f))).isFalse()
+    }
+
+    /** The owner's 1.0.0 note: with an own picture the colour is off and the drawer paints a black dim of the user's
+     *  strength instead -- undimmed, the picture decides the glyphs; dimmed hard, even a white picture takes light
+     *  glyphs. "Transparent" paints nothing, so what is behind decides whatever the theme is. */
+    @Test fun anOwnPictureIsDimmedByItsOwnSettingNotTheColour() {
+        val lightTheme = Color.White
+        val yellow = 0xFFFFEE58.toInt()
+        val whitePicture = 1f
+        fun glyphsDark(surface: DrawerSurface, picture: Float?) =
+            drawerSurfaceIsLight(drawerSurfaceLuminance(surface.paint, lightTheme), surface.opacity, behindDrawerLuminance(picture, behindHome = 0f))
+
+        assertThat(glyphsDark(drawerSurface(yellow, colorOpacity = 1f, hasPicture = true, pictureDim = 0f), whitePicture)).isTrue()
+        assertThat(glyphsDark(drawerSurface(yellow, colorOpacity = 1f, hasPicture = true, pictureDim = 0.8f), whitePicture)).isFalse()
+        assertThat(glyphsDark(drawerSurface(LauncherSettings.DRAWER_COLOR_TRANSPARENT, colorOpacity = 1f, hasPicture = false, pictureDim = 0f), picture = null)).isFalse()
     }
 
     /** Home -- and ARK's own bar with it -- fades out under the rising drawer (homeContentAlpha), so the own bar's

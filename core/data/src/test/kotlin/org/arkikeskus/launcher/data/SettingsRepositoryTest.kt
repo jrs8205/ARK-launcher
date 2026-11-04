@@ -801,6 +801,42 @@ class SettingsRepositoryTest {
         assertThat(repo.exportRaw()).doesNotContainKey("drawer_background_color")
     }
 
+    /** The owner's 1.0.0 note: "Transparent" is a choice of its own in the colour setting (no colour layer at all), stored
+     *  as a value, not cleared like the theme, so it survives a backup round-trip. */
+    @Test
+    fun `the transparent drawer colour is stored as a choice of its own, not the theme`() = runTest {
+        val repo = newRepository()
+        repo.setDrawerBackgroundColor(LauncherSettings.DRAWER_COLOR_TRANSPARENT)
+        assertThat(repo.settings.first().drawerBackgroundColor).isEqualTo(LauncherSettings.DRAWER_COLOR_TRANSPARENT)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_background_color", LauncherSettings.DRAWER_COLOR_TRANSPARENT)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerBackgroundColor).isEqualTo(LauncherSettings.DRAWER_COLOR_TRANSPARENT)
+    }
+
+    /** The dim over the user's own picture behind the drawer (the owner's 1.0.0 note): off until set, clamped to
+     *  0-1, in backups as a Float like the other sliders, a wrong type dropped. */
+    @Test
+    fun `drawer picture dim is off until set, clamps on write and read, and survives a backup round-trip`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().drawerPictureDim).isEqualTo(LauncherSettings.DEFAULT_DRAWER_PICTURE_DIM)
+        repo.setDrawerPictureDim(1.5f)
+        assertThat(repo.settings.first().drawerPictureDim).isEqualTo(1f) // clamped on write
+        repo.setDrawerPictureDim(0.3f)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_picture_dim", 0.3f)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerPictureDim).isEqualTo(0.3f)
+        restored.importRaw(mapOf("drawer_picture_dim" to 2.0)) // JSON hands a Double back
+        assertThat(restored.settings.first().drawerPictureDim).isEqualTo(1f) // out of range: clamped on read
+        restored.importRaw(mapOf("drawer_picture_dim" to "dark"))
+        assertThat(restored.settings.first().drawerPictureDim).isEqualTo(LauncherSettings.DEFAULT_DRAWER_PICTURE_DIM) // wrong type dropped
+    }
+
     @Test
     fun `long-press scale clamps on write and read, survives a backup round-trip and rejects a wrong type`() = runTest {
         val repo = newRepository()

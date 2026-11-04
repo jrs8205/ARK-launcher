@@ -327,6 +327,15 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
     }
 
+    /** The owner's 1.0.0 note: the dim over the user's own picture reaches the drawer; none out of the box. */
+    @Test fun theDrawerCarriesThePictureDimSetting() {
+        show()
+        awaitState("no dim") { it.pictureDim == 0f }
+
+        runBlocking { wiring.settingsRepository.setDrawerPictureDim(0.3f) }
+        awaitState("the chosen dim") { it.pictureDim == 0.3f }
+    }
+
     /** A Telegram request after 0.9.7: with "Hide apps that are on the home screen" on, an app placed on home
      *  leaves the drawer's list; the search still finds it. Off (the default) it stays listed. */
     @Test fun appsOnTheHomeScreenLeaveTheDrawerWhenTheSettingIsOn() {

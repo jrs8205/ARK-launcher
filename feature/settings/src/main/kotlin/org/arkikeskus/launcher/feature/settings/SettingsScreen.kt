@@ -87,6 +87,7 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.feature.backup.BackupScreen
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.LongPressScale
@@ -293,25 +294,20 @@ fun SettingsScreen(
                         viewModel::setHideHomeAppsFromDrawer,
                     )
                     SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
-                    DrawerBackgroundRow(s.drawerBackgroundOpacity, viewModel::setDrawerBackgroundOpacity)
-                    DrawerColorRow(selected = s.drawerBackgroundColor, onPick = viewModel::setDrawerBackgroundColor)
-                    DrawerWallpaperRow(
+                    DrawerBackdropRows(
+                        settings = s,
                         wallpaper = drawerWallpaper,
-                        onPick = viewModel::importDrawerWallpaper,
-                        onClear = viewModel::clearDrawerWallpaper,
+                        blurAvailability = rememberBlurAvailability(),
+                        actions = DrawerBackdropActions(
+                            onColor = viewModel::setDrawerBackgroundColor,
+                            onColorOpacity = viewModel::setDrawerBackgroundOpacity,
+                            onPickPicture = viewModel::importDrawerWallpaper,
+                            onClearPicture = viewModel::clearDrawerWallpaper,
+                            onPictureDim = viewModel::setDrawerPictureDim,
+                            onBlur = viewModel::setBlurBehindDrawer,
+                            onBlurStrength = viewModel::setDrawerBlurStrength,
+                        ),
                     )
-                    // Greyed with the reason where the system cannot blur behind the window (Android 11, a
-                    // Fairphone 6 report), instead of a switch that silently does nothing.
-                    val blurAvailability = rememberBlurAvailability()
-                    BlurBehindDrawerRow(
-                        availability = blurAvailability,
-                        checked = s.blurBehindDrawer,
-                        drawerOpaque = s.drawerBackgroundOpacity >= 1f,
-                        onCheckedChange = viewModel::setBlurBehindDrawer,
-                    )
-                    if (s.blurBehindDrawer && blurAvailability == BlurAvailability.AVAILABLE) {
-                        DrawerBlurStrengthRow(s.drawerBlurStrength, viewModel::setDrawerBlurStrength)
-                    }
                     DrawerIconSizeRow(s.drawerIconScale, viewModel::setDrawerIconScale)
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_hidden_apps),
@@ -1272,6 +1268,7 @@ internal fun DrawerIconSizeRow(value: Float, onValueChange: (Float) -> Unit) {
     )
 }
 
+/** The opacity of the drawer's colour over the wallpaper (issue #21); shown only while a colour is in effect. */
 @Composable
 internal fun DrawerBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
     val resources = LocalResources.current
@@ -1324,6 +1321,66 @@ internal fun DrawerBlurStrengthRow(value: Float, onValueChange: (Float) -> Unit)
         valueRange = SettingsRepository.MIN_DRAWER_BLUR_STRENGTH..SettingsRepository.MAX_DRAWER_BLUR_STRENGTH,
         valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
     )
+}
+
+/** How much the user's own picture behind the drawer is darkened for legibility, 0–100 % black; none out of the box. */
+@Composable
+internal fun DrawerPictureDimRow(value: Float, onValueChange: (Float) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_drawer_picture_dim),
+        value = value,
+        onValueChange = onValueChange,
+        valueRange = 0f..1f,
+        valueText = { resources.getString(R.string.settings_percent, scalePercent(it)) },
+        default = LauncherSettings.DEFAULT_DRAWER_PICTURE_DIM,
+    )
+}
+
+/** The callbacks of [DrawerBackdropRows], one per setting they change. */
+internal class DrawerBackdropActions(
+    val onColor: (Int?) -> Unit = {},
+    val onColorOpacity: (Float) -> Unit = {},
+    val onPickPicture: (Uri) -> Unit = {},
+    val onClearPicture: () -> Unit = {},
+    val onPictureDim: (Float) -> Unit = {},
+    val onBlur: (Boolean) -> Unit = {},
+    val onBlurStrength: (Float) -> Unit = {},
+)
+
+/**
+ * What the app drawer paints over what is behind it (the owner's 1.0.0 notes), top to bottom as the layers stack: the
+ * colour strip ("Transparent" first, then the theme and the swatches) and the colour's opacity while a colour is in
+ * effect; the user's own picture, which turns the colour off (the strip locks and says why) and takes a dim of its own
+ * instead; then the wallpaper blur, whose "the drawer is solid" hint follows what the drawer really paints
+ * ([drawerSurface]).
+ */
+@Composable
+internal fun DrawerBackdropRows(
+    settings: LauncherSettings,
+    wallpaper: DrawerWallpaper?,
+    blurAvailability: BlurAvailability,
+    actions: DrawerBackdropActions,
+) {
+    val hasPicture = wallpaper != null
+    val surface = drawerSurface(settings.drawerBackgroundColor, settings.drawerBackgroundOpacity, hasPicture, settings.drawerPictureDim)
+    DrawerColorRow(selected = settings.drawerBackgroundColor, locked = hasPicture, onPick = actions.onColor)
+    if (!hasPicture && settings.drawerBackgroundColor != LauncherSettings.DRAWER_COLOR_TRANSPARENT) {
+        DrawerBackgroundRow(settings.drawerBackgroundOpacity, actions.onColorOpacity)
+    }
+    DrawerWallpaperRow(wallpaper = wallpaper, onPick = actions.onPickPicture, onClear = actions.onClearPicture)
+    if (hasPicture) DrawerPictureDimRow(settings.drawerPictureDim, actions.onPictureDim)
+    // Greyed with the reason where the system cannot blur behind the window (Android 11, a Fairphone 6 report),
+    // instead of a switch that silently does nothing.
+    BlurBehindDrawerRow(
+        availability = blurAvailability,
+        checked = settings.blurBehindDrawer,
+        drawerOpaque = surface.opacity >= 1f,
+        onCheckedChange = actions.onBlur,
+    )
+    if (settings.blurBehindDrawer && blurAvailability == BlurAvailability.AVAILABLE) {
+        DrawerBlurStrengthRow(settings.drawerBlurStrength, actions.onBlurStrength)
+    }
 }
 
 @Composable
@@ -1389,24 +1446,25 @@ internal val COLOR_SWATCHES: List<Int> = listOf(
 /** A test tag per swatch, by its colour. */
 internal fun colorSwatchTag(argb: Int): String = "color-swatch-%06X".format(argb and 0xFFFFFF)
 
-/** One round colour swatch; the chosen one wears the accent ring. */
+/** One round colour swatch; the chosen one wears the accent ring. Disabled ([enabled] false) it fades and takes no taps. */
 @Composable
-private fun ColorSwatch(argb: Int, selected: Boolean, onClick: () -> Unit) {
+private fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
     val name = "#%06X".format(argb and 0xFFFFFF)
+    val fade = if (enabled) 1f else 0.4f
     Box(
         modifier = Modifier
             .size(32.dp)
             .clip(CircleShape)
-            .background(Color(argb))
+            .background(Color(argb).copy(alpha = fade))
             .border(
                 width = if (selected) 3.dp else 1.dp,
-                color = if (selected) Accent else p.faint,
+                color = (if (selected) Accent else p.faint).copy(alpha = fade),
                 shape = CircleShape,
             )
             .testTag(colorSwatchTag(argb))
             .semantics { contentDescription = name; this.selected = selected }
-            .clickable { onClick() },
+            .clickable(enabled = enabled) { onClick() },
     )
 }
 
@@ -1508,10 +1566,12 @@ internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: (Uri) -> Un
     }
 }
 
-/** The app drawer's background colour (a Telegram request after 0.9.9): the theme's own surface, or one of
- *  the label swatches; the drawer's text turns black or white to match by itself. */
+/** The app drawer's background colour (a Telegram request after 0.9.9): "Transparent" for no colour layer at all, the
+ *  theme's own surface, or one of the label swatches; the drawer's text turns black or white to match by itself. While
+ *  the user's own picture is set ([locked]) the colour is off: the strip keeps showing the choice but takes no taps and
+ *  says why, so the colour is back as it was once the picture goes. */
 @Composable
-internal fun DrawerColorRow(selected: Int?, onPick: (Int?) -> Unit) {
+internal fun DrawerColorRow(selected: Int?, locked: Boolean = false, onPick: (Int?) -> Unit) {
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
@@ -1521,6 +1581,9 @@ internal fun DrawerColorRow(selected: Int?, onPick: (Int?) -> Unit) {
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_drawer_color))
+            if (locked) {
+                Text(stringResource(R.string.settings_drawer_color_locked), color = p.dim, fontSize = 12.5.sp)
+            }
             Spacer(Modifier.height(14.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -1528,11 +1591,20 @@ internal fun DrawerColorRow(selected: Int?, onPick: (Int?) -> Unit) {
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
                 FilterChip(
+                    selected = selected == LauncherSettings.DRAWER_COLOR_TRANSPARENT,
+                    enabled = !locked,
+                    onClick = { onPick(LauncherSettings.DRAWER_COLOR_TRANSPARENT) },
+                    label = { Text(stringResource(R.string.settings_color_transparent)) },
+                )
+                FilterChip(
                     selected = selected == null,
+                    enabled = !locked,
                     onClick = { onPick(null) },
                     label = { Text(stringResource(R.string.settings_color_theme)) },
                 )
-                COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }
+                COLOR_SWATCHES.forEach { c ->
+                    ColorSwatch(argb = c, selected = c == selected, enabled = !locked, onClick = { onPick(c) })
+                }
             }
         }
     }

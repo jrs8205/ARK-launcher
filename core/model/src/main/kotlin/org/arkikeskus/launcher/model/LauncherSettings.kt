@@ -25,9 +25,13 @@ data class LauncherSettings(
     val dockBackgroundOpacity: Float = DEFAULT_DOCK_BACKGROUND,
     /** Opacity of the app drawer's background (0 = the wallpaper shows through, 1 = solid); issue #21. */
     val drawerBackgroundOpacity: Float = DEFAULT_DRAWER_BACKGROUND,
-    /** ARGB colour of the app drawer's background, or null for the theme's own surface (a Telegram request after
-     *  0.9.9). The drawer's text takes black or white by the colour's lightness. */
+    /** ARGB colour of the app drawer's background, null for the theme's own surface (a Telegram request after 0.9.9),
+     *  or [DRAWER_COLOR_TRANSPARENT] for no colour layer at all. The drawer's text takes black or white by what it
+     *  really looks like ([drawerSurface]). Off, and locked in Settings, while the user's own picture is set. */
     val drawerBackgroundColor: Int? = null,
+    /** How much the user's own picture behind the drawer is darkened for legibility (0 = the picture as it is, 1 =
+     *  black), in place of the colour and its opacity while the picture is set; the owner's 1.0.0 notes. */
+    val drawerPictureDim: Float = DEFAULT_DRAWER_PICTURE_DIM,
     val showPageIndicator: Boolean = true,
     /** How the page dots mark the home page: a ring around its dot ([MARKER_RING]) or a house glyph
      *  in place of the dot ([MARKER_HOUSE]). */
@@ -190,5 +194,12 @@ data class LauncherSettings(
 
         /** [drawerBackgroundOpacity] out of the box: solid, the drawer as it always was. */
         const val DEFAULT_DRAWER_BACKGROUND = 1f
+
+        /** [drawerBackgroundColor]'s "Transparent" choice: no colour layer, only the (blurred) wallpaper behind the
+         *  drawer. The ARGB of a fully transparent black, which no swatch is. */
+        const val DRAWER_COLOR_TRANSPARENT = 0
+
+        /** [drawerPictureDim] out of the box: none, only the picture shows. */
+        const val DEFAULT_DRAWER_PICTURE_DIM = 0f
     }
 }

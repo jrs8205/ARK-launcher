@@ -85,6 +85,8 @@ data class AppDrawerUiState(
     val backgroundColor: Int? = null,
     /** The user's own picture behind the drawer, or null for the system wallpaper through the window. */
     val wallpaper: DrawerWallpaper? = null,
+    /** How much the own picture is darkened for legibility (0 = as it is, 1 = black); the colour is off with a picture. */
+    val pictureDim: Float = 0f,
     /** The wallpaper blur setting and its strength: an own picture is blurred inside the window by them. */
     val blurBehindDrawer: Boolean = false,
     val drawerBlurStrength: Float = 1f,
@@ -183,6 +185,7 @@ class AppDrawerViewModel @Inject constructor(
             showSearch = settings.showDrawerSearch,
             backgroundOpacity = settings.drawerBackgroundOpacity,
             backgroundColor = settings.drawerBackgroundColor,
+            pictureDim = settings.drawerPictureDim,
             blurBehindDrawer = settings.blurBehindDrawer,
             drawerBlurStrength = settings.drawerBlurStrength,
             showNotificationDots = settings.showNotificationDots,

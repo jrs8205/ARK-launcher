@@ -131,6 +131,7 @@ class SettingsRepository @Inject constructor(
             folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
             collapsedSettingsSections = parseSections(p[Keys.COLLAPSED_SETTINGS_SECTIONS]),
             drawerBackgroundColor = p[Keys.DRAWER_BACKGROUND_COLOR],
+            drawerPictureDim = (p[Keys.DRAWER_PICTURE_DIM] ?: LauncherSettings.DEFAULT_DRAWER_PICTURE_DIM).coerceIn(0f, 1f),
             blurBehindDrawer = p[Keys.BLUR_BEHIND_DRAWER] ?: false,
             drawerBlurStrength =(p[Keys.DRAWER_BLUR_STRENGTH] ?: 1.0f).coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH),
             themeAllIcons = p[Keys.THEME_ALL_ICONS] ?: false,
@@ -466,10 +467,14 @@ class SettingsRepository @Inject constructor(
     suspend fun setDrawerBlurStrength(value: Float) =
         edit { it[Keys.DRAWER_BLUR_STRENGTH] = value.coerceIn(MIN_DRAWER_BLUR_STRENGTH, MAX_DRAWER_BLUR_STRENGTH) }
 
-    /** ARGB colour of the app drawer's background; null brings the theme's own surface back. */
+    /** ARGB colour of the app drawer's background, or [LauncherSettings.DRAWER_COLOR_TRANSPARENT] for none; null
+     *  brings the theme's own surface back. */
     suspend fun setDrawerBackgroundColor(argb: Int?) = edit {
         if (argb == null) it.remove(Keys.DRAWER_BACKGROUND_COLOR) else it[Keys.DRAWER_BACKGROUND_COLOR] = argb
     }
+
+    /** How much the user's own picture behind the drawer is darkened, 0 (not at all) to 1 (black). */
+    suspend fun setDrawerPictureDim(value: Float) = edit { it[Keys.DRAWER_PICTURE_DIM] = value.coerceIn(0f, 1f) }
 
     suspend fun setThemeAllIcons(value: Boolean) = edit { it[Keys.THEME_ALL_ICONS] = value }
     suspend fun setFolderColumns(value: Int) =
@@ -752,6 +757,7 @@ class SettingsRepository @Inject constructor(
         val BLUR_BEHIND_DRAWER = booleanPreferencesKey("blur_behind_drawer")
         val DRAWER_BLUR_STRENGTH = floatPreferencesKey("drawer_blur_strength")
         val DRAWER_BACKGROUND_COLOR = intPreferencesKey("drawer_background_color")
+        val DRAWER_PICTURE_DIM = floatPreferencesKey("drawer_picture_dim")
         val THEME_ALL_ICONS = booleanPreferencesKey("theme_all_icons")
         val LOCAL_LAST_BACKUP = longPreferencesKey("local_last_backup_time")
         val APP_LABEL_SCALE = floatPreferencesKey("app_label_scale")
@@ -818,7 +824,7 @@ class SettingsRepository @Inject constructor(
         /** Preference keys whose value must be restored as Float (JSON loses the Int/Float distinction). */
         val FLOAT_KEYS = setOf(
             "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "drawer_icon_scale",
-            "status_bar_scrim", "long_press_scale", "drawer_blur_strength",
+            "status_bar_scrim", "long_press_scale", "drawer_blur_strength", "drawer_picture_dim",
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",

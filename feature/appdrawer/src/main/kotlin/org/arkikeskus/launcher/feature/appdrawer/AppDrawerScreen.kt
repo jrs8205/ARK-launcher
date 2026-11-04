@@ -102,6 +102,7 @@ import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
+import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.ui.AnchoredPopupCard
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
@@ -258,19 +259,22 @@ fun AppDrawerScreen(
         LocalIconScale provides uiState.iconScale,
         LocalAppLabelLines provides if (uiState.twoLineLabels) 2 else 1,
     ) {
-    // The user's background colour, with black or white text to match what the drawer really looks like at its
-    // opacity over the wallpaper, for everything the drawer shows (DrawerColors.kt).
-    val drawerBackground = uiState.backgroundColor?.let { Color(it) }
+    // What the drawer paints over what is behind it (DrawerSurface.kt): the user's colour at its opacity, nothing for
+    // "Transparent", or a black dim over the user's own picture; its text black or white to match what the drawer
+    // really looks like, and its chips and fields on the user's colour (DrawerColors.kt).
+    val surface = drawerSurface(uiState.backgroundColor, uiState.backgroundOpacity, uiState.wallpaper != null, uiState.pictureDim)
+    val drawerBackground = surface.tint?.let { Color(it) }
     val textIsDark = drawerTextIsDark(
-        drawerBackground ?: MaterialTheme.colorScheme.surface,
-        uiState.backgroundOpacity,
+        surface.paint?.let { Color(it) } ?: MaterialTheme.colorScheme.surface,
+        surface.opacity,
         uiState.wallpaper?.luminance ?: behindLuminance,
     )
     MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, drawerBackground, textIsDark)) {
     DrawerExpressiveTheme(drawerBackground) {
     AppDrawerContent(
         apps = uiState.apps,
-        backgroundOpacity = uiState.backgroundOpacity,
+        surfacePaint = surface.paint?.let { Color(it) },
+        surfaceOpacity = surface.opacity,
         wallpaper = uiState.wallpaper,
         wallpaperBlur = drawerWallpaperBlur(uiState.blurBehindDrawer, uiState.drawerBlurStrength),
         frequentApps = uiState.frequentApps,
@@ -432,8 +436,11 @@ internal const val ADD_APPS_ROW_TAG = "add-apps-row"
 @Composable
 private fun AppDrawerContent(
     apps: List<AppItem>,
-    /** The surface's opacity over the wallpaper (issue #21): 1 = the solid drawer. */
-    backgroundOpacity: Float,
+    /** What the surface paints over the wallpaper or the own picture, or null for the theme's surface
+     *  ([drawerSurface]): the user's colour, or black over the picture. */
+    surfacePaint: Color?,
+    /** How much of [surfacePaint] shows (issue #21): 1 = the solid drawer, 0 = nothing of it. */
+    surfaceOpacity: Float,
     /** The user's own picture under the surface, or null for the system wallpaper through the window. */
     wallpaper: DrawerWallpaper?,
     /** How much the own picture is blurred inside the window ([drawerWallpaperBlur]). */
@@ -533,7 +540,7 @@ private fun AppDrawerContent(
     if (wallpaper != null) {
         DrawerWallpaperPicture(file = wallpaper.file, blur = wallpaperBlur, modifier = Modifier.matchParentSize().testTag(DRAWER_WALLPAPER_TAG))
     }
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface.copy(alpha = backgroundOpacity)) {
+    Surface(modifier = Modifier.fillMaxSize(), color = (surfacePaint ?: MaterialTheme.colorScheme.surface).copy(alpha = surfaceOpacity)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

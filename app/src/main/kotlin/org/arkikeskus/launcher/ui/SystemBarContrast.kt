@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.model.DrawerSurface
 
 /**
  * Whether the system status bar draws dark glyphs. Once the drawer covers the bar its surface decides;
@@ -110,10 +111,10 @@ internal fun behindStatusBarLuminance(ownBarVisible: Boolean, scrimOpacity: Floa
     return if (ownBarVisible) wallpaper * (1f - scrimOpacity.coerceIn(0f, 1f)) else wallpaper
 }
 
-/** The luminance of the drawer's background: the user's own colour ([drawerColor], ARGB) when one is set
- *  (Settings > App drawer), the theme's [themeSurface] otherwise. */
-internal fun drawerSurfaceLuminance(drawerColor: Int?, themeSurface: Color): Float =
-    (drawerColor?.let { Color(it) } ?: themeSurface).luminance()
+/** The luminance of what the drawer paints ([DrawerSurface.paint], ARGB: the user's colour, or black over the
+ *  own picture) when it paints a colour of its own, the theme's [themeSurface] otherwise. */
+internal fun drawerSurfaceLuminance(paint: Int?, themeSurface: Color): Float =
+    (paint?.let { Color(it) } ?: themeSurface).luminance()
 
 /**
  * Whether the drawer's background, at the user's [opacity] over what it lets through, is light enough
@@ -279,10 +280,8 @@ internal fun SystemBarContrast(
     scrimOpacity: Float,
     headsUpActive: Boolean,
     wallpaperDarkText: State<Boolean>,
-    /** The app drawer's background opacity ([drawerSurfaceIsLight]). */
-    drawerOpacity: Float = 1f,
-    /** The app drawer's own ARGB background colour, or null for the theme's surface ([drawerSurfaceIsLight]). */
-    drawerColor: Int? = null,
+    /** What the app drawer paints over what is behind it, and how much of it shows ([drawerSurfaceIsLight]). */
+    drawerSurface: DrawerSurface = DrawerSurface(tint = null, paint = null, opacity = 1f),
     /** The mean lightness of the user's own picture behind the drawer, or null without one ([behindDrawerLuminance]). */
     drawerPictureLuminance: Float? = null,
 ) {
@@ -292,8 +291,8 @@ internal fun SystemBarContrast(
     val statusBarPx = rememberUpdatedState(WindowInsets.statusBars.getTop(density).toFloat())
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
     val themeSurface = MaterialTheme.colorScheme.surface
-    val surfaceLuminance = rememberUpdatedState(drawerSurfaceLuminance(drawerColor, themeSurface))
-    val currentDrawerOpacity = rememberUpdatedState(drawerOpacity)
+    val surfaceLuminance = rememberUpdatedState(drawerSurfaceLuminance(drawerSurface.paint, themeSurface))
+    val currentDrawerOpacity = rememberUpdatedState(drawerSurface.opacity)
     val currentPicture = rememberUpdatedState(drawerPictureLuminance)
     val currentOwnBarShown = rememberUpdatedState(ownBarShown)
     val currentSystemBarHidden = rememberUpdatedState(systemBarHidden)

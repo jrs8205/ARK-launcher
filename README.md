@@ -104,7 +104,8 @@ the app: **Settings ▸ Feedback**.
 - **Customizable look** — a **font** for everything the launcher draws (six families Android ships),
   adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
-  drawer opacity, an **app drawer background colour** (the text turns black or white to match), an
+  drawer opacity, an **app drawer background colour** or none at all (the text turns black or white to match), a
+  **picture of your own behind the app drawer** with a dim for legibility (the colour is off while it is set), an
   optional **wallpaper blur** behind the rising app drawer (Android 12+, with a
   strength slider; the home screen fades out under a see-through drawer so only the wallpaper shows), widget
   edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder

@@ -12,18 +12,19 @@ import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.model.DrawerSurface
 import org.arkikeskus.launcher.model.IconEpochs
+import org.arkikeskus.launcher.model.drawerSurface
 import javax.inject.Inject
 
 /** ARK's own status bar is on, with its scrim at [scrimOpacity]; the system bar is hidden on home; the app
- *  drawer's background is [drawerOpacity] opaque (a see-through drawer leaves the wallpaper behind the bars). */
+ *  drawer paints [drawerSurface] over what is behind it (a see-through drawer leaves the wallpaper behind the bars). */
 data class StatusBarSettings(
     val ownBarShown: Boolean = false,
     val systemBarHidden: Boolean = false,
     val scrimOpacity: Float = 0.6f,
-    val drawerOpacity: Float = 1f,
-    /** The drawer's own ARGB background colour, or null for the theme's surface (its lightness decides the glyphs). */
-    val drawerColor: Int? = null,
+    /** What the drawer paints and how much of it shows: its lightness, weighted by the opacity, decides the glyphs. */
+    val drawerSurface: DrawerSurface = DrawerSurface(tint = null, paint = null, opacity = 1f),
     /** The mean lightness of the user's own picture behind the drawer, or null without one: with a picture it is
      *  what a see-through drawer lets through, in place of home and the wallpaper. */
     val drawerPictureLuminance: Float? = null,
@@ -64,8 +65,7 @@ class LauncherShellViewModel @Inject constructor(
                 ownBarShown = it.showStatusBar,
                 systemBarHidden = it.hideSystemStatusBar,
                 scrimOpacity = it.statusBarScrimOpacity,
-                drawerOpacity = it.drawerBackgroundOpacity,
-                drawerColor = it.drawerBackgroundColor,
+                drawerSurface = drawerSurface(it.drawerBackgroundColor, it.drawerBackgroundOpacity, picture != null, it.drawerPictureDim),
                 drawerPictureLuminance = picture?.luminance,
             )
         }
