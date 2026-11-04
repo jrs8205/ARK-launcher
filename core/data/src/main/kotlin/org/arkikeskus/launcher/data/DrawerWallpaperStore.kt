@@ -79,11 +79,15 @@ class DrawerWallpaperStore internal constructor(
         return withContext(io) { save(picture, ticket) }
     }
 
-    /** Removes the picture; the drawer shows the system wallpaper through again. */
+    /** Removes the picture; the drawer shows the system wallpaper through again. A removal the pool runs only after
+     *  a pick issued later stands down: that pick is the user's last action, and it clears the old file itself. */
     suspend fun clear() {
-        latest.incrementAndGet()
+        val ticket = latest.incrementAndGet()
         withContext(io) {
-            val old = synchronized(publishLock) { _current.value.also { _current.value = null } }
+            val old = synchronized(publishLock) {
+                if (ticket != latest.get()) return@withContext
+                _current.value.also { _current.value = null }
+            }
             old?.file?.delete()
             File(dir, LUMINANCE_FILE).delete()
         }

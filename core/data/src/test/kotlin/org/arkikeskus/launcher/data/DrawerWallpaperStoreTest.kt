@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -16,6 +17,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
+import kotlin.coroutines.CoroutineContext
 
 /**
  * The user's own picture behind the app drawer: saved as a file of its own with its mean lightness,
@@ -112,6 +114,30 @@ class DrawerWallpaperStoreTest {
 
         assertThat(store.current.value).isNull()
         assertThat(jpgs()).isEmpty()
+    }
+
+    /** A removal that the pool happens to run AFTER a pick issued later must stand down: the pick is the user's last
+     *  action. Dispatched blocks run last-in-first-out here, so the pick's save runs before the removal's block. */
+    @Test fun aRemovalOvertakenByALaterPickStandsDown() = runBlocking<Unit> {
+        val io = LastInFirstOutDispatcher()
+        val store = DrawerWallpaperStore(context, io)
+        val removal = launch { store.clear() }
+        val pick = launch { store.set(picture(Color.BLACK)) }
+        yield() // the removal took its ticket first, the pick after it
+        io.runAll()
+        removal.join()
+        pick.join()
+
+        assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
+        assertThat(jpgs()).containsExactly(store.current.value!!.file)
+        assertThat(File(dir, "luminance.txt").isFile).isTrue()
+    }
+
+    /** Runs what is dispatched to it in reverse order, on the caller's thread, when asked. */
+    private class LastInFirstOutDispatcher : CoroutineDispatcher() {
+        private val queue = ArrayDeque<Runnable>()
+        override fun dispatch(context: CoroutineContext, block: Runnable) { queue.addFirst(block) }
+        fun runAll() { while (queue.isNotEmpty()) queue.removeFirst().run() }
     }
 
     /** Of two picks in a row the later one shows, whatever order their saves finish in. */
