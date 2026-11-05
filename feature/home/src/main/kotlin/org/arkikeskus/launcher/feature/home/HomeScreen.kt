@@ -171,6 +171,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // The system (and the startup benchmarks) learn when home is really up: its rows loaded.
+    HomeDrawnReporter(loaded = uiState.loaded)
     val settings = uiState.settings
     // True briefly after a heads-up notification, while the system transiently shows its own status bar
     // over ours; used to blank the themed bar so they don't overlap.

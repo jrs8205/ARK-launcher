@@ -76,9 +76,24 @@ android {
     }
 }
 
-// The baseline profile is recorded on request only (`./gradlew :app:generateBaselineProfile` with one
-// emulator or phone attached). Every other build, F-Droid's included, reads the committed rules under
-// src/main/generated/baselineProfiles/, so the release APK stays reproducible.
+// The bench builds the baseline-profile plugin adds (nonMinifiedRelease for the recording,
+// benchmarkRelease for the benchmarks) install as their own package: a connected run installs the
+// launcher under test and uninstalls it afterwards, and on the test phones that must never be the
+// release launcher the owner uses (2026-11-05). The profile rules name classes, not the package.
+androidComponents {
+    finalizeDsl { extension ->
+        for (name in listOf("nonMinifiedRelease", "benchmarkRelease")) {
+            extension.buildTypes.findByName(name)?.apply {
+                applicationIdSuffix = ".bench"
+                manifestPlaceholders["appLabel"] = "ARK-launcher bench"
+            }
+        }
+    }
+}
+
+// The baseline profile is recorded on request only (`ANDROID_SERIAL=<emulator> ./gradlew :app:generateBaselineProfile`).
+// Every other build, F-Droid's included, reads the committed rules under src/main/generated/baselineProfiles/,
+// so the release APK stays reproducible.
 baselineProfile {
     automaticGenerationDuringBuild = false
     saveInSrc = true
