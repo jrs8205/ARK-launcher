@@ -92,13 +92,15 @@ internal fun MacrobenchmarkScope.openSettingsAndBack() {
     val entry = By.text(appString(packageName, "home_options_settings"))
     check(device.wait(Until.hasObject(entry), WAIT_MS)) { "the home menu did not open on a long-press" }
     device.findObject(entry).click()
-    val dockRow = By.text(appString(packageName, "settings_dock"))
-    check(device.wait(Until.hasObject(dockRow), WAIT_MS)) { "Settings did not open from the home menu" }
+    // The screen's own title at the top: a section title lower down may be off screen (UiAutomator
+    // sees only what is laid out) and Settings is a second activity, slower to come up than a popup.
+    val title = By.text(appString(packageName, "settings_title"))
+    check(device.wait(Until.hasObject(title), 2 * WAIT_MS)) { "Settings did not open from the home menu" }
     device.waitForIdle()
     device.swipe(x, (device.displayHeight * 0.80f).toInt(), x, (device.displayHeight * 0.30f).toInt(), SWIPE_STEPS)
     device.waitForIdle()
     device.pressBack()
-    check(device.wait(Until.gone(dockRow), WAIT_MS)) { "Settings did not close on back" }
+    check(device.wait(Until.gone(title), WAIT_MS)) { "Settings did not close on back" }
     device.waitForIdle()
 }
 
