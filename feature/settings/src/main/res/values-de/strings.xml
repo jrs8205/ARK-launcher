@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Alle Symbole einfärben</string>
     <string name="settings_theme_all_icons_desc">Apps ohne eigenes Themen-Symbol erhalten eine einfarbige Silhouette ihres Symbols in den Farben des Themas.</string>
     <string name="settings_dock_bg">Deckkraft des Dock-Hintergrunds</string>
+    <string name="settings_dock_bottom_space">Abstand unter dem Dock</string>
     <string name="settings_drawer_bg">Deckkraft der Farbe</string>
     <string name="settings_drawer_color">Hintergrundfarbe des App-Drawers</string>
     <string name="settings_drawer_color_locked">Dein Bild füllt den Hintergrund; entferne es, um eine Farbe zu verwenden.</string>
@@ -126,6 +127,7 @@
     <string name="settings_icon_size">Symbolgröße (Startbildschirm und Dock)</string>
     <string name="settings_drawer_icon_size">Symbolgröße</string>
     <string name="settings_percent">%1$d %%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Standard %1$s</string>
     <string name="settings_long_press_delay">Verzögerung für langes Drücken</string>

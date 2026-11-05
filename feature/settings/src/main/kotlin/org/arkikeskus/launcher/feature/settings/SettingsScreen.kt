@@ -273,6 +273,7 @@ fun SettingsScreen(
                     StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, viewModel::setDockColumns)
                     SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, viewModel::setShowDockLabels)
                     DockBackgroundRow(s.dockBackgroundOpacity, viewModel::setDockBackgroundOpacity)
+                    DockBottomSpacingRow(s.dockBottomSpacing, viewModel::setDockBottomSpacing)
                     DockPreview(opacity = s.dockBackgroundOpacity, icon = previewIcon)
                 }
 
@@ -1253,6 +1254,25 @@ internal fun DockBackgroundRow(value: Float, onValueChange: (Float) -> Unit) {
         default = LauncherSettings.DEFAULT_DOCK_BACKGROUND,
     )
 }
+
+/** Room under the dock (issue #24): 0 to 48 dp in 4 dp steps felt as ticks, read in dp beside the label, with a
+ *  chip back to none. On top of the navigation-bar inset, so the dock lifts to where the thumb reaches. */
+@Composable
+internal fun DockBottomSpacingRow(value: Int, onValueChange: (Int) -> Unit) {
+    val resources = LocalResources.current
+    ScaleSliderRow(
+        label = stringResource(R.string.settings_dock_bottom_space),
+        value = value.toFloat(),
+        onValueChange = { onValueChange(it.roundToInt()) },
+        valueRange = 0f..LauncherSettings.MAX_DOCK_BOTTOM_SPACING.toFloat(),
+        valueText = { resources.getString(R.string.settings_dp, it.roundToInt()) },
+        step = DOCK_BOTTOM_SPACING_STEP,
+        default = 0f,
+    )
+}
+
+/** The dock-spacing slider's step in dp. */
+private const val DOCK_BOTTOM_SPACING_STEP = 4f
 
 /** The app drawer's background opacity (issue #21): the dock row's twin, solid by default. */
 /** The app drawer's own icon size (80–130 %, a Telegram request): until the user moves it, it shows and follows

@@ -126,6 +126,7 @@ class SettingsViewModel @Inject constructor(
     fun setShowHomeFolderNames(value: Boolean) = update { repository.setShowHomeFolderNames(value) }
     fun setShowDrawerFolderNames(value: Boolean) = update { repository.setShowDrawerFolderNames(value) }
     fun setDockBackgroundOpacity(value: Float) = update { repository.setDockBackgroundOpacity(value) }
+    fun setDockBottomSpacing(value: Int) = update { repository.setDockBottomSpacing(value) }
     fun setDrawerBackgroundOpacity(value: Float) = update { repository.setDrawerBackgroundOpacity(value) }
     fun setShowPageIndicator(value: Boolean) = update { repository.setShowPageIndicator(value) }
     fun setHomePageMarker(value: String) = update { repository.setHomePageMarker(value) }

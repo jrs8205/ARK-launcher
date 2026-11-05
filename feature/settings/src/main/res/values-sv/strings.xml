@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Tema på alla ikoner</string>
     <string name="settings_theme_all_icons_desc">Appar utan egen temaikon får en enfärgad siluett av sin ikon i temats färger.</string>
     <string name="settings_dock_bg">Bakgrundsopacitet för Dock</string>
+    <string name="settings_dock_bottom_space">Utrymme under Dock</string>
     <string name="settings_drawer_bg">Färgens opacitet</string>
     <string name="settings_drawer_color">Bakgrundsfärg för applådan</string>
     <string name="settings_drawer_color_locked">Din bild fyller bakgrunden; ta bort den för att använda en färg.</string>
@@ -126,6 +127,7 @@
     <string name="settings_icon_size">Ikonstorlek (startskärm och dock)</string>
     <string name="settings_drawer_icon_size">Ikonstorlek</string>
     <string name="settings_percent">%1$d %%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Standard %1$s</string>
     <string name="settings_long_press_delay">Fördröjning för långtryck</string>

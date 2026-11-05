@@ -479,6 +479,24 @@ class SettingsRepositoryTest {
         assertThat(restored.settings.first().folderColumns).isEqualTo(5)
     }
 
+    /** Issue #24: room under the dock so the thumb reaches it, 0 dp out of the box, up to 48 dp. */
+    @Test
+    fun `dockBottomSpacing defaults to 0, clamps to 0 to 48, round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().dockBottomSpacing).isEqualTo(0)
+
+        repo.setDockBottomSpacing(100)
+        assertThat(repo.settings.first().dockBottomSpacing).isEqualTo(LauncherSettings.MAX_DOCK_BOTTOM_SPACING)
+        repo.setDockBottomSpacing(-4)
+        assertThat(repo.settings.first().dockBottomSpacing).isEqualTo(0)
+        repo.setDockBottomSpacing(24)
+        assertThat(repo.exportRaw()["dock_bottom_spacing"]).isEqualTo(24)
+
+        val restored = newRepository()
+        restored.importRaw(mapOf("dock_bottom_spacing" to 24))
+        assertThat(restored.settings.first().dockBottomSpacing).isEqualTo(24)
+    }
+
     @Test
     fun `collapsed settings sections start empty, toggle per section and restore from a backup`() = runTest {
         val repo = newRepository()

@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Thémer toutes les icônes</string>
     <string name="settings_theme_all_icons_desc">Les applications sans icône thématique reçoivent une silhouette monochrome de leur icône aux couleurs du thème.</string>
     <string name="settings_dock_bg">Opacité du fond du dock</string>
+    <string name="settings_dock_bottom_space">Espace sous le dock</string>
     <string name="settings_drawer_bg">Opacité de la couleur</string>
     <string name="settings_drawer_color">Couleur de fond de la liste des applications</string>
     <string name="settings_drawer_color_locked">Votre image remplit le fond ; retirez-la pour utiliser une couleur.</string>
@@ -129,6 +130,7 @@
     <string name="settings_icon_size">Taille des icônes (écran d\'accueil et dock)</string>
     <string name="settings_drawer_icon_size">Taille des icônes</string>
     <string name="settings_percent">%1$d %%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Par défaut %1$s</string>
     <string name="settings_long_press_delay">Délai d’appui long</string>

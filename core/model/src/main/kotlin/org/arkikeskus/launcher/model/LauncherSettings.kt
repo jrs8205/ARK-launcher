@@ -23,6 +23,9 @@ data class LauncherSettings(
     /** The name under an app-drawer folder's tile; off keeps the tile alone. Labels off hide it too. */
     val showDrawerFolderNames: Boolean = true,
     val dockBackgroundOpacity: Float = DEFAULT_DOCK_BACKGROUND,
+    /** Extra room under the dock in dp (issue #24), on top of the navigation-bar inset, so the thumb reaches it
+     *  on a tall phone; 0 keeps the dock where it has always been, at most [MAX_DOCK_BOTTOM_SPACING]. */
+    val dockBottomSpacing: Int = 0,
     /** Opacity of the app drawer's background (0 = the wallpaper shows through, 1 = solid); issue #21. */
     val drawerBackgroundOpacity: Float = DEFAULT_DRAWER_BACKGROUND,
     /** ARGB colour of the app drawer's background, null for the theme's own surface (a Telegram request after 0.9.9),
@@ -195,6 +198,9 @@ data class LauncherSettings(
 
         /** [dockBackgroundOpacity] out of the box: a light tint that sets the dock off the wallpaper. */
         const val DEFAULT_DOCK_BACKGROUND = 0.35f
+
+        /** The most [dockBottomSpacing] allows, in dp. */
+        const val MAX_DOCK_BOTTOM_SPACING = 48
 
         /** [drawerBackgroundOpacity] out of the box: solid, the drawer as it always was. */
         const val DEFAULT_DRAWER_BACKGROUND = 1f

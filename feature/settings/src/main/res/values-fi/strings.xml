@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Teemoita kaikki kuvakkeet</string>
     <string name="settings_theme_all_icons_desc">Sovellukset, joilla ei ole omaa teemakuvaketta, saavat kuvakkeestaan yksivärisen siluetin teeman väreissä.</string>
     <string name="settings_dock_bg">Dockin taustan läpinäkyvyys</string>
+    <string name="settings_dock_bottom_space">Tila dockin alla</string>
     <string name="settings_drawer_bg">Värin peittävyys</string>
     <string name="settings_drawer_color">Sovellusvalikon taustaväri</string>
     <string name="settings_drawer_color_locked">Oma kuva täyttää taustan; poista se käyttääksesi väriä.</string>
@@ -126,6 +127,7 @@
     <string name="settings_icon_size">Kuvakkeiden koko (etusivu ja dockki)</string>
     <string name="settings_drawer_icon_size">Kuvakkeiden koko</string>
     <string name="settings_percent">%1$d %%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Oletus %1$s</string>
     <string name="settings_long_press_delay">Pitkän painalluksen viive</string>

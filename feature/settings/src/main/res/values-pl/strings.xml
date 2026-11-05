@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Motyw dla wszystkich ikon</string>
     <string name="settings_theme_all_icons_desc">Aplikacje bez własnej ikony motywu dostają jednokolorową sylwetkę swojej ikony w kolorach motywu.</string>
     <string name="settings_dock_bg">Krycie tła Docka</string>
+    <string name="settings_dock_bottom_space">Odstęp pod Dockiem</string>
     <string name="settings_drawer_bg">Krycie koloru</string>
     <string name="settings_drawer_color">Kolor tła szuflady aplikacji</string>
     <string name="settings_drawer_color_locked">Twój obraz wypełnia tło; usuń go, aby użyć koloru.</string>
@@ -132,6 +133,7 @@
     <string name="settings_icon_size">Rozmiar ikon (ekran główny i dock)</string>
     <string name="settings_drawer_icon_size">Rozmiar ikon</string>
     <string name="settings_percent">%1$d%%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Domyślnie %1$s</string>
     <string name="settings_long_press_delay">Opóźnienie długiego naciśnięcia</string>

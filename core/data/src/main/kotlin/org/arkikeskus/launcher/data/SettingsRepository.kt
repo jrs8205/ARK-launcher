@@ -103,6 +103,7 @@ class SettingsRepository @Inject constructor(
             showHomeFolderNames = p[Keys.SHOW_HOME_FOLDER_NAMES] ?: true,
             showDrawerFolderNames = p[Keys.SHOW_DRAWER_FOLDER_NAMES] ?: true,
             dockBackgroundOpacity = (p[Keys.DOCK_OPACITY] ?: 0.35f).coerceIn(0f, 1f),
+            dockBottomSpacing = (p[Keys.DOCK_BOTTOM_SPACING] ?: 0).coerceIn(0, LauncherSettings.MAX_DOCK_BOTTOM_SPACING),
             drawerBackgroundOpacity = (p[Keys.DRAWER_OPACITY] ?: LauncherSettings.DEFAULT_DRAWER_BACKGROUND).coerceIn(0f, 1f),
             showPageIndicator = p[Keys.SHOW_PAGE_INDICATOR] ?: true,
             homePageMarker = (p[Keys.HOME_PAGE_MARKER] ?: LauncherSettings.MARKER_RING)
@@ -421,6 +422,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setShowHomeFolderNames(value: Boolean) = edit { it[Keys.SHOW_HOME_FOLDER_NAMES] = value }
     suspend fun setShowDrawerFolderNames(value: Boolean) = edit { it[Keys.SHOW_DRAWER_FOLDER_NAMES] = value }
     suspend fun setDockBackgroundOpacity(value: Float) = edit { it[Keys.DOCK_OPACITY] = value.coerceIn(0f, 1f) }
+    /** Room under the dock in dp (issue #24), clamped to 0..[LauncherSettings.MAX_DOCK_BOTTOM_SPACING]. */
+    suspend fun setDockBottomSpacing(value: Int) =
+        edit { it[Keys.DOCK_BOTTOM_SPACING] = value.coerceIn(0, LauncherSettings.MAX_DOCK_BOTTOM_SPACING) }
     suspend fun setDrawerBackgroundOpacity(value: Float) = edit { it[Keys.DRAWER_OPACITY] = value.coerceIn(0f, 1f) }
     suspend fun setShowPageIndicator(value: Boolean) = edit { it[Keys.SHOW_PAGE_INDICATOR] = value }
     /** Home-page marker style of the page dots (see LauncherSettings.MARKER_*). */
@@ -729,6 +733,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_HOME_FOLDER_NAMES = booleanPreferencesKey("show_home_folder_names")
         val SHOW_DRAWER_FOLDER_NAMES = booleanPreferencesKey("show_drawer_folder_names")
         val DOCK_OPACITY = floatPreferencesKey("dock_opacity")
+        val DOCK_BOTTOM_SPACING = intPreferencesKey("dock_bottom_spacing")
         val DRAWER_OPACITY = floatPreferencesKey("drawer_opacity")
         val SHOW_PAGE_INDICATOR = booleanPreferencesKey("show_page_indicator")
         val HOME_PAGE_MARKER = stringPreferencesKey("home_page_marker")
@@ -833,7 +838,7 @@ class SettingsRepository @Inject constructor(
             "status_bar_scrim", "long_press_scale", "drawer_blur_strength", "drawer_picture_dim",
         )
         val INT_KEYS = setOf(
-            "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",
+            "dock_columns", "dock_bottom_spacing", "home_columns", "home_rows", "drawer_columns", "app_label_color",
             "home_page", "home_page_count", "folder_columns", "drawer_background_color", "drawer_label_color",
         )
 

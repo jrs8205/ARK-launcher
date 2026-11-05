@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Тема для всех значков</string>
     <string name="settings_theme_all_icons_desc">Приложения без собственного тематического значка получают одноцветный силуэт своего значка в цветах темы.</string>
     <string name="settings_dock_bg">Непрозрачность фона док-панели</string>
+    <string name="settings_dock_bottom_space">Отступ под док-панелью</string>
     <string name="settings_drawer_bg">Непрозрачность цвета</string>
     <string name="settings_drawer_color">Цвет фона списка приложений</string>
     <string name="settings_drawer_color_locked">Ваша картинка заполняет фон; удалите её, чтобы использовать цвет.</string>
@@ -132,6 +133,7 @@
     <string name="settings_icon_size">Размер значков (главный экран и док-панель)</string>
     <string name="settings_drawer_icon_size">Размер значков</string>
     <string name="settings_percent">%1$d %%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d мс</string>
     <string name="settings_reset_default">По умолчанию %1$s</string>
     <string name="settings_long_press_delay">Задержка долгого нажатия</string>

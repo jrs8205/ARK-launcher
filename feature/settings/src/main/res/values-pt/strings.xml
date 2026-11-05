@@ -36,6 +36,7 @@
     <string name="settings_theme_all_icons">Aplicar o tema a todos os ícones</string>
     <string name="settings_theme_all_icons_desc">Apps sem ícone temático próprio recebem uma silhueta de uma cor do seu ícone nas cores do tema.</string>
     <string name="settings_dock_bg">Opacidade do fundo do dock</string>
+    <string name="settings_dock_bottom_space">Espaço abaixo do dock</string>
     <string name="settings_drawer_bg">Opacidade da cor</string>
     <string name="settings_drawer_color">Cor de fundo da gaveta de apps</string>
     <string name="settings_drawer_color_locked">A sua imagem preenche o fundo; remova-a para usar uma cor.</string>
@@ -129,6 +130,7 @@
     <string name="settings_icon_size">Tamanho dos ícones (tela inicial e dock)</string>
     <string name="settings_drawer_icon_size">Tamanho dos ícones</string>
     <string name="settings_percent">%1$d%%</string>
+    <string name="settings_dp">%1$d dp</string>
     <string name="settings_millis">%1$d ms</string>
     <string name="settings_reset_default">Padrão %1$s</string>
     <string name="settings_long_press_delay">Atraso do toque longo</string>

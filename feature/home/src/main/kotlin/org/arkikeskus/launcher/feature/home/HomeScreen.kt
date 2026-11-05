@@ -74,6 +74,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -138,8 +139,10 @@ internal fun Modifier.homeWorkspacePadding(showStatusBar: Boolean, dockShown: Bo
         .then(if (dockShown) Modifier else Modifier.navigationBarsPadding())
         .padding(vertical = WORKSPACE_VERTICAL_PADDING)
 
-/** The dock's place in the home column: above the navigation bar, with room all round. */
-internal fun Modifier.homeDockPadding(): Modifier = navigationBarsPadding().padding(DOCK_OUTER_PADDING)
+/** The dock's place in the home column: above the navigation bar, with room all round, lifted by the
+ *  user's [bottomSpacing] (issue #24: room under the dock so the thumb reaches it on a tall phone). */
+internal fun Modifier.homeDockPadding(bottomSpacing: Dp = 0.dp): Modifier =
+    navigationBarsPadding().padding(bottom = bottomSpacing).padding(DOCK_OUTER_PADDING)
 
 /**
  * Home screen: a paged [Workspace] of app shortcuts + the dock. All home gestures (icon drag, swipe
@@ -766,7 +769,7 @@ fun HomeScreen(
                     onDropOnTile = { app, target -> dropOnDock(app, target, DragSource.Dock) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .homeDockPadding(),
+                        .homeDockPadding(bottomSpacing = settings.dockBottomSpacing.dp),
                 )
             }
         }
