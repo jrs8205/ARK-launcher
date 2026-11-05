@@ -602,14 +602,7 @@ fun SettingsScreen(
                     collapsed = "feedback" in s.collapsedSettingsSections,
                     onToggle = { viewModel.setSectionCollapsed("feedback", it) },
                 ) {
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_feedback_discussions),
-                        description = stringResource(R.string.settings_feedback_discussions_desc),
-                    ) { openLink(context, DISCUSSIONS_URL) }
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_feedback_telegram),
-                        description = stringResource(R.string.settings_feedback_telegram_desc),
-                    ) { openLink(context, TELEGRAM_URL) }
+                    FeedbackRows(onOpen = { openLink(context, it) })
                 }
 
                 // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
@@ -994,8 +987,6 @@ private fun lockServiceEnabled(context: android.content.Context): Boolean {
     return enabled.split(':').any { android.content.ComponentName.unflattenFromString(it) == target }
 }
 
-private const val DISCUSSIONS_URL = "https://github.com/jrs8205/ARK-launcher/discussions"
-private const val TELEGRAM_URL = "https://t.me/ARKlauncher"
 private const val RELEASES_URL = "https://github.com/jrs8205/ARK-launcher/releases"
 
 internal fun openLink(context: android.content.Context, url: String) {
