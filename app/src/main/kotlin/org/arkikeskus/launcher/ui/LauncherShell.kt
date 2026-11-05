@@ -190,6 +190,7 @@ fun LauncherShell(
                     onOpenDrawer = { animateProgress(1f) },
                     onDrawerDrag = { dragDrawer(it) },
                     onDrawerSettle = { settleDrawer(it) },
+                    onDrawerCancel = { animateProgress(0f) },
                     onOpenSettings = onOpenSettings,
                     homeSignals = homeSignals,
                     drawerOpen = drawerOpen,

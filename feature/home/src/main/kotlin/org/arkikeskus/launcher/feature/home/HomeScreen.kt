@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.mandatorySystemGestures
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -153,6 +154,8 @@ fun HomeScreen(
     homeSignals: Flow<Boolean> = emptyFlow(),
     onDrawerDrag: (Float) -> Unit = {},
     onDrawerSettle: (Float) -> Unit = {},
+    /** The system took a drawer drag over (gesture navigation's own swipe up): close the drawer again. */
+    onDrawerCancel: () -> Unit = {},
     /** The app drawer is open or sliding: the workspace is not at rest (see [Workspace]'s newItems). */
     drawerOpen: Boolean = false,
     dragController: HomeDragController = rememberHomeDragController(),
@@ -580,6 +583,11 @@ fun HomeScreen(
                 dragController = dragController,
                 onDrawerDrag = onDrawerDrag,
                 onDrawerSettle = onDrawerSettle,
+                onDrawerCancel = onDrawerCancel,
+                // Gesture navigation: the system's own swipe up starts in its bottom gesture zone, the
+                // mandatory system-gesture inset; a touch from there is never ours (see
+                // startsInBottomGestureZone). Zero with three-button navigation under an opaque bar.
+                bottomGestureZonePx = WindowInsets.mandatorySystemGestures.getBottom(LocalDensity.current).toFloat(),
                 onOpenNotifications = { NotificationShade.expand(context) },
                 // Left-edge action: a right-drag on the leftmost page launches the configured app.
                 leftEdgeEnabled = leftSwipeAvailable && !showOnboarding && openFolderId == null,
@@ -1039,6 +1047,10 @@ fun HomeScreen(
  * - A real long-press drag — an app/dock item ([HomeDragController.isDragging]) or a folder/shortcut
  *   ([HomeDragController.localGestureActive] / [HomeDragController.localDragging]) — is never stolen;
  *   the detector bails out so the drag owns the gesture.
+ * - A touch that starts in the system's bottom gesture zone ([bottomGestureZonePx], gesture navigation's
+ *   mandatory inset) is the system's swipe up and is left alone ([startsInBottomGestureZone]); a drawer
+ *   drag the system takes over (ACTION_CANCEL = an already-consumed release) → [onDrawerCancel], never a
+ *   settle by the fling's velocity, which flung the drawer open underneath the recent apps.
  * - From the dock the drawer (and the shade) take only a clear vertical flick ([dockSwipeSlop],
  *   [dockSwipeIsVertical]); the dock's tap, hold and sideways reorder keep everything else.
  *
@@ -1071,9 +1083,13 @@ internal fun Modifier.pixelHomeSwipe(
     onLeftEdgeAction: () -> Unit = {},
     folderSwipeOpensFirstApp: Boolean = false,
     onFolderSwipeUp: (Long) -> Unit = {},
+    bottomGestureZonePx: Float = 0f,
+    onDrawerCancel: () -> Unit = {},
 ): Modifier {
     val latestOnDrawerDrag by rememberUpdatedState(onDrawerDrag)
     val latestOnDrawerSettle by rememberUpdatedState(onDrawerSettle)
+    val latestOnDrawerCancel by rememberUpdatedState(onDrawerCancel)
+    val latestBottomGestureZonePx by rememberUpdatedState(bottomGestureZonePx)
     val latestOnOpenNotifications by rememberUpdatedState(onOpenNotifications)
     val latestOnLeftEdgeAction by rememberUpdatedState(onLeftEdgeAction)
     val latestOnFolderSwipeUp by rememberUpdatedState(onFolderSwipeUp)
@@ -1086,6 +1102,8 @@ internal fun Modifier.pixelHomeSwipe(
             // belongs to that widget's own list — bail without consuming so the scroll falls through to
             // the embedded AppWidgetHostView instead of the swipe-up stealing the vertical drag.
             if (dragController.isOverScrollableWidget(down.position)) return@awaitEachGesture
+            // A touch from the system's bottom gesture zone is the system's swipe up: leave it alone.
+            if (startsInBottomGestureZone(down.position.y, size.height, latestBottomGestureZonePx)) return@awaitEachGesture
             // A touch that starts on the dock belongs to the dock's own gestures first (tap / long-press
             // for the shortcut popup / drag to reorder or onto home): a clear, fast flick up still opens
             // the drawer from the dock as on a Pixel (an owner decision for 1.0.0), but only past a
@@ -1120,6 +1138,17 @@ internal fun Modifier.pixelHomeSwipe(
                 }
 
                 if (!change.pressed) {
+                    // ACTION_CANCEL (the system's gesture taking the pointer over) arrives as a release
+                    // that is ALREADY consumed in this pass; nothing upstream consumes a real one here.
+                    // A drawer drag closes again instead of settling by its velocity; a left-edge drag
+                    // does not commit.
+                    if (change.isConsumed) {
+                        if (mode == 1) {
+                            settled = true
+                            latestOnDrawerCancel()
+                        }
+                        break
+                    }
                     if (mode == 1) {
                         val finalDy = change.position.y - lastY
                         if (finalDy != 0f) latestOnDrawerDrag(finalDy)
