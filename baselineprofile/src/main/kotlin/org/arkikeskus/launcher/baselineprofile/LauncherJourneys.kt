@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.baselineprofile
 
 import android.content.Intent
+import android.os.SystemClock
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -23,10 +24,22 @@ internal fun targetAppId(): String =
 internal const val SWIPE_STEPS = 12
 internal const val WAIT_MS = 3_000L
 
+/**
+ * A cold start up to the home with its rows on screen. [startActivityAndWait] returns at the first
+ * frame (the wallpaper and an empty grid); the rows load from the database a moment later, home
+ * reports itself fully drawn and the activity draws once more. The settle keeps all of that inside
+ * the measured trace: StartupTimingMetric needs a rendered frame after reportFullyDrawn, or it fails
+ * ("No Choreographer#doFrame ends after reportFullyDrawn"). The settle itself is not part of any
+ * metric: the start is timed from the trace's own timestamps.
+ */
 internal fun MacrobenchmarkScope.startHome() {
     startActivityAndWait()
     device.waitForIdle()
+    SystemClock.sleep(SETTLE_MS)
 }
+
+/** How long a start is given to load its rows, report and draw once more, after the first frame. */
+private const val SETTLE_MS = 1_500L
 
 internal fun MacrobenchmarkScope.swipePages() {
     val y = (device.displayHeight * 0.45f).toInt()
