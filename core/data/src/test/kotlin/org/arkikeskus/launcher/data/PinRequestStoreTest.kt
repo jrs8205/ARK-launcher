@@ -99,6 +99,19 @@ class PinRequestStoreTest {
     private fun at(placement: PinDecision, columns: Int = 4, rows: Int = 6): suspend () -> CurrentPlacement =
         { CurrentPlacement(placement, columns, rows) }
 
+    /** Issue #23: the removal tells which shortcut left (for the icon filed under its identity) along
+     *  with what stays pinned, so the caller needs no other, possibly stale, view of the row. */
+    @Test
+    fun removeShortcut_reports_the_removed_shortcut_and_what_stays() = runTest {
+        val old = shortcutRow("old", x = 0)
+        shortcutRow("kept", x = 1)
+
+        val removed = repo.removeShortcut(old)
+
+        assertThat(removed?.removedShortcutId).isEqualTo("old")
+        assertThat(removed?.shortcutIds).containsExactly("kept")
+    }
+
     @Test
     fun aWidgetHomeNoLongerTakesWhenTheAcceptComesIsRefusedWithItsIdFreed() = runTest {
         val binder = FakeBinder()

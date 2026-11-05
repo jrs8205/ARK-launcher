@@ -552,16 +552,16 @@ class HomeViewModel @Inject constructor(
     fun deleteFolder(folderId: Long) = viewModelScope.launch { homeLayoutRepository.removeFolder(folderId) }
 
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system;
-     *  the icon picked for it goes with its last copy ([shortcutIconStaysAfterRemoval]). */
+     *  the icon picked for it goes with its last copy ([shortcutIconStaysAfterRemoval]) inside the same
+     *  pin-lock section as the row: a restore queued behind this re-files the row and its icon together,
+     *  and never loses the icon to a clearing that ran late on a stale result. */
     fun removeShortcut(rowId: Long) = viewModelScope.launch {
-        val shortcut = uiState.value.entries.filterIsInstance<PlacedShortcut>().firstOrNull { it.rowId == rowId }
-        val remaining = ShortcutPinLock.withLock {
-            homeLayoutRepository.removeShortcut(rowId)?.also { remaining ->
-                AppShortcuts.setPinned(context, remaining.packageName, remaining.userSerial, remaining.shortcutIds)
+        ShortcutPinLock.withLock {
+            val removed = homeLayoutRepository.removeShortcut(rowId) ?: return@withLock
+            AppShortcuts.setPinned(context, removed.packageName, removed.userSerial, removed.shortcutIds)
+            if (!shortcutIconStaysAfterRemoval(removed.removedShortcutId, removed)) {
+                customIcons.setShortcutIcon(ShortcutIconKey.of(removed.packageName, removed.removedShortcutId, removed.userSerial), null)
             }
-        }
-        if (shortcut?.customIcon != null && !shortcutIconStaysAfterRemoval(shortcut.shortcutId, remaining)) {
-            customIcons.setShortcutIcon(shortcut.iconKey, null)
         }
     }
 

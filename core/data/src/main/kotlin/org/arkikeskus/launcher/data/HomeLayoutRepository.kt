@@ -12,7 +12,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** The shortcut ids still pinned for a (package, user) after a removal — used to re-pin the set. */
-data class RemainingPins(val packageName: String, val userSerial: Long, val shortcutIds: List<String>)
+data class RemainingPins(
+    val packageName: String,
+    val userSerial: Long,
+    val shortcutIds: List<String>,
+    /** The shortcut that just left home (its icon, filed under its identity, goes with its last copy). */
+    val removedShortcutId: String = "",
+)
 
 /** One row's target grid position (and sanitized span) in a [HomeLayoutRepository.reflowPlan]. */
 data class ReflowPlacement(
@@ -244,7 +250,7 @@ class HomeLayoutRepository @Inject constructor(
         val remaining = dao.getContainer(HOME)
             .filter { it.shortcutId != null && it.packageName == row.packageName && it.userSerial == row.userSerial }
             .mapNotNull { it.shortcutId }
-        RemainingPins(row.packageName, row.userSerial, remaining)
+        RemainingPins(row.packageName, row.userSerial, remaining, removedShortcutId = row.shortcutId.orEmpty())
     }
 
     /**
