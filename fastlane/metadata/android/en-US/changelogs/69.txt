@@ -1,0 +1,8 @@
+New
+- Space below the dock, so the thumb reaches it on a tall phone.
+- A pinned shortcut (a browser's web shortcut) can take an icon from an icon pack or the gallery.
+- The r/ArkLauncher community among the feedback links.
+
+Fixed
+- With gesture navigation, the system's swipe up from the bottom edge no longer opens the app drawer or a folder's first app under the recent apps.
+- The start is profiled again over this release's home, drawer and Settings.
