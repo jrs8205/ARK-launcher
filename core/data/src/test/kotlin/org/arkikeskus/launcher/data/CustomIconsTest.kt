@@ -57,6 +57,39 @@ class CustomIconsTest {
         assertThat(repo.folderIcons.first()).containsExactly("drawer:2", photo)
     }
 
+    /** Issue #23: a pinned shortcut (a browser's web shortcut) takes an icon of its own, filed by the
+     *  shortcut's identity, which survives a backup like an app's key does. */
+    @Test
+    fun `a shortcut's icon is set and cleared`() = runTest {
+        val repo = SettingsRepository(InMemoryDataStore())
+        val github = ShortcutIconKey.of("org.mozilla.firefox", "https://github.com/", 0L)
+        val maps = ShortcutIconKey.of("org.mozilla.firefox", "https://maps.example/", 10L)
+
+        repo.setShortcutIcon(github, pack)
+        repo.setShortcutIcon(maps, photo)
+        assertThat(repo.shortcutIcons.first())
+            .containsExactly("org.mozilla.firefox/https://github.com//0", pack, "org.mozilla.firefox/https://maps.example//10", photo)
+
+        repo.setShortcutIcon(github, null)
+        assertThat(repo.shortcutIcons.first()).containsExactly("org.mozilla.firefox/https://maps.example//10", photo)
+    }
+
+    @Test
+    fun `a backup carries a shortcut's pack icon and a restore keeps its picture`() = runTest {
+        val phone = SettingsRepository(InMemoryDataStore())
+        val github = ShortcutIconKey.of("org.mozilla.firefox", "https://github.com/", 0L)
+        val maps = ShortcutIconKey.of("org.mozilla.firefox", "https://maps.example/", 0L)
+        phone.setShortcutIcon(github, pack)
+        phone.setShortcutIcon(maps, photo)
+
+        val backup = phone.exportRaw()
+        assertThat(backup["shortcut_icons"]).isEqualTo("$github	${pack.encode()}")
+
+        val other = CustomIcon.FromPack("com.example.pack", "octocat")
+        phone.importRaw(mapOf("shortcut_icons" to "$github	${other.encode()}"))
+        assertThat(phone.shortcutIcons.first()).containsExactly(github, other, maps, photo)
+    }
+
     /** A backup carries pack icons; a gallery image is a file on this phone, so it stays here, and a
      *  restore keeps this phone's images for apps and folders the backup sets no icon for. */
     @Test

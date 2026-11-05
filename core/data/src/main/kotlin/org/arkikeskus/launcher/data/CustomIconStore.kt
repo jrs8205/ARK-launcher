@@ -14,7 +14,7 @@ import org.arkikeskus.launcher.model.IconPackChoice
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sets an app's or a folder's picked icon; a gallery image it replaces or clears is deleted. */
+/** Sets an app's, a folder's or a pinned shortcut's picked icon; a gallery image it replaces or clears is deleted. */
 @Singleton
 class CustomIconStore @Inject constructor(
     private val settings: SettingsRepository,
@@ -33,6 +33,13 @@ class CustomIconStore @Inject constructor(
         dropReplaced(old, icon)
     }
 
+    /** [key] is a [ShortcutIconKey] (issue #23). */
+    suspend fun setShortcutIcon(key: String, icon: CustomIcon?) {
+        val old = settings.shortcutIcons.first()[key]
+        settings.setShortcutIcon(key, icon)
+        dropReplaced(old, icon)
+    }
+
     /** Deletes a drawer folder with its icon: the next new folder may get the same id. */
     suspend fun deleteDrawerFolder(id: Long) {
         val old = settings.folderIcons.first()[FolderIconKey.drawer(id)]
@@ -44,7 +51,7 @@ class CustomIconStore @Inject constructor(
      *  closed mid-import. Only those saved before [savedBefore] (the launcher's start): one saved since
      *  may still be waiting in an open dialog. */
     suspend fun deleteUnusedPictures(savedBefore: Long) {
-        val used = (settings.customIcons.first().values + settings.folderIcons.first().values)
+        val used = (settings.customIcons.first().values + settings.folderIcons.first().values + settings.shortcutIcons.first().values)
             .filterIsInstance<CustomIcon.FromFile>()
             .mapTo(HashSet()) { it.name }
         source.files.deleteUnused(used, savedBefore)

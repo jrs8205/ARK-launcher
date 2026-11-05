@@ -40,6 +40,12 @@ object FolderIconKey {
     fun isDrawer(key: String) = key.startsWith("drawer:")
 }
 
+/** How a pinned shortcut's own icon is filed in [SettingsRepository.shortcutIcons] (issue #23): by the
+ *  shortcut's identity -- package, shortcut id, user -- which a backup carries like an app's key. */
+object ShortcutIconKey {
+    fun of(packageName: String, shortcutId: String, userSerial: Long) = "$packageName/$shortcutId/$userSerial"
+}
+
 /**
  * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
  * `preferencesDataStore` in DataModule) so the repository's merge logic can be unit-tested on the
@@ -321,6 +327,17 @@ class SettingsRepository @Inject constructor(
     /** Sets (or, for null, clears) the icon picked for the folder [key] (see [FolderIconKey]). */
     suspend fun setFolderIcon(key: String, icon: CustomIcon?) = edit { p ->
         p[Keys.FOLDER_ICONS] = serializeIcons(parseIcons(p[Keys.FOLDER_ICONS]).toMutableMap().apply {
+            if (icon == null) remove(key) else put(key, icon)
+        })
+    }
+
+    /** Icons the user picked for pinned shortcuts ([ShortcutIconKey] -> icon), shown in place of the
+     *  icon the app pinned them with (issue #23: a browser's web shortcuts dressed from an icon pack). */
+    val shortcutIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.SHORTCUT_ICONS]) }
+
+    /** Sets (or, for null, clears) the icon picked for the shortcut [key] (see [ShortcutIconKey]). */
+    suspend fun setShortcutIcon(key: String, icon: CustomIcon?) = edit { p ->
+        p[Keys.SHORTCUT_ICONS] = serializeIcons(parseIcons(p[Keys.SHORTCUT_ICONS]).toMutableMap().apply {
             if (icon == null) remove(key) else put(key, icon)
         })
     }
@@ -639,8 +656,8 @@ class SettingsRepository @Inject constructor(
             val unlockSound = prefs[Keys.UNLOCK_SOUND_URI]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
-            // Gallery images are files on this phone (not in a backup): keep them for the apps and
-            // home folders the backup picks no icon for. Not for drawer folders: their ids come back
+            // Gallery images are files on this phone (not in a backup): keep them for the apps, the
+            // pinned shortcuts and the home folders the backup picks no icon for. Not for drawer folders: their ids come back
             // (max + 1), so the folder the backup has under an id may not be the one with the picture.
             // A picture left unused this way goes at the next start (CustomIconStore.deleteUnusedPictures).
             val localImages = ICON_PREFS.associateWith { name ->
@@ -726,6 +743,7 @@ class SettingsRepository @Inject constructor(
         val CUSTOM_LABELS = stringPreferencesKey("custom_labels")
         val CUSTOM_ICONS = stringPreferencesKey("custom_icons")
         val FOLDER_ICONS = stringPreferencesKey("folder_icons")
+        val SHORTCUT_ICONS = stringPreferencesKey("shortcut_icons")
         val DRAWER_FOLDERS = stringPreferencesKey("drawer_folders")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
@@ -862,11 +880,11 @@ class SettingsRepository @Inject constructor(
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
             "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
-            "custom_icons", "folder_icons",
+            "custom_icons", "folder_icons", "shortcut_icons",
         )
 
         /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */
-        val ICON_PREFS = setOf("custom_icons", "folder_icons")
+        val ICON_PREFS = setOf("custom_icons", "folder_icons", "shortcut_icons")
 
         private fun parseIcons(raw: String?): Map<String, CustomIcon> =
             raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->

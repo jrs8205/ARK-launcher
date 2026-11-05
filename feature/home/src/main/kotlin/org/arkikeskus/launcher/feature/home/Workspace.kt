@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import org.arkikeskus.launcher.ui.component.PickedIcon
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -184,6 +185,8 @@ internal fun Workspace(
     onOpenFolder: (PlacedFolder) -> Unit,
     onLaunchShortcut: (PlacedShortcut) -> Unit,
     onRemoveShortcut: (Long) -> Unit,
+    /** A still long-press on a pinned shortcut: edit it (its own icon, issue #23). */
+    onEditShortcut: (PlacedShortcut) -> Unit = {},
     onRemoveFolder: (Long) -> Unit = {},
     onCreateFolder: (target: AppItem, dropped: AppItem) -> Unit,
     onAddToFolder: (app: AppItem, folderId: Long) -> Unit,
@@ -1396,7 +1399,8 @@ internal fun Workspace(
                                             rowId = entry.rowId,
                                             removable = true,
                                             onTap = { onLaunchShortcut(entry) },
-                                            onStillPress = {},
+                                            // A still hold opens the icon editor (issue #23).
+                                            onStillPress = { onEditShortcut(entry) },
                                             onRemove = { onRemoveShortcut(entry.rowId) },
                                             pageLocked = pageLocked,
                                         ),
@@ -2042,19 +2046,38 @@ internal fun ShortcutIconContent(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val icon = shortcut.icon
-        if (icon != null) {
-            Image(
-                bitmap = icon,
+        val picked = shortcut.customIcon
+        val pinnedIcon: @Composable () -> Unit = {
+            if (icon != null) {
+                Image(
+                    bitmap = icon,
+                    contentDescription = shortcut.label,
+                    modifier = Modifier.size(iconSize),
+                    colorFilter = if (shortcut.enabled) null else DisabledShortcutFilter,
+                )
+            } else {
+                Box(Modifier.size(iconSize))
+            }
+        }
+        if (picked != null) {
+            // The user's own icon (issue #23); the pinned one is back if it cannot be loaded (the pack
+            // uninstalled, the picture deleted). A disabled shortcut's picked icon fades like its label.
+            PickedIcon(
+                icon = picked,
+                size = iconSize,
                 contentDescription = shortcut.label,
-                modifier = Modifier.size(iconSize),
-                colorFilter = if (shortcut.enabled) null else DisabledShortcutFilter,
+                modifier = Modifier.graphicsLayer { alpha = if (shortcut.enabled) 1f else DISABLED_SHORTCUT_ALPHA },
+                fallback = pinnedIcon,
             )
         } else {
-            Box(Modifier.size(iconSize))
+            pinnedIcon()
         }
         if (showLabel) AppLabel(shortcut.label, labelColor, reserveLines = true)
     }
 }
+
+/** How much a disabled shortcut's picked icon fades (its pinned icon takes [DisabledShortcutFilter]). */
+private const val DISABLED_SHORTCUT_ALPHA = 0.5f
 
 /**
  * The size-options bundle Launcher3 builds for a hosted widget: min/max width/height in dp plus (on

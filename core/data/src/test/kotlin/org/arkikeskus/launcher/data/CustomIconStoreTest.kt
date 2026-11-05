@@ -107,6 +107,21 @@ class CustomIconStoreTest {
         assertThat(source.drawable(fresh)).isNotNull()
     }
 
+    /** Issue #23: a shortcut's picture counts as used, and clearing it deletes its file like an app's. */
+    @Test fun aShortcutsPictureIsKeptBySweepAndDeletedWhenCleared() = runTest {
+        val picture = image()
+        val key = ShortcutIconKey.of("org.mozilla.firefox", "https://github.com/", 0L)
+        store.setShortcutIcon(key, picture)
+        File(context.filesDir, "custom_icons/${picture.name}").setLastModified(1_000L)
+
+        store.deleteUnusedPictures(savedBefore = 2_000L)
+        assertThat(source.drawable(picture)).isNotNull()
+
+        store.setShortcutIcon(key, null)
+        assertThat(source.drawable(picture)).isNull()
+        assertThat(settings.shortcutIcons.first()).isEmpty()
+    }
+
     /** An image imported in the picker and then left unused (the dialog cancelled) is deleted. */
     @Test fun anImportedImageLeftUnusedIsDiscarded() {
         val picture = image()

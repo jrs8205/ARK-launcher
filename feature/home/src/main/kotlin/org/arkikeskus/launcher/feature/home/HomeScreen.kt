@@ -101,6 +101,8 @@ import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.EditAppDialog
+import androidx.compose.foundation.Image
+import org.arkikeskus.launcher.ui.EditIconDialog
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconMenuItem
 import org.arkikeskus.launcher.ui.IconMenuPopup
@@ -236,6 +238,8 @@ fun HomeScreen(
     // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
     DismissWhenDragMoves(dragController) { menuTarget = null }
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
+    // A pinned shortcut whose icon is being edited (issue #23): a still long-press on it.
+    var editingShortcut by remember { mutableStateOf<PlacedShortcut?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
     // Empty-area long-press options popup (anchor + whether it flips above the press point).
     var homeOptions by remember { mutableStateOf<Pair<IntOffset, Boolean>?>(null) }
@@ -687,6 +691,7 @@ fun HomeScreen(
                 onOpenFolder = { openFolderId = it.id },
                 onLaunchShortcut = { viewModel.launchShortcut(it) },
                 onRemoveShortcut = { viewModel.removeShortcut(it) },
+                onEditShortcut = { editingShortcut = it },
                 onRemoveFolder = { viewModel.removeFolder(it) },
                 onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
                 onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
@@ -1027,6 +1032,21 @@ fun HomeScreen(
             onSave = { name, icon -> viewModel.editApp(app, name, icon) },
             onReset = { viewModel.resetApp(app) },
             onDismiss = { renameTarget = null },
+        )
+    }
+
+    // The icon editor of a pinned shortcut (issue #23): the icon the app pinned it with is the original.
+    editingShortcut?.let { shortcut ->
+        EditIconDialog(
+            label = shortcut.label,
+            icon = shortcut.customIcon,
+            original = { size ->
+                val pinned = shortcut.icon
+                if (pinned != null) Image(bitmap = pinned, contentDescription = null, modifier = Modifier.size(size)) else Box(Modifier.size(size))
+            },
+            onSave = { viewModel.setShortcutIcon(shortcut, it) },
+            onReset = { viewModel.setShortcutIcon(shortcut, null) },
+            onDismiss = { editingShortcut = null },
         )
     }
 

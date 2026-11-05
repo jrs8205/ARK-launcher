@@ -31,6 +31,8 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.FolderIconKey
+import org.arkikeskus.launcher.data.ShortcutIconKey
+import org.arkikeskus.launcher.data.RemainingPins
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PlaceResult
@@ -105,7 +107,8 @@ data class PlacedFolder(
 ) : HomeEntry
 
 /** A pinned deep shortcut placed at a free cell ([rowId] is the home_items row, used to move/remove).
- *  [enabled] is false while the app has it disabled ([disabledMessage] is the app's reason, if any). */
+ *  [enabled] is false while the app has it disabled ([disabledMessage] is the app's reason, if any).
+ *  [customIcon] is the icon the user picked for it in place of [icon] (issue #23), filed under [iconKey]. */
 data class PlacedShortcut(
     val rowId: Long,
     val packageName: String,
@@ -118,7 +121,15 @@ data class PlacedShortcut(
     override val page: Int,
     override val cellX: Int,
     override val cellY: Int,
-) : HomeEntry
+    val customIcon: CustomIcon? = null,
+) : HomeEntry {
+    val iconKey: String get() = ShortcutIconKey.of(packageName, shortcutId, userSerial)
+}
+
+/** Issue #23: the icon picked for a shortcut leaves with its last copy on home; another copy of the same
+ *  shortcut still pinned ([remaining], the ids left for its package after the removal) keeps it. */
+internal fun shortcutIconStaysAfterRemoval(removedShortcutId: String, remaining: RemainingPins?): Boolean =
+    remaining != null && removedShortcutId in remaining.shortcutIds
 
 /** A bound app widget placed at a home cell, occupying [spanX]×[spanY] cells. */
 data class PlacedWidget(
@@ -358,9 +369,10 @@ class HomeViewModel @Inject constructor(
         appRepository.apps,
         // A new cache generation re-runs this with the same rows, re-resolving what was invalidated.
         homeLayoutRepository.homeItems.combine(shortcutCache.generation) { items, _ -> items }
-            .combine(settingsRepository.folderIcons) { items, icons -> items to icons },
+            .combine(settingsRepository.folderIcons) { items, icons -> items to icons }
+            .combine(settingsRepository.shortcutIcons) { (items, folderIcons), shortcutIcons -> Triple(items, folderIcons, shortcutIcons) },
         notificationBadgeRepository.badges,
-    ) { settings, apps, (homeItems, folderIcons), badges ->
+    ) { settings, apps, (homeItems, folderIcons, shortcutIcons), badges ->
         val byKey = apps.associateBy { it.key }
         // Children grouped by their folder id, kept in stored order.
         val childrenByFolder = homeItems
@@ -430,6 +442,7 @@ class HomeViewModel @Inject constructor(
                                 page = row.page,
                                 cellX = row.cellX,
                                 cellY = row.cellY,
+                                customIcon = shortcutIcons[ShortcutIconKey.of(row.packageName, row.shortcutId!!, row.userSerial)],
                             )
                         }
                     }
@@ -538,14 +551,23 @@ class HomeViewModel @Inject constructor(
      *  in it, which stay in the drawer. [removeFolder] above is the drag path's, for an empty folder only. */
     fun deleteFolder(folderId: Long) = viewModelScope.launch { homeLayoutRepository.removeFolder(folderId) }
 
-    /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system. */
+    /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system;
+     *  the icon picked for it goes with its last copy ([shortcutIconStaysAfterRemoval]). */
     fun removeShortcut(rowId: Long) = viewModelScope.launch {
-        ShortcutPinLock.withLock {
-            homeLayoutRepository.removeShortcut(rowId)?.let { remaining ->
+        val shortcut = uiState.value.entries.filterIsInstance<PlacedShortcut>().firstOrNull { it.rowId == rowId }
+        val remaining = ShortcutPinLock.withLock {
+            homeLayoutRepository.removeShortcut(rowId)?.also { remaining ->
                 AppShortcuts.setPinned(context, remaining.packageName, remaining.userSerial, remaining.shortcutIds)
             }
         }
+        if (shortcut?.customIcon != null && !shortcutIconStaysAfterRemoval(shortcut.shortcutId, remaining)) {
+            customIcons.setShortcutIcon(shortcut.iconKey, null)
+        }
     }
+
+    /** The icon picked for a pinned shortcut (null = the icon the app pinned it with); issue #23. */
+    fun setShortcutIcon(shortcut: PlacedShortcut, icon: CustomIcon?) =
+        viewModelScope.launch { customIcons.setShortcutIcon(shortcut.iconKey, icon) }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell).
