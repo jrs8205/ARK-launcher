@@ -539,6 +539,7 @@ fun HomeScreen(
             menuTarget = null
             homeOptions = null
             renameTarget = null
+            editingShortcut = null
             openFolderId = null
             showWidgetPicker = false
             widgetDrag.cancel()
