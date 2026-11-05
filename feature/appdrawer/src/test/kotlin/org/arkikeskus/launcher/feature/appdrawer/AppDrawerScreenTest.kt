@@ -314,6 +314,19 @@ class AppDrawerScreenTest {
         awaitState("the theme's colour again") { it.backgroundColor == null }
     }
 
+    /** The owner's 1.0.1 ask: the drawer's labels take the chosen colour; automatic (black or white by what the drawer
+     *  looks like) by default, and automatic again once the colour is cleared. */
+    @Test fun theDrawerLabelsFollowTheLabelColourSetting() {
+        show()
+        awaitState("automatic") { it.labelColor == null }
+
+        runBlocking { wiring.settingsRepository.setDrawerLabelColor(0xFF42A5F5.toInt()) }
+        awaitState("the chosen colour") { it.labelColor == 0xFF42A5F5.toInt() }
+
+        runBlocking { wiring.settingsRepository.setDrawerLabelColor(null) }
+        awaitState("automatic again") { it.labelColor == null }
+    }
+
     /** A Telegram request after 0.9.9: the user's own picture reaches the drawer with its lightness, and is drawn under
      *  the surface; removed, the drawer is back to the system wallpaper. */
     @Test fun theDrawerShowsTheUsersOwnPictureWhileOneIsSet() {

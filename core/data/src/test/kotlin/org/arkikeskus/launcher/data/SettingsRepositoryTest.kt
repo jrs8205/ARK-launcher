@@ -801,6 +801,31 @@ class SettingsRepositoryTest {
         assertThat(repo.exportRaw()).doesNotContainKey("drawer_background_color")
     }
 
+    /** The owner's 1.0.1 ask: the drawer's label colour, chosen like home's. Automatic (black or white by what the
+     *  drawer looks like) until set, kept through a backup round-trip, and automatic again once cleared. */
+    @Test
+    fun `drawer label colour is automatic until set, survives a backup round-trip and clears back to automatic`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().drawerLabelColor).isNull()
+        repo.setDrawerLabelColor(0xFF42A5F5.toInt())
+        assertThat(repo.settings.first().drawerLabelColor).isEqualTo(0xFF42A5F5.toInt())
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("drawer_label_color", 0xFF42A5F5.toInt())
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().drawerLabelColor).isEqualTo(0xFF42A5F5.toInt())
+        // JSON hands an ARGB colour back as the unsigned Long: it wraps to the same Int.
+        restored.importRaw(mapOf("drawer_label_color" to 0xFFFFFFFFL))
+        assertThat(restored.settings.first().drawerLabelColor).isEqualTo(0xFFFFFFFF.toInt())
+        restored.importRaw(mapOf("drawer_label_color" to "blue"))
+        assertThat(restored.settings.first().drawerLabelColor).isNull() // wrong type dropped: automatic
+
+        repo.setDrawerLabelColor(null)
+        assertThat(repo.settings.first().drawerLabelColor).isNull()
+        assertThat(repo.exportRaw()).doesNotContainKey("drawer_label_color")
+    }
+
     /** The owner's 1.0.0 note: "Transparent" is a choice of its own in the colour setting (no colour layer at all), stored
      *  as a value, not cleared like the theme, so it survives a backup round-trip. */
     @Test
@@ -886,6 +911,7 @@ class SettingsRepositoryTest {
             it[longPreferencesKey("drawer_icon_scale")] = 1L
             it[longPreferencesKey("drawer_columns")] = 5L
             it[longPreferencesKey("app_label_color")] = 0xFF000000L
+            it[longPreferencesKey("drawer_label_color")] = 0xFFFFFFFFL
             it[stringPreferencesKey("dock_opacity")] = "half"
         }
         val settings = SettingsRepository(store).settings.first()
@@ -894,6 +920,7 @@ class SettingsRepositoryTest {
         assertThat(settings.drawerIconScale).isEqualTo(1.0f)
         assertThat(settings.drawerColumns).isEqualTo(5)
         assertThat(settings.appLabelColor).isEqualTo(0xFF000000.toInt())
+        assertThat(settings.drawerLabelColor).isEqualTo(0xFFFFFFFF.toInt())
         assertThat(settings.dockBackgroundOpacity).isEqualTo(0.35f) // not a number: dropped, the default is back
     }
 }

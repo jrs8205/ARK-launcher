@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Cor de fundo da gaveta de apps</string>
     <string name="settings_drawer_color_locked">A sua imagem preenche o fundo; remova-a para usar uma cor.</string>
     <string name="settings_color_theme">Tema</string>
+    <string name="settings_color_automatic">Automático</string>
     <string name="settings_color_transparent">Transparente</string>
     <string name="settings_drawer_wallpaper">Papel de parede da gaveta de apps</string>
     <string name="settings_drawer_wallpaper_desc">Uma imagem sua preenche o fundo da gaveta: a cor fica desativada, um escurecimento à sua escolha mantém o texto legível e o desfoque aplica-se à imagem. Não vai para as cópias de segurança.</string>

@@ -110,6 +110,10 @@ data class LauncherSettings(
     /** ARGB color for app icon labels on the home surfaces (home/dock/folders); default white. The
      *  app drawer keeps its theme color for readability over its solid background. */
     val appLabelColor: Int = 0xFFFFFFFF.toInt(),
+    /** ARGB colour for the app drawer's grid labels (apps and folders), or null for the automatic black or white
+     *  the drawer picks by what it looks like (see [drawerBackgroundColor]); the owner's 1.0.1 ask, the choice
+     *  home's labels have. */
+    val drawerLabelColor: Int? = null,
     /** Show a slim status bar (clock + battery + signal, with dynamic battery/signal colors) at the top
      *  of the home screen. */
     val showStatusBar: Boolean = false,

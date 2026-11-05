@@ -75,7 +75,7 @@ class SettingsRepository @Inject constructor(
                             Keys.HOME_PAGE.name, Keys.HOME_PAGE_COUNT.name ->
                                 it.toLong().coerceIn(0L, HomeLayoutRepository.MAX_PAGES.toLong()).toInt()
                             // An ARGB colour arrives as the signed Int's Long, or its unsigned form: wrap.
-                            Keys.APP_LABEL_COLOR.name, Keys.DRAWER_BACKGROUND_COLOR.name -> it.toInt()
+                            Keys.APP_LABEL_COLOR.name, Keys.DRAWER_BACKGROUND_COLOR.name, Keys.DRAWER_LABEL_COLOR.name -> it.toInt()
                             else -> it.toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
                         }
                     }
@@ -143,6 +143,7 @@ class SettingsRepository @Inject constructor(
             twoLineHomeLabels = p[Keys.TWO_LINE_HOME_LABELS] ?: false,
             twoLineDrawerLabels = p[Keys.TWO_LINE_DRAWER_LABELS] ?: true,
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
+            drawerLabelColor = p[Keys.DRAWER_LABEL_COLOR],
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
             showWeather = p[Keys.SHOW_WEATHER] ?: true,
             networkPlaceNames = p[Keys.NETWORK_PLACE_NAMES] ?: false,
@@ -509,6 +510,10 @@ class SettingsRepository @Inject constructor(
 
     /** ARGB color for the home-surface app icon labels. */
     suspend fun setAppLabelColor(argb: Int) = edit { it[Keys.APP_LABEL_COLOR] = argb }
+    /** ARGB colour of the app drawer's grid labels; null clears back to the automatic black or white. */
+    suspend fun setDrawerLabelColor(argb: Int?) = edit {
+        if (argb == null) it.remove(Keys.DRAWER_LABEL_COLOR) else it[Keys.DRAWER_LABEL_COLOR] = argb
+    }
 
     /** Lets home-screen labels wrap onto a second line (apps, folders, shortcuts; not the dock). */
     suspend fun setTwoLineHomeLabels(value: Boolean) = edit { it[Keys.TWO_LINE_HOME_LABELS] = value }
@@ -765,6 +770,7 @@ class SettingsRepository @Inject constructor(
         val DRAWER_ICON_SCALE = floatPreferencesKey("drawer_icon_scale")
         val LONG_PRESS_SCALE = floatPreferencesKey("long_press_scale")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
+        val DRAWER_LABEL_COLOR = intPreferencesKey("drawer_label_color")
         val TWO_LINE_HOME_LABELS = booleanPreferencesKey("two_line_home_labels")
         val TWO_LINE_DRAWER_LABELS = booleanPreferencesKey("two_line_drawer_labels")
         val SHOW_STATUS_BAR = booleanPreferencesKey("show_status_bar")
@@ -828,7 +834,7 @@ class SettingsRepository @Inject constructor(
         )
         val INT_KEYS = setOf(
             "dock_columns", "home_columns", "home_rows", "drawer_columns", "app_label_color",
-            "home_page", "home_page_count", "folder_columns", "drawer_background_color",
+            "home_page", "home_page_count", "folder_columns", "drawer_background_color", "drawer_label_color",
         )
 
         /** Known boolean/string preference keys. importRaw writes a known key ONLY with its

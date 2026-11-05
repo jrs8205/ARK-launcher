@@ -83,6 +83,8 @@ data class AppDrawerUiState(
     val backgroundOpacity: Float = 1f,
     /** The drawer surface's ARGB colour, or null for the theme's own (settings, a Telegram request). */
     val backgroundColor: Int? = null,
+    /** The grid labels' chosen ARGB colour, or null for the automatic black or white by the drawer's look. */
+    val labelColor: Int? = null,
     /** The user's own picture behind the drawer, or null for the system wallpaper through the window. */
     val wallpaper: DrawerWallpaper? = null,
     /** How much the own picture is darkened for legibility (0 = as it is, 1 = black); the colour is off with a picture. */
@@ -185,6 +187,7 @@ class AppDrawerViewModel @Inject constructor(
             showSearch = settings.showDrawerSearch,
             backgroundOpacity = settings.drawerBackgroundOpacity,
             backgroundColor = settings.drawerBackgroundColor,
+            labelColor = settings.drawerLabelColor,
             pictureDim = settings.drawerPictureDim,
             blurBehindDrawer = settings.blurBehindDrawer,
             drawerBlurStrength = settings.drawerBlurStrength,

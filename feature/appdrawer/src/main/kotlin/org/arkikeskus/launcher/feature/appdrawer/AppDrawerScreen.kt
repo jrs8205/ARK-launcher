@@ -259,6 +259,7 @@ fun AppDrawerScreen(
         LocalAppLabelScale provides uiState.appLabelTextScale,
         LocalIconScale provides uiState.iconScale,
         LocalAppLabelLines provides if (uiState.twoLineLabels) 2 else 1,
+        LocalDrawerLabelColor provides uiState.labelColor,
     ) {
     // What the drawer paints over what is behind it (DrawerSurface.kt): the user's colour at its opacity, nothing for
     // "Transparent", or a black dim over the user's own picture; its text black or white to match what the drawer
@@ -835,7 +836,7 @@ private fun DrawerFolderTile(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = folder.name,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = drawerLabelColor(LocalDrawerLabelColor.current, MaterialTheme.colorScheme.onSurface),
                 fontSize = 11.sp,
                 lineHeight = 13.sp,
                 maxLines = LocalAppLabelLines.current,
@@ -1296,7 +1297,7 @@ private fun DrawerAppCell(
     var origin by remember { mutableStateOf(Offset.Zero) }
     AppIcon(
         appItem = app,
-        labelColor = MaterialTheme.colorScheme.onSurface,
+        labelColor = drawerLabelColor(LocalDrawerLabelColor.current, MaterialTheme.colorScheme.onSurface),
         showLabel = showLabels,
         iconSize = iconSize,
         badgeCount = badges[app.badgeKey] ?: 0,

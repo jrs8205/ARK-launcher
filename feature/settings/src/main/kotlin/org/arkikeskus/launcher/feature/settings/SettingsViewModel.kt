@@ -100,6 +100,7 @@ class SettingsViewModel @Inject constructor(
     fun setBlurBehindDrawer(value: Boolean) = update { repository.setBlurBehindDrawer(value) }
     fun setDrawerBlurStrength(value: Float) = update { repository.setDrawerBlurStrength(value) }
     fun setDrawerBackgroundColor(argb: Int?) = update { repository.setDrawerBackgroundColor(argb) }
+    fun setDrawerLabelColor(argb: Int?) = update { repository.setDrawerLabelColor(argb) }
     fun setDrawerPictureDim(value: Float) = update { repository.setDrawerPictureDim(value) }
     fun setFontFamily(font: String) = update { repository.setFontFamily(font) }
     fun setThemeAllIcons(value: Boolean) = update { repository.setThemeAllIcons(value) }

@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Hintergrundfarbe des App-Drawers</string>
     <string name="settings_drawer_color_locked">Dein Bild füllt den Hintergrund; entferne es, um eine Farbe zu verwenden.</string>
     <string name="settings_color_theme">Design</string>
+    <string name="settings_color_automatic">Automatisch</string>
     <string name="settings_color_transparent">Transparent</string>
     <string name="settings_drawer_wallpaper">Hintergrundbild des App-Drawers</string>
     <string name="settings_drawer_wallpaper_desc">Ein eigenes Bild füllt den Hintergrund des App-Drawers: die Farbe ist dann aus, eine Abdunklung nach Wahl hält den Text lesbar, und die Weichzeichnung wirkt auf das Bild. Nicht in Sicherungen enthalten.</string>

@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">App drawer background colour</string>
     <string name="settings_drawer_color_locked">Your picture fills the background; remove it to use a colour.</string>
     <string name="settings_color_theme">Theme</string>
+    <string name="settings_color_automatic">Automatic</string>
     <string name="settings_color_transparent">Transparent</string>
     <string name="settings_drawer_wallpaper">App drawer wallpaper</string>
     <string name="settings_drawer_wallpaper_desc">A picture of your own fills the app drawer’s background: the colour is then off, a dim of your choice keeps the text readable, and the blur applies to the picture. Not included in backups.</string>

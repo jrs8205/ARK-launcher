@@ -5,6 +5,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
@@ -102,6 +103,12 @@ internal fun opaqueDrawerColorScheme(base: ColorScheme, background: Color?): Col
 
 /** [opaqueDrawerColorScheme] for the drawer's own windows ([OpaqueDrawerSurface]); null outside the drawer. */
 internal val LocalDrawerOpaqueColors = staticCompositionLocalOf<ColorScheme?> { null }
+
+/** The user's chosen ARGB colour for the grid's labels (apps and folders), null for none chosen. */
+internal val LocalDrawerLabelColor = compositionLocalOf<Int?> { null }
+
+/** The grid's label colour: the user's [chosen] one, or [automatic] (black or white by the drawer's look) without one. */
+internal fun drawerLabelColor(chosen: Int?, automatic: Color): Color = chosen?.let { Color(it) } ?: automatic
 
 /** Wraps an opaque surface of the drawer in the scheme its own colour calls for ([LocalDrawerOpaqueColors]) instead of
  *  the see-through drawer's, whose text may have flipped for what shows through it. */

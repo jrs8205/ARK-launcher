@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Bakgrundsfärg för applådan</string>
     <string name="settings_drawer_color_locked">Din bild fyller bakgrunden; ta bort den för att använda en färg.</string>
     <string name="settings_color_theme">Tema</string>
+    <string name="settings_color_automatic">Automatiskt</string>
     <string name="settings_color_transparent">Genomskinlig</string>
     <string name="settings_drawer_wallpaper">Bakgrundsbild för applådan</string>
     <string name="settings_drawer_wallpaper_desc">En egen bild fyller applådans bakgrund: färgen är då av, en mörkning efter eget val håller texten läsbar, och suddningen gäller bilden. Ingår inte i säkerhetskopior.</string>

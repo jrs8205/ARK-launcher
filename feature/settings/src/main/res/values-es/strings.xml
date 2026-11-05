@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Color de fondo del cajón de aplicaciones</string>
     <string name="settings_drawer_color_locked">Tu imagen llena el fondo; quítala para usar un color.</string>
     <string name="settings_color_theme">Tema</string>
+    <string name="settings_color_automatic">Automático</string>
     <string name="settings_color_transparent">Transparente</string>
     <string name="settings_drawer_wallpaper">Fondo de pantalla del cajón de aplicaciones</string>
     <string name="settings_drawer_wallpaper_desc">Una imagen propia llena el fondo del cajón: el color queda desactivado, un oscurecimiento a tu gusto mantiene el texto legible y el desenfoque se aplica a la imagen. No se incluye en las copias de seguridad.</string>

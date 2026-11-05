@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Couleur de fond de la liste des applications</string>
     <string name="settings_drawer_color_locked">Votre image remplit le fond ; retirez-la pour utiliser une couleur.</string>
     <string name="settings_color_theme">Thème</string>
+    <string name="settings_color_automatic">Automatique</string>
     <string name="settings_color_transparent">Transparent</string>
     <string name="settings_drawer_wallpaper">Fond d’écran de la liste des applications</string>
     <string name="settings_drawer_wallpaper_desc">Une image à vous remplit le fond de la liste : la couleur est alors désactivée, un assombrissement à votre goût garde le texte lisible, et le flou s’applique à l’image. Non incluse dans les sauvegardes.</string>

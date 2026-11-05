@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Цвет фона списка приложений</string>
     <string name="settings_drawer_color_locked">Ваша картинка заполняет фон; удалите её, чтобы использовать цвет.</string>
     <string name="settings_color_theme">Тема</string>
+    <string name="settings_color_automatic">Автоматически</string>
     <string name="settings_color_transparent">Прозрачный</string>
     <string name="settings_drawer_wallpaper">Обои списка приложений</string>
     <string name="settings_drawer_wallpaper_desc">Своя картинка заполняет фон списка приложений: цвет при этом отключён, затемнение по вашему выбору сохраняет текст читаемым, а размытие действует на картинку. В резервную копию не входит.</string>

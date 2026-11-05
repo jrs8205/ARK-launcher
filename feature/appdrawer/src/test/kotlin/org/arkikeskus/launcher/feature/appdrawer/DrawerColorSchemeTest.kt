@@ -40,6 +40,13 @@ class DrawerColorSchemeTest {
         assertThat(drawerTextIsDark(yellow, opacity = 2f, behindLuminance = darkWallpaper)).isTrue() // clamped
     }
 
+    /** The owner's 1.0.1 ask: a chosen label colour replaces the automatic black or white on the grid's labels, and
+     *  only a chosen one does. */
+    @Test fun aChosenLabelColourReplacesTheAutomaticOne() {
+        assertThat(drawerLabelColor(chosen = null, automatic = Color.White)).isEqualTo(Color.White)
+        assertThat(drawerLabelColor(chosen = 0xFF42A5F5.toInt(), automatic = Color.White)).isEqualTo(Color(0xFF42A5F5))
+    }
+
     @Test fun noColourAndTheRightTextKeepsTheThemesScheme() {
         assertThat(drawerColorScheme(lightTheme, null, textIsDark = true)).isSameInstanceAs(lightTheme)
         assertThat(drawerColorScheme(darkTheme, null, textIsDark = false)).isSameInstanceAs(darkTheme)

@@ -40,6 +40,7 @@
     <string name="settings_drawer_color">Sovellusvalikon taustaväri</string>
     <string name="settings_drawer_color_locked">Oma kuva täyttää taustan; poista se käyttääksesi väriä.</string>
     <string name="settings_color_theme">Teema</string>
+    <string name="settings_color_automatic">Automaattinen</string>
     <string name="settings_color_transparent">Läpinäkyvä</string>
     <string name="settings_drawer_wallpaper">Sovellusvalikon taustakuva</string>
     <string name="settings_drawer_wallpaper_desc">Oma kuva täyttää sovellusvalikon taustan: väri on silloin pois, himmennys pitää tekstin luettavana ja sumennus kohdistuu kuvaan. Ei mukana varmuuskopiossa.</string>
