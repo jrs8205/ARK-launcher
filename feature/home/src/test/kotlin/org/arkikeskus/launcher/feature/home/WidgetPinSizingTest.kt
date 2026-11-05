@@ -231,6 +231,24 @@ class WidgetPinSizingTest {
         assertThat(cellSize.cellFor(4, 6, chrome = chromeOf(LauncherSettings(iconScale = 1f)))).isNotNull()
     }
 
+    /** Issue #24: the space the user put under the dock comes off the grid in the estimate too, else a
+     *  request that starts the launcher's process would be measured for a grid taller than home's. */
+    @Test fun theEstimateLeavesRoomForTheSpaceBelowTheDock() {
+        val plain = estimateOf(LauncherSettings(homeColumns = 4, homeRows = 6))
+        val lifted = estimateOf(LauncherSettings(homeColumns = 4, homeRows = 6, dockBottomSpacing = 48))
+
+        assertThat(plain.heightDp - lifted.heightDp).isWithin(0.01f).of(48f / 6)
+    }
+
+    /** The space below the dock changed in Settings while the home screen stayed in the background:
+     *  the grid it measured had another height, so that cell is not used. */
+    @Test fun aCellMeasuredWithOtherSpaceBelowTheDockIsNotUsed() {
+        val cellSize = HomeCellSize().apply { publish(100f, 100f, columns = 4, rows = 6, chrome = chromeOf(LauncherSettings(dockBottomSpacing = 0))) }
+
+        assertThat(cellSize.cellFor(4, 6, chrome = chromeOf(LauncherSettings(dockBottomSpacing = 24)))).isNull()
+        assertThat(cellSize.cellFor(4, 6, chrome = chromeOf(LauncherSettings(dockBottomSpacing = 0)))).isNotNull()
+    }
+
     /** Without labels the dock row's least height (72 dp) holds the icons at their largest (52 + 2 × 10)
      *  however few there are — at the default scale. Enlarged, fewer (so larger) icons make the dock
      *  taller again, and the count is part of the chrome. */

@@ -56,6 +56,8 @@ internal data class WorkspaceChrome(
     val widgetInsets: Boolean = false,
     /** The height of a home icon's label block, which the icon size in a cell depends on. */
     val homeLabelsDp: Float = 0f,
+    /** The user's space under the dock (issue #24), which lifts the dock and shortens the grid; 0 without the dock. */
+    val dockBottomSpacingDp: Float = 0f,
 )
 
 /** The chrome of a home screen with [settings], [pageCount] pages (the dots show from two on) and
@@ -78,6 +80,7 @@ internal fun workspaceChrome(settings: LauncherSettings, pageCount: Int, fontSca
         // Its own setting: with the themed bar off, a shown system bar pads the workspace instead.
         systemStatusBarHidden = settings.hideSystemStatusBar,
         pageDotsDp = if (settings.showPageIndicator && pageCount > 1) pageDotsRowHeight(settings.homePageMarker).value else 0f,
+        dockBottomSpacingDp = if (settings.dockEnabled) settings.dockBottomSpacing.toFloat() else 0f,
         widgetInsets = settings.widgetEdgesAlignWithIcons,
         homeLabelsDp = labelBlockHeight(
             settings.showHomeLabels, settings.appLabelTextScale, labelFontFactor(fontScale),
@@ -266,7 +269,7 @@ class HomeCellSize {
             val labels = if (chrome.dockLabelsDp > 0f) chrome.dockLabelsDp + onePixelDp else 0f
             val icon = DOCK_ICON_SIZE.value * chrome.iconScale
             val row = maxOf(DOCK_ROW_MIN_HEIGHT.value, 2 * DOCK_ROW_VERTICAL_PADDING.value + icon + labels)
-            return home.navigationBarDp + 2 * DOCK_OUTER_PADDING.value + row
+            return home.navigationBarDp + chrome.dockBottomSpacingDp + 2 * DOCK_OUTER_PADDING.value + row
         }
 
         /** From this smallest width on, the platform turns even a portrait-locked launcher (Android 16). */
