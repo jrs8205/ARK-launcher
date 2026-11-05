@@ -5,6 +5,7 @@ plugins {
     id("arkikeskus.android.application")
     id("arkikeskus.android.compose")
     id("arkikeskus.android.hilt")
+    alias(libs.plugins.baselineprofile)
 }
 
 // Release signing is read from keystore.properties (gitignored, never committed). On a machine
@@ -75,6 +76,17 @@ android {
     }
 }
 
+// The baseline profile is recorded on request only (`./gradlew :app:generateBaselineProfile` with one
+// emulator or phone attached). Every other build, F-Droid's included, reads the committed rules under
+// src/main/generated/baselineProfiles/, so the release APK stays reproducible.
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    saveInSrc = true
+    mergeIntoMain = true
+    // The startup profile also orders the startup classes first in the dex.
+    dexLayoutOptimization = true
+}
+
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
@@ -96,6 +108,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.coil.compose)
     implementation(libs.kotlinx.coroutines.android)
+    // Writes the shipped baseline profile into ART's profile store on the first start after an install.
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
     testImplementation(libs.robolectric)
