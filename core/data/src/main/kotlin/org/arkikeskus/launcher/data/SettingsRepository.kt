@@ -902,6 +902,11 @@ class SettingsRepository @Inject constructor(
             "dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key", "weather_app_key",
         )
 
+        /** Every preference keyed by something that ends in a profile serial: the app keys above and the
+         *  shortcut icons (`package/shortcutId/serial`, [ShortcutIconKey]), which a restore moves onto the
+         *  restoring profile the same way. Not app keys: a shortcut id is not a launcher activity. */
+        val PROFILE_KEYED_PREFS = APP_KEY_PREFS + "shortcut_icons"
+
         /**
          * Rewrites each app key inside the value [raw] of the [APP_KEY_PREFS] preference [name] with
          * [transform]; null drops that entry (a dock or hidden entry, a label line, a drawer-folder
@@ -913,7 +918,7 @@ class SettingsRepository @Inject constructor(
             val lines = raw.split("\n").filter { it.isNotEmpty() }
             return when (name) {
                 "dock_favorites", "hidden_apps" -> lines.mapNotNull(transform).distinct().joinToString("\n")
-                "custom_labels", "custom_icons" -> lines.mapNotNull { line ->
+                "custom_labels", "custom_icons", "shortcut_icons" -> lines.mapNotNull { line ->
                     val tab = line.indexOf('\t')
                     if (tab <= 0) line else transform(line.substring(0, tab))?.let { it + line.substring(tab) }
                 }.distinctBy { it.substringBefore('\t') }.joinToString("\n")

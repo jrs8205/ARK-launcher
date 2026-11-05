@@ -483,6 +483,17 @@ class BackupMapperTest {
         )
     }
 
+    /** Issue #23's shortcut icons are filed by the shortcut's identity, profile serial last: they move
+     *  with the rows, and a shortcut id with slashes of its own (a web shortcut's address) stays whole. */
+    @Test
+    fun remapSettingsProfiles_moves_the_shortcut_icon_keys_too_keeping_the_shortcut_id() {
+        val settings = mapOf(
+            "shortcut_icons" to "org.mozilla.firefox/https://github.com//5\tpack:com.example.pack:octocat\norg.work/x/12\tpack:com.example.pack:w",
+        )
+        val out = BackupMapper.remapSettingsProfiles(settings, sourceMainSerial = 5L, targetMainSerial = 0L)
+        assertThat(out).containsExactly("shortcut_icons", "org.mozilla.firefox/https://github.com//0\tpack:com.example.pack:octocat")
+    }
+
     @Test
     fun remapSettingsProfiles_leaves_an_older_files_keys_as_they_are() {
         // Older files don't record the exporting profile, and the keys can't tell it: a cleared

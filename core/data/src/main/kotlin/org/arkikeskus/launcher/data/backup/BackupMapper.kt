@@ -255,7 +255,7 @@ object BackupMapper {
      * import exactly as before, unmapped. Unparseable keys are left as they are.
      */
     fun remapSettingsProfiles(settings: Map<String, Any>, sourceMainSerial: Long?, targetMainSerial: Long): Map<String, Any> {
-        val appKeyValues = settings.filter { (name, value) -> name in SettingsRepository.APP_KEY_PREFS && value is String }
+        val appKeyValues = settings.filter { (name, value) -> name in SettingsRepository.PROFILE_KEYED_PREFS && value is String }
         val source = sourceMainSerial ?: return settings
         return settings.mapValues { (name, value) ->
             if (name !in appKeyValues) {
