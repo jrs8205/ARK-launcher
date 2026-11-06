@@ -296,7 +296,8 @@ class LauncherAppsSource @Inject constructor(
 
     /** A launcher activity of one profile, as a scan listed it. */
     private class Scanned(val info: LauncherActivityInfo, val user: UserHandle, val serial: Long) {
-        val key = "${info.componentName.packageName}/${info.componentName.className}/$serial"
+        val packageName: String = info.componentName.packageName
+        val key = "$packageName/${info.componentName.className}/$serial"
     }
 
     /**
@@ -322,15 +323,30 @@ class LauncherAppsSource @Inject constructor(
                 label = labelOf(s),
             )
         }.sortedBy { it.label.lowercase() }
-        send(toItems { s -> labelCache.label(s.key) ?: readLabel(s.info).also { labelCache.put(s.key, it) } })
+        // A reading carries its package's generation from BEFORE the read: a package event in between
+        // drops it (AppLabelCache.Reading), and the rescan the event queues reads the label again.
+        val shown = HashMap<String, String>()
+        send(toItems { s ->
+            val label = labelCache.label(s.key) ?: read(s).also { labelCache.put(s.key, it.label, it.generation) }.label
+            shown[s.key] = label
+            label
+        })
 
         labelCache.retain(scanned.mapTo(HashSet()) { it.key })
         val unverified = labelCache.unverified()
         if (unverified.isNotEmpty()) {
-            val fresh = scanned.filter { it.key in unverified }.associate { it.key to readLabel(it.info) }
-            if (labelCache.verify(fresh)) send(toItems { s -> fresh[s.key] ?: labelCache.label(s.key).orEmpty() })
+            val fresh = scanned.filter { it.key in unverified }.associate { it.key to read(it) }
+            // A key an event overtook meanwhile has no label in the cache any more: this emission keeps
+            // what it showed, the queued rescan brings the new one.
+            if (labelCache.verify(fresh)) send(toItems { s -> labelCache.label(s.key) ?: shown[s.key].orEmpty() })
         }
         labelCache.persist()
+    }
+
+    /** The app's own label with the package's generation taken before the read (see [AppLabelCache.Reading]). */
+    private fun read(s: Scanned): AppLabelCache.Reading {
+        val generation = labelCache.generation(s.packageName)
+        return AppLabelCache.Reading(readLabel(s.info), generation)
     }
 
     /** The app's own label, read from its resources (the costly call this cache exists for). */
