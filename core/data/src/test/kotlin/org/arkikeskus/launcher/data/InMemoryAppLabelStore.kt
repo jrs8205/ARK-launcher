@@ -3,8 +3,8 @@ package org.arkikeskus.launcher.data
 /** The persisted labels of a test: a map per locale, a count of the writes made to it, and a switch
  *  that makes it fail like a full disk (SQLiteFullException is a RuntimeException). */
 class InMemoryAppLabelStore : AppLabelStore {
-    val stored = HashMap<String, Map<String, String>>()
-    var writes = 0
+    val stored = java.util.concurrent.ConcurrentHashMap<String, Map<String, String>>()
+    @Volatile var writes = 0
     var failWrites = false
     var failReads = false
 

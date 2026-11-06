@@ -58,6 +58,11 @@ class LauncherAppsSourceLabelCacheTest {
         withTimeout(10_000) { emissions.first { it.size >= count } }
     }
 
+    /** The scan persists AFTER its last emission, on the same IO thread: wait for the write itself. */
+    private suspend fun awaitWrites(count: Int) = withContext(Dispatchers.Default) {
+        withTimeout(10_000) { while (store.writes < count) kotlinx.coroutines.delay(10) }
+    }
+
     private fun labels(apps: List<AppItem>) = apps.associate { it.packageName to it.label }
 
     @Test fun thePersistedLabelsShowFirstAndAChangedOneIsCorrectedInASecondEmission() = runTest {
@@ -65,6 +70,7 @@ class LauncherAppsSourceLabelCacheTest {
 
         collectApps()
         val seen = awaitEmissions(2)
+        awaitWrites(1)
 
         assertThat(labels(seen[0])).containsExactly("com.mail", "Old Mail", "com.chat", "com.chat")
         assertThat(seen[0].map { it.label }).isInOrder(compareBy<String> { it.lowercase() })
@@ -78,7 +84,7 @@ class LauncherAppsSourceLabelCacheTest {
 
         collectApps()
         val seen = awaitEmissions(1)
-        withContext(Dispatchers.Default) { kotlinx.coroutines.delay(300) } // a second emission would land by now
+        awaitWrites(1) // the scan's end: a second emission would have come before it
 
         assertThat(emissions.value).hasSize(1)
         assertThat(labels(seen[0])).containsExactly("com.mail", "com.mail", "com.chat", "com.chat")
@@ -89,7 +95,7 @@ class LauncherAppsSourceLabelCacheTest {
     @Test fun withNothingPersistedEveryLabelIsReadAndThenPersisted() = runTest {
         collectApps()
         val seen = awaitEmissions(1)
-        withContext(Dispatchers.Default) { kotlinx.coroutines.delay(300) }
+        awaitWrites(1)
 
         assertThat(emissions.value).hasSize(1)
         assertThat(labels(seen[0])).containsExactly("com.mail", "com.mail", "com.chat", "com.chat")
