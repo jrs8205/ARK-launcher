@@ -166,8 +166,8 @@
     <string name="settings_feedback">Palaute</string>
     <string name="settings_feedback_discussions">Palaute ja keskustelu</string>
     <string name="settings_feedback_discussions_desc">Kysymykset ja ideat — GitHub Discussions</string>
-    <string name="settings_feedback_telegram">Telegram-ryhmä</string>
-    <string name="settings_feedback_telegram_desc">Keskustele muiden käyttäjien kanssa — t.me/ARKlauncher</string>
+    <string name="settings_feedback_telegram">Telegram-kanava</string>
+    <string name="settings_feedback_telegram_desc">Julkaisu-uutiset — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Reddit-yhteisö</string>
     <string name="settings_feedback_reddit_desc">Julkaisut ja keskustelu — r/ArkLauncher</string>
     <string name="settings_support_title">Tue ARK-launcheria</string>

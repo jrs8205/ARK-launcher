@@ -172,8 +172,8 @@
     <string name="settings_feedback">Обратная связь</string>
     <string name="settings_feedback_discussions">Отзывы и обсуждения</string>
     <string name="settings_feedback_discussions_desc">Вопросы и идеи — GitHub Discussions</string>
-    <string name="settings_feedback_telegram">Группа в Telegram</string>
-    <string name="settings_feedback_telegram_desc">Общение с другими пользователями — t.me/ARKlauncher</string>
+    <string name="settings_feedback_telegram">Канал в Telegram</string>
+    <string name="settings_feedback_telegram_desc">Новости о выпусках — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Сообщество в Reddit</string>
     <string name="settings_feedback_reddit_desc">Посты и обсуждение — r/ArkLauncher</string>
     <string name="settings_support_title">Поддержать ARK-launcher</string>

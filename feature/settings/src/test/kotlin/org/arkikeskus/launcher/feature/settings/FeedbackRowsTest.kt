@@ -15,7 +15,8 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 /**
- * Settings ▸ Feedback lists every channel the README does: GitHub Discussions, the Telegram group and,
+ * Settings ▸ Feedback lists every channel the README does: GitHub Discussions, the Telegram channel (the
+ * release announcements, in place of the group since 1.0.3) and,
  * since 1.0.2, the r/ArkLauncher community (owner decision 2026-11-05). Each row opens its own page.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -50,7 +51,7 @@ class FeedbackRowsTest {
 
         assertThat(opened).containsExactly(DISCUSSIONS_URL, TELEGRAM_URL, REDDIT_URL).inOrder()
         assertThat(DISCUSSIONS_URL).isEqualTo("https://github.com/jrs8205/ARK-launcher/discussions")
-        assertThat(TELEGRAM_URL).isEqualTo("https://t.me/ARKlauncher")
+        assertThat(TELEGRAM_URL).isEqualTo("https://t.me/ARKLauncherUpdates")
         assertThat(REDDIT_URL).isEqualTo("https://www.reddit.com/r/ArkLauncher/")
     }
 }

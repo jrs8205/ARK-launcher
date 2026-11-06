@@ -169,8 +169,8 @@
     <string name="settings_feedback">Feedback</string>
     <string name="settings_feedback_discussions">Feedback e discussão</string>
     <string name="settings_feedback_discussions_desc">Perguntas e ideias — GitHub Discussions</string>
-    <string name="settings_feedback_telegram">Grupo no Telegram</string>
-    <string name="settings_feedback_telegram_desc">Converse com outros usuários — t.me/ARKlauncher</string>
+    <string name="settings_feedback_telegram">Canal do Telegram</string>
+    <string name="settings_feedback_telegram_desc">Novidades das versões — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Comunidade no Reddit</string>
     <string name="settings_feedback_reddit_desc">Publicações e discussão — r/ArkLauncher</string>
     <string name="settings_support_title">Apoie o ARK-launcher</string>
