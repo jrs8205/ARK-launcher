@@ -15,7 +15,10 @@ class AppLabelCacheTest {
     private val store = InMemoryAppLabelStore()
     private val cache = AppLabelCache(store)
 
-    private fun reading(label: String, packageName: String) = AppLabelCache.Reading(label, cache.generation(packageName))
+    /** A scan's snapshot value for [packageName], as the source takes it before listing the activities. */
+    private fun generationOf(packageName: String) = cache.generations()[packageName] ?: 0
+
+    private fun reading(label: String, packageName: String) = AppLabelCache.Reading(label, generationOf(packageName))
 
     @Test fun thePersistedLabelsOfTheLocaleAreHandedOutAtOnce() = runTest {
         store.stored["en-US"] = mapOf("com.mail/mail.Main/0" to "Mail", "com.chat/chat.Main/0" to "Chat")
@@ -32,7 +35,7 @@ class AppLabelCacheTest {
     @Test fun aLabelReadInThisProcessIsKeptAndNeedsNoVerification() = runTest {
         cache.prepare("en-US")
 
-        cache.put("com.new/new.Main/0", "New", cache.generation("com.new"))
+        cache.put("com.new/new.Main/0", "New", generationOf("com.new"))
 
         assertThat(cache.label("com.new/new.Main/0")).isEqualTo("New")
         assertThat(cache.unverified()).isEmpty()
@@ -75,16 +78,16 @@ class AppLabelCacheTest {
     @Test fun aPackageEventDuringAReadDropsThatReading() = runTest {
         store.stored["en-US"] = mapOf("com.mail/mail.Main/0" to "Mail", "com.chat/chat.Main/0" to "Chat")
         cache.prepare("en-US")
-        val mailBefore = cache.generation("com.mail")
-        val chatBefore = cache.generation("com.chat")
-        val newBefore = cache.generation("com.new")
+        val mailBefore = generationOf("com.mail")
+        val chatBefore = generationOf("com.chat")
+        val newBefore = generationOf("com.new")
 
         cache.invalidatePackage("com.mail")
         cache.invalidatePackage("com.new")
 
         cache.put("com.new/new.Main/0", "Old new", newBefore)
         assertThat(cache.label("com.new/new.Main/0")).isNull()
-        cache.put("com.other/other.Main/0", "Other", cache.generation("com.other"))
+        cache.put("com.other/other.Main/0", "Other", generationOf("com.other"))
         assertThat(cache.label("com.other/other.Main/0")).isEqualTo("Other")
 
         val changed = cache.verify(
@@ -97,7 +100,27 @@ class AppLabelCacheTest {
         assertThat(cache.unverified()).isEmpty()
 
         // After the rescan reads it with the current generation, it is kept again.
-        cache.put("com.mail/mail.Main/0", "New mail", cache.generation("com.mail"))
+        cache.put("com.mail/mail.Main/0", "New mail", generationOf("com.mail"))
+        assertThat(cache.label("com.mail/mail.Main/0")).isEqualTo("New mail")
+    }
+
+    /** The listed activities are snapshots: a package updated AFTER the listing but before its label is
+     *  read hands out the old label from the old snapshot. The scan's generations are taken before the
+     *  listing, so such a reading is stale and dropped, whatever a generation read later would say. */
+    @Test fun aPackageEventBetweenTheListingAndTheReadDropsTheReading() = runTest {
+        cache.prepare("en-US")
+        val listed = cache.generations() // what the scan takes before getActivityList
+
+        cache.invalidatePackage("com.mail") // the update lands while the scan still holds the old listing
+
+        cache.put("com.mail/mail.Main/0", "Old mail", listed["com.mail"] ?: 0)
+        assertThat(cache.label("com.mail/mail.Main/0")).isNull()
+        assertThat(cache.verify(mapOf("com.mail/mail.Main/0" to AppLabelCache.Reading("Old mail", listed["com.mail"] ?: 0)))).isFalse()
+        assertThat(cache.label("com.mail/mail.Main/0")).isNull()
+
+        // The rescan the event queued lists again, takes a new snapshot, and its reading is kept.
+        val relisted = cache.generations()
+        cache.put("com.mail/mail.Main/0", "New mail", relisted["com.mail"] ?: 0)
         assertThat(cache.label("com.mail/mail.Main/0")).isEqualTo("New mail")
     }
 
@@ -118,7 +141,7 @@ class AppLabelCacheTest {
         cache.persist()
         assertThat(store.writes).isEqualTo(0)
 
-        cache.put("com.new/new.Main/0", "New", cache.generation("com.new"))
+        cache.put("com.new/new.Main/0", "New", generationOf("com.new"))
         cache.persist()
         assertThat(store.writes).isEqualTo(1)
         assertThat(store.stored["en-US"]).containsExactly("com.mail/mail.Main/0", "Mail", "com.new/new.Main/0", "New")
@@ -131,7 +154,7 @@ class AppLabelCacheTest {
      *  the apps anyway) and tried again at the next persist. */
     @Test fun aFailingWriteIsDroppedAndTriedAgainAtTheNextPersist() = runTest {
         cache.prepare("en-US")
-        cache.put("com.new/new.Main/0", "New", cache.generation("com.new"))
+        cache.put("com.new/new.Main/0", "New", generationOf("com.new"))
         store.failWrites = true
 
         cache.persist()
@@ -157,7 +180,7 @@ class AppLabelCacheTest {
         store.stored["en-US"] = mapOf("com.mail/mail.Main/0" to "Mail")
         store.stored["fi-FI"] = mapOf("com.mail/mail.Main/0" to "Posti")
         cache.prepare("en-US")
-        cache.put("com.new/new.Main/0", "New", cache.generation("com.new"))
+        cache.put("com.new/new.Main/0", "New", generationOf("com.new"))
 
         cache.prepare("fi-FI")
 
@@ -165,7 +188,7 @@ class AppLabelCacheTest {
         assertThat(cache.label("com.new/new.Main/0")).isNull()
         assertThat(cache.unverified()).containsExactly("com.mail/mail.Main/0")
 
-        cache.put("com.new/new.Main/0", "Uusi", cache.generation("com.new"))
+        cache.put("com.new/new.Main/0", "Uusi", generationOf("com.new"))
         cache.persist()
         assertThat(store.stored["fi-FI"]).containsExactly("com.mail/mail.Main/0", "Posti", "com.new/new.Main/0", "Uusi")
         assertThat(store.stored["en-US"]).containsExactly("com.mail/mail.Main/0", "Mail")
@@ -175,7 +198,7 @@ class AppLabelCacheTest {
         store.stored["en-US"] = mapOf("com.mail/mail.Main/0" to "Mail")
         cache.prepare("en-US")
         cache.verify(mapOf("com.mail/mail.Main/0" to reading("Mail", "com.mail")))
-        cache.put("com.new/new.Main/0", "New", cache.generation("com.new"))
+        cache.put("com.new/new.Main/0", "New", generationOf("com.new"))
 
         cache.prepare("en-US")
 

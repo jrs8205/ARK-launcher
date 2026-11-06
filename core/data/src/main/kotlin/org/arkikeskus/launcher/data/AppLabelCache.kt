@@ -36,10 +36,13 @@ class RoomAppLabelStore(private val dao: AppLabelDao) : AppLabelStore {
  * scan reads them; a locale change ([prepare]) starts from that locale's persisted set, a label
  * being read in the process locale. [persist] writes the set back when it changed.
  *
- * A reading takes time, and a package can be updated while its label is being read: the reading
- * may be the OLD label, and the rescan the event queues would take it as a hit. So every reading
- * carries the package's [generation] from before the read ([Reading]), and [invalidatePackage]
- * bumps it: a reading an event overtook is dropped, and the rescan reads the label again.
+ * A scan takes time, and a package can be updated during it: the activities it listed are
+ * snapshots (a `LauncherActivityInfo` reads its label from the `ActivityInfo` it was listed with),
+ * so a label read after the update may still be the OLD one, and the rescan the event queues
+ * would take it as a hit. So a scan takes [generations] — every package's count of events — BEFORE
+ * it lists the activities, every reading carries its package's generation from that snapshot
+ * ([Reading]), and [invalidatePackage] bumps the count: a reading of a package an event touched
+ * after the snapshot is dropped, and the rescan reads the label again.
  *
  * Read and written by the app list's one serial scan worker; [invalidatePackage] arrives from the
  * system's callback thread, so every access is synchronized. The store is best effort: a read that
@@ -49,7 +52,8 @@ class RoomAppLabelStore(private val dao: AppLabelDao) : AppLabelStore {
  */
 @Singleton
 class AppLabelCache @Inject constructor(private val store: AppLabelStore) {
-    /** A label as read from the app, with the package's [generation] from BEFORE the read. */
+    /** A label as read from the app, with the package's generation from the scan's snapshot
+     *  ([generations], taken before the listing the app came from). */
     class Reading(val label: String, val generation: Int)
 
     private val lock = Any()
@@ -85,11 +89,12 @@ class AppLabelCache @Inject constructor(private val store: AppLabelStore) {
     /** The label of [key] as last read or persisted, or null when it must be read now. */
     fun label(key: String): String? = synchronized(lock) { labels[key] }
 
-    /** The token to take BEFORE reading a label of [packageName] (see [Reading]). */
-    fun generation(packageName: String): Int = synchronized(lock) { generations[packageName] ?: 0 }
+    /** Every package's generation (0 for one never invalidated): a scan takes this BEFORE listing the
+     *  activities and hands each reading its package's value (see [Reading]). */
+    fun generations(): Map<String, Int> = synchronized(lock) { HashMap(generations) }
 
-    /** [label] was read from the app itself, with [generation] taken before the read; a reading a
-     *  package event overtook is dropped (the rescan reads the label again). */
+    /** [label] was read from the app itself, with [generation] from the scan's snapshot; a reading of
+     *  a package an event touched since is dropped (the rescan reads the label again). */
     fun put(key: String, label: String, generation: Int) {
         synchronized(lock) {
             if (generation != (generations[packageOf(key)] ?: 0)) return

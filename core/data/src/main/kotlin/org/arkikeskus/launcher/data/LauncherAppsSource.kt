@@ -309,6 +309,9 @@ class LauncherAppsSource @Inject constructor(
      */
     private suspend fun scanApps(send: (List<AppItem>) -> Unit) {
         labelCache.prepare(context.resources.configuration.locales.toLanguageTags())
+        // BEFORE the listing: the activities listed are snapshots, so a package event after this point
+        // makes any label read from them suspect (AppLabelCache.Reading).
+        val generations = labelCache.generations()
         val profiles = runCatching { userManager?.userProfiles }.getOrNull() ?: listOf(Process.myUserHandle())
         val scanned = profiles.flatMap { user ->
             val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
@@ -323,8 +326,9 @@ class LauncherAppsSource @Inject constructor(
                 label = labelOf(s),
             )
         }.sortedBy { it.label.lowercase() }
-        // A reading carries its package's generation from BEFORE the read: a package event in between
+        // A reading carries its package's generation from the snapshot above: a package event since
         // drops it (AppLabelCache.Reading), and the rescan the event queues reads the label again.
+        fun read(s: Scanned) = AppLabelCache.Reading(readLabel(s.info), generations[s.packageName] ?: 0)
         val shown = HashMap<String, String>()
         send(toItems { s ->
             val label = labelCache.label(s.key) ?: read(s).also { labelCache.put(s.key, it.label, it.generation) }.label
@@ -341,12 +345,6 @@ class LauncherAppsSource @Inject constructor(
             if (labelCache.verify(fresh)) send(toItems { s -> labelCache.label(s.key) ?: shown[s.key].orEmpty() })
         }
         labelCache.persist()
-    }
-
-    /** The app's own label with the package's generation taken before the read (see [AppLabelCache.Reading]). */
-    private fun read(s: Scanned): AppLabelCache.Reading {
-        val generation = labelCache.generation(s.packageName)
-        return AppLabelCache.Reading(readLabel(s.info), generation)
     }
 
     /** The app's own label, read from its resources (the costly call this cache exists for). */
