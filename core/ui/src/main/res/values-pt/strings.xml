@@ -13,6 +13,9 @@
     <string name="notice_work_apps_need_default">Defina o ARK-launcher como tela inicial padrão para pausar os apps de trabalho.</string>
     <string name="edit_title">Editar</string>
     <string name="edit_icon_hint">Toque no ícone para alterá-lo</string>
+    <string name="edit_swipe_up">Deslizar para cima abre</string>
+    <string name="edit_swipe_up_none">Nada</string>
+    <string name="edit_swipe_up_none_option">Nada (o gesto habitual)</string>
     <string name="icon_change">Alterar ícone</string>
     <string name="icon_picker_title">Escolher ícone</string>
     <string name="icon_picker_close">Fechar</string>

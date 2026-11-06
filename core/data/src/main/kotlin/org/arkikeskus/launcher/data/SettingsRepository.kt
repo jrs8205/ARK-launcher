@@ -311,6 +311,17 @@ class SettingsRepository @Inject constructor(
         p[Keys.CUSTOM_LABELS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
     }
 
+    /** "Swipe up opens": the app a swipe up on an app's icon opens, on home and in the dock
+     *  (AppItem.key of the icon -> AppItem.key of the app). An icon without an entry keeps the usual swipe. */
+    val swipeUpApps: Flow<Map<String, String>> = dataStore.data.map { p -> parseLabels(p[Keys.SWIPE_UP_APPS]) }
+
+    /** Sets (or, for null, clears) the app a swipe up on the icon of [key] opens. */
+    suspend fun setSwipeUpApp(key: String, target: String?) = edit { p ->
+        val current = parseLabels(p[Keys.SWIPE_UP_APPS]).toMutableMap()
+        if (target == null) current.remove(key) else current[key] = target
+        p[Keys.SWIPE_UP_APPS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+    }
+
     /** Icons the user picked for single apps (AppItem.key -> icon), shown in place of their own. */
     val customIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.CUSTOM_ICONS]) }
 
@@ -557,7 +568,8 @@ class SettingsRepository @Inject constructor(
         edit { it[Keys.STATUS_BAR_SCRIM] = value.coerceIn(0f, 1f) }
 
     /** Every app key the settings refer to: hidden apps, custom labels and icons, drawer folders,
-     *  the left-swipe and weather apps (see [APP_KEY_PREFS]; the dock is rows since 0.9.7). */
+     *  the left-swipe and weather apps, both sides of the swipe-up pairings (see [APP_KEY_PREFS]; the
+     *  dock is rows since 0.9.7). */
     suspend fun referencedAppKeys(): Set<String> {
         val prefs = dataStore.data.first()
         val keys = LinkedHashSet<String>()
@@ -744,6 +756,7 @@ class SettingsRepository @Inject constructor(
         val CUSTOM_ICONS = stringPreferencesKey("custom_icons")
         val FOLDER_ICONS = stringPreferencesKey("folder_icons")
         val SHORTCUT_ICONS = stringPreferencesKey("shortcut_icons")
+        val SWIPE_UP_APPS = stringPreferencesKey("swipe_up_apps")
         val DRAWER_FOLDERS = stringPreferencesKey("drawer_folders")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
@@ -880,7 +893,7 @@ class SettingsRepository @Inject constructor(
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
             "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
-            "custom_icons", "folder_icons", "shortcut_icons",
+            "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps",
         )
 
         /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */
@@ -900,6 +913,7 @@ class SettingsRepository @Inject constructor(
          *  file's keys are remapped before they become dock rows. */
         val APP_KEY_PREFS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key", "weather_app_key",
+            "swipe_up_apps",
         )
 
         /** Every preference keyed by something that ends in a profile serial: the app keys above and the
@@ -910,7 +924,8 @@ class SettingsRepository @Inject constructor(
         /**
          * Rewrites each app key inside the value [raw] of the [APP_KEY_PREFS] preference [name] with
          * [transform]; null drops that entry (a dock or hidden entry, a label line, a drawer-folder
-         * member, the left-swipe or weather app). Duplicates a rewrite creates collapse into the first one.
+         * member, the left-swipe or weather app, a swipe-up pairing when EITHER of its apps goes).
+         * Duplicates a rewrite creates collapse into the first one.
          * Folders that end up empty stay (an empty drawer folder is a normal state), and any other
          * preference comes back unchanged.
          */
@@ -929,6 +944,14 @@ class SettingsRepository @Inject constructor(
                         .joinToString("\t")
                 }
                 "left_swipe_app_key", "weather_app_key" -> if (raw.isBlank()) raw else transform(raw.trim()).orEmpty()
+                // Both sides are app keys: the icon swiped and the app it opens.
+                "swipe_up_apps" -> lines.mapNotNull { line ->
+                    val tab = line.indexOf('\t')
+                    if (tab <= 0) return@mapNotNull null
+                    val icon = transform(line.substring(0, tab)) ?: return@mapNotNull null
+                    val opens = transform(line.substring(tab + 1)) ?: return@mapNotNull null
+                    "$icon\t$opens"
+                }.distinctBy { it.substringBefore('\t') }.joinToString("\n")
                 else -> raw
             }
         }

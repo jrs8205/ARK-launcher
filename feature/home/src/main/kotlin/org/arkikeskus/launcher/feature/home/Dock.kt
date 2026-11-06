@@ -349,6 +349,12 @@ private fun RowScope.DockAppSlot(
                     // several times to get the popup"): the tiniest drift leaked out and cancelled
                     // the hold before it could open the menu.
                     down.consume()
+                    // The root swipe detector (Initial pass) learns which app THIS finger is on, so a
+                    // clear flick up from it can open the app chosen for it ("Swipe up opens") instead
+                    // of the drawer. Dropped when this gesture ends, however it ends.
+                    val pressedKey = currentApp.key
+                    dragController.appPressed(down.id.value, pressedKey)
+                    try {
                     val slop = viewConfiguration.touchSlop
                     var tapped = false
                     var abandoned = false
@@ -438,6 +444,9 @@ private fun RowScope.DockAppSlot(
                         // leave the shared controller lifted.
                         dragController.stop(token)
                         onReleased(token)
+                    }
+                    } finally {
+                        dragController.appReleased(down.id.value, pressedKey)
                     }
                 }
             },

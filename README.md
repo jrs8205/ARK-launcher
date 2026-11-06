@@ -101,8 +101,9 @@ Discussions and Telegram are also linked in the app: **Settings ▸ Feedback**.
   **[icon packs](https://github.com/jrs8205/ARK-launcher/wiki/Icon-Packs)**.
 - Optional **themed status bar** with the clock, status indicators and notification icons.
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, a configurable
-  **left-edge swipe** that launches an app of your choice, and an opt-in **swipe up on a home folder**
-  that opens the folder's first app.
+  **left-edge swipe** that launches an app of your choice, an opt-in **swipe up on a home folder**
+  that opens the folder's first app, and a per-icon **"Swipe up opens"** choice (Edit) that opens
+  another app from a home or dock icon.
 - **Customizable look** — a **font** for everything the launcher draws (six families Android ships),
   adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and

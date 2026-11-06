@@ -1,14 +1,22 @@
 package org.arkikeskus.launcher.feature.home
 
 /** What a vertical swipe up on home drives ([swipeUpTarget]). */
-internal enum class SwipeUpTarget { FOLDER_APP, DRAWER, NONE }
+internal enum class SwipeUpTarget { APP_CHOICE, FOLDER_APP, DRAWER, NONE }
 
 /**
- * Issue #17 (opt-in): a swipe up that starts on a home folder icon ([folderUnderFinger]) opens the folder's
- * first app while [folderSwipeOpensFirstApp] is on -- whether or not the drawer swipe is -- and otherwise
- * drives the drawer like a swipe from anywhere on home ([swipeUpForDrawer]), or nothing.
+ * A swipe up that starts on an app icon with a "Swipe up opens" choice ([appChoiceUnderFinger], home
+ * grid or dock) opens that app, whatever the other settings. Issue #17 (opt-in): one that starts on a
+ * home folder icon ([folderUnderFinger]) opens the folder's first app while [folderSwipeOpensFirstApp]
+ * is on -- whether or not the drawer swipe is. Otherwise the swipe drives the drawer like a swipe
+ * from anywhere on home ([swipeUpForDrawer]), or nothing.
  */
-internal fun swipeUpTarget(folderUnderFinger: Boolean, folderSwipeOpensFirstApp: Boolean, swipeUpForDrawer: Boolean): SwipeUpTarget = when {
+internal fun swipeUpTarget(
+    folderUnderFinger: Boolean,
+    folderSwipeOpensFirstApp: Boolean,
+    swipeUpForDrawer: Boolean,
+    appChoiceUnderFinger: Boolean = false,
+): SwipeUpTarget = when {
+    appChoiceUnderFinger -> SwipeUpTarget.APP_CHOICE
     folderUnderFinger && folderSwipeOpensFirstApp -> SwipeUpTarget.FOLDER_APP
     swipeUpForDrawer -> SwipeUpTarget.DRAWER
     else -> SwipeUpTarget.NONE

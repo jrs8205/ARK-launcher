@@ -40,6 +40,8 @@ import org.arkikeskus.launcher.ui.component.AppIcon
  * picking only an icon never pins the app's current name over a later one of its own), and the icon
  * (null = the app's own); [onReset] brings back both of the app's own. A gallery picture imported
  * here but not saved is deleted again when the dialog goes — by its buttons or from outside (HOME).
+ * With [swipeUp] (home's dialog) a "Swipe up opens" row follows the name: the app a swipe up on this
+ * icon opens, picked from the other apps and saved at once — Save and Reset leave it alone.
  */
 @Composable
 fun EditAppDialog(
@@ -47,6 +49,7 @@ fun EditAppDialog(
     onSave: (name: String?, icon: CustomIcon?) -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
+    swipeUp: SwipeUpChoice? = null,
 ) {
     val choices by rememberUpdatedState(LocalIconChoices.current)
     var name by rememberSaveable(app.key) { mutableStateOf(app.label) }
@@ -91,6 +94,7 @@ fun EditAppDialog(
                     singleLine = true,
                     label = { Text(stringResource(R.string.rename_label)) },
                 )
+                if (swipeUp != null) SwipeUpRow(app, swipeUp)
             }
         },
         confirmButton = {
@@ -117,6 +121,52 @@ fun EditAppDialog(
                 if (picked is CustomIcon.FromFile && picked != app.customIcon) imported += picked
                 icon = picked
                 picking = false
+            },
+            onDismiss = { picking = false },
+        )
+    }
+}
+
+/**
+ * The "Swipe up opens" row of [EditAppDialog]: [target] is the app a swipe up on the edited icon opens
+ * today (null = none, the usual swipe), [apps] every app to choose from (the edited one is left out),
+ * and [onPick] gets the choice — an app, or null for none — to save at once.
+ */
+class SwipeUpChoice(val target: AppItem?, val apps: List<AppItem>, val onPick: (AppItem?) -> Unit)
+
+@Composable
+private fun SwipeUpRow(app: AppItem, choice: SwipeUpChoice) {
+    // Shows the pick at once; a change from outside (the saved choice arriving) resets it to that.
+    var target by remember(app.key, choice.target) { mutableStateOf(choice.target) }
+    var picking by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { picking = true }
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.edit_swipe_up), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                target?.label ?: stringResource(R.string.edit_swipe_up_none),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        target?.let { AppIcon(appItem = it, labelColor = Color.Transparent, showLabel = false, iconSize = 32.dp) }
+    }
+    if (picking) {
+        AppPickerDialog(
+            title = stringResource(R.string.edit_swipe_up),
+            apps = choice.apps.filter { it.key != app.key },
+            noneLabel = stringResource(R.string.edit_swipe_up_none_option),
+            onPick = { picked ->
+                target = picked
+                picking = false
+                choice.onPick(picked)
             },
             onDismiss = { picking = false },
         )

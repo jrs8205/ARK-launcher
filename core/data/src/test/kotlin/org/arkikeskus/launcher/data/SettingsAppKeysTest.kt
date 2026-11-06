@@ -33,15 +33,19 @@ class SettingsAppKeysTest {
         repo.addAppsToDrawerFolder(folder, listOf("a/a.Old/0", "x/x.M/0"))
         repo.setLeftSwipeAppKey("a/a.Old/0")
         repo.setWeatherAppKey("w/w.Old/0")
-        assertThat(repo.referencedAppKeys()).containsExactly("a/a.Old/0", "x/x.M/0", "w/w.Old/0")
+        repo.setSwipeUpApp("x/x.M/0", "a/a.Old/0")
+        repo.setSwipeUpApp("a/a.Old/0", "s/s.Old/0")
+        assertThat(repo.referencedAppKeys()).containsExactly("a/a.Old/0", "x/x.M/0", "w/w.Old/0", "s/s.Old/0")
 
-        repo.renameAppKeys(mapOf("a/a.Old/0" to "a/a.New/0", "w/w.Old/0" to "w/w.New/0"))
+        repo.renameAppKeys(mapOf("a/a.Old/0" to "a/a.New/0", "w/w.Old/0" to "w/w.New/0", "s/s.Old/0" to "s/s.New/0"))
 
         assertThat(repo.hiddenApps.first()).containsExactly("a/a.New/0")
         assertThat(repo.customLabels.first()).containsExactly("a/a.New/0", "Mail", "x/x.M/0", "X")
         assertThat(repo.drawerFolders.first().single().appKeys).containsExactly("a/a.New/0", "x/x.M/0").inOrder()
         assertThat(repo.settings.first().leftSwipeAppKey).isEqualTo("a/a.New/0")
         assertThat(repo.settings.first().weatherAppKey).isEqualTo("w/w.New/0")
+        // Both sides of a swipe pairing are app keys: the icon swiped and the app it opens.
+        assertThat(repo.swipeUpApps.first()).containsExactly("x/x.M/0", "a/a.New/0", "a/a.New/0", "s/s.New/0")
     }
 
     @Test
@@ -55,6 +59,9 @@ class SettingsAppKeysTest {
         assertThat(SettingsRepository.rewriteAppKeys("left_swipe_app_key", "gone/G/0", drop)).isEmpty()
         assertThat(SettingsRepository.rewriteAppKeys("weather_app_key", "gone/G/0", drop)).isEmpty()
         assertThat(SettingsRepository.rewriteAppKeys("weather_app_key", "k/K/0", drop)).isEqualTo("k/K/0")
+        // A swipe pairing goes when either side does.
+        assertThat(SettingsRepository.rewriteAppKeys("swipe_up_apps", "gone/G/0\tk/K/0\nk/K/0\tgone/G/0\nm/M/0\tk/K/0", drop))
+            .isEqualTo("m/M/0\tk/K/0")
         assertThat(SettingsRepository.rewriteAppKeys("icon_pack_package", "gone/G/0", drop)).isEqualTo("gone/G/0")
     }
 }

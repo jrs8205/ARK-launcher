@@ -13,6 +13,9 @@
     <string name="notice_work_apps_need_default">Establece ARK-launcher como launcher predeterminado para pausar las aplicaciones de trabajo.</string>
     <string name="edit_title">Editar</string>
     <string name="edit_icon_hint">Toca el icono para cambiarlo</string>
+    <string name="edit_swipe_up">Deslizar hacia arriba abre</string>
+    <string name="edit_swipe_up_none">Nada</string>
+    <string name="edit_swipe_up_none_option">Nada (el gesto habitual)</string>
     <string name="icon_change">Cambiar icono</string>
     <string name="icon_picker_title">Elegir icono</string>
     <string name="icon_picker_close">Cerrar</string>

@@ -13,6 +13,9 @@
     <string name="notice_work_apps_need_default">Ustaw ARK-launcher jako domyślny launcher, aby wstrzymać aplikacje służbowe.</string>
     <string name="edit_title">Edytuj</string>
     <string name="edit_icon_hint">Dotknij ikony, aby ją zmienić</string>
+    <string name="edit_swipe_up">Przeciągnięcie w górę otwiera</string>
+    <string name="edit_swipe_up_none">Nic</string>
+    <string name="edit_swipe_up_none_option">Nic (zwykły gest)</string>
     <string name="icon_change">Zmień ikonę</string>
     <string name="icon_picker_title">Wybierz ikonę</string>
     <string name="icon_picker_close">Zamknij</string>

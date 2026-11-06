@@ -13,6 +13,9 @@
     <string name="popup_widgets">Widgetit</string>
     <string name="edit_title">Muokkaa</string>
     <string name="edit_icon_hint">Vaihda kuvake napauttamalla sitä</string>
+    <string name="edit_swipe_up">Pyyhkäisy ylös avaa</string>
+    <string name="edit_swipe_up_none">Ei mitään</string>
+    <string name="edit_swipe_up_none_option">Ei mitään (tavallinen pyyhkäisy)</string>
     <string name="icon_change">Vaihda kuvake</string>
     <string name="icon_picker_title">Valitse kuvake</string>
     <string name="icon_picker_close">Sulje</string>

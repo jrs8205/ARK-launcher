@@ -127,6 +127,26 @@ class SettingsRepositoryTest {
         assertThat(repo.settings.first().searchContacts).isFalse()
     }
 
+    /** The app a swipe up on an app's icon opens (app key -> app key): none out of the box, one per
+     *  app, cleared with null, and in the backup like the other app-keyed settings. */
+    @Test
+    fun `swipeUpApps defaults to empty, round-trips and clears`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.swipeUpApps.first()).isEmpty()
+
+        repo.setSwipeUpApp("a/a.M/0", "b/b.M/0")
+        repo.setSwipeUpApp("c/c.M/0", "b/b.M/0")
+        assertThat(repo.swipeUpApps.first()).containsExactly("a/a.M/0", "b/b.M/0", "c/c.M/0", "b/b.M/0")
+
+        repo.setSwipeUpApp("a/a.M/0", "d/d.M/0")
+        repo.setSwipeUpApp("c/c.M/0", null)
+        assertThat(repo.swipeUpApps.first()).containsExactly("a/a.M/0", "d/d.M/0")
+
+        val restored = newRepository()
+        restored.importRaw(repo.exportRaw())
+        assertThat(restored.swipeUpApps.first()).containsExactly("a/a.M/0", "d/d.M/0")
+    }
+
     @Test
     fun `leftSwipeAppKey defaults to blank and round-trips`() = runTest {
         val repo = newRepository()

@@ -198,9 +198,16 @@ data class HomeUiState(
      *  shortcut's), which [entries] leaves out but the page menu must still treat as occupied. */
     val occupiedPages: Set<Int> = emptySet(),
     val badges: Map<String, Int> = emptyMap(),
+    /** "Swipe up opens": by the key of an app icon (home grid or dock), the installed app a swipe up
+     *  on it opens — a choice whose app is gone is left out, so the icon keeps the usual swipe. */
+    val swipeUpTargets: Map<String, AppItem> = emptyMap(),
     /** False for the placeholder shown before settings and the layout have been read. */
     val loaded: Boolean = false,
 )
+
+/** The "Swipe up opens" choices that still resolve: the icon's key to the installed app it opens. */
+internal fun resolveSwipeUpTargets(choices: Map<String, String>, byKey: Map<String, AppItem>): Map<String, AppItem> =
+    choices.mapNotNull { (icon, opens) -> byKey[opens]?.let { icon to it } }.toMap()
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -372,7 +379,8 @@ class HomeViewModel @Inject constructor(
             .combine(settingsRepository.folderIcons) { items, icons -> items to icons }
             .combine(settingsRepository.shortcutIcons) { (items, folderIcons), shortcutIcons -> Triple(items, folderIcons, shortcutIcons) },
         notificationBadgeRepository.badges,
-    ) { settings, apps, (homeItems, folderIcons, shortcutIcons), badges ->
+        settingsRepository.swipeUpApps,
+    ) { settings, apps, (homeItems, folderIcons, shortcutIcons), badges, swipeUpApps ->
         val byKey = apps.associateBy { it.key }
         // Children grouped by their folder id, kept in stored order.
         val childrenByFolder = homeItems
@@ -489,6 +497,7 @@ class HomeViewModel @Inject constructor(
             homePage = settings.homePage.coerceIn(0, pageCount - 1),
             occupiedPages = occupied,
             badges = badges,
+            swipeUpTargets = resolveSwipeUpTargets(swipeUpApps, byKey),
             loaded = true,
         )
     }.stateIn(
@@ -806,6 +815,14 @@ class HomeViewModel @Inject constructor(
         if (name != null) settingsRepository.setCustomLabel(app.key, name)
         customIcons.setAppIcon(app.key, icon)
     }
+
+    /** Every launchable app, for the "Swipe up opens" picker in Edit. */
+    val allApps: StateFlow<List<AppItem>> =
+        appRepository.apps.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), emptyList())
+
+    /** "Swipe up opens" for [app]'s icon: [target], or null for the usual swipe again. */
+    fun setSwipeUpApp(app: AppItem, target: AppItem?) =
+        viewModelScope.launch { settingsRepository.setSwipeUpApp(app.key, target?.key) }
 
     /** "Reset to default" in Edit: the app's own name and icon again. */
     fun resetApp(app: AppItem) = viewModelScope.launch {

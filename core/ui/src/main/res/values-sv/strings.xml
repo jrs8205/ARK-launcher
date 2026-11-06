@@ -13,6 +13,9 @@
     <string name="notice_work_apps_need_default">Ange ARK-launcher som startskärmsapp för att kunna pausa jobbappar.</string>
     <string name="edit_title">Redigera</string>
     <string name="edit_icon_hint">Tryck på ikonen för att byta den</string>
+    <string name="edit_swipe_up">Svep uppåt öppnar</string>
+    <string name="edit_swipe_up_none">Inget</string>
+    <string name="edit_swipe_up_none_option">Inget (den vanliga gesten)</string>
     <string name="icon_change">Byt ikon</string>
     <string name="icon_picker_title">Välj ikon</string>
     <string name="icon_picker_close">Stäng</string>

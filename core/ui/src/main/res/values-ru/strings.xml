@@ -13,6 +13,9 @@
     <string name="notice_work_apps_need_default">Сделайте ARK-launcher лаунчером по умолчанию, чтобы приостановить рабочие приложения.</string>
     <string name="edit_title">Изменить</string>
     <string name="edit_icon_hint">Нажмите на значок, чтобы изменить его</string>
+    <string name="edit_swipe_up">Свайп вверх открывает</string>
+    <string name="edit_swipe_up_none">Ничего</string>
+    <string name="edit_swipe_up_none_option">Ничего (обычный жест)</string>
     <string name="icon_change">Изменить значок</string>
     <string name="icon_picker_title">Выбрать значок</string>
     <string name="icon_picker_close">Закрыть</string>

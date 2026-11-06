@@ -204,6 +204,64 @@ class EditAppDialogTest {
         assertThat(saved).isEmpty()
     }
 
+    private val maps = AppItem("com.maps", "Main", Process.myUserHandle(), 0L, "Maps")
+    private val picked = mutableListOf<AppItem?>()
+
+    /** Home's dialog offers the swipe-up row: [target] is the app a swipe up on this icon opens today. */
+    private fun showWithSwipeUp(target: AppItem? = null) {
+        compose.setContent {
+            CompositionLocalProvider(LocalIconChoices provides choices) {
+                EditAppDialog(
+                    app = app,
+                    onSave = { name, icon -> saved += name to icon },
+                    onReset = { resets++ },
+                    onDismiss = { dismissed++ },
+                    swipeUp = SwipeUpChoice(target = target, apps = listOf(app, maps), onPick = { picked += it }),
+                )
+            }
+        }
+        compose.waitForIdle()
+    }
+
+    /** "Swipe up opens": none by default; the picker lists every OTHER app, and a pick is saved at once. */
+    @Test fun theSwipeUpRowOffersEveryOtherAppAndSavesThePickAtOnce() {
+        showWithSwipeUp()
+        compose.onNodeWithText(text(R.string.edit_swipe_up)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.edit_swipe_up_none)).assertIsDisplayed()
+
+        compose.onNodeWithText(text(R.string.edit_swipe_up)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.edit_swipe_up_none_option)).assertIsDisplayed()
+        // Never itself: the one "Chrome" on screen is the name field, not a picker entry.
+        assertThat(compose.onAllNodesWithText("Chrome").fetchSemanticsNodes()).hasSize(1)
+        compose.onNodeWithText("Maps").performClick()
+        compose.waitForIdle()
+
+        assertThat(picked).containsExactly(maps)
+        assertThat(saved).isEmpty()
+        compose.onAllNodesWithText(text(R.string.edit_swipe_up_none_option)).fetchSemanticsNodes().let { assertThat(it).isEmpty() }
+    }
+
+    @Test fun theSwipeUpRowShowsTheTargetAndNoneClearsIt() {
+        showWithSwipeUp(target = maps)
+        compose.onNodeWithText("Maps").assertIsDisplayed()
+
+        compose.onNodeWithText(text(R.string.edit_swipe_up)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.edit_swipe_up_none_option)).performClick()
+        compose.waitForIdle()
+
+        assertThat(picked).containsExactly(null)
+        compose.onNodeWithText(text(R.string.edit_swipe_up_none)).assertIsDisplayed()
+    }
+
+    /** The drawer's dialog (and a dock app's): no swipe-up row without the choice. */
+    @Test fun withoutTheChoiceThereIsNoSwipeUpRow() {
+        show()
+
+        compose.onAllNodesWithText(text(R.string.edit_swipe_up)).fetchSemanticsNodes().let { assertThat(it).isEmpty() }
+    }
+
     @Test fun withoutIconPacksThePickerSaysSo() {
         val none = object : IconChoices by choices {
             override fun packs() = emptyList<IconPackChoice>()

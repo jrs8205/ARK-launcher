@@ -117,6 +117,24 @@ class HomeDragController {
     /** The home folder under [pointer], or null when it went down elsewhere. */
     fun pressedFolder(pointer: Long): Long? = pressedFolders[pointer]
 
+    /**
+     * Like [pressedFolders], for the app icons of the home grid and the dock: the key of the app each
+     * finger is down on, so the root swipe detector can open the app chosen for that icon ("Swipe up
+     * opens" in Edit) instead of the drawer. Read only inside pointer loops, never composed.
+     */
+    private val pressedApps = HashMap<Long, String>()
+
+    /** A finger ([pointer]) went down on the icon of the app [key]. */
+    fun appPressed(pointer: Long, key: String) { pressedApps[pointer] = key }
+
+    /** That finger's gesture ended, however it ended; only the pairing it made is dropped. */
+    fun appReleased(pointer: Long, key: String) {
+        if (pressedApps[pointer] == key) pressedApps.remove(pointer)
+    }
+
+    /** The key of the app whose icon is under [pointer], or null when it went down elsewhere. */
+    fun pressedApp(pointer: Long): String? = pressedApps[pointer]
+
     // Home-grid metrics for cell math on a dock→home / drawer→home drop (published by Workspace).
     var columns by mutableStateOf(1)
     var rows by mutableStateOf(1)

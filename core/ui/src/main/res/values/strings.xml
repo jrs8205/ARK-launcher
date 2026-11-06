@@ -13,6 +13,9 @@
     <string name="popup_widgets">Widgets</string>
     <string name="edit_title">Edit</string>
     <string name="edit_icon_hint">Tap the icon to change it</string>
+    <string name="edit_swipe_up">Swipe up opens</string>
+    <string name="edit_swipe_up_none">None</string>
+    <string name="edit_swipe_up_none_option">None (the usual swipe)</string>
     <string name="icon_change">Change icon</string>
     <string name="icon_picker_title">Choose icon</string>
     <string name="icon_picker_close">Close</string>

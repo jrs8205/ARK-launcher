@@ -13,6 +13,9 @@
     <string name="notice_work_apps_need_default">Lege ARK-launcher als Standard-Launcher fest, um geschäftliche Apps zu pausieren.</string>
     <string name="edit_title">Bearbeiten</string>
     <string name="edit_icon_hint">Tippe auf das Symbol, um es zu ändern</string>
+    <string name="edit_swipe_up">Wischen nach oben öffnet</string>
+    <string name="edit_swipe_up_none">Nichts</string>
+    <string name="edit_swipe_up_none_option">Nichts (die übliche Wischgeste)</string>
     <string name="icon_change">Symbol ändern</string>
     <string name="icon_picker_title">Symbol auswählen</string>
     <string name="icon_picker_close">Schließen</string>

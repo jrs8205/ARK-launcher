@@ -1197,6 +1197,13 @@ internal fun Workspace(
                                             // past the slop — the root drawer/notification swipe or
                                             // the pager — exactly as on empty space (awaitIconPress).
                                             down.consume()
+                                            // The root swipe detector (Initial pass) learns which app THIS
+                                            // finger is on, so a swipe up from it can open the app chosen
+                                            // for it ("Swipe up opens"). Dropped when this gesture ends,
+                                            // however it ends.
+                                            val pressedKey = currentPlaced.app.key
+                                            dragController.appPressed(down.id.value, pressedKey)
+                                            try {
                                             // Quick up = tap; a claimed swipe or leaving the icon =
                                             // abandon; still hold = pick up, lifting from where the
                                             // finger is when the hold completes.
@@ -1350,6 +1357,9 @@ internal fun Workspace(
                                                     dragging = null
                                                 }
                                                 dragController.stop(token)
+                                            }
+                                            } finally {
+                                                dragController.appReleased(down.id.value, pressedKey)
                                             }
                                         }
                                     },

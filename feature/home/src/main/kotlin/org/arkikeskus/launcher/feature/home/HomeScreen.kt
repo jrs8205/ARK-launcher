@@ -101,6 +101,7 @@ import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.EditAppDialog
+import org.arkikeskus.launcher.ui.SwipeUpChoice
 import androidx.compose.foundation.Image
 import org.arkikeskus.launcher.ui.EditIconDialog
 import org.arkikeskus.launcher.ui.HomeDragController
@@ -608,6 +609,9 @@ fun HomeScreen(
                 onFolderSwipeUp = { id ->
                     uiState.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == id }?.apps?.firstOrNull()?.let(launchApp)
                 },
+                // "Swipe up opens" (Edit): a swipe up from a home or dock app icon opens the app chosen for it.
+                appSwipeUpTargets = if (!showOnboarding && openFolderId == null) uiState.swipeUpTargets else emptyMap(),
+                onAppSwipeUp = { launchApp(it) },
             ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -1030,11 +1034,19 @@ fun HomeScreen(
     }
 
     renameTarget?.let { app ->
+        val allApps by viewModel.allApps.collectAsStateWithLifecycle()
         EditAppDialog(
             app = app,
             onSave = { name, icon -> viewModel.editApp(app, name, icon) },
             onReset = { viewModel.resetApp(app) },
             onDismiss = { renameTarget = null },
+            // "Swipe up opens": the app chosen for this icon (home grid or dock), picked from every other
+            // app and saved at once, like a folder's icon.
+            swipeUp = SwipeUpChoice(
+                target = uiState.swipeUpTargets[app.key],
+                apps = allApps,
+                onPick = { viewModel.setSwipeUpApp(app, it) },
+            ),
         )
     }
 
@@ -1068,7 +1080,9 @@ fun HomeScreen(
  *
  * - Swipe up (with [swipeUpForDrawer]) → finger-following drawer via [onDrawerDrag] / [onDrawerSettle];
  *   from a home folder icon with [folderSwipeOpensFirstApp] → [onFolderSwipeUp] with the folder's id
- *   instead (issue #17, opt-in; see [swipeUpTarget]), the rest of the gesture swallowed like the shade's.
+ *   instead (issue #17, opt-in; see [swipeUpTarget]), the rest of the gesture swallowed like the shade's;
+ *   from a home or dock app icon with a "Swipe up opens" choice ([appSwipeUpTargets]) → [onAppSwipeUp]
+ *   with that app, swallowed the same way.
  * - Swipe down (with [swipeDownForNotifications]) → [onOpenNotifications] (one-shot).
  * - A real long-press drag — an app/dock item ([HomeDragController.isDragging]) or a folder/shortcut
  *   ([HomeDragController.localGestureActive] / [HomeDragController.localDragging]) — is never stolen;
@@ -1109,6 +1123,9 @@ internal fun Modifier.pixelHomeSwipe(
     onLeftEdgeAction: () -> Unit = {},
     folderSwipeOpensFirstApp: Boolean = false,
     onFolderSwipeUp: (Long) -> Unit = {},
+    /** "Swipe up opens": by the key of the app icon swiped (home grid or dock), the app it opens. */
+    appSwipeUpTargets: Map<String, AppItem> = emptyMap(),
+    onAppSwipeUp: (AppItem) -> Unit = {},
     bottomGestureZonePx: Float = 0f,
     onDrawerCancel: () -> Unit = {},
 ): Modifier {
@@ -1119,6 +1136,10 @@ internal fun Modifier.pixelHomeSwipe(
     val latestOnOpenNotifications by rememberUpdatedState(onOpenNotifications)
     val latestOnLeftEdgeAction by rememberUpdatedState(onLeftEdgeAction)
     val latestOnFolderSwipeUp by rememberUpdatedState(onFolderSwipeUp)
+    // Read when a swipe fires, not a detector key: the choices change with every Edit and a package
+    // event, and a restarted detector would cancel the holds in progress.
+    val latestAppSwipeUpTargets by rememberUpdatedState(appSwipeUpTargets)
+    val latestOnAppSwipeUp by rememberUpdatedState(onAppSwipeUp)
 
     return pointerInput(swipeUpForDrawer, swipeDownForNotifications, leftEdgeEnabled, folderSwipeOpensFirstApp, dragController) {
         val touchSlop = viewConfiguration.touchSlop
@@ -1196,7 +1217,16 @@ internal fun Modifier.pixelHomeSwipe(
                         (if (fromDock) dockSwipeIsVertical(dx, dy, verticalSlop) else abs(dy) > touchSlop && abs(dy) > abs(dx)) -> when {
                             dy < 0f -> {
                                 val pressedFolder = dragController.pressedFolder(down.id.value)
-                                when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer)) {
+                                // The app chosen for the icon under THIS finger (home grid or dock), if any.
+                                val appChoice = dragController.pressedApp(down.id.value)?.let { latestAppSwipeUpTargets[it] }
+                                when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer, appChoice != null)) {
+                                    SwipeUpTarget.APP_CHOICE -> {
+                                        // The chosen app opens once; the rest of the gesture is swallowed
+                                        // (mode 3) so neither the pager nor the icon sees it.
+                                        mode = 3
+                                        change.consume()
+                                        latestOnAppSwipeUp(appChoice!!)
+                                    }
                                     SwipeUpTarget.FOLDER_APP -> {
                                         // The folder's first app opens once; the rest of the gesture is
                                         // swallowed (mode 3) so neither the pager nor the folder sees it.
