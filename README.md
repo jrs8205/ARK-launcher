@@ -64,11 +64,11 @@ Obtainium watches the Releases page and updates the launcher for you.
 ## Feedback & questions
 
 Questions, ideas, and general chat are all welcome in
-[**GitHub Discussions**](https://github.com/jrs8205/ARK-launcher/discussions), the
-[**Telegram group**](https://t.me/ARKlauncher) or the
-[**r/ArkLauncher**](https://www.reddit.com/r/ArkLauncher/) community — in English or Finnish.
+[**GitHub Discussions**](https://github.com/jrs8205/ARK-launcher/discussions) or the
+[**r/ArkLauncher**](https://www.reddit.com/r/ArkLauncher/) community — in English or Finnish; release
+news goes out on the [**Telegram channel**](https://t.me/ARKLauncherUpdates).
 Found a bug? Please [open an issue](https://github.com/jrs8205/ARK-launcher/issues) instead.
-Discussions and Telegram are also linked in the app: **Settings ▸ Feedback**.
+Discussions, the channel and Reddit are also linked in the app: **Settings ▸ Feedback**.
 
 ## Features
 
