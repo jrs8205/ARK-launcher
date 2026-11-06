@@ -1,0 +1,6 @@
+New
+- Swipe up on an app icon to open another app: pick it in the icon's Edit dialog (home screen and dock).
+- The Telegram channel among the feedback links.
+
+Improved
+- The home screen comes up sooner after a cold start: app names are kept between starts instead of being read from every installed app first.
