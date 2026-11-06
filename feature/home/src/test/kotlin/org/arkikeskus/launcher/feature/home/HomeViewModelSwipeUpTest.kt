@@ -40,11 +40,12 @@ class HomeViewModelSwipeUpTest {
             assertThat(state.swipeUpTargets.keys).containsExactly(app("mail").key)
             assertThat(state.swipeUpTargets[app("mail").key]?.packageName).isEqualTo("com.maps")
 
-            // Edit's picks are saved on the ViewModel's scope: wait for each write to land.
+            // Edit's picks are saved on the ViewModel's scope: wait for each write to land (the exact
+            // map, not a partial condition a read in between could satisfy).
             viewModel.setSwipeUpApp(app("mail"), null)
-            assertThat(awaitChoices(wiring) { it.size == 1 }).containsExactly(app("maps").key, app("gone").key)
+            awaitChoices(wiring) { it == mapOf(app("maps").key to app("gone").key) }
             viewModel.setSwipeUpApp(app("maps"), app("mail"))
-            assertThat(awaitChoices(wiring) { it[app("maps").key] == app("mail").key }).containsExactly(app("maps").key, app("mail").key)
+            awaitChoices(wiring) { it == mapOf(app("maps").key to app("mail").key) }
             wiring.clear(viewModel)
         } finally {
             wiring.close()
