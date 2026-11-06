@@ -30,7 +30,7 @@ import javax.inject.Provider
 @Config(sdk = [35])
 class LauncherAppsSourcePackageEventsTest {
     private val context: Application = RuntimeEnvironment.getApplication()
-    private val source = LauncherAppsSource(context, IconPackRepository(context), Provider<ImageLoader> { error("unused") })
+    private val source = LauncherAppsSource(context, IconPackRepository(context), Provider<ImageLoader> { error("unused") }, AppLabelCache(InMemoryAppLabelStore()))
     private val launcherApps = shadowOf(context.getSystemService(LauncherApps::class.java))
 
     /** The callback is registered while the app list is collected (for the process lifetime in the app). */

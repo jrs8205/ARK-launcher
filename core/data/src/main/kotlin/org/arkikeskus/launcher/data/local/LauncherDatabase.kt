@@ -8,10 +8,12 @@ import androidx.room.RoomDatabase
 // v5: pinned deep shortcuts — added nullable shortcutId.
 // v6: widgets — added spanX/spanY/appWidgetId/widgetProvider (multi-cell items).
 // v7: built-in widgets — added nullable builtinType (smartspace clock/date/calendar).
+// v8: app labels — the app_labels table (AppLabelEntity), the labels of the last scan per locale.
 // Schema is now EXPORTED to core/data/schemas (room.schemaLocation KSP arg), so each future version
 // bump ships a real Migration instead of wiping the layout. DataModule only allows destructive
 // fallback FROM the pre-v5 dev versions (1–4, which never had migrations); v5 onward is preserved.
-@Database(entities = [HomeItemEntity::class], version = 7, exportSchema = true)
+@Database(entities = [HomeItemEntity::class, AppLabelEntity::class], version = 8, exportSchema = true)
 abstract class LauncherDatabase : RoomDatabase() {
     abstract fun homeItemDao(): HomeItemDao
+    abstract fun appLabelDao(): AppLabelDao
 }

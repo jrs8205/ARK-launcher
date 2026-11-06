@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.arkikeskus.launcher.data.AppIconFetcher
 import org.arkikeskus.launcher.data.AppIconKeyer
+import org.arkikeskus.launcher.data.AppLabelStore
 import org.arkikeskus.launcher.data.AndroidProfileSystem
 import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.CustomIconFetcher
@@ -25,6 +26,7 @@ import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.IconChoicesSource
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.ProfileSystem
+import org.arkikeskus.launcher.data.RoomAppLabelStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,6 +55,17 @@ private val MIGRATION_5_6 = object : Migration(5, 6) {
 private val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE home_items ADD COLUMN builtinType TEXT")
+    }
+}
+
+/** v8: the app-label table (AppLabelEntity) beside the home layout; the statement is the one Room
+ *  generates for the entity, validated by AppLabelMigrationTest. */
+internal val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `app_labels` (`key` TEXT NOT NULL, `label` TEXT NOT NULL, " +
+                "`locale` TEXT NOT NULL, PRIMARY KEY(`key`))",
+        )
     }
 }
 
@@ -98,11 +111,15 @@ object DataModule {
             // pre-v5 dev versions (1–4, which never shipped a migration) so an old test install resets
             // instead of crashing; v5 onward is migrated, so the user's home layout survives upgrades.
             .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2, 3, 4)
-            .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
 
     @Provides
     fun provideHomeItemDao(database: LauncherDatabase): HomeItemDao = database.homeItemDao()
+
+    @Provides
+    @Singleton
+    fun provideAppLabelStore(database: LauncherDatabase): AppLabelStore = RoomAppLabelStore(database.appLabelDao())
 
     @Provides
     fun provideAppRowResolver(source: LauncherAppsSource): AppRowResolver = source

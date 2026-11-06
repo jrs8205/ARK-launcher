@@ -27,7 +27,10 @@ import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackRepository
+import org.arkikeskus.launcher.data.AppLabelCache
 import org.arkikeskus.launcher.data.LauncherAppsSource
+import org.arkikeskus.launcher.data.RoomAppLabelStore
+import org.arkikeskus.launcher.data.local.AppLabelDao
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.ProfileKind
 import org.arkikeskus.launcher.data.ProfileSnapshot
@@ -73,8 +76,10 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
     private val appUsageRepository = AppUsageRepository::class.java.constructors.single().newInstance(dataStore) as AppUsageRepository
 
     /** The image loader is only used for icons; its type (Coil) is what keeps this reflective. */
+    /** The app labels persist in the same in-memory database, as in the app. */
+    private val labelCache = AppLabelCache(RoomAppLabelStore(LauncherDatabase::class.java.getMethod("appLabelDao").invoke(db) as AppLabelDao))
     private val source = LauncherAppsSource::class.java.constructors.single()
-        .newInstance(context, IconPackRepository(context), Provider<Any?> { error("unused") }) as LauncherAppsSource
+        .newInstance(context, IconPackRepository(context), Provider<Any?> { error("unused") }, labelCache) as LauncherAppsSource
 
     /** Eagerly shared, like the application scope in the app: the LauncherApps callback registers
      *  right here, so a shortcut published after this is reported whether or not anyone collects. */

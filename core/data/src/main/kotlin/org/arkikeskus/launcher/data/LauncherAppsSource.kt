@@ -57,6 +57,7 @@ class LauncherAppsSource @Inject constructor(
     private val iconPacks: IconPackRepository,
     // Provider breaks the instantiation cycle: the ImageLoader itself is built with this source.
     private val imageLoader: Provider<ImageLoader>,
+    private val labelCache: AppLabelCache,
 ) : AppRowResolver {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
@@ -215,18 +216,20 @@ class LauncherAppsSource @Inject constructor(
         val handler = Handler(Looper.getMainLooper())
 
         // One serial worker fed by a conflated trigger, NOT a coroutine per event: overlapping
-        // queryApps() calls could complete out of order, leaving the flow's latest value a stale
-        // snapshot after a burst of package events (install storms, batch updates). Serializing
-        // guarantees the newest scan is emitted last; conflation coalesces the burst into one rescan.
+        // scans could complete out of order, leaving the flow's latest value a stale snapshot after
+        // a burst of package events (install storms, batch updates). Serializing guarantees the
+        // newest scan is emitted last; conflation coalesces the burst into one rescan.
         val reloads = Channel<Unit>(Channel.CONFLATED)
         fun reload() { reloads.trySend(Unit) }
         launch(Dispatchers.IO) {
-            for (unused in reloads) trySend(queryApps())
+            for (unused in reloads) scanApps { trySend(it) }
         }
         launch { reloadSignals.collect { reload() } }
 
         fun packageEvent(vararg packageNames: String, iconsMayHaveChanged: Boolean = false) {
             packageNames.forEach { packageEventPool.add(it) }
+            // The rescan below reads this package's labels again (an update may have renamed it).
+            packageNames.forEach(labelCache::invalidatePackage)
             // An updated/replaced package bumps its icon epoch: the epoch is in the Coil model/cache
             // key, so the changed app's icon re-fetches everywhere — including AsyncImages already on
             // screen (dock, open home page, drawer top), which only re-launch when the model changes.
@@ -291,24 +294,47 @@ class LauncherAppsSource @Inject constructor(
         }
     }
 
-    private fun queryApps(): List<AppItem> {
-        val profiles = runCatching { userManager?.userProfiles }.getOrNull() ?: listOf(Process.myUserHandle())
-        return profiles.flatMap { user ->
-            val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
-            val list = runCatching {
-                launcherApps.getActivityList(null, user)
-            }.getOrElse { emptyList() }
-            list.map { info ->
-                AppItem(
-                    packageName = info.componentName.packageName,
-                    className = info.componentName.className,
-                    user = user,
-                    userSerial = serial,
-                    label = info.label?.toString().orEmpty(),
-                )
-            }
-        }.sortedBy { it.label.lowercase() }
+    /** A launcher activity of one profile, as a scan listed it. */
+    private class Scanned(val info: LauncherActivityInfo, val user: UserHandle, val serial: Long) {
+        val key = "${info.componentName.packageName}/${info.componentName.className}/$serial"
     }
+
+    /**
+     * One scan of every profile's launchable apps, [send]ing the list once with the labels the
+     * [labelCache] hands out — the persisted ones at once, the rest read now — and, when the cache
+     * still has persisted labels to check (the first scan of a process), once more if any of them
+     * turned out to have changed. See [AppLabelCache] for why: reading a label opens the package's
+     * resources, and the home rows wait for this list.
+     */
+    private suspend fun scanApps(send: (List<AppItem>) -> Unit) {
+        labelCache.prepare(context.resources.configuration.locales.toLanguageTags())
+        val profiles = runCatching { userManager?.userProfiles }.getOrNull() ?: listOf(Process.myUserHandle())
+        val scanned = profiles.flatMap { user ->
+            val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
+            runCatching { launcherApps.getActivityList(null, user) }.getOrElse { emptyList() }.map { Scanned(it, user, serial) }
+        }
+        fun toItems(labelOf: (Scanned) -> String) = scanned.map { s ->
+            AppItem(
+                packageName = s.info.componentName.packageName,
+                className = s.info.componentName.className,
+                user = s.user,
+                userSerial = s.serial,
+                label = labelOf(s),
+            )
+        }.sortedBy { it.label.lowercase() }
+        send(toItems { s -> labelCache.label(s.key) ?: readLabel(s.info).also { labelCache.put(s.key, it) } })
+
+        labelCache.retain(scanned.mapTo(HashSet()) { it.key })
+        val unverified = labelCache.unverified()
+        if (unverified.isNotEmpty()) {
+            val fresh = scanned.filter { it.key in unverified }.associate { it.key to readLabel(it.info) }
+            if (labelCache.verify(fresh)) send(toItems { s -> fresh[s.key] ?: labelCache.label(s.key).orEmpty() })
+        }
+        labelCache.persist()
+    }
+
+    /** The app's own label, read from its resources (the costly call this cache exists for). */
+    private fun readLabel(info: LauncherActivityInfo): String = info.label?.toString().orEmpty()
 
     /**
      * Launches [appItem], opening from [sourceBounds] (the icon on screen) with [options] (its zoom)
