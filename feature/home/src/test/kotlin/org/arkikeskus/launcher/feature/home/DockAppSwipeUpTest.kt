@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
@@ -100,6 +101,24 @@ class DockAppSwipeUpTest {
         assertThat(clicks).isEmpty()
         assertThat(menus).isEmpty()
         assertThat(drag.isDragging).isFalse()
+    }
+
+    /** A flick that starts at the top edge of the tile leaves the icon's bounds (the tile lets the press
+     *  go) before the dock's longer slop is crossed: the choice must still hold, so the root remembers
+     *  the icon the finger went down on instead of asking at the slop. */
+    @Test fun aFlickFromTheTopEdgeOfTheTileStillOpensTheChosenApp() {
+        show()
+        val tile = drag.dockSlots[0] // the Maps slot, as the dock publishes it (root coordinates)
+
+        compose.onRoot().performTouchInput {
+            down(Offset(tile.center.x, tile.top + 1f))
+            repeat(5) { moveBy(Offset(0f, -12f)) }
+            up()
+        }
+        compose.waitForIdle()
+
+        assertThat(launched).containsExactly(chat)
+        assertThat(drawerDrags).isEqualTo(0)
     }
 
     @Test fun aFlickUpFromADockIconWithoutAChoiceStillDrivesTheDrawer() {

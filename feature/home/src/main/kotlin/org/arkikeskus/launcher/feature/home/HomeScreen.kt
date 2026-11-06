@@ -1167,6 +1167,14 @@ internal fun Modifier.pixelHomeSwipe(
             var mode = 0
             var lastY = down.position.y
             var settled = false
+            // The icon THIS finger went down on (an app's key, a folder's id), read on the first event
+            // after the DOWN — the tiles register it in the DOWN's Main pass, after this Initial-pass
+            // detector saw the DOWN — and remembered: a tile lets its press go when the finger leaves
+            // its bounds, which a flick from the top edge of a dock tile does before the dock's longer
+            // slop is crossed, and the pairing goes with the press.
+            var iconKnown = false
+            var pressedApp: String? = null
+            var pressedFolder: Long? = null
 
             // A drawer drag that ends any other way than a finger-up (a lift by another finger, the
             // pointer vanishing, the gesture cancelled) must still settle, or the drawer stayed frozen
@@ -1175,6 +1183,11 @@ internal fun Modifier.pixelHomeSwipe(
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 velocityTracker.addPosition(change.uptimeMillis, change.position)
+                if (!iconKnown) {
+                    iconKnown = true
+                    pressedApp = dragController.pressedApp(down.id.value)
+                    pressedFolder = dragController.pressedFolder(down.id.value)
+                }
 
                 // Never steal a real long-press drag (an app/dock item, or a folder/shortcut).
                 if (dragController.isDragging ||
@@ -1216,9 +1229,8 @@ internal fun Modifier.pixelHomeSwipe(
                     when {
                         (if (fromDock) dockSwipeIsVertical(dx, dy, verticalSlop) else abs(dy) > touchSlop && abs(dy) > abs(dx)) -> when {
                             dy < 0f -> {
-                                val pressedFolder = dragController.pressedFolder(down.id.value)
                                 // The app chosen for the icon under THIS finger (home grid or dock), if any.
-                                val appChoice = dragController.pressedApp(down.id.value)?.let { latestAppSwipeUpTargets[it] }
+                                val appChoice = pressedApp?.let { latestAppSwipeUpTargets[it] }
                                 when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer, appChoice != null)) {
                                     SwipeUpTarget.APP_CHOICE -> {
                                         // The chosen app opens once; the rest of the gesture is swallowed
