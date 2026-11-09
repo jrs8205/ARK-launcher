@@ -1,0 +1,2 @@
+Fixed
+- The weather in the clock widget now appears on phones where no other app keeps a location fix: the launcher asks the system for a coarse location itself when none is cached.
