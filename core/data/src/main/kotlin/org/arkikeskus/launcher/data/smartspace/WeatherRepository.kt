@@ -1,13 +1,9 @@
 package org.arkikeskus.launcher.data.smartspace
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Geocoder
-import android.location.Location
-import android.location.LocationManager
-import android.os.Build
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +54,9 @@ class WeatherRepository @Inject constructor(
 
     private val fetching = AtomicBoolean(false)
 
+    /** A recent cached fix, or one coarse current-location request when nothing usable is cached. */
+    private val locationSource = LocationFixSource(context)
+
     fun hasPermission(): Boolean =
         context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -104,7 +103,7 @@ class WeatherRepository @Inject constructor(
         if (!fetching.compareAndSet(false, true)) return
         scope.launch(Dispatchers.IO) {
             try {
-                val location = lastKnownLocation() ?: return@launch
+                val location = locationSource.fix() ?: return@launch
                 // Rounded for the network query — ~1 km is all weather needs, and the exact fix
                 // never leaves the device. The LOCAL geocoder gets the exact fix (rounding cost
                 // real municipalities near borders); see cityName().
@@ -124,23 +123,6 @@ class WeatherRepository @Inject constructor(
                 fetching.set(false)
             }
         }
-    }
-
-    /** A cached fix is plenty for weather — no active location request, no battery cost. */
-    @SuppressLint("MissingPermission")
-    private fun lastKnownLocation(): Location? {
-        val lm = context.getSystemService(LocationManager::class.java) ?: return null
-        val providers = buildList {
-            if (Build.VERSION.SDK_INT >= 31) add(LocationManager.FUSED_PROVIDER)
-            add(LocationManager.NETWORK_PROVIDER)
-            add(LocationManager.PASSIVE_PROVIDER)
-            add(LocationManager.GPS_PROVIDER)
-        }
-        // Newest fix wins regardless of provider — provider order alone let a stale network fix
-        // beat a fresh GPS one and pin the weather to a previous town.
-        return providers
-            .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
-            .maxByOrNull { it.time }
     }
 
     /** App-identifying User-Agent WITHOUT device details — Android's default Dalvik UA names the
