@@ -340,19 +340,19 @@ class SystemBarContrastTest {
      *  2.3:1; the hint alone, taken as black, kept the navigation glyphs white. Under the glass the
      *  wallpaper's own colour counts wherever the platform tells it. */
     @Test fun underTheGlassAMidToneWallpaperCountsAsWhatItIs() {
-        val grey = greyLuminance(0x70 / 255f)
+        val grey = 0xFF707070.toInt()
         val strong = glassTint(0.6f)
         // The colour not known: the hint, as before.
         assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.bottom)).isFalse()
-        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.bottom, wallpaperLuminance = grey)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.bottom, wallpaperColor = grey)).isTrue()
         // A black wallpaper stays dark under the same tint; a hinted one is light whatever its main colour.
-        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.bottom, wallpaperLuminance = 0f)).isFalse()
-        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = true, glassTint = strong.bottom, wallpaperLuminance = 0.02f)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.bottom, wallpaperColor = 0xFF000000.toInt())).isFalse()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = true, glassTint = strong.bottom, wallpaperColor = 0xFF050505.toInt())).isTrue()
         // Without the glass the hint alone decides, as it always has.
-        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = 0f, wallpaperLuminance = grey)).isFalse()
-        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = 0f, wallpaperLuminance = grey)).isEqualTo(0f)
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = 0f, wallpaperColor = grey)).isFalse()
+        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = 0f, wallpaperColor = grey)).isEqualTo(0f)
         // What the screen shows: sRGB 0.44 under 42 % white is 0.67, relative luminance 0.41.
-        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = strong.bottom, wallpaperLuminance = grey))
+        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = strong.bottom, wallpaperColor = grey))
             .isWithin(0.02f).of(0.41f)
 
         val glyphs = SystemBarGlyphs(
@@ -367,13 +367,34 @@ class SystemBarContrastTest {
             wallpaperSupportsDarkText = { false },
             glassTopTint = { strong.top },
             glassBottomTint = { strong.bottom },
-            wallpaperLuminance = { grey },
+            wallpaperColor = { grey },
         )
         assertThat(glyphs.darkNav.value).isTrue()
         assertThat(glyphs.darkStatus.value).isTrue()
         // A see-through drawer over the navigation bar sees the same wallpaper under the glass.
-        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = false, homeDim = 0f, glassTint = strong.bottom, wallpaperLuminance = grey))
+        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = false, homeDim = 0f, glassTint = strong.bottom, wallpaperColor = grey))
             .isTrue()
+    }
+
+    /** The glass is mixed over the wallpaper's own COLOUR, channel by channel, and the luminance taken from the
+     *  result: a grey of the same luminance mixes lighter than a saturated colour does. A plain blue (#0000FF)
+     *  under the glass's top tint at 20 % (0.27) is #4545FF, luminance 0.13, where white glyphs read at 5.9:1
+     *  and black at 3.5:1; mixed as a grey it came out at 0.20 and turned the glyphs black. */
+    @Test fun theGlassIsMixedOverTheWallpapersColourNotAGreyOfIt() {
+        val blue = 0xFF0000FF.toInt()
+        val top = glassTint(0.2f).top
+        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = blue))
+            .isWithin(0.01f).of(0.127f)
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = blue)).isFalse()
+        // Light glyphs keep their dark gradient behind them.
+        val darkGlyphs = homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = blue)
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = darkGlyphs, covered = false))
+            .isTrue()
+        // A yellow of the same hue-free luminance class goes the other way: light under the same glass.
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = 0xFFFFEE58.toInt())).isTrue()
+        // The own bar's scrim is mixed over the result the same way: 40 % black over #4545FF is #292999.
+        assertThat(behindStatusBarLuminance(ownBarVisible = true, scrimOpacity = 0.4f, wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = blue))
+            .isWithin(0.01f).of(0.044f)
     }
 
     /** ARK's own bar with a weak scrim (under the 50 % that counts as dark backing) leaves the decision to what
@@ -528,27 +549,27 @@ class SystemBarContrastTest {
         val firstRead = CompletableDeferred<WallpaperLook>()
         val reading = launch(start = CoroutineStart.UNDISPATCHED) { wallpaper.readInitial { firstRead.await() } }
 
-        wallpaper.onColorsChanged(WallpaperLook(supportsDarkText = true, luminance = 0.8f))
-        firstRead.complete(WallpaperLook(supportsDarkText = false, luminance = 0.1f))
+        wallpaper.onColorsChanged(WallpaperLook(supportsDarkText = true, color = 0xFFEEEEEE.toInt()))
+        firstRead.complete(WallpaperLook(supportsDarkText = false, color = 0xFF101010.toInt()))
         reading.join()
 
         assertThat(wallpaper.state.value).isTrue()
-        // The main colour's luminance travels with the hint: the newer report's, not the stale read's.
-        assertThat(wallpaper.luminance.value).isEqualTo(0.8f)
+        // The main colour travels with the hint: the newer report's, not the stale read's.
+        assertThat(wallpaper.color.value).isEqualTo(0xFFEEEEEE.toInt())
     }
 
     @Test fun theFirstReadLandsWhenNothingNewerCame() = runBlocking {
         val wallpaper = WallpaperDarkText()
 
-        assertThat(wallpaper.luminance.value).isNull()
-        wallpaper.readInitial { WallpaperLook(supportsDarkText = true, luminance = 0.9f) }
+        assertThat(wallpaper.color.value).isNull()
+        wallpaper.readInitial { WallpaperLook(supportsDarkText = true, color = 0xFFF0F0F0.toInt()) }
 
         assertThat(wallpaper.state.value).isTrue()
-        assertThat(wallpaper.luminance.value).isEqualTo(0.9f)
-        // A wallpaper that tells no colours: no hint and no luminance.
+        assertThat(wallpaper.color.value).isEqualTo(0xFFF0F0F0.toInt())
+        // A wallpaper that tells no colours: no hint and no colour.
         wallpaper.onColorsChanged(WallpaperLook(supportsDarkText = false))
         assertThat(wallpaper.state.value).isFalse()
-        assertThat(wallpaper.luminance.value).isNull()
+        assertThat(wallpaper.color.value).isNull()
     }
 
     @Test fun theWallpaperHintIsRead() {

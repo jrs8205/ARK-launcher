@@ -174,7 +174,7 @@ fun LauncherShell(
         scrimOpacity = statusBars.scrimOpacity,
         headsUpActive = headsUpActive,
         wallpaperDarkText = wallpaperDarkText,
-        wallpaperLuminance = wallpaper.luminance,
+        wallpaperColor = wallpaper.color,
         drawerSurface = statusBars.drawerSurface,
         drawerPicture = statusBars.drawerPicture,
         glassOpacity = statusBars.glassOpacity,
@@ -240,7 +240,7 @@ fun LauncherShell(
                     wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(
                         wallpaperDarkText.value,
                         statusBars.glassOpacity?.let { glassTint(it).top } ?: 0f,
-                        wallpaperLuminance = wallpaper.luminance.value,
+                        wallpaperColor = wallpaper.color.value,
                     ),
                     covered = barCovers.coverIsLight != null,
                 ),
