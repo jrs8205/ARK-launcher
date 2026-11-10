@@ -335,6 +335,40 @@ class SystemBarContrastTest {
         assertThat(glyphs.darkStatus.value).isFalse()
     }
 
+    /** ARK's own bar with a weak scrim (under the 50 % that counts as dark backing) leaves the decision to what
+     *  is behind it, and that is the glass UNDER the scrim: black wallpaper, glass at 40 % and a 40 % scrim
+     *  show a dark grey where white glyphs read at 7.7:1 and black ones at 2.7:1. The glass alone would have
+     *  chosen black. */
+    @Test fun aWeakOwnBarScrimStillDimsTheGlassBehindTheGlyphs() {
+        val top = glassTint(0.4f).top
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top, ownBarScrim = 0.4f)).isFalse()
+        // A light wallpaper under the same weak scrim stays light, with the glass or without it.
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = true, glassTint = top, ownBarScrim = 0.4f)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = true, glassTint = 0f, ownBarScrim = 0.4f)).isTrue()
+
+        val progress = mutableFloatStateOf(0f)
+        val scrim = mutableFloatStateOf(0.4f)
+        val glyphs = SystemBarGlyphs(
+            progress = { progress.floatValue },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { _, _ -> false },
+            drawerIsLightOverNavBar = { _, _ -> false },
+            coverIsLight = { null },
+            ownBarBacksDark = { homeAlpha -> ownBarBacksDark(ownBarShown = true, scrimOpacity = ownBarScrimOnScreen(scrim.floatValue, homeAlpha)) },
+            wallpaperSupportsDarkText = { false },
+            glassTopTint = { top },
+            glassBottomTint = { 0f },
+            ownBarScrim = { homeAlpha -> ownBarScrimOnScreen(scrim.floatValue, homeAlpha) },
+        )
+        assertThat(glyphs.darkStatus.value).isFalse()
+        // Without the scrim the glass decides: dark glyphs.
+        scrim.floatValue = 0f
+        assertThat(glyphs.darkStatus.value).isTrue()
+    }
+
     /** ARK's own bar draws its scrim over the glass: the scrim dims the lightened wallpaper as it dims a
      *  light one, and where the glass makes the glyphs dark there is no dark gradient behind them. */
     @Test fun theOwnBarsScrimAndTheTopScrimCountTheGlass() {

@@ -113,11 +113,19 @@ internal fun wallpaperOnHomeLuminance(wallpaperSupportsDarkText: Boolean, glassT
 }
 
 /**
- * Whether dark glyphs read better on home's backdrop: the wallpaper's own hint, and over a wallpaper without
- * it a glass layer strong enough to make it light ([darkReadsBetter]). Without the layer it is the hint.
+ * Whether dark glyphs read better on home's backdrop. Without the glass layer it is the wallpaper's own hint
+ * (a weak own-bar scrim never turned a wallpaper around: [ownBarBacksDark]). With the layer it is what the
+ * screen shows behind the glyphs ([darkReadsBetter]): the wallpaper under the glass ([wallpaperOnHomeLuminance])
+ * under ARK's own bar's scrim as much of it as is on screen ([ownBarScrim], 0 without the bar) -- the scrim is
+ * drawn over the glass, and one too weak to count as dark backing by itself still darkens a glass that would
+ * otherwise have asked for dark glyphs.
  */
-internal fun homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText: Boolean, glassTint: Float): Boolean =
-    wallpaperSupportsDarkText || (glassTint > 0f && darkReadsBetter(wallpaperOnHomeLuminance(false, glassTint)))
+internal fun homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText: Boolean, glassTint: Float, ownBarScrim: Float = 0f): Boolean =
+    if (glassTint <= 0f) {
+        wallpaperSupportsDarkText
+    } else {
+        darkReadsBetter(dimmedLuminance(wallpaperOnHomeLuminance(wallpaperSupportsDarkText, glassTint), ownBarScrim))
+    }
 
 /**
  * The luminance behind the status bar on home: the wallpaper's dark-text hint taken as white or black,
@@ -277,6 +285,9 @@ internal class SystemBarGlyphs(
      *  full alpha (0 without the layer); it fades with home ([homeBackdropSupportsDarkGlyphs]). */
     glassTopTint: () -> Float = { 0f },
     glassBottomTint: () -> Float = { 0f },
+    /** ARK's own bar's scrim over the status bar as much of it as is on screen at home's given alpha (0 while the
+     *  bar is not on screen): it is drawn over the glass ([homeBackdropSupportsDarkGlyphs]). */
+    ownBarScrim: (homeAlpha: Float) -> Float = { 0f },
 ) {
     /** The status bar draws dark glyphs ([statusBarDarkIcons]). */
     val darkStatus: State<Boolean> = derivedStateOf {
@@ -287,7 +298,8 @@ internal class SystemBarGlyphs(
             drawerSurfaceIsLight = drawerIsLightOverStatusBar(drawerScrimAlpha(progress), homeAlpha),
             coverIsLight = coverIsLight(),
             ownBarBacksDark = ownBarBacksDark(homeAlpha),
-            wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText(), glassTopTint() * homeAlpha),
+            wallpaperSupportsDarkText =
+                homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText(), glassTopTint() * homeAlpha, ownBarScrim(homeAlpha)),
         )
     }
 
@@ -383,6 +395,7 @@ internal fun SystemBarContrast(
             wallpaperSupportsDarkText = { wallpaperDarkText.value },
             glassTopTint = { currentGlass.value?.top ?: 0f },
             glassBottomTint = { currentGlass.value?.bottom ?: 0f },
+            ownBarScrim = { homeAlpha -> if (ownBarOnScreen()) ownBarScrimOnScreen(currentScrim.value, homeAlpha) else 0f },
         )
     }
     LaunchedEffect(window, view) {
