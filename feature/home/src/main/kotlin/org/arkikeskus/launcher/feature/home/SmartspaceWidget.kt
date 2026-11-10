@@ -42,6 +42,7 @@ import androidx.compose.ui.layout.ParentDataModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -78,6 +79,7 @@ import org.arkikeskus.launcher.data.smartspace.NextEventPicker
 import org.arkikeskus.launcher.data.smartspace.WeatherCodes
 import org.arkikeskus.launcher.data.smartspace.WeatherRepository
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.LauncherSettings
 import kotlin.math.roundToInt
 import java.util.Date
 import javax.inject.Inject
@@ -239,8 +241,14 @@ internal fun SmartspaceContent(
     }
 
     // The wallpaper is arbitrary, so the text carries its own soft shadow (like the home labels).
-    val ink = widgetContentColor()
-    val shadow = Shadow(color = if (LocalTonalWidgets.current) Color.Transparent else Color.Black.copy(alpha = 0.55f), blurRadius = 8f)
+    val look = LocalSmartspaceStyle.current
+    val ink = smartspaceInk(look, widgetContentColor())
+    val surface = smartspaceSurface(look, widgetSurfaceColor(), LocalTonalWidgets.current)
+    // No shadow under dark text (the theme's surface, a light card of the user's).
+    val shadow = Shadow(
+        color = if (LocalTonalWidgets.current || ink == Color.Black) Color.Transparent else Color.Black.copy(alpha = 0.55f),
+        blurRadius = 8f,
+    )
     // Taps must not show a ripple box over the wallpaper — the widget has no background surface.
     val noIndication = remember { MutableInteractionSource() }
 
@@ -255,14 +263,15 @@ internal fun SmartspaceContent(
         // Its two lines share the footprint's height left after the card padding; each is a touch
         // target up to TOUCH_TARGET tall when there is room (see the taller layouts below).
         val lineMin = ((maxHeight - 24.dp) / 2).coerceIn(0.dp, TOUCH_TARGET)
-        WidgetSurface(Modifier.fillMaxWidth()) {
+        WidgetSurface(Modifier.fillMaxWidth(), color = surface, contentColor = ink) {
             Row(Modifier.padding(12.dp).height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // The clock's hit area spans both lines.
                 TapTarget(minHeight = 0.dp, fillWidth = false, ripple = true, modifier = Modifier.fillMaxHeight(), onTap = {
                     openClockApp(context)
                 }) {
-                    Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium, maxLines = 1)
+                    Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium.scaledBy(look.textScale), maxLines = 1,
+                        modifier = Modifier.testTag(SMARTSPACE_CLOCK_TAG))
                 }
                 Column(Modifier.weight(1f)) {
                     TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = {
@@ -270,14 +279,14 @@ internal fun SmartspaceContent(
                             .appendPath("time").appendPath(now.toString()).build()
                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
                     }) {
-                        Text(dateText, color = ink, style = MaterialTheme.typography.bodySmall,
+                        Text(dateText, color = ink, style = MaterialTheme.typography.bodySmall.scaledBy(look.textScale),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     val event = nextEvent
                     val detail = when {
                         !hasPermission -> stringResource(R.string.smartspace_allow_calendar)
                         event != null -> event.title.ifBlank { stringResource(R.string.smartspace_no_title) }
-                        weather != null -> weather.temperatureC.roundToInt().toString() + "° " + WeatherCodes.emoji(weather.weatherCode)
+                        weather != null -> "" // drawn by WeatherLine below
                         else -> null
                     }
                     // Only a line that does something gets a click action: a disabled clickable
@@ -296,15 +305,19 @@ internal fun SmartspaceContent(
                         else -> null
                     }
                     if (detail != null) TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = detailTap) {
-                        Text(detail, color = ink.copy(alpha = 0.85f),
-                            style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val detailStyle = MaterialTheme.typography.bodySmall.scaledBy(look.textScale)
+                        if (hasPermission && event == null && weather != null) {
+                            WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, color = ink.copy(alpha = 0.85f), textStyle = detailStyle)
+                        } else {
+                            Text(detail, color = ink.copy(alpha = 0.85f), style = detailStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
         }
         return@BoxWithConstraints
     }
-    val scale = if (maxHeight >= 260.dp && maxWidth >= 300.dp) 1.15f else 0.9f
+    val scale = (if (maxHeight >= 260.dp && maxWidth >= 300.dp) 1.15f else 0.9f) * look.textScale
     val spacious = maxHeight >= 240.dp
     val expanded = maxHeight >= 260.dp
     val w = weather
@@ -363,57 +376,54 @@ internal fun SmartspaceContent(
             .width(IntrinsicSize.Max)
             // A soft translucent card behind the text so the widget reads as one element on any
             // wallpaper (user feedback; same idiom as the dock background and the restore tiles).
-            .background(widgetSurfaceColor(), RoundedCornerShape(24.dp))
+            .background(surface, RoundedCornerShape(24.dp))
             .padding(horizontal = (22 * scale).dp, vertical = (10 * scale).dp),
     ) {
         TapTarget(onTap = openAlarms, interactionSource = noIndication) {
             Text(
                 text = timeText,
-                color = widgetContentColor(),
+                color = ink,
                 style = themedTextStyle(TextStyle(fontSize = (46 * scale).sp, fontWeight = FontWeight.Medium, shadow = shadow)),
                 maxLines = 1,
+                modifier = Modifier.testTag(SMARTSPACE_CLOCK_TAG),
             )
         }
         if (merged) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (w != null) {
-                    val city = w.city?.let { " $it" }.orEmpty()
                     // The city is the variable-length part — it alone gives way (ellipsis) when
                     // the merged row runs out of width; fill=false keeps the card content-hugging.
                     TapTarget(onTap = openWeather, fillWidth = false, fillHeight = true, interactionSource = noIndication,
                         modifier = Modifier.weight(1f, fill = false)) {
-                        Text(
-                            text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
-                            color = widgetContentColor(),
-                            style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                        WeatherLine(
+                            w, withCity = true, iconStyle = look.weatherIcon, color = ink,
+                            textStyle = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                         )
                     }
-                    MiddleDot(scale, shadow)
+                    MiddleDot(scale, shadow, ink)
                 }
                 TapTarget(onTap = openCalendarDay, fillWidth = false, fillHeight = true, interactionSource = noIndication) {
                     Text(
                         text = dateText,
-                        color = widgetContentColor(),
+                        color = ink,
                         style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                         maxLines = 1,
                     )
                 }
                 if (alarmText != null) {
-                    MiddleDot(scale, shadow)
+                    MiddleDot(scale, shadow, ink)
                     TapTarget(onTap = openAlarms, fillWidth = false, fillHeight = true, interactionSource = noIndication) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_status_alarm),
                                 contentDescription = stringResource(R.string.smartspace_next_alarm),
-                                tint = widgetContentColor().copy(alpha = 0.9f),
+                                tint = ink.copy(alpha = 0.9f),
                                 modifier = Modifier.size((14 * scale).dp),
                             )
                             Spacer(Modifier.width((3 * scale).dp))
                             Text(
                                 text = alarmText,
-                                color = widgetContentColor().copy(alpha = 0.9f),
+                                color = ink.copy(alpha = 0.9f),
                                 style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                                 maxLines = 1,
                             )
@@ -425,21 +435,17 @@ internal fun SmartspaceContent(
             // Weather right under the clock on its own row (user choice — more prominent than
             // riding on the date line).
             if (w != null) {
-                val city = w.city?.let { " $it" }.orEmpty()
                 TapTarget(onTap = openWeather, interactionSource = noIndication) {
-                    Text(
-                        text = "${w.temperatureC.roundToInt()}° ${WeatherCodes.emoji(w.weatherCode)}$city",
-                        color = widgetContentColor(),
-                        style = themedTextStyle(TextStyle(fontSize = (16 * scale).sp, shadow = shadow)),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    WeatherLine(
+                        w, withCity = true, iconStyle = look.weatherIcon, color = ink,
+                        textStyle = themedTextStyle(TextStyle(fontSize = (16 * scale).sp, shadow = shadow)),
                     )
                 }
             }
             TapTarget(onTap = openCalendarDay, interactionSource = noIndication) {
                 Text(
                     text = dateText,
-                    color = widgetContentColor(),
+                    color = ink,
                     style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -452,13 +458,13 @@ internal fun SmartspaceContent(
                         Icon(
                             painter = painterResource(R.drawable.ic_status_alarm),
                             contentDescription = stringResource(R.string.smartspace_next_alarm),
-                            tint = widgetContentColor().copy(alpha = 0.9f),
+                            tint = ink.copy(alpha = 0.9f),
                             modifier = Modifier.size((15 * scale).dp),
                         )
                         Spacer(Modifier.width((4 * scale).dp))
                         Text(
                             text = alarmText,
-                            color = widgetContentColor().copy(alpha = 0.9f),
+                            color = ink.copy(alpha = 0.9f),
                             style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                             maxLines = 1,
                         )
@@ -474,7 +480,7 @@ internal fun SmartspaceContent(
             ) {
                 Text(
                     text = stringResource(R.string.smartspace_allow_calendar),
-                    color = widgetContentColor().copy(alpha = 0.85f),
+                    color = ink.copy(alpha = 0.85f),
                     style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -515,7 +521,7 @@ internal fun SmartspaceContent(
                 ) {
                     Text(
                         text = eventText.ifBlank { stringResource(R.string.smartspace_no_title) },
-                        color = widgetContentColor().copy(alpha = 0.92f),
+                        color = ink.copy(alpha = 0.92f),
                         style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                         maxLines = if (expanded) 2 else 1,
                         overflow = TextOverflow.Ellipsis,
@@ -535,7 +541,7 @@ internal fun SmartspaceContent(
             ) {
                 Text(
                     text = stringResource(R.string.smartspace_allow_location),
-                    color = widgetContentColor().copy(alpha = 0.85f),
+                    color = ink.copy(alpha = 0.85f),
                     style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -543,6 +549,37 @@ internal fun SmartspaceContent(
             }
         }
     }
+    }
+}
+
+/** [this] with its font size and line height multiplied by [scale] (the widget's text-size setting). */
+private fun TextStyle.scaledBy(scale: Float): TextStyle =
+    if (scale == 1f) this else copy(fontSize = fontSize * scale, lineHeight = lineHeight * scale)
+
+/**
+ * The weather line: the temperature, the weather's icon and, [withCity], the place. With the standard
+ * icon it is the one text it has always been (the emoji in the text); every other style draws the icon
+ * beside the temperature ([WeatherGlyph]), and the place alone gives way when the line runs out of width.
+ */
+@Composable
+private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String, color: Color, textStyle: TextStyle) {
+    val city = if (withCity) w.city else null
+    val temperature = "${w.temperatureC.roundToInt()}°"
+    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI) {
+        Text(
+            text = "$temperature ${WeatherCodes.emoji(w.weatherCode)}" + city?.let { " $it" }.orEmpty(),
+            color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(temperature, color = color, style = textStyle, maxLines = 1)
+        Spacer(Modifier.width(4.dp))
+        WeatherGlyph(w.weatherCode, iconStyle, textStyle.fontSize)
+        if (city != null) {
+            Spacer(Modifier.width(4.dp))
+            Text(city, color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        }
     }
 }
 
@@ -658,10 +695,10 @@ private fun TapTarget(
 
 /** The separator between the merged middle-row parts (compact mode). */
 @Composable
-private fun MiddleDot(scale: Float, shadow: Shadow) {
+private fun MiddleDot(scale: Float, shadow: Shadow, ink: Color) {
     Text(
         text = "·",
-        color = widgetContentColor().copy(alpha = 0.8f),
+        color = ink.copy(alpha = 0.8f),
         style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
         modifier = Modifier.padding(horizontal = (5 * scale).dp),
     )

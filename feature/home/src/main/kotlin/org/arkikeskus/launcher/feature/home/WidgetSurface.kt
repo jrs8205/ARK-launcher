@@ -22,9 +22,13 @@ internal fun widgetSurfaceColor(): Color =
     if (LocalTonalWidgets.current) MaterialTheme.colorScheme.surfaceContainer else Color.Black.copy(alpha = 0.30f)
 
 @Composable
-internal fun WidgetSurface(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    Surface(modifier, shape = RoundedCornerShape(24.dp),
-        color = widgetSurfaceColor(), contentColor = widgetContentColor()) {
+internal fun WidgetSurface(
+    modifier: Modifier = Modifier,
+    color: Color = widgetSurfaceColor(),
+    contentColor: Color = widgetContentColor(),
+    content: @Composable BoxScope.() -> Unit,
+) {
+    Surface(modifier, shape = RoundedCornerShape(24.dp), color = color, contentColor = contentColor) {
         Box(content = content)
     }
 }

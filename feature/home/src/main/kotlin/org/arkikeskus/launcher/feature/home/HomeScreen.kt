@@ -94,6 +94,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.folderStyle
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.DefaultLauncher
@@ -568,6 +569,7 @@ fun HomeScreen(
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
         LocalTonalWidgets provides settings.widgetTonalBackground,
+        LocalSmartspaceStyle provides settings.smartspaceStyle(),
         LocalThemedIcons provides settings.useThemedIcons,
         LocalThemeAllIcons provides settings.themeAllIcons,
         LocalIconPack provides settings.iconPackPackage,
@@ -766,7 +768,9 @@ fun HomeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled),
+                    .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled)
+                    // The glass panel sits behind the grid, inside the workspace's own padding.
+                    .then(if (settings.homeGlassPanel) Modifier.homeGlassPanel(settings.homeGlassOpacity) else Modifier),
             )
 
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
@@ -848,6 +852,7 @@ fun HomeScreen(
                 onSetIcon = { viewModel.setFolderIcon(openFolder.id, it) },
                 showName = settings.showHomeFolderNames,
                 columns = settings.folderColumns,
+                style = settings.folderStyle(),
                 onAppClick = launchApp,
                 onRenameApp = { renameTarget = it },
                 onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id) },

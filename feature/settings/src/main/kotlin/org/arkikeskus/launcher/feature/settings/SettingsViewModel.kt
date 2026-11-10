@@ -173,6 +173,17 @@ class SettingsViewModel @Inject constructor(
     fun setPeopleBatchTimes(value: String) = update { repository.setPeopleBatchTimes(value) }
     fun setHideSystemStatusBar(value: Boolean) = update { repository.setHideSystemStatusBar(value) }
     fun setHideSystemNavigationBar(value: Boolean) = update { repository.setHideSystemNavigationBar(value) }
+    fun setFolderShowLabels(value: Boolean) = update { repository.setFolderShowLabels(value) }
+    fun setFolderIconScale(value: Float) = update { repository.setFolderIconScale(value) }
+    fun setFolderSpacing(value: Float) = update { repository.setFolderSpacing(value) }
+    fun setFolderBackgroundColor(argb: Int?) = update { repository.setFolderBackgroundColor(argb) }
+    fun setFolderBackgroundOpacity(value: Float) = update { repository.setFolderBackgroundOpacity(value) }
+    fun setSmartspaceBackgroundColor(argb: Int?) = update { repository.setSmartspaceBackgroundColor(argb) }
+    fun setSmartspaceBackgroundOpacity(value: Float) = update { repository.setSmartspaceBackgroundOpacity(value) }
+    fun setSmartspaceTextScale(value: Float) = update { repository.setSmartspaceTextScale(value) }
+    fun setWeatherIconStyle(value: String) = update { repository.setWeatherIconStyle(value) }
+    fun setHomeGlassPanel(value: Boolean) = update { repository.setHomeGlassPanel(value) }
+    fun setHomeGlassOpacity(value: Float) = update { repository.setHomeGlassOpacity(value) }
     fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }
 
     private fun update(block: suspend () -> Unit) {

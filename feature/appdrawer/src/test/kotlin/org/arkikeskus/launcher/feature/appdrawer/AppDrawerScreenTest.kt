@@ -280,6 +280,29 @@ class AppDrawerScreenTest {
         assertThat(topOf(notesApp)).isGreaterThan(topOf(mailApp))
     }
 
+    /** A Telegram request after 1.0.4: the folder card follows the folder appearance settings (app names off). */
+    @Test fun theFolderCardFollowsTheFolderAppearanceSettings() {
+        val members = listOf(mailApp, mapsApp)
+        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        show()
+        awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
+        val keys = viewModel.uiState.value.apps.filter { it.packageName in members }.map { it.key }
+        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        awaitState("the folder holds the two") { it.folders.firstOrNull()?.apps?.size == 2 }
+        settle()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+        compose.onNodeWithText(mailApp).assertExists()
+
+        runBlocking { wiring.settingsRepository.setFolderShowLabels(false) }
+        awaitState("the setting reached the drawer") { !it.folderStyle.showLabels }
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+        compose.onNodeWithText(mailApp).assertDoesNotExist()
+    }
+
     /** Mixed among the apps the order is by name, so the editor offers no moves. */
     @Test fun theEditorHidesMovesWhileFoldersMixWithTheApps() {
         runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }

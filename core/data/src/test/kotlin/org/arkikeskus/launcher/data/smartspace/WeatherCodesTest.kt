@@ -53,4 +53,30 @@ class WeatherCodesTest {
         assertThat(WeatherCodes.emoji(42)).isEqualTo("☁️")
         assertThat(WeatherCodes.emoji(-1)).isEqualTo("☁️")
     }
+
+    /** The drawn icons go by the kind of weather, the same grouping as the emoji. */
+    @Test
+    fun every_code_has_a_kind_matching_its_emoji() {
+        assertThat(WeatherCodes.kind(0)).isEqualTo(WeatherKind.CLEAR)
+        assertThat(WeatherCodes.kind(2)).isEqualTo(WeatherKind.PARTLY_CLOUDY)
+        assertThat(WeatherCodes.kind(3)).isEqualTo(WeatherKind.CLOUDY)
+        assertThat(WeatherCodes.kind(48)).isEqualTo(WeatherKind.FOG)
+        assertThat(WeatherCodes.kind(63)).isEqualTo(WeatherKind.RAIN)
+        assertThat(WeatherCodes.kind(81)).isEqualTo(WeatherKind.RAIN)
+        assertThat(WeatherCodes.kind(75)).isEqualTo(WeatherKind.SNOW)
+        assertThat(WeatherCodes.kind(96)).isEqualTo(WeatherKind.THUNDER)
+        assertThat(WeatherCodes.kind(1234)).isEqualTo(WeatherKind.CLOUDY)
+        for (code in 0..99) {
+            val expected = when (WeatherCodes.kind(code)) {
+                WeatherKind.CLEAR -> "☀️"
+                WeatherKind.PARTLY_CLOUDY -> "🌤️"
+                WeatherKind.FOG -> "🌫️"
+                WeatherKind.RAIN -> "🌧️"
+                WeatherKind.SNOW -> "🌨️"
+                WeatherKind.THUNDER -> "⛈️"
+                WeatherKind.CLOUDY -> "☁️"
+            }
+            assertThat(WeatherCodes.emoji(code)).isEqualTo(expected)
+        }
+    }
 }

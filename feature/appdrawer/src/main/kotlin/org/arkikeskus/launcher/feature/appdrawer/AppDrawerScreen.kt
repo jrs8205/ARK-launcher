@@ -391,6 +391,7 @@ fun AppDrawerScreen(
             folder = cardFolder,
             bounds = card.second,
             columns = uiState.folderColumns,
+            style = uiState.folderStyle,
             badges = badges,
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
@@ -910,6 +911,8 @@ private fun DrawerFolderCard(
     bounds: Rect,
     /** Icons per row (Settings > Home > Folder columns, shared with the home screen's folders). */
     columns: Int,
+    /** App names, icon size and row spacing (Settings > Folder appearance); the card keeps the drawer's own colour. */
+    style: org.arkikeskus.launcher.model.FolderStyle,
     badges: Map<String, Int>,
     badgeShowCount: Boolean,
     badgeScale: Float,
@@ -922,7 +925,7 @@ private fun DrawerFolderCard(
     val anchor = IntOffset(bounds.center.x.roundToInt(), (if (preferAbove) bounds.top else bounds.bottom).roundToInt())
     val width = with(LocalDensity.current) { minOf(FOLDER_CARD_WIDTH, windowSize.width.toDp() - 16.dp) }
     // The grid's rule: the icon shrinks to its cell when the icon-size setting would overflow it.
-    val iconSize = iconSizeForCell((width - 16.dp) / columns, 56.dp * LocalIconScale.current)
+    val iconSize = iconSizeForCell((width - 16.dp) / columns, 56.dp * LocalIconScale.current * style.iconScale)
     // The drawer's palette (the user's colour) for the card AND its texts: the popup is its own window, where the
     // system palette would otherwise paint a light card under this palette's light text (round 11).
     val palette = LocalExpressivePalette.current
@@ -956,14 +959,14 @@ private fun DrawerFolderCard(
                             appItem = app,
                             labelColor = palette.text,
                             iconSize = iconSize,
-                            showLabel = true,
+                            showLabel = style.showLabels,
                             badgeCount = badges[app.badgeKey] ?: 0,
                             badgeShowCount = badgeShowCount,
                             badgeScale = badgeScale,
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { onAppClick(app) }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                                .padding(vertical = 10.dp * style.spacing, horizontal = 4.dp),
                         )
                     }
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }

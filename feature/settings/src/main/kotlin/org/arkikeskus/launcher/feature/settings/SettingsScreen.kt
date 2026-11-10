@@ -274,6 +274,68 @@ fun SettingsScreen(
                 }
 
                 CollapsibleSection(
+                    title = stringResource(R.string.settings_folder_appearance),
+                    collapsed = "folders" in s.collapsedSettingsSections,
+                    onToggle = { viewModel.setSectionCollapsed("folders", it) },
+                ) {
+                    SwitchRow(stringResource(R.string.settings_folder_app_names), s.folderShowLabels, viewModel::setFolderShowLabels)
+                    ScaleSliderRow(
+                        label = stringResource(R.string.settings_folder_icon_size),
+                        value = s.folderIconScale,
+                        onValueChange = viewModel::setFolderIconScale,
+                        valueRange = SettingsRepository.MIN_FOLDER_ICON_SCALE..SettingsRepository.MAX_FOLDER_ICON_SCALE,
+                        valueText = percentText,
+                    )
+                    ScaleSliderRow(
+                        label = stringResource(R.string.settings_folder_spacing),
+                        value = s.folderSpacing,
+                        onValueChange = viewModel::setFolderSpacing,
+                        valueRange = SettingsRepository.MIN_FOLDER_SPACING..SettingsRepository.MAX_FOLDER_SPACING,
+                        valueText = percentText,
+                    )
+                    CardColorRow(
+                        title = stringResource(R.string.settings_folder_color),
+                        selected = s.folderBackgroundColor,
+                        onPick = viewModel::setFolderBackgroundColor,
+                    )
+                    ScaleSliderRow(
+                        label = stringResource(R.string.settings_folder_opacity),
+                        value = s.folderBackgroundOpacity,
+                        onValueChange = viewModel::setFolderBackgroundOpacity,
+                        valueRange = SettingsRepository.MIN_CARD_OPACITY..1f,
+                        valueText = percentText,
+                    )
+                }
+
+                CollapsibleSection(
+                    title = stringResource(R.string.settings_clock_widget),
+                    collapsed = "clock_widget" in s.collapsedSettingsSections,
+                    onToggle = { viewModel.setSectionCollapsed("clock_widget", it) },
+                ) {
+                    CardColorRow(
+                        title = stringResource(R.string.settings_clock_widget_color),
+                        selected = s.smartspaceBackgroundColor,
+                        onPick = viewModel::setSmartspaceBackgroundColor,
+                    )
+                    ScaleSliderRow(
+                        label = stringResource(R.string.settings_clock_widget_opacity),
+                        value = s.smartspaceBackgroundOpacity,
+                        onValueChange = viewModel::setSmartspaceBackgroundOpacity,
+                        valueRange = 0f..1f,
+                        valueText = percentText,
+                        default = LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND,
+                    )
+                    ScaleSliderRow(
+                        label = stringResource(R.string.settings_clock_widget_text_size),
+                        value = s.smartspaceTextScale,
+                        onValueChange = viewModel::setSmartspaceTextScale,
+                        valueRange = SettingsRepository.MIN_SMARTSPACE_TEXT_SCALE..SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE,
+                        valueText = percentText,
+                    )
+                    if (s.showWeather) WeatherIconRow(selected = s.weatherIconStyle, onPick = viewModel::setWeatherIconStyle)
+                }
+
+                CollapsibleSection(
                     title = stringResource(R.string.settings_dock),
                     collapsed = "dock" in s.collapsedSettingsSections,
                     onToggle = { viewModel.setSectionCollapsed("dock", it) },
@@ -368,6 +430,22 @@ fun SettingsScreen(
                         stringResource(R.string.settings_folder_columns), s.folderColumns,
                         SettingsRepository.MIN_FOLDER_COLUMNS, SettingsRepository.MAX_FOLDER_COLUMNS, viewModel::setFolderColumns,
                     )
+                    SwitchRow(
+                        stringResource(R.string.settings_glass_panel),
+                        stringResource(R.string.settings_glass_panel_desc),
+                        s.homeGlassPanel,
+                        viewModel::setHomeGlassPanel,
+                    )
+                    if (s.homeGlassPanel) {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_glass_strength),
+                            value = s.homeGlassOpacity,
+                            onValueChange = viewModel::setHomeGlassOpacity,
+                            valueRange = SettingsRepository.MIN_GLASS_OPACITY..SettingsRepository.MAX_GLASS_OPACITY,
+                            valueText = percentText,
+                            default = LauncherSettings.DEFAULT_GLASS_OPACITY,
+                        )
+                    }
                     SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, viewModel::setShowPageIndicator)
                     if (s.showPageIndicator) {
                         ExpressiveActionRow(
@@ -1633,6 +1711,69 @@ internal fun DrawerColorRow(selected: Int?, locked: Boolean = false, onPick: (In
                 )
                 COLOR_SWATCHES.forEach { c ->
                     ColorSwatch(argb = c, selected = c == selected, enabled = !locked, onClick = { onPick(c) })
+                }
+            }
+        }
+    }
+}
+
+/** A card's background colour (the open folder's, the clock/weather widget's): a "Theme" chip for the card's own
+ *  colour, then the swatches. [selected] null = the theme's. */
+@Composable
+internal fun CardColorRow(title: String, selected: Int?, onPick: (Int?) -> Unit) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(title)
+            Spacer(Modifier.height(14.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                FilterChip(
+                    selected = selected == null,
+                    onClick = { onPick(null) },
+                    label = { Text(stringResource(R.string.settings_color_theme)) },
+                )
+                COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }
+            }
+        }
+    }
+}
+
+/** How the clock/weather widget shows the weather's icon: the emoji in the text, the emoji larger, an icon drawn in
+ *  colour, or the drawn icon moving for a moment whenever the home screen comes back. */
+@Composable
+internal fun WeatherIconRow(selected: String, onPick: (String) -> Unit) {
+    val p = LocalExpressivePalette.current
+    val styles = listOf(
+        LauncherSettings.WEATHER_ICON_EMOJI to R.string.settings_weather_icon_standard,
+        LauncherSettings.WEATHER_ICON_LARGE to R.string.settings_weather_icon_large,
+        LauncherSettings.WEATHER_ICON_COLOR to R.string.settings_weather_icon_color,
+        LauncherSettings.WEATHER_ICON_ANIMATED to R.string.settings_weather_icon_animated,
+    )
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_weather_icon))
+            Spacer(Modifier.height(14.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                styles.forEach { (key, label) ->
+                    FilterChip(selected = selected == key, onClick = { onPick(key) }, label = { Text(stringResource(label)) })
                 }
             }
         }

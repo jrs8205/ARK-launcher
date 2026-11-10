@@ -35,6 +35,7 @@ import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.folderStyle
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.SearchResults
@@ -119,6 +120,8 @@ data class AppDrawerUiState(
     val mixDrawerFolders: Boolean = false,
     /** Icons per row in an open folder's card and editor (Settings > Home > Folder columns). */
     val folderColumns: Int = 4,
+    /** App names, icon size and row spacing of an open folder (Settings > Folder appearance, shared with home). */
+    val folderStyle: org.arkikeskus.launcher.model.FolderStyle = org.arkikeskus.launcher.model.FolderStyle(),
 )
 
 @HiltViewModel
@@ -206,6 +209,7 @@ class AppDrawerViewModel @Inject constructor(
             sortDrawerFolders = settings.sortDrawerFolders,
             mixDrawerFolders = settings.mixDrawerFolders,
             folderColumns = settings.folderColumns,
+            folderStyle = settings.folderStyle(),
         )
     }.combine(notificationBadgeRepository.badges) { state, badges ->
         state.copy(badges = badges)

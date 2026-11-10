@@ -81,7 +81,8 @@ class SettingsRepository @Inject constructor(
                             Keys.HOME_PAGE.name, Keys.HOME_PAGE_COUNT.name ->
                                 it.toLong().coerceIn(0L, HomeLayoutRepository.MAX_PAGES.toLong()).toInt()
                             // An ARGB colour arrives as the signed Int's Long, or its unsigned form: wrap.
-                            Keys.APP_LABEL_COLOR.name, Keys.DRAWER_BACKGROUND_COLOR.name, Keys.DRAWER_LABEL_COLOR.name -> it.toInt()
+                            Keys.APP_LABEL_COLOR.name, Keys.DRAWER_BACKGROUND_COLOR.name, Keys.DRAWER_LABEL_COLOR.name,
+                            Keys.FOLDER_BACKGROUND_COLOR.name, Keys.SMARTSPACE_BACKGROUND_COLOR.name -> it.toInt()
                             else -> it.toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
                         }
                     }
@@ -157,6 +158,21 @@ class SettingsRepository @Inject constructor(
             networkPlaceNames = p[Keys.NETWORK_PLACE_NAMES] ?: false,
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
             hideSystemNavigationBar = p[Keys.HIDE_SYSTEM_NAVIGATION_BAR] ?: false,
+            folderShowLabels = p[Keys.FOLDER_SHOW_LABELS] ?: true,
+            folderIconScale = (p[Keys.FOLDER_ICON_SCALE] ?: 1f).coerceIn(MIN_FOLDER_ICON_SCALE, MAX_FOLDER_ICON_SCALE),
+            folderSpacing = (p[Keys.FOLDER_SPACING] ?: 1f).coerceIn(MIN_FOLDER_SPACING, MAX_FOLDER_SPACING),
+            folderBackgroundColor = p[Keys.FOLDER_BACKGROUND_COLOR],
+            folderBackgroundOpacity = (p[Keys.FOLDER_BACKGROUND_OPACITY] ?: 1f).coerceIn(MIN_CARD_OPACITY, 1f),
+            smartspaceBackgroundColor = p[Keys.SMARTSPACE_BACKGROUND_COLOR],
+            smartspaceBackgroundOpacity =
+                (p[Keys.SMARTSPACE_BACKGROUND_OPACITY] ?: LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND).coerceIn(0f, 1f),
+            smartspaceTextScale =
+                (p[Keys.SMARTSPACE_TEXT_SCALE] ?: 1f).coerceIn(MIN_SMARTSPACE_TEXT_SCALE, MAX_SMARTSPACE_TEXT_SCALE),
+            weatherIconStyle = (p[Keys.WEATHER_ICON_STYLE] ?: LauncherSettings.WEATHER_ICON_EMOJI)
+                .let { if (it in LauncherSettings.WEATHER_ICON_STYLES) it else LauncherSettings.WEATHER_ICON_EMOJI },
+            homeGlassPanel = p[Keys.HOME_GLASS_PANEL] ?: false,
+            homeGlassOpacity =
+                (p[Keys.HOME_GLASS_OPACITY] ?: LauncherSettings.DEFAULT_GLASS_OPACITY).coerceIn(MIN_GLASS_OPACITY, MAX_GLASS_OPACITY),
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: LauncherSettings.DEFAULT_STATUS_BAR_SCRIM).coerceIn(0f, 1f),
             widgetTonalBackground = p[Keys.WIDGET_TONAL_BACKGROUND] ?: false,
             widgetEdgesAlignWithIcons = p[Keys.WIDGET_INSET_LIKE_ICONS] ?: false,
@@ -580,6 +596,36 @@ class SettingsRepository @Inject constructor(
     suspend fun setHideSystemStatusBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = value }
     suspend fun setHideSystemNavigationBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_NAVIGATION_BAR] = value }
 
+    // The open folder's look (Settings > Folder appearance).
+    suspend fun setFolderShowLabels(value: Boolean) = edit { it[Keys.FOLDER_SHOW_LABELS] = value }
+    suspend fun setFolderIconScale(value: Float) =
+        edit { it[Keys.FOLDER_ICON_SCALE] = value.coerceIn(MIN_FOLDER_ICON_SCALE, MAX_FOLDER_ICON_SCALE) }
+    suspend fun setFolderSpacing(value: Float) =
+        edit { it[Keys.FOLDER_SPACING] = value.coerceIn(MIN_FOLDER_SPACING, MAX_FOLDER_SPACING) }
+    /** ARGB colour of the open folder's card; null brings the theme's own surface back. */
+    suspend fun setFolderBackgroundColor(argb: Int?) = edit {
+        if (argb == null) it.remove(Keys.FOLDER_BACKGROUND_COLOR) else it[Keys.FOLDER_BACKGROUND_COLOR] = argb
+    }
+    suspend fun setFolderBackgroundOpacity(value: Float) =
+        edit { it[Keys.FOLDER_BACKGROUND_OPACITY] = value.coerceIn(MIN_CARD_OPACITY, 1f) }
+
+    // The clock/weather widget's look (Settings > Clock and weather widget).
+    /** ARGB colour of the widget's card; null brings its own (the dark veil or the theme's surface) back. */
+    suspend fun setSmartspaceBackgroundColor(argb: Int?) = edit {
+        if (argb == null) it.remove(Keys.SMARTSPACE_BACKGROUND_COLOR) else it[Keys.SMARTSPACE_BACKGROUND_COLOR] = argb
+    }
+    suspend fun setSmartspaceBackgroundOpacity(value: Float) =
+        edit { it[Keys.SMARTSPACE_BACKGROUND_OPACITY] = value.coerceIn(0f, 1f) }
+    suspend fun setSmartspaceTextScale(value: Float) =
+        edit { it[Keys.SMARTSPACE_TEXT_SCALE] = value.coerceIn(MIN_SMARTSPACE_TEXT_SCALE, MAX_SMARTSPACE_TEXT_SCALE) }
+    /** One of [LauncherSettings.WEATHER_ICON_STYLES]; anything else reads as the standard emoji. */
+    suspend fun setWeatherIconStyle(value: String) = edit { it[Keys.WEATHER_ICON_STYLE] = value }
+
+    // The glass panel behind the home grid.
+    suspend fun setHomeGlassPanel(value: Boolean) = edit { it[Keys.HOME_GLASS_PANEL] = value }
+    suspend fun setHomeGlassOpacity(value: Float) =
+        edit { it[Keys.HOME_GLASS_OPACITY] = value.coerceIn(MIN_GLASS_OPACITY, MAX_GLASS_OPACITY) }
+
     /** Darkness of the themed status bar's scrim (0..1). */
     suspend fun setStatusBarScrimOpacity(value: Float) =
         edit { it[Keys.STATUS_BAR_SCRIM] = value.coerceIn(0f, 1f) }
@@ -833,6 +879,17 @@ class SettingsRepository @Inject constructor(
         val NETWORK_PLACE_NAMES = booleanPreferencesKey("network_place_names")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val HIDE_SYSTEM_NAVIGATION_BAR = booleanPreferencesKey("hide_system_navigation_bar")
+        val FOLDER_SHOW_LABELS = booleanPreferencesKey("folder_show_labels")
+        val FOLDER_ICON_SCALE = floatPreferencesKey("folder_icon_scale")
+        val FOLDER_SPACING = floatPreferencesKey("folder_spacing")
+        val FOLDER_BACKGROUND_COLOR = intPreferencesKey("folder_background_color")
+        val FOLDER_BACKGROUND_OPACITY = floatPreferencesKey("folder_background_opacity")
+        val SMARTSPACE_BACKGROUND_COLOR = intPreferencesKey("smartspace_background_color")
+        val SMARTSPACE_BACKGROUND_OPACITY = floatPreferencesKey("smartspace_background_opacity")
+        val SMARTSPACE_TEXT_SCALE = floatPreferencesKey("smartspace_text_scale")
+        val WEATHER_ICON_STYLE = stringPreferencesKey("weather_icon_style")
+        val HOME_GLASS_PANEL = booleanPreferencesKey("home_glass_panel")
+        val HOME_GLASS_OPACITY = floatPreferencesKey("home_glass_opacity")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
@@ -877,6 +934,16 @@ class SettingsRepository @Inject constructor(
         /** Valid range for the long-press delay slider (a multiplier on the system timeout). */
         const val MIN_LONG_PRESS_SCALE = 0.5f
         const val MAX_LONG_PRESS_SCALE = 2.0f
+        const val MIN_FOLDER_ICON_SCALE = 0.7f
+        const val MAX_FOLDER_ICON_SCALE = 1.3f
+        const val MIN_FOLDER_SPACING = 0.5f
+        const val MAX_FOLDER_SPACING = 1.5f
+        /** The least solid a folder's card can be: its icons must stay apart from the home screen behind. */
+        const val MIN_CARD_OPACITY = 0.2f
+        const val MIN_SMARTSPACE_TEXT_SCALE = 0.8f
+        const val MAX_SMARTSPACE_TEXT_SCALE = 1.4f
+        const val MIN_GLASS_OPACITY = 0.05f
+        const val MAX_GLASS_OPACITY = 0.6f
         const val MIN_ICON_SWIPE_DISTANCE = 1.0f
         const val MAX_ICON_SWIPE_DISTANCE = 4.0f
 
@@ -889,11 +956,13 @@ class SettingsRepository @Inject constructor(
         val FLOAT_KEYS = setOf(
             "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "drawer_icon_scale",
             "status_bar_scrim", "long_press_scale", "drawer_blur_strength", "drawer_picture_dim",
-            "icon_swipe_distance",
+            "icon_swipe_distance", "folder_icon_scale", "folder_spacing", "folder_background_opacity",
+            "smartspace_background_opacity", "smartspace_text_scale", "home_glass_opacity",
         )
         val INT_KEYS = setOf(
             "dock_columns", "dock_bottom_spacing", "home_columns", "home_rows", "drawer_columns", "app_label_color",
             "home_page", "home_page_count", "folder_columns", "drawer_background_color", "drawer_label_color",
+            "folder_background_color", "smartspace_background_color",
         )
 
         /** Known boolean/string preference keys. importRaw writes a known key ONLY with its
@@ -909,14 +978,14 @@ class SettingsRepository @Inject constructor(
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
             "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders", "blur_behind_drawer",
-            "theme_all_icons", "hide_system_navigation_bar",
+            "theme_all_icons", "hide_system_navigation_bar", "folder_show_labels", "home_glass_panel",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
             "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
-            "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps",
+            "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps", "weather_icon_style",
         )
 
         /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */

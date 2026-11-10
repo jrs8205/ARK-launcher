@@ -33,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -81,6 +82,9 @@ import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.unit.toSize
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
+import org.arkikeskus.launcher.model.FolderStyle
+import org.arkikeskus.launcher.model.argbLuminance
+import org.arkikeskus.launcher.model.contentIsDarkOn
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
@@ -104,6 +108,21 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private const val FOLDER_COLUMNS = 4
+
+/** The open folder's card colour and the colour of what is written on it. */
+internal data class FolderCardColors(val container: Color, val content: Color)
+
+/**
+ * The card's colours for [style]: the theme's [surface] and [onSurface] as always, the surface at the
+ * chosen opacity; a colour of the user's is painted at the opacity, and the text is then black or
+ * white by what the card looks like over the dimmed home screen behind it.
+ */
+internal fun folderCardColors(style: FolderStyle, surface: Color, onSurface: Color): FolderCardColors {
+    val argb = style.backgroundColor
+        ?: return FolderCardColors(if (style.backgroundOpacity >= 1f) surface else surface.copy(alpha = style.backgroundOpacity), onSurface)
+    val dark = contentIsDarkOn(argbLuminance(argb), style.backgroundOpacity)
+    return FolderCardColors(Color(argb).copy(alpha = style.backgroundOpacity), if (dark) Color.Black else Color.White)
+}
 
 /**
  * The open folder: a card in the home screen's own window (not a sheet in a window of its own, so a
@@ -150,6 +169,8 @@ internal fun FolderCard(
     showName: Boolean = true,
     /** Icons per row (Settings > Home > Folder columns). */
     columns: Int = FOLDER_COLUMNS,
+    /** App names, icon size, row spacing and the card's colour (Settings > Folder appearance). */
+    style: FolderStyle = FolderStyle(),
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -228,9 +249,11 @@ internal fun FolderCard(
             .pointerInput(Unit) { detectTapGestures { currentOnDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
+        val cardColors = folderCardColors(style, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface)
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = cardColors.container,
+            contentColor = cardColors.content,
             modifier = Modifier
                 .padding(16.dp)
                 .widthIn(max = 360.dp)
@@ -283,6 +306,16 @@ internal fun FolderCard(
                                 onValueChange = { name = it; onRename(it) },
                                 singleLine = true,
                                 label = { Text(stringResource(R.string.folder_name_label)) },
+                                // On a card colour of the user's the field follows the card's text colour.
+                                colors = if (style.backgroundColor == null) OutlinedTextFieldDefaults.colors() else OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = cardColors.content,
+                                    unfocusedTextColor = cardColors.content,
+                                    focusedLabelColor = cardColors.content,
+                                    unfocusedLabelColor = cardColors.content.copy(alpha = 0.7f),
+                                    focusedBorderColor = cardColors.content,
+                                    unfocusedBorderColor = cardColors.content.copy(alpha = 0.5f),
+                                    cursorColor = cardColors.content,
+                                ),
                                 modifier = Modifier.weight(1f),
                             )
                             IconButton(onClick = { editing = false }) {
@@ -311,15 +344,15 @@ internal fun FolderCard(
                 }
 
                 // The icon follows the user's icon-size setting, capped by the slot like the drawer.
-                val nominalIconSize = 56.dp * iconScale
+                val nominalIconSize = 56.dp * iconScale * style.iconScale
                 val iconSize = if (gridWidthPx > 0) {
                     iconSizeForCell(with(density) { (gridWidthPx.toFloat() / columns).toDp() }, nominalIconSize)
                 } else {
                     nominalIconSize
                 }
                 val rowHeight = iconSize +
-                    labelBlockHeight(showLabel = true, labelScale = labelScale, fontFactor = labelFontFactor(density.fontScale), lines = 2) +
-                    20.dp
+                    labelBlockHeight(showLabel = style.showLabels, labelScale = labelScale, fontFactor = labelFontFactor(density.fontScale), lines = 2) +
+                    20.dp * style.spacing
                 // Up to four rows without scrolling when the screen allows; taller folders scroll.
                 val gridMaxHeight: Dp = min(rowHeight * 4, with(density) { windowHeightPx.toDp() } * 0.6f)
                 val gridState = rememberLazyGridState()
@@ -466,9 +499,9 @@ internal fun FolderCard(
                         items(items = shown, key = { it.key }) { app ->
                             AppIcon(
                                 appItem = app,
-                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                labelColor = cardColors.content,
                                 iconSize = iconSize,
-                                showLabel = true,
+                                showLabel = style.showLabels,
                                 maxLabelLines = 2,
                                 // Every slot reserves both label lines, as the home grid's do: the
                                 // rows stay one height (the one [gridMaxHeight] counts) whether or
@@ -492,7 +525,7 @@ internal fun FolderCard(
                                             dragController.draggedApp?.key == app.key
                                         ) 0.3f else 1f
                                     }
-                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    .padding(vertical = 10.dp * style.spacing, horizontal = 4.dp),
                             )
                         }
                     }

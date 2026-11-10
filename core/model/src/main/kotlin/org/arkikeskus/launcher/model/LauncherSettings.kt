@@ -136,6 +136,30 @@ data class LauncherSettings(
      *  the foreground, home and app drawer alike. A swipe from the bottom edge still brings it back
      *  for a moment; independent of [hideSystemStatusBar]. */
     val hideSystemNavigationBar: Boolean = false,
+    /** The open folder's look ([folderStyle]): app names under the icons, */
+    val folderShowLabels: Boolean = true,
+    /** the icons' size on top of [iconScale] (0.7-1.3), */
+    val folderIconScale: Float = 1.0f,
+    /** the room between the rows (0.5 = tight, 1.5 = airy), */
+    val folderSpacing: Float = 1.0f,
+    /** the card's ARGB colour (null = the theme's surface) */
+    val folderBackgroundColor: Int? = null,
+    /** and how solid the card is (1 = solid). */
+    val folderBackgroundOpacity: Float = 1.0f,
+    /** The clock/weather widget's card: its ARGB colour (null = the dark veil, or the theme's surface with
+     *  [widgetTonalBackground]) */
+    val smartspaceBackgroundColor: Int? = null,
+    /** at this opacity (the veil's own out of the box), */
+    val smartspaceBackgroundOpacity: Float = DEFAULT_SMARTSPACE_BACKGROUND,
+    /** the multiplier on its text sizes (0.8-1.4) */
+    val smartspaceTextScale: Float = 1.0f,
+    /** and how its weather icon is shown: [WEATHER_ICON_EMOJI], [WEATHER_ICON_LARGE], [WEATHER_ICON_COLOR]
+     *  or [WEATHER_ICON_ANIMATED]. */
+    val weatherIconStyle: String = WEATHER_ICON_EMOJI,
+    /** A frosted glass panel behind the home grid, between the wallpaper and the icons, */
+    val homeGlassPanel: Boolean = false,
+    /** and how strong its tint is. */
+    val homeGlassOpacity: Float = DEFAULT_GLASS_OPACITY,
     /** Darkness of the scrim drawn behind the themed status bar (0 = none, 1 = solid black); keeps the
      *  clock/indicators legible over bright wallpapers. Own setting, like [dockBackgroundOpacity]. */
     val statusBarScrimOpacity: Float = DEFAULT_STATUS_BAR_SCRIM,
@@ -216,6 +240,22 @@ data class LauncherSettings(
         /** [drawerBackgroundColor]'s "Transparent" choice: no colour layer, only the (blurred) wallpaper behind the
          *  drawer. The ARGB of a fully transparent black, which no swatch is. */
         const val DRAWER_COLOR_TRANSPARENT = 0
+
+        /** [smartspaceBackgroundOpacity] out of the box: the dark veil the widget has always had. */
+        const val DEFAULT_SMARTSPACE_BACKGROUND = 0.30f
+
+        /** [homeGlassOpacity] out of the box. */
+        const val DEFAULT_GLASS_OPACITY = 0.18f
+
+        /** [weatherIconStyle]: the emoji in the text, as always. */
+        const val WEATHER_ICON_EMOJI = "emoji"
+        /** The emoji, larger, beside the text. */
+        const val WEATHER_ICON_LARGE = "large"
+        /** A drawn icon in colour. */
+        const val WEATHER_ICON_COLOR = "color"
+        /** The drawn icon, moving for a moment whenever the home screen comes back. */
+        const val WEATHER_ICON_ANIMATED = "animated"
+        val WEATHER_ICON_STYLES = listOf(WEATHER_ICON_EMOJI, WEATHER_ICON_LARGE, WEATHER_ICON_COLOR, WEATHER_ICON_ANIMATED)
 
         /** [drawerPictureDim] out of the box: none, only the picture shows. */
         const val DEFAULT_DRAWER_PICTURE_DIM = 0f
