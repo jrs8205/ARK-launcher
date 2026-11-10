@@ -46,6 +46,7 @@ class AppSwipeDownTest {
     private val entries = listOf(PlacedApp(mail, page = 0, cellX = 1, cellY = 2), PlacedApp(chat, page = 0, cellX = 2, cellY = 4))
     private val launchedUp = mutableListOf<AppItem>()
     private val launchedDown = mutableListOf<AppItem>()
+    private val clicked = mutableListOf<AppItem>()
     private var drawerDrags = 0
     private var shadeOpens = 0
     private var iconSwipeDistance by mutableFloatStateOf(1f)
@@ -81,7 +82,7 @@ class AppSwipeDownTest {
                     badges = emptyMap(), badgeShowCount = false, badgeScale = 1f, showLabels = true, showPageIndicator = true,
                     locked = false, homeSignals = emptyFlow(), homePage = 0, dragController = drag,
                     widgetDragController = remember { WidgetDragController(drag) },
-                    onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
+                    onAddWidget = { _, _ -> }, onAppClick = { clicked += it }, onAppMenu = { _, _, _ -> },
                     onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
                     onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
                     onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
@@ -175,6 +176,20 @@ class AppSwipeDownTest {
 
         pull("Mail", 4f * touchSlop + 2f)
         assertThat(launchedDown).containsExactly(maps)
+    }
+
+    /** A pull that stops short of the distance and ends on the icon is a tap, like any press that rises on
+     *  it with nothing else having taken it: the sloppy tap the longer distance is for opens the icon (or
+     *  the folder), not the swipe's app and not nothing. */
+    @Test fun aPullShortOfTheDistanceThatEndsOnTheIconIsATap() {
+        show(up = mapOf(mail.key to maps), down = emptyMap(), distance = 4f)
+
+        // Upwards from the label, so the finger stays on the tile (downwards it would leave it).
+        pull("Mail", -2f * touchSlop)
+
+        assertThat(clicked).containsExactly(mail)
+        assertThat(launchedUp).isEmpty()
+        assertThat(drawerDrags).isEqualTo(0)
     }
 
     /** The setting is about icons with an action of their own: elsewhere the usual slop still applies. */
