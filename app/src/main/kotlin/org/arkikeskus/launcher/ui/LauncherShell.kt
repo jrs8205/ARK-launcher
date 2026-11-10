@@ -76,7 +76,8 @@ fun LauncherShell(
     val drawerBlur by shellViewModel.drawerBlur.collectAsStateWithLifecycle()
     val statusBars by shellViewModel.statusBars.collectAsStateWithLifecycle()
     val headsUpActive by shellViewModel.headsUpActive.collectAsStateWithLifecycle()
-    val wallpaperDarkText = rememberWallpaperSupportsDarkText()
+    val wallpaper = rememberWallpaperLook()
+    val wallpaperDarkText = wallpaper.state
     // Full-screen surfaces over home (the widget picker, the first-run intro) report what is behind the bars.
     val barCovers = remember { SystemBarCovers() }
     // Bounds keep a high-initial-velocity settle (the fling-carried spring below) from overshooting
@@ -173,6 +174,7 @@ fun LauncherShell(
         scrimOpacity = statusBars.scrimOpacity,
         headsUpActive = headsUpActive,
         wallpaperDarkText = wallpaperDarkText,
+        wallpaperLuminance = wallpaper.luminance,
         drawerSurface = statusBars.drawerSurface,
         drawerPicture = statusBars.drawerPicture,
         glassOpacity = statusBars.glassOpacity,
@@ -238,6 +240,7 @@ fun LauncherShell(
                     wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(
                         wallpaperDarkText.value,
                         statusBars.glassOpacity?.let { glassTint(it).top } ?: 0f,
+                        wallpaperLuminance = wallpaper.luminance.value,
                     ),
                     covered = barCovers.coverIsLight != null,
                 ),
