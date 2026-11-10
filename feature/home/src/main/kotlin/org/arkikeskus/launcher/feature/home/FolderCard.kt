@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
@@ -126,6 +127,11 @@ internal fun folderCardColors(style: FolderStyle, surface: Color, onSurface: Col
     val dark = contentIsDarkOn(argb, style.backgroundOpacity, dimmedHome)
     return FolderCardColors(Color(argb).copy(alpha = style.backgroundOpacity), if (dark) Color.Black else Color.White)
 }
+
+/** The colour of the card's text buttons: the theme's [accent] on the theme's own card, the card's text
+ *  colour on any other (the accent is only known to read on the theme's surface). */
+internal fun folderActionColor(colors: FolderCardColors, themeText: Color, accent: Color): Color =
+    if (colors.content == themeText) accent else colors.content
 
 /** How dark the scrim under the open folder is. */
 private const val FOLDER_SCRIM_ALPHA = 0.5f
@@ -538,7 +544,13 @@ internal fun FolderCard(
                     }
                 }
                 if (editing) {
-                    TextButton(onClick = { confirmDelete = true }, modifier = Modifier.align(Alignment.End)) {
+                    TextButton(
+                        onClick = { confirmDelete = true },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = folderActionColor(cardColors, themeText, MaterialTheme.colorScheme.primary),
+                        ),
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
                         Text(stringResource(R.string.folder_delete))
                     }
                 }

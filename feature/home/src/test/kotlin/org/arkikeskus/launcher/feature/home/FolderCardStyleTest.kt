@@ -128,6 +128,15 @@ class FolderCardStyleTest {
             .isEqualTo(Color.White)
     }
 
+    /** The editor's "Delete folder" is the theme's accent on the theme's card; on any other card it takes
+     *  the card's own text colour (a pale accent on a white card of the user's was unreadable). */
+    @Test fun theDeleteButtonReadsOnTheCard() {
+        val onSurface = Color(0xFFE2E2E9)
+        val accent = Color(0xFFB0C6FF)
+        assertThat(folderActionColor(FolderCardColors(Color(0xFF111318), onSurface), themeText = onSurface, accent = accent)).isEqualTo(accent)
+        assertThat(folderActionColor(FolderCardColors(Color.White, Color.Black), themeText = onSurface, accent = accent)).isEqualTo(Color.Black)
+    }
+
     /** The theme's own light surface at 20 % over a black wallpaper is a nearly black card: its text
      *  must turn light too, not stay the theme's dark one. */
     @Test fun theThemesSurfaceMadeSeeThroughTakesReadableText() {
