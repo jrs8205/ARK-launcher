@@ -14,6 +14,7 @@
     <string name="edit_title">Изменить</string>
     <string name="edit_icon_hint">Нажмите на значок, чтобы изменить его</string>
     <string name="edit_swipe_up">Свайп вверх открывает</string>
+    <string name="edit_swipe_down">Свайп вниз открывает</string>
     <string name="edit_swipe_up_none">Ничего</string>
     <string name="edit_swipe_up_none_option">Ничего (обычный жест)</string>
     <string name="icon_change">Изменить значок</string>

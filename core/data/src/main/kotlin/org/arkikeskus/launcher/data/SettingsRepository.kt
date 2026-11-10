@@ -147,6 +147,7 @@ class SettingsRepository @Inject constructor(
             // Unset, the drawer follows home's scale (the one slider before 0.9.8).
             drawerIconScale = (p[Keys.DRAWER_ICON_SCALE] ?: p[Keys.ICON_SCALE] ?: 1.0f).coerceIn(MIN_ICON_SCALE, MAX_ICON_SCALE),
             longPressScale = (p[Keys.LONG_PRESS_SCALE] ?: 1.0f).coerceIn(MIN_LONG_PRESS_SCALE, MAX_LONG_PRESS_SCALE),
+            iconSwipeDistance = (p[Keys.ICON_SWIPE_DISTANCE] ?: 1.0f).coerceIn(MIN_ICON_SWIPE_DISTANCE, MAX_ICON_SWIPE_DISTANCE),
             twoLineHomeLabels = p[Keys.TWO_LINE_HOME_LABELS] ?: false,
             twoLineDrawerLabels = p[Keys.TWO_LINE_DRAWER_LABELS] ?: true,
             appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
@@ -321,6 +322,16 @@ class SettingsRepository @Inject constructor(
         val current = parseLabels(p[Keys.SWIPE_UP_APPS]).toMutableMap()
         if (target == null) current.remove(key) else current[key] = target
         p[Keys.SWIPE_UP_APPS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+    }
+
+    /** "Swipe down opens": the same pairing for a swipe DOWN on the icon, kept apart from [swipeUpApps]. */
+    val swipeDownApps: Flow<Map<String, String>> = dataStore.data.map { p -> parseLabels(p[Keys.SWIPE_DOWN_APPS]) }
+
+    /** Sets (or, for null, clears) the app a swipe down on the icon of [key] opens. */
+    suspend fun setSwipeDownApp(key: String, target: String?) = edit { p ->
+        val current = parseLabels(p[Keys.SWIPE_DOWN_APPS]).toMutableMap()
+        if (target == null) current.remove(key) else current[key] = target
+        p[Keys.SWIPE_DOWN_APPS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
     }
 
     /** Icons the user picked for single apps (AppItem.key -> icon), shown in place of their own. */
@@ -541,6 +552,10 @@ class SettingsRepository @Inject constructor(
     suspend fun setLongPressScale(value: Float) =
         edit { it[Keys.LONG_PRESS_SCALE] = value.coerceIn(MIN_LONG_PRESS_SCALE, MAX_LONG_PRESS_SCALE) }
 
+    /** Multiplier on the travel of a swipe from an icon with its own swipe action (clamped to the slider's range). */
+    suspend fun setIconSwipeDistance(value: Float) =
+        edit { it[Keys.ICON_SWIPE_DISTANCE] = value.coerceIn(MIN_ICON_SWIPE_DISTANCE, MAX_ICON_SWIPE_DISTANCE) }
+
     /** ARGB color for the home-surface app icon labels. */
     suspend fun setAppLabelColor(argb: Int) = edit { it[Keys.APP_LABEL_COLOR] = argb }
     /** ARGB colour of the app drawer's grid labels; null clears back to the automatic black or white. */
@@ -759,6 +774,7 @@ class SettingsRepository @Inject constructor(
         val FOLDER_ICONS = stringPreferencesKey("folder_icons")
         val SHORTCUT_ICONS = stringPreferencesKey("shortcut_icons")
         val SWIPE_UP_APPS = stringPreferencesKey("swipe_up_apps")
+        val SWIPE_DOWN_APPS = stringPreferencesKey("swipe_down_apps")
         val DRAWER_FOLDERS = stringPreferencesKey("drawer_folders")
         val SHOW_DOCK_LABELS = booleanPreferencesKey("show_dock_labels")
         val SHOW_HOME_LABELS = booleanPreferencesKey("show_home_labels")
@@ -807,6 +823,7 @@ class SettingsRepository @Inject constructor(
         val ICON_SCALE = floatPreferencesKey("icon_scale")
         val DRAWER_ICON_SCALE = floatPreferencesKey("drawer_icon_scale")
         val LONG_PRESS_SCALE = floatPreferencesKey("long_press_scale")
+        val ICON_SWIPE_DISTANCE = floatPreferencesKey("icon_swipe_distance")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
         val DRAWER_LABEL_COLOR = intPreferencesKey("drawer_label_color")
         val TWO_LINE_HOME_LABELS = booleanPreferencesKey("two_line_home_labels")
@@ -860,6 +877,8 @@ class SettingsRepository @Inject constructor(
         /** Valid range for the long-press delay slider (a multiplier on the system timeout). */
         const val MIN_LONG_PRESS_SCALE = 0.5f
         const val MAX_LONG_PRESS_SCALE = 2.0f
+        const val MIN_ICON_SWIPE_DISTANCE = 1.0f
+        const val MAX_ICON_SWIPE_DISTANCE = 4.0f
 
         /** Valid range for the drawer blur strength slider (a multiplier on the 0.9.9 blur radius); the bottom is a
          *  tenth because a quarter still hid the wallpaper's detail on the owner's Pixel. */
@@ -870,6 +889,7 @@ class SettingsRepository @Inject constructor(
         val FLOAT_KEYS = setOf(
             "dock_opacity", "drawer_opacity", "notif_dot_scale", "app_label_scale", "icon_scale", "drawer_icon_scale",
             "status_bar_scrim", "long_press_scale", "drawer_blur_strength", "drawer_picture_dim",
+            "icon_swipe_distance",
         )
         val INT_KEYS = setOf(
             "dock_columns", "dock_bottom_spacing", "home_columns", "home_rows", "drawer_columns", "app_label_color",
@@ -896,7 +916,7 @@ class SettingsRepository @Inject constructor(
             "notif_widget_count_style", "icon_pack_package", "left_swipe_app_key", "weather_app_key", "home_page_marker",
             "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
-            "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps",
+            "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps",
         )
 
         /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */
@@ -916,7 +936,7 @@ class SettingsRepository @Inject constructor(
          *  file's keys are remapped before they become dock rows. */
         val APP_KEY_PREFS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "custom_icons", "drawer_folders", "left_swipe_app_key", "weather_app_key",
-            "swipe_up_apps",
+            "swipe_up_apps", "swipe_down_apps",
         )
 
         /** Every preference keyed by something that ends in a profile serial: the app keys above and the
@@ -927,7 +947,7 @@ class SettingsRepository @Inject constructor(
         /**
          * Rewrites each app key inside the value [raw] of the [APP_KEY_PREFS] preference [name] with
          * [transform]; null drops that entry (a dock or hidden entry, a label line, a drawer-folder
-         * member, the left-swipe or weather app, a swipe-up pairing when EITHER of its apps goes).
+         * member, the left-swipe or weather app, a swipe-up or swipe-down pairing when EITHER of its apps goes).
          * Duplicates a rewrite creates collapse into the first one.
          * Folders that end up empty stay (an empty drawer folder is a normal state), and any other
          * preference comes back unchanged.
@@ -948,7 +968,7 @@ class SettingsRepository @Inject constructor(
                 }
                 "left_swipe_app_key", "weather_app_key" -> if (raw.isBlank()) raw else transform(raw.trim()).orEmpty()
                 // Both sides are app keys: the icon swiped and the app it opens.
-                "swipe_up_apps" -> lines.mapNotNull { line ->
+                "swipe_up_apps", "swipe_down_apps" -> lines.mapNotNull { line ->
                     val tab = line.indexOf('\t')
                     if (tab <= 0) return@mapNotNull null
                     val icon = transform(line.substring(0, tab)) ?: return@mapNotNull null

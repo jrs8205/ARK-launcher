@@ -14,6 +14,7 @@
     <string name="edit_title">Muokkaa</string>
     <string name="edit_icon_hint">Vaihda kuvake napauttamalla sitä</string>
     <string name="edit_swipe_up">Pyyhkäisy ylös avaa</string>
+    <string name="edit_swipe_down">Pyyhkäisy alas avaa</string>
     <string name="edit_swipe_up_none">Ei mitään</string>
     <string name="edit_swipe_up_none_option">Ei mitään (tavallinen pyyhkäisy)</string>
     <string name="icon_change">Vaihda kuvake</string>

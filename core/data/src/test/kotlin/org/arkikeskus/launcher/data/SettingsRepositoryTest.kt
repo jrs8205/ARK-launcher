@@ -127,6 +127,44 @@ class SettingsRepositoryTest {
         assertThat(repo.settings.first().searchContacts).isFalse()
     }
 
+    /** "Swipe down opens" is a second, separate set of pairings beside the swipe-up one. */
+    @Test
+    fun `swipeDownApps defaults to empty, round-trips, clears and stays apart from swipeUpApps`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.swipeDownApps.first()).isEmpty()
+
+        repo.setSwipeUpApp("a/a.M/0", "u/u.M/0")
+        repo.setSwipeDownApp("a/a.M/0", "b/b.M/0")
+        repo.setSwipeDownApp("c/c.M/0", "b/b.M/0")
+        repo.setSwipeDownApp("c/c.M/0", null)
+        assertThat(repo.swipeDownApps.first()).containsExactly("a/a.M/0", "b/b.M/0")
+        assertThat(repo.swipeUpApps.first()).containsExactly("a/a.M/0", "u/u.M/0")
+
+        val restored = newRepository()
+        restored.importRaw(repo.exportRaw())
+        assertThat(restored.swipeDownApps.first()).containsExactly("a/a.M/0", "b/b.M/0")
+    }
+
+    /** "Icon swipe distance": 100 % out of the box, kept within 100-400 %, and in the backup as a number. */
+    @Test
+    fun `iconSwipeDistance defaults to one, clamps and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(1.0f)
+
+        repo.setIconSwipeDistance(2.5f)
+        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(2.5f)
+        repo.setIconSwipeDistance(9f)
+        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(4.0f)
+        repo.setIconSwipeDistance(0.2f)
+        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(1.0f)
+
+        repo.setIconSwipeDistance(3f)
+        val restored = newRepository()
+        restored.importRaw(mapOf("icon_swipe_distance" to 3))
+        assertThat(restored.settings.first().iconSwipeDistance).isEqualTo(3.0f)
+        assertThat(repo.exportRaw()).containsEntry("icon_swipe_distance", 3.0f)
+    }
+
     /** The app a swipe up on an app's icon opens (app key -> app key): none out of the box, one per
      *  app, cleared with null, and in the backup like the other app-keyed settings. */
     @Test

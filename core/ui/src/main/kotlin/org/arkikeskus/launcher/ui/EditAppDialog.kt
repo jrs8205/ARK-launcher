@@ -3,6 +3,8 @@ package org.arkikeskus.launcher.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,7 +43,8 @@ import org.arkikeskus.launcher.ui.component.AppIcon
  * (null = the app's own); [onReset] brings back both of the app's own. A gallery picture imported
  * here but not saved is deleted again when the dialog goes — by its buttons or from outside (HOME).
  * With [swipeUp] (home's dialog) a "Swipe up opens" row follows the name: the app a swipe up on this
- * icon opens, picked from the other apps and saved at once — Save and Reset leave it alone.
+ * icon opens, picked from the other apps and saved at once — Save and Reset leave it alone. With
+ * [swipeDown] a "Swipe down opens" row of the same kind follows it.
  */
 @Composable
 fun EditAppDialog(
@@ -50,6 +53,7 @@ fun EditAppDialog(
     onReset: () -> Unit,
     onDismiss: () -> Unit,
     swipeUp: SwipeUpChoice? = null,
+    swipeDown: SwipeUpChoice? = null,
 ) {
     val choices by rememberUpdatedState(LocalIconChoices.current)
     var name by rememberSaveable(app.key) { mutableStateOf(app.label) }
@@ -70,7 +74,11 @@ fun EditAppDialog(
         onDismissRequest = { leave(app.customIcon) },
         title = { Text(stringResource(R.string.edit_title)) },
         text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            // Scrollable: with both swipe rows the content is taller than a small screen's dialog.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            ) {
                 val changeIcon = stringResource(R.string.icon_change)
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -94,7 +102,8 @@ fun EditAppDialog(
                     singleLine = true,
                     label = { Text(stringResource(R.string.rename_label)) },
                 )
-                if (swipeUp != null) SwipeUpRow(app, swipeUp)
+                if (swipeUp != null) SwipeUpRow(app, swipeUp, R.string.edit_swipe_up)
+                if (swipeDown != null) SwipeUpRow(app, swipeDown, R.string.edit_swipe_down)
             }
         },
         confirmButton = {
@@ -128,14 +137,14 @@ fun EditAppDialog(
 }
 
 /**
- * The "Swipe up opens" row of [EditAppDialog]: [target] is the app a swipe up on the edited icon opens
+ * A "Swipe up opens" / "Swipe down opens" row of [EditAppDialog]: [target] is the app that swipe on the edited icon opens
  * today (null = none, the usual swipe), [apps] every app to choose from (the edited one is left out),
  * and [onPick] gets the choice — an app, or null for none — to save at once.
  */
 class SwipeUpChoice(val target: AppItem?, val apps: List<AppItem>, val onPick: (AppItem?) -> Unit)
 
 @Composable
-private fun SwipeUpRow(app: AppItem, choice: SwipeUpChoice) {
+private fun SwipeUpRow(app: AppItem, choice: SwipeUpChoice, @androidx.annotation.StringRes title: Int) {
     // Shows the pick at once; a change from outside (the saved choice arriving) resets it to that.
     var target by remember(app.key, choice.target) { mutableStateOf(choice.target) }
     var picking by remember { mutableStateOf(false) }
@@ -149,7 +158,7 @@ private fun SwipeUpRow(app: AppItem, choice: SwipeUpChoice) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.edit_swipe_up), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(title), style = MaterialTheme.typography.bodyMedium)
             Text(
                 target?.label ?: stringResource(R.string.edit_swipe_up_none),
                 style = MaterialTheme.typography.bodySmall,
@@ -160,7 +169,7 @@ private fun SwipeUpRow(app: AppItem, choice: SwipeUpChoice) {
     }
     if (picking) {
         AppPickerDialog(
-            title = stringResource(R.string.edit_swipe_up),
+            title = stringResource(title),
             apps = choice.apps.filter { it.key != app.key },
             noneLabel = stringResource(R.string.edit_swipe_up_none_option),
             onPick = { picked ->

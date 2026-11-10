@@ -14,6 +14,7 @@
     <string name="edit_title">Edit</string>
     <string name="edit_icon_hint">Tap the icon to change it</string>
     <string name="edit_swipe_up">Swipe up opens</string>
+    <string name="edit_swipe_down">Swipe down opens</string>
     <string name="edit_swipe_up_none">None</string>
     <string name="edit_swipe_up_none_option">None (the usual swipe)</string>
     <string name="icon_change">Change icon</string>

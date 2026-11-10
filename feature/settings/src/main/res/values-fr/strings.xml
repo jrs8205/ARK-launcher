@@ -135,6 +135,8 @@
     <string name="settings_reset_default">Par défaut %1$s</string>
     <string name="settings_long_press_delay">Délai d’appui long</string>
     <string name="settings_long_press_delay_desc">Durée pendant laquelle maintenir une icône avant que son menu s’ouvre ou qu’elle puisse être déplacée</string>
+    <string name="settings_icon_swipe_distance">Distance de balayage sur les icônes</string>
+    <string name="settings_icon_swipe_distance_desc">Distance qu’un balayage depuis une icône ou un dossier doit parcourir avant d’ouvrir son application. Augmentez-la si les balayages se déclenchent trop facilement.</string>
     <string name="settings_label_color">Couleur du texte</string>
     <string name="settings_font">Police</string>
     <string name="settings_font_desc">Pour tout ce que le lanceur dessine lui-même ; les widgets gardent la leur.</string>

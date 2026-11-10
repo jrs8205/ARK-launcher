@@ -138,6 +138,8 @@
     <string name="settings_reset_default">Domyślnie %1$s</string>
     <string name="settings_long_press_delay">Opóźnienie długiego naciśnięcia</string>
     <string name="settings_long_press_delay_desc">Jak długo przytrzymać ikonę, zanim otworzy się jej menu lub będzie można ją przesunąć</string>
+    <string name="settings_icon_swipe_distance">Długość przeciągnięcia na ikonach</string>
+    <string name="settings_icon_swipe_distance_desc">Jak daleko musi sięgnąć przeciągnięcie od ikony lub folderu, zanim otworzy swoją aplikację. Zwiększ, jeśli gesty uruchamiają się zbyt łatwo.</string>
     <string name="settings_label_color">Kolor tekstu etykiet</string>
     <string name="settings_font">Czcionka</string>
     <string name="settings_font_desc">Dla wszystkiego, co launcher rysuje sam; widżety zachowują własną.</string>

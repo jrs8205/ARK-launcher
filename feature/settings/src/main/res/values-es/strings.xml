@@ -135,6 +135,8 @@
     <string name="settings_reset_default">Predeterminado %1$s</string>
     <string name="settings_long_press_delay">Retardo de la pulsación larga</string>
     <string name="settings_long_press_delay_desc">Cuánto tiempo hay que mantener pulsado un icono antes de que se abra su menú o se pueda mover</string>
+    <string name="settings_icon_swipe_distance">Distancia de deslizamiento en iconos</string>
+    <string name="settings_icon_swipe_distance_desc">Cuánto debe recorrer un deslizamiento desde un icono o una carpeta antes de abrir su aplicación. Auméntala si los deslizamientos se activan con demasiada facilidad.</string>
     <string name="settings_label_color">Color del texto</string>
     <string name="settings_font">Fuente</string>
     <string name="settings_font_desc">Para todo lo que dibuja el propio launcher; los widgets conservan la suya.</string>

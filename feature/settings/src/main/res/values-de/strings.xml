@@ -132,6 +132,8 @@
     <string name="settings_reset_default">Standard %1$s</string>
     <string name="settings_long_press_delay">Verzögerung für langes Drücken</string>
     <string name="settings_long_press_delay_desc">Wie lange ein Symbol gehalten wird, bevor sein Menü aufgeht oder es verschoben werden kann</string>
+    <string name="settings_icon_swipe_distance">Wischstrecke auf Symbolen</string>
+    <string name="settings_icon_swipe_distance_desc">Wie weit eine Wischgeste von einem Symbol oder Ordner reichen muss, bevor sie ihre Wisch-App öffnet. Erhöhen, wenn Wischgesten zu leicht auslösen.</string>
     <string name="settings_label_color">Textfarbe der Beschriftungen</string>
     <string name="settings_font">Schrift</string>
     <string name="settings_font_desc">Für alles, was der Launcher selbst zeichnet; Widgets behalten ihre eigene.</string>

@@ -14,6 +14,7 @@
     <string name="edit_title">Bearbeiten</string>
     <string name="edit_icon_hint">Tippe auf das Symbol, um es zu ändern</string>
     <string name="edit_swipe_up">Wischen nach oben öffnet</string>
+    <string name="edit_swipe_down">Wischen nach unten öffnet</string>
     <string name="edit_swipe_up_none">Nichts</string>
     <string name="edit_swipe_up_none_option">Nichts (die übliche Wischgeste)</string>
     <string name="icon_change">Symbol ändern</string>

@@ -14,6 +14,7 @@
     <string name="edit_title">Modifier</string>
     <string name="edit_icon_hint">Appuyez sur l\'icône pour la changer</string>
     <string name="edit_swipe_up">Balayer vers le haut ouvre</string>
+    <string name="edit_swipe_down">Balayer vers le bas ouvre</string>
     <string name="edit_swipe_up_none">Rien</string>
     <string name="edit_swipe_up_none_option">Rien (le geste habituel)</string>
     <string name="icon_change">Changer l\'icône</string>

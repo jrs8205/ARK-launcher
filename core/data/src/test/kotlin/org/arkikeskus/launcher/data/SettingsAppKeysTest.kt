@@ -62,6 +62,9 @@ class SettingsAppKeysTest {
         // A swipe pairing goes when either side does.
         assertThat(SettingsRepository.rewriteAppKeys("swipe_up_apps", "gone/G/0\tk/K/0\nk/K/0\tgone/G/0\nm/M/0\tk/K/0", drop))
             .isEqualTo("m/M/0\tk/K/0")
+        assertThat(SettingsRepository.rewriteAppKeys("swipe_down_apps", "gone/G/0\tk/K/0\nk/K/0\tgone/G/0\nm/M/0\tk/K/0", drop))
+            .isEqualTo("m/M/0\tk/K/0")
+        assertThat(SettingsRepository.APP_KEY_PREFS).contains("swipe_down_apps")
         assertThat(SettingsRepository.rewriteAppKeys("icon_pack_package", "gone/G/0", drop)).isEqualTo("gone/G/0")
     }
 }

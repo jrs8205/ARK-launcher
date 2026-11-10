@@ -201,6 +201,8 @@ data class HomeUiState(
     /** "Swipe up opens": by the key of an app icon (home grid or dock), the installed app a swipe up
      *  on it opens — a choice whose app is gone is left out, so the icon keeps the usual swipe. */
     val swipeUpTargets: Map<String, AppItem> = emptyMap(),
+    /** "Swipe down opens": the same for a swipe down on the icon. */
+    val swipeDownTargets: Map<String, AppItem> = emptyMap(),
     /** False for the placeholder shown before settings and the layout have been read. */
     val loaded: Boolean = false,
 )
@@ -379,8 +381,8 @@ class HomeViewModel @Inject constructor(
             .combine(settingsRepository.folderIcons) { items, icons -> items to icons }
             .combine(settingsRepository.shortcutIcons) { (items, folderIcons), shortcutIcons -> Triple(items, folderIcons, shortcutIcons) },
         notificationBadgeRepository.badges,
-        settingsRepository.swipeUpApps,
-    ) { settings, apps, (homeItems, folderIcons, shortcutIcons), badges, swipeUpApps ->
+        settingsRepository.swipeUpApps.combine(settingsRepository.swipeDownApps) { up, down -> up to down },
+    ) { settings, apps, (homeItems, folderIcons, shortcutIcons), badges, (swipeUpApps, swipeDownApps) ->
         val byKey = apps.associateBy { it.key }
         // Children grouped by their folder id, kept in stored order.
         val childrenByFolder = homeItems
@@ -498,6 +500,7 @@ class HomeViewModel @Inject constructor(
             occupiedPages = occupied,
             badges = badges,
             swipeUpTargets = resolveSwipeUpTargets(swipeUpApps, byKey),
+            swipeDownTargets = resolveSwipeUpTargets(swipeDownApps, byKey),
             loaded = true,
         )
     }.stateIn(
@@ -823,6 +826,10 @@ class HomeViewModel @Inject constructor(
     /** "Swipe up opens" for [app]'s icon: [target], or null for the usual swipe again. */
     fun setSwipeUpApp(app: AppItem, target: AppItem?) =
         viewModelScope.launch { settingsRepository.setSwipeUpApp(app.key, target?.key) }
+
+    /** "Swipe down opens" for [app]'s icon: [target], or null for the usual swipe again. */
+    fun setSwipeDownApp(app: AppItem, target: AppItem?) =
+        viewModelScope.launch { settingsRepository.setSwipeDownApp(app.key, target?.key) }
 
     /** "Reset to default" in Edit: the app's own name and icon again. */
     fun resetApp(app: AppItem) = viewModelScope.launch {

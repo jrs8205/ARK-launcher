@@ -14,6 +14,7 @@
     <string name="edit_title">Düzenle</string>
     <string name="edit_icon_hint">Değiştirmek için simgeye dokunun</string>
     <string name="edit_swipe_up">Yukarı kaydırma şunu açar</string>
+    <string name="edit_swipe_down">Aşağı kaydırma şunu açar</string>
     <string name="edit_swipe_up_none">Hiçbiri</string>
     <string name="edit_swipe_up_none_option">Hiçbiri (olağan hareket)</string>
     <string name="icon_change">Simgeyi değiştir</string>

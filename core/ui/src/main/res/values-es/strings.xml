@@ -14,6 +14,7 @@
     <string name="edit_title">Editar</string>
     <string name="edit_icon_hint">Toca el icono para cambiarlo</string>
     <string name="edit_swipe_up">Deslizar hacia arriba abre</string>
+    <string name="edit_swipe_down">Deslizar hacia abajo abre</string>
     <string name="edit_swipe_up_none">Nada</string>
     <string name="edit_swipe_up_none_option">Nada (el gesto habitual)</string>
     <string name="icon_change">Cambiar icono</string>

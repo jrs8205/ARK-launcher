@@ -138,6 +138,8 @@
     <string name="settings_reset_default">По умолчанию %1$s</string>
     <string name="settings_long_press_delay">Задержка долгого нажатия</string>
     <string name="settings_long_press_delay_desc">Сколько удерживать значок, прежде чем откроется его меню или его можно будет переместить</string>
+    <string name="settings_icon_swipe_distance">Длина свайпа по значку</string>
+    <string name="settings_icon_swipe_distance_desc">Как далеко нужно провести от значка или папки, прежде чем откроется приложение свайпа. Увеличьте, если свайпы срабатывают слишком легко.</string>
     <string name="settings_label_color">Цвет подписей</string>
     <string name="settings_font">Шрифт</string>
     <string name="settings_font_desc">Для всего, что лаунчер рисует сам; виджеты сохраняют свой.</string>

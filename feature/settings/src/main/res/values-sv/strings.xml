@@ -132,6 +132,8 @@
     <string name="settings_reset_default">Standard %1$s</string>
     <string name="settings_long_press_delay">Fördröjning för långtryck</string>
     <string name="settings_long_press_delay_desc">Hur länge en ikon hålls intryckt innan dess meny öppnas eller den kan flyttas</string>
+    <string name="settings_icon_swipe_distance">Svepsträcka på ikoner</string>
+    <string name="settings_icon_swipe_distance_desc">Hur långt ett svep från en ikon eller mapp måste gå innan det öppnar sin svepapp. Öka om svepen utlöses för lätt.</string>
     <string name="settings_label_color">Textfärg för appnamn</string>
     <string name="settings_font">Typsnitt</string>
     <string name="settings_font_desc">För allt som startskärmen ritar själv; widgetar behåller sitt.</string>

@@ -154,6 +154,7 @@ class SettingsViewModel @Inject constructor(
         if (slot == SoundSlot.Lock) repository.setLockSoundUri(uri) else repository.setUnlockSoundUri(uri)
     }
     fun setLongPressScale(value: Float) = update { repository.setLongPressScale(value) }
+    fun setIconSwipeDistance(value: Float) = update { repository.setIconSwipeDistance(value) }
 
     fun setAppLabelTextScale(value: Float) = update { repository.setAppLabelTextScale(value) }
     fun setIconScale(value: Float) = update { repository.setIconScale(value) }

@@ -52,6 +52,33 @@ class HomeViewModelSwipeUpTest {
         }
     }
 
+    @Test fun theSwipeDownChoicesResolveTheSameWayApartFromTheSwipeUpOnes() = runTest {
+        installFakeApp(context, "com.mail", "Mail", className = "Main")
+        installFakeApp(context, "com.maps", "Maps", className = "Main")
+        val wiring = ProductionWiring(context, this)
+        try {
+            wiring.settingsRepository.setSwipeDownApp(app("mail").key, app("maps").key)
+            wiring.settingsRepository.setSwipeDownApp(app("maps").key, app("gone").key)
+            val viewModel = wiring.homeViewModel()
+
+            val state = awaitState(viewModel) { it.loaded && it.swipeDownTargets.isNotEmpty() }
+
+            assertThat(state.swipeDownTargets.keys).containsExactly(app("mail").key)
+            assertThat(state.swipeDownTargets[app("mail").key]?.packageName).isEqualTo("com.maps")
+            assertThat(state.swipeUpTargets).isEmpty()
+
+            viewModel.setSwipeDownApp(app("mail"), null)
+            var saved = emptyMap<String, String>()
+            awaitUntil("the saved choices") {
+                saved = wiring.settingsRepository.swipeDownApps.first()
+                saved == mapOf(app("maps").key to app("gone").key)
+            }
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
     private suspend fun awaitState(viewModel: HomeViewModel, done: (HomeUiState) -> Boolean): HomeUiState {
         var state = viewModel.uiState.value
         awaitUntil("the state") { state = viewModel.uiState.first(); done(state) }

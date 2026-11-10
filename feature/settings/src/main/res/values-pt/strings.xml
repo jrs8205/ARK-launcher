@@ -135,6 +135,8 @@
     <string name="settings_reset_default">Padrão %1$s</string>
     <string name="settings_long_press_delay">Atraso do toque longo</string>
     <string name="settings_long_press_delay_desc">Quanto tempo manter um ícone pressionado antes de o menu abrir ou de ele poder ser movido</string>
+    <string name="settings_icon_swipe_distance">Distância do deslize em ícones</string>
+    <string name="settings_icon_swipe_distance_desc">Quanto um deslize a partir de um ícone ou de uma pasta precisa percorrer antes de abrir o app dele. Aumente se os deslizes dispararem com muita facilidade.</string>
     <string name="settings_label_color">Cor dos nomes</string>
     <string name="settings_font">Fonte</string>
     <string name="settings_font_desc">Para tudo o que o launcher desenha; os widgets mantêm a sua.</string>

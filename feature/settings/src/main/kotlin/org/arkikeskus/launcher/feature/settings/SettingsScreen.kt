@@ -262,6 +262,15 @@ fun SettingsScreen(
                         step = 0.1f,
                         valueText = { resources.getString(R.string.settings_millis, (systemLongPress * it).roundToInt()) },
                     )
+                    ScaleSliderRow(
+                        label = stringResource(R.string.settings_icon_swipe_distance),
+                        description = stringResource(R.string.settings_icon_swipe_distance_desc),
+                        value = s.iconSwipeDistance,
+                        onValueChange = viewModel::setIconSwipeDistance,
+                        valueRange = 1f..4f,
+                        step = 0.25f,
+                        valueText = { resources.getString(R.string.settings_percent, (it * 100).roundToInt()) },
+                    )
                 }
 
                 CollapsibleSection(

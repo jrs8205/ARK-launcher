@@ -104,6 +104,10 @@ data class LauncherSettings(
     /** Multiplier on the system long-press timeout before an icon's menu opens or it can be moved
      *  (1.0 = the system's own delay, 0.5–2.0). */
     val longPressScale: Float = 1.0f,
+    /** Multiplier on the travel a swipe that starts on an icon with a swipe action of its own (an app's
+     *  "Swipe up/down opens" choice, a folder's first app) needs before the action fires (1.0 = the
+     *  usual touch slop, up to 4.0). The drawer and the shade keep the usual slop elsewhere. */
+    val iconSwipeDistance: Float = 1.0f,
     /** Let home-screen labels (apps, folders, shortcuts) wrap onto a second line. Off keeps the
      *  single line the home grid has always had; the dock stays single-line either way. */
     val twoLineHomeLabels: Boolean = false,

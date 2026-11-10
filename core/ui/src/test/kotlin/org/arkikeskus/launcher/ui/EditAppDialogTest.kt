@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.core.app.ActivityOptionsCompat
@@ -255,11 +256,42 @@ class EditAppDialogTest {
         compose.onNodeWithText(text(R.string.edit_swipe_up_none)).assertIsDisplayed()
     }
 
+    /** "Swipe down opens" is a row of its own under the swipe-up one, with its own target and pick. */
+    @Test fun theSwipeDownRowHasItsOwnTargetAndPick() {
+        val pickedDown = mutableListOf<AppItem?>()
+        compose.setContent {
+            CompositionLocalProvider(LocalIconChoices provides choices) {
+                EditAppDialog(
+                    app = app,
+                    onSave = { name, icon -> saved += name to icon },
+                    onReset = { resets++ },
+                    onDismiss = { dismissed++ },
+                    swipeUp = SwipeUpChoice(target = null, apps = listOf(app, maps), onPick = { picked += it }),
+                    swipeDown = SwipeUpChoice(target = null, apps = listOf(app, maps), onPick = { pickedDown += it }),
+                )
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.edit_swipe_up)).assertIsDisplayed()
+        // The lower row is reached by scrolling the dialog on a small screen.
+        compose.onNodeWithText(text(R.string.edit_swipe_down)).performScrollTo().assertIsDisplayed()
+
+        compose.onNodeWithText(text(R.string.edit_swipe_down)).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Maps").performClick()
+        compose.waitForIdle()
+
+        assertThat(pickedDown).containsExactly(maps)
+        assertThat(picked).isEmpty()
+        assertThat(saved).isEmpty()
+    }
+
     /** The drawer's dialog (and a dock app's): no swipe-up row without the choice. */
     @Test fun withoutTheChoiceThereIsNoSwipeUpRow() {
         show()
 
         compose.onAllNodesWithText(text(R.string.edit_swipe_up)).fetchSemanticsNodes().let { assertThat(it).isEmpty() }
+        compose.onAllNodesWithText(text(R.string.edit_swipe_down)).fetchSemanticsNodes().let { assertThat(it).isEmpty() }
     }
 
     @Test fun withoutIconPacksThePickerSaysSo() {

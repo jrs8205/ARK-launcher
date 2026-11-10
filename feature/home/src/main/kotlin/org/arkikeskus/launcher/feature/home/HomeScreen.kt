@@ -624,6 +624,9 @@ fun HomeScreen(
                 // "Swipe up opens" (Edit): a swipe up from a home or dock app icon opens the app chosen for it.
                 appSwipeUpTargets = if (!showOnboarding && openFolderId == null) uiState.swipeUpTargets else emptyMap(),
                 onAppSwipeUp = { launchApp(it) },
+                appSwipeDownTargets = if (!showOnboarding && openFolderId == null) uiState.swipeDownTargets else emptyMap(),
+                onAppSwipeDown = { launchApp(it) },
+                iconSwipeDistance = settings.iconSwipeDistance,
             ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -1059,6 +1062,11 @@ fun HomeScreen(
                 apps = allApps,
                 onPick = { viewModel.setSwipeUpApp(app, it) },
             ),
+            swipeDown = SwipeUpChoice(
+                target = uiState.swipeDownTargets[app.key],
+                apps = allApps,
+                onPick = { viewModel.setSwipeDownApp(app, it) },
+            ),
         )
     }
 
@@ -1095,7 +1103,10 @@ fun HomeScreen(
  *   instead (issue #17, opt-in; see [swipeUpTarget]), the rest of the gesture swallowed like the shade's;
  *   from a home or dock app icon with a "Swipe up opens" choice ([appSwipeUpTargets]) → [onAppSwipeUp]
  *   with that app, swallowed the same way.
- * - Swipe down (with [swipeDownForNotifications]) → [onOpenNotifications] (one-shot).
+ * - Swipe down (with [swipeDownForNotifications]) → [onOpenNotifications] (one-shot); one that starts on
+ *   an app icon with a "Swipe down opens" choice ([appSwipeDownTargets]) → [onAppSwipeDown] instead.
+ * - A swipe from an icon with a swipe action of its own (either choice, a folder's first app) fires only
+ *   past [iconSwipeSlop] (the "Icon swipe distance" setting); until then the gesture stays undecided.
  * - A real long-press drag — an app/dock item ([HomeDragController.isDragging]) or a folder/shortcut
  *   ([HomeDragController.localGestureActive] / [HomeDragController.localDragging]) — is never stolen;
  *   the detector bails out so the drag owns the gesture.
@@ -1122,6 +1133,11 @@ internal fun dockSwipeSlop(touchSlop: Float, minTravelPx: Float): Float = maxOf(
  *  [slop] and at least twice as far up or down as sideways. A sideways pull is the dock's own. */
 internal fun dockSwipeIsVertical(dx: Float, dy: Float, slop: Float): Boolean = abs(dy) > slop && abs(dy) > 2f * abs(dx)
 
+/** The vertical travel a swipe from an icon with a swipe action of its own needs: [touchSlop] times the
+ *  "Icon swipe distance" setting ([distance]), never under the slop that applies there anyway
+ *  ([baseSlop], longer on the dock). */
+internal fun iconSwipeSlop(baseSlop: Float, touchSlop: Float, distance: Float): Float = maxOf(baseSlop, touchSlop * distance)
+
 @Composable
 internal fun Modifier.pixelHomeSwipe(
     swipeUpForDrawer: Boolean,
@@ -1138,6 +1154,11 @@ internal fun Modifier.pixelHomeSwipe(
     /** "Swipe up opens": by the key of the app icon swiped (home grid or dock), the app it opens. */
     appSwipeUpTargets: Map<String, AppItem> = emptyMap(),
     onAppSwipeUp: (AppItem) -> Unit = {},
+    /** "Swipe down opens": the same for a swipe down, taken before the notification shade. */
+    appSwipeDownTargets: Map<String, AppItem> = emptyMap(),
+    onAppSwipeDown: (AppItem) -> Unit = {},
+    /** "Icon swipe distance": the multiple of the touch slop a swipe from an icon with its own action needs. */
+    iconSwipeDistance: Float = 1f,
     bottomGestureZonePx: Float = 0f,
     onDrawerCancel: () -> Unit = {},
 ): Modifier {
@@ -1152,6 +1173,9 @@ internal fun Modifier.pixelHomeSwipe(
     // event, and a restarted detector would cancel the holds in progress.
     val latestAppSwipeUpTargets by rememberUpdatedState(appSwipeUpTargets)
     val latestOnAppSwipeUp by rememberUpdatedState(onAppSwipeUp)
+    val latestAppSwipeDownTargets by rememberUpdatedState(appSwipeDownTargets)
+    val latestOnAppSwipeDown by rememberUpdatedState(onAppSwipeDown)
+    val latestIconSwipeDistance by rememberUpdatedState(iconSwipeDistance)
 
     return pointerInput(swipeUpForDrawer, swipeDownForNotifications, leftEdgeEnabled, folderSwipeOpensFirstApp, dragController) {
         val touchSlop = viewConfiguration.touchSlop
@@ -1238,12 +1262,18 @@ internal fun Modifier.pixelHomeSwipe(
                 val dy = change.position.y - down.position.y
 
                 if (mode == 0) {
+                    // The app chosen for the icon under THIS finger (home grid or dock) in the direction
+                    // the finger is going, if any; and what a swipe up from here drives.
+                    val appChoice = pressedApp?.let { (if (dy < 0f) latestAppSwipeUpTargets else latestAppSwipeDownTargets)[it] }
+                    val upTarget = swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer, dy < 0f && appChoice != null)
+                    // An icon's own swipe action waits for the longer travel of the setting; the gesture
+                    // stays undecided until then (never the drawer or the shade in between).
+                    val iconAction = if (dy < 0f) upTarget == SwipeUpTarget.APP_CHOICE || upTarget == SwipeUpTarget.FOLDER_APP else appChoice != null
+                    val slop = if (iconAction) iconSwipeSlop(verticalSlop, touchSlop, latestIconSwipeDistance) else verticalSlop
                     when {
-                        (if (fromDock) dockSwipeIsVertical(dx, dy, verticalSlop) else abs(dy) > touchSlop && abs(dy) > abs(dx)) -> when {
+                        (if (fromDock) dockSwipeIsVertical(dx, dy, slop) else abs(dy) > slop && abs(dy) > abs(dx)) -> when {
                             dy < 0f -> {
-                                // The app chosen for the icon under THIS finger (home grid or dock), if any.
-                                val appChoice = pressedApp?.let { latestAppSwipeUpTargets[it] }
-                                when (swipeUpTarget(pressedFolder != null, folderSwipeOpensFirstApp, swipeUpForDrawer, appChoice != null)) {
+                                when (upTarget) {
                                     SwipeUpTarget.APP_CHOICE -> {
                                         // The chosen app opens once; the rest of the gesture is swallowed
                                         // (mode 3) so neither the pager nor the icon sees it.
@@ -1266,6 +1296,13 @@ internal fun Modifier.pixelHomeSwipe(
                                     }
                                     SwipeUpTarget.NONE -> break
                                 }
+                            }
+                            dy > 0f && appChoice != null -> {
+                                // The app chosen for a swipe down on this icon opens once, in place of
+                                // the shade; the rest of the gesture is swallowed (mode 3).
+                                mode = 3
+                                change.consume()
+                                latestOnAppSwipeDown(appChoice)
                             }
                             dy > 0f && swipeDownForNotifications -> {
                                 // Open the shade, then keep consuming the rest of the gesture (mode 3)

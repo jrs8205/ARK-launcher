@@ -132,6 +132,8 @@
     <string name="settings_reset_default">Default %1$s</string>
     <string name="settings_long_press_delay">Long-press delay</string>
     <string name="settings_long_press_delay_desc">How long to hold an icon before its menu opens or it can be moved</string>
+    <string name="settings_icon_swipe_distance">Icon swipe distance</string>
+    <string name="settings_icon_swipe_distance_desc">How far a swipe from an icon or a folder must travel before it opens its swipe app. Raise it if swipes fire too easily.</string>
     <string name="settings_label_color">Label text color</string>
     <string name="settings_font">Font</string>
     <string name="settings_font_desc">For everything the launcher draws itself; widgets keep their own.</string>
