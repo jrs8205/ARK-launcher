@@ -177,6 +177,48 @@ class SmartspaceStyleTest {
         assertThat(smartspaceInk(faintWhite, Color.White, whiteWallpaper)).isEqualTo(Color.Black)
     }
 
+    /** Without a colour of the user's the card is the dark veil. Exactly as it has always been (30 %) it
+     *  keeps the white text it has always had; at an opacity of the user's the text goes by contrast like
+     *  any other card: a veil turned down to nothing over a white wallpaper needs dark text. The theme's
+     *  own solid surface (the tonal setting) keeps the theme's text. */
+    @Test fun theVeilAtAnOpacityOfTheUsersGoesByContrastToo() {
+        val white = 0xFFFFFFFF.toInt()
+        val black = 0xFF000000.toInt()
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundOpacity = 0f), Color.White, wallpaper = white)).isEqualTo(Color.Black)
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundOpacity = 0f), Color.White, wallpaper = black)).isEqualTo(Color.White)
+        // A strong veil over a white wallpaper is dark again.
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundOpacity = 0.7f), Color.White, wallpaper = white)).isEqualTo(Color.White)
+        // The veil as it ships: white, whatever the wallpaper (the slider's own step lands on it too).
+        assertThat(smartspaceInk(SmartspaceStyle(), Color.White, wallpaper = white)).isEqualTo(Color.White)
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundOpacity = 0.3f + 0.0001f), Color.White, wallpaper = white)).isEqualTo(Color.White)
+        val onSurface = Color(0xFF1A1C1E)
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundOpacity = 0f), onSurface, wallpaper = black, tonal = true)).isEqualTo(onSurface)
+    }
+
+    /** The short widget draws its texts without a shadow: with the veil turned down to nothing over a
+     *  white wallpaper they must not stay white on white. Read from the clock's own pixels. */
+    @Test fun theShortWidgetStaysReadableWithoutItsVeilOnAWhiteWallpaper() {
+        style = SmartspaceStyle(backgroundOpacity = 0f)
+        val state = SmartspaceState(
+            hasCalendarPermission = true, nextEvent = null, hasLocationPermission = true,
+            showWeather = true, weather = weather, weatherApp = weatherApp,
+        )
+        compose.setContent {
+            val backdrop = remember { HomeBackdrop(wallpaper = 0xFFFFFFFF.toInt()) }
+            CompositionLocalProvider(LocalSmartspaceStyle provides style, LocalHomeBackdrop provides backdrop) {
+                Box(Modifier.size(360.dp, 120.dp).background(Color.White)) {
+                    SmartspaceContent(state, onRefresh = {}, onOpenWeatherApp = {}, modifier = Modifier.fillMaxSize())
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        val pixels = compose.onNodeWithTag(SMARTSPACE_CLOCK_TAG, useUnmergedTree = true).captureToImage().toPixelMap()
+        var darkest = 1f
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) darkest = minOf(darkest, pixels[x, y].luminance())
+        assertThat(darkest).isLessThan(0.3f)
+    }
+
     /** A drawn icon says what weather it shows: a screen reader hears it as it heard the emoji. */
     @Test fun theDrawnIconNamesTheWeather() {
         style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR)

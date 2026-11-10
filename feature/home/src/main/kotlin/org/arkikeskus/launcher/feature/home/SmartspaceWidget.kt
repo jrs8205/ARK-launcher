@@ -249,7 +249,7 @@ internal fun SmartspaceContent(
     // downwards): its centre in the window, known once it is laid out.
     val backdrop = LocalHomeBackdrop.current
     var centerY by remember { mutableStateOf<Float?>(null) }
-    val ink = smartspaceInk(look, widgetContentColor(), backdrop.colorBehind(centerY))
+    val ink = smartspaceInk(look, widgetContentColor(), backdrop.colorBehind(centerY), LocalTonalWidgets.current)
     val surface = smartspaceSurface(look, widgetSurfaceColor(), LocalTonalWidgets.current)
     // No shadow under dark text (the theme's surface, a light card of the user's).
     val shadow = Shadow(

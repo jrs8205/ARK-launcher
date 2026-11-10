@@ -51,6 +51,7 @@ import org.arkikeskus.launcher.model.glassTint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -94,10 +95,17 @@ internal fun smartspaceSurface(style: SmartspaceStyle, default: Color, tonal: Bo
     else -> default.copy(alpha = style.backgroundOpacity)
 }
 
-/** The text colour: the [default] without a colour of the user's; on one, black or white by its contrast
- *  with what the card looks like over the [wallpaper]'s colour (a faint card goes by the wallpaper). */
-internal fun smartspaceInk(style: SmartspaceStyle, default: Color, wallpaper: Int): Color {
-    val argb = style.backgroundColor ?: return default
+/**
+ * The text colour. On a colour of the user's: black or white by its contrast with what the card looks like
+ * over the [wallpaper]'s colour (a faint card goes by the wallpaper). Without one the card is the theme's
+ * own solid surface ([tonal]) or the dark veil exactly as it has always been (its shipped opacity): the
+ * [default] text it has always had. The veil at an opacity of the user's is a card like any other -- black
+ * at that opacity over the wallpaper -- and goes by the same contrast: turned down to nothing over a light
+ * wallpaper it needs dark text (the short layout has no text shadow to fall back on).
+ */
+internal fun smartspaceInk(style: SmartspaceStyle, default: Color, wallpaper: Int, tonal: Boolean = false): Color {
+    val veilAsShipped = abs(style.backgroundOpacity - LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND) < 0.005f
+    val argb = style.backgroundColor ?: if (tonal || veilAsShipped) return default else 0xFF000000.toInt()
     return if (contentIsDarkOn(argb, style.backgroundOpacity, wallpaper)) Color.Black else Color.White
 }
 
