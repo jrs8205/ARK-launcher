@@ -49,6 +49,7 @@ class AppSwipeDownTest {
     private var drawerDrags = 0
     private var shadeOpens = 0
     private var iconSwipeDistance by mutableFloatStateOf(1f)
+    private var pages = 1
     private val touchSlop get() = android.view.ViewConfiguration.get(RuntimeEnvironment.getApplication()).scaledTouchSlop.toFloat()
 
     private fun show(
@@ -76,7 +77,7 @@ class AppSwipeDownTest {
                     ),
             ) {
                 Workspace(
-                    pageCount = 1, columns = 4, rows = 6, entries = entries,
+                    pageCount = pages, columns = 4, rows = 6, entries = entries,
                     badges = emptyMap(), badgeShowCount = false, badgeScale = 1f, showLabels = true, showPageIndicator = true,
                     locked = false, homeSignals = emptyFlow(), homePage = 0, dragController = drag,
                     widgetDragController = remember { WidgetDragController(drag) },
@@ -183,6 +184,44 @@ class AppSwipeDownTest {
         pull("Chat", 2f * touchSlop)
 
         assertThat(shadeOpens).isEqualTo(1)
+    }
+
+    /** With a long icon swipe distance a diagonal pull crosses the pager's sideways slop while the icon's
+     *  action still waits for its travel: the page turn has the gesture then, and going on upwards must
+     *  not open the icon's app on top of it. */
+    @Test fun aPullThePagerTookNeverFiresTheIconsActionAfterwards() {
+        pages = 2
+        show(up = mapOf(mail.key to maps), down = emptyMap(), distance = 4f)
+        val start = compose.onNodeWithText("Mail").fetchSemanticsNode().boundsInRoot.center
+
+        compose.onRoot().performTouchInput {
+            down(start)
+            moveBy(Offset(-2f * touchSlop, -3f * touchSlop))
+            moveBy(Offset(-0.1f * touchSlop, -1.5f * touchSlop))
+            moveBy(Offset(0f, -1.5f * touchSlop))
+            up()
+        }
+        compose.waitForIdle()
+
+        assertThat(launchedUp).isEmpty()
+        assertThat(drawerDrags).isEqualTo(0)
+    }
+
+    /** Straight up, the same long pull still opens the app with two pages. */
+    @Test fun aStraightLongPullStillFiresWithSeveralPages() {
+        pages = 2
+        show(up = mapOf(mail.key to maps), down = emptyMap(), distance = 4f)
+        val start = compose.onNodeWithText("Mail").fetchSemanticsNode().boundsInRoot.center
+
+        compose.onRoot().performTouchInput {
+            down(start)
+            moveBy(Offset(0f, -3f * touchSlop))
+            moveBy(Offset(0f, -1.5f * touchSlop))
+            up()
+        }
+        compose.waitForIdle()
+
+        assertThat(launchedUp).containsExactly(maps)
     }
 
     @Test fun theSlopOfAnIconSwipe() {

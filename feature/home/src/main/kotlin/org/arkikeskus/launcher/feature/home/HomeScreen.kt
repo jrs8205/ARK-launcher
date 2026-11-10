@@ -1339,6 +1339,14 @@ internal fun Modifier.pixelHomeSwipe(
                             }
                         }
                     }
+                    // While an icon's own action waits for its longer travel, something below may take
+                    // the gesture meanwhile (the pager, on a diagonal pull): its consumption shows in the
+                    // Final pass of this same event, and the gesture is then no longer the icon's.
+                    // Not on the dock: no pager is under it, and its tiles' own press handling is not a taker.
+                    if (mode == 0 && iconAction && !fromDock) {
+                        val seen = awaitPointerEvent(PointerEventPass.Final)
+                        if (seen.changes.firstOrNull { it.id == down.id }?.isConsumed == true) break
+                    }
                 } else if (mode == 1) {
                     change.consume()
                     latestOnDrawerDrag(change.position.y - lastY)
