@@ -48,7 +48,6 @@ import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
-import org.arkikeskus.launcher.model.glassTint
 import kotlin.math.roundToInt
 
 /**
@@ -165,7 +164,7 @@ fun LauncherShell(
     // The long-press delay setting wraps the whole shell: the home screen, the dock, folders, the
     // drawer and widgets all read their hold timeout from LocalViewConfiguration.
     // The system bars' glyphs follow what is behind them: the wallpaper, ARK's own bar or the drawer.
-    SystemBarContrast(
+    val barGlyphs = rememberSystemBarGlyphs(
         progress = { currentProgress },
         heightPx = { shellHeightPx },
         covers = barCovers,
@@ -179,6 +178,7 @@ fun LauncherShell(
         drawerPicture = statusBars.drawerPicture,
         glassOpacity = statusBars.glassOpacity,
     )
+    SystemBarContrast(barGlyphs)
     // The wallpaper behind the window softens as the drawer rises (opt-in, Android 12 and newer).
     DrawerWallpaperBlur(enabled = drawerBlur.enabled, strength = drawerBlur.strength, progress = { currentProgress })
 
@@ -236,16 +236,15 @@ fun LauncherShell(
                     // revealed system bar over a blanked own bar gets the gradient too.
                     statusBarPx = WindowInsets.statusBars.getTop(density).toFloat(),
                     headsUpActive = headsUpActive,
-                    // Dark glyphs need no dark gradient: the wallpaper's hint, or the glass layer making it light.
-                    wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(
-                        wallpaperDarkText.value,
-                        statusBars.glassOpacity?.let { glassTint(it).top } ?: 0f,
-                        wallpaperColor = wallpaper.color.value,
-                    ),
+                    // A wallpaper with the hint has dark glyphs on home whatever else is on it: never a gradient.
+                    wallpaperSupportsDarkText = wallpaperDarkText.value,
                     covered = barCovers.coverIsLight != null,
                 ),
                 progress = { currentProgress },
                 heightPx = { shellHeightPx },
+                // Otherwise the gradient follows the glyphs as they are now, read when it draws: the glass can
+                // make them dark at rest and fade away under the rising drawer, and the gradient is back then.
+                lightGlyphs = { !barGlyphs.darkStatus.value },
             )
 
             // Always compose AppDrawerScreen at fillMaxSize to keep it pre-composed, pre-measured, and pre-laid out.

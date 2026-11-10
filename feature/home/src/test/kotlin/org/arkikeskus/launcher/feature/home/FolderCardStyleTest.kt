@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Process
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -20,6 +21,8 @@ import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.FolderStyle
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.LocalSystemBarCovers
+import org.arkikeskus.launcher.ui.SystemBarCovers
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,6 +129,36 @@ class FolderCardStyleTest {
         // A faint light card over the dimmed home screen is dark: light text.
         assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.25f), surface, onSurface, blackWallpaper).content)
             .isEqualTo(Color.White)
+    }
+
+    /** The open folder's scrim covers the whole of home, behind the system bars too: it tells the bars'
+     *  glyph colour how dark it makes them (half), and nothing once the folder is gone. */
+    @Test fun theOpenFolderReportsItsScrimToTheSystemBars() {
+        val covers = SystemBarCovers()
+        var open by mutableStateOf(true)
+        compose.setContent {
+            CompositionLocalProvider(LocalSystemBarCovers provides covers) {
+                LauncherTheme {
+                    Box(Modifier.fillMaxSize()) {
+                        if (open) {
+                            FolderCard(
+                                folder = folder, badges = emptyMap(), badgeShowCount = false, badgeScale = 1f, locked = false,
+                                dragController = HomeDragController(), onRename = {}, onAppClick = {},
+                                onRenameApp = {}, onRemoveFromFolder = {}, onPinShortcut = {}, onReorder = { _, _ -> },
+                                onDropOnHome = { _, _, _, _ -> }, onDropOnDock = { _, _ -> }, onDropOnRemove = {},
+                                onDragOutEnd = {}, onDismiss = {},
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertThat(covers.homeDim).isEqualTo(0.5f)
+
+        open = false
+        compose.waitForIdle()
+        assertThat(covers.homeDim).isEqualTo(0f)
     }
 
     /** The editor's "Delete folder" is the theme's accent on the theme's card; on any other card it takes

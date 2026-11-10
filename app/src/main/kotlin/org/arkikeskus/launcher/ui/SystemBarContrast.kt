@@ -136,7 +136,9 @@ internal fun wallpaperOnHomeLuminance(wallpaperSupportsDarkText: Boolean, glassT
  * screen shows behind the glyphs ([darkReadsBetter]): the wallpaper under the glass ([wallpaperOnHomeLuminance])
  * under ARK's own bar's scrim as much of it as is on screen ([ownBarScrim], 0 without the bar) -- the scrim is
  * drawn over the glass, and one too weak to count as dark backing by itself still darkens a glass that would
- * otherwise have asked for dark glyphs.
+ * otherwise have asked for dark glyphs -- under an open folder's scrim over the whole of home ([homeScrim]) and
+ * under the shell's dim as the drawer rises ([shellDim]), which lies over the bar's strip too while the drawer
+ * is still below it.
  */
 internal fun homeBackdropSupportsDarkGlyphs(
     wallpaperSupportsDarkText: Boolean,
@@ -144,12 +146,18 @@ internal fun homeBackdropSupportsDarkGlyphs(
     ownBarScrim: Float = 0f,
     /** The wallpaper's main colour (ARGB), where known: under the glass it stands in for a missing hint. */
     wallpaperColor: Int? = null,
+    /** A scrim home draws over the whole of itself as much of it as is on screen (the open folder's). */
+    homeScrim: Float = 0f,
+    /** The shell's dim over the whole screen under the rising drawer ([drawerScrimAlpha]). */
+    shellDim: Float = 0f,
 ): Boolean =
     if (glassTint <= 0f) {
         wallpaperSupportsDarkText
     } else {
-        // Every layer mixed channel by channel, the luminance taken from the result.
-        val shown = compositeOver(BLACK, ownBarScrim, wallpaperOnHomeColor(wallpaperSupportsDarkText, glassTint, wallpaperColor))
+        // Every layer mixed channel by channel, the luminance taken from the result. The three dims are all
+        // black, one over the other: together they leave (1 - a)(1 - b)(1 - c) of what is under them.
+        val dim = 1f - (1f - ownBarScrim.coerceIn(0f, 1f)) * (1f - homeScrim.coerceIn(0f, 1f)) * (1f - shellDim.coerceIn(0f, 1f))
+        val shown = compositeOver(BLACK, dim, wallpaperOnHomeColor(wallpaperSupportsDarkText, glassTint, wallpaperColor))
         darkReadsBetter(argbLuminance(shown))
     }
 
@@ -339,6 +347,9 @@ internal class SystemBarGlyphs(
     ownBarScrim: (homeAlpha: Float) -> Float = { 0f },
     /** The wallpaper's main colour (ARGB), or null while it is not known ([wallpaperOnHomeColor]). */
     wallpaperColor: () -> Int? = { null },
+    /** A scrim home's own surfaces draw over the whole of it (the open folder's), at home's full alpha, as it
+     *  is now; it fades with home like the glass. */
+    homeScrim: () -> Float = { 0f },
 ) {
     /** The status bar draws dark glyphs ([statusBarDarkIcons]). */
     val darkStatus: State<Boolean> = derivedStateOf {
@@ -349,8 +360,12 @@ internal class SystemBarGlyphs(
             drawerSurfaceIsLight = drawerIsLightOverStatusBar(drawerScrimAlpha(progress), homeAlpha),
             coverIsLight = coverIsLight(),
             ownBarBacksDark = ownBarBacksDark(homeAlpha),
-            wallpaperSupportsDarkText =
-                homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText(), glassTopTint() * homeAlpha, ownBarScrim(homeAlpha), wallpaperColor()),
+            // What the bare bar's strip shows: the glass, the own bar's scrim and a folder's scrim as much of
+            // home as is on screen, under the shell's dim -- which covers the strip while the drawer is below it.
+            wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(
+                wallpaperSupportsDarkText(), glassTopTint() * homeAlpha, ownBarScrim(homeAlpha), wallpaperColor(),
+                homeScrim = homeScrim() * homeAlpha, shellDim = drawerScrimAlpha(progress),
+            ),
         )
     }
 
@@ -362,19 +377,22 @@ internal class SystemBarGlyphs(
             drawerCoversBar = drawerCoversNavigationBar(progress, heightPx(), navBarPx()),
             drawerSurfaceIsLight = drawerIsLightOverNavBar(drawerScrimAlpha(progress), homeAlpha),
             coverIsLight = coverIsLight(),
-            wallpaperSupportsDarkText =
-                homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText(), glassBottomTint() * homeAlpha, wallpaperColor = wallpaperColor()),
+            wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(
+                wallpaperSupportsDarkText(), glassBottomTint() * homeAlpha, wallpaperColor = wallpaperColor(),
+                homeScrim = homeScrim() * homeAlpha, shellDim = drawerScrimAlpha(progress),
+            ),
         )
     }
 }
 
 /**
- * Keeps the system bars' glyphs readable over whatever is behind them (see [statusBarDarkIcons]).
+ * The system bars' glyph colours over whatever is behind them (see [statusBarDarkIcons]), remembered for the
+ * shell: [SystemBarContrast] applies them to the window, and the top gradient follows them ([HomeTopScrim]).
  * [progress] is the drawer's openness (0 closed, 1 open) and [heightPx] the shell's height; all inputs
- * are read in snapshots, so the window is only touched when a glyph colour actually flips.
+ * are read in snapshots.
  */
 @Composable
-internal fun SystemBarContrast(
+internal fun rememberSystemBarGlyphs(
     progress: () -> Float,
     heightPx: () -> Float,
     covers: SystemBarCovers,
@@ -394,9 +412,7 @@ internal fun SystemBarContrast(
     drawerPicture: DrawerWallpaper? = null,
     /** The strength of the glass layer over the wallpaper on home, or null without it ([glassTint]). */
     glassOpacity: Float? = null,
-) {
-    val view = LocalView.current
-    val window = remember(view) { view.context.findActivity()?.window } ?: return
+): SystemBarGlyphs {
     val density = LocalDensity.current
     val statusBarPx = rememberUpdatedState(WindowInsets.statusBars.getTop(density).toFloat())
     val navBarPx = rememberUpdatedState(WindowInsets.navigationBars.getBottom(density).toFloat())
@@ -418,7 +434,7 @@ internal fun SystemBarContrast(
     }
     val currentProgress = rememberUpdatedState(progress)
     val currentHeight = rememberUpdatedState(heightPx)
-    val glyphs = remember {
+    return remember {
         SystemBarGlyphs(
             progress = { currentProgress.value() },
             heightPx = { currentHeight.value() },
@@ -460,9 +476,17 @@ internal fun SystemBarContrast(
             glassBottomTint = { currentGlass.value?.bottom ?: 0f },
             ownBarScrim = { homeAlpha -> if (ownBarOnScreen()) ownBarScrimOnScreen(currentScrim.value, homeAlpha) else 0f },
             wallpaperColor = { wallpaperColor.value },
+            homeScrim = { covers.homeDim },
         )
     }
-    LaunchedEffect(window, view) {
+}
+
+/** Keeps the window's system bars at [glyphs]' colours: the window is only touched when one actually flips. */
+@Composable
+internal fun SystemBarContrast(glyphs: SystemBarGlyphs) {
+    val view = LocalView.current
+    val window = remember(view) { view.context.findActivity()?.window } ?: return
+    LaunchedEffect(window, view, glyphs) {
         snapshotFlow { glyphs.darkStatus.value to glyphs.darkNav.value }.collect { (status, nav) ->
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = status
@@ -473,20 +497,23 @@ internal fun SystemBarContrast(
 }
 
 /**
- * The top scrim's strength: full until the drawer covers the status bar ([drawerCoversStatusBar]) —
+ * The top scrim's strength: none behind dark glyphs ([lightGlyphs] false: the gradient backs LIGHT glyphs, and
+ * whether they are light can change while the drawer moves -- the glass fades with home); behind light ones
+ * full until the drawer covers the status bar ([drawerCoversStatusBar]) —
  * the moment the glyphs switch to the drawer's colour — and none after. The rising drawer is drawn
  * over the scrim, so it needs no fade of its own.
  */
-internal fun homeTopScrimAlpha(progress: Float, heightPx: Float, barPx: Float): Float =
-    if (drawerCoversStatusBar(progress, heightPx, barPx)) 0f else HOME_TOP_SCRIM_ALPHA
+internal fun homeTopScrimAlpha(progress: Float, heightPx: Float, barPx: Float, lightGlyphs: Boolean = true): Float =
+    if (!lightGlyphs || drawerCoversStatusBar(progress, heightPx, barPx)) 0f else HOME_TOP_SCRIM_ALPHA
 
 /**
  * The soft dark gradient behind the system status bar on home ([homeTopScrimShown]): twice the bar's
- * height, gone once the drawer covers the bar ([homeTopScrimAlpha]). Drawn only, so every touch passes
- * through.
+ * height, only while the glyphs are light ([lightGlyphs], read when drawing: the glyph colour as it is now,
+ * never a decision frozen at the drawer's rest) and gone once the drawer covers the bar ([homeTopScrimAlpha]).
+ * Drawn only, so every touch passes through.
  */
 @Composable
-internal fun HomeTopScrim(shown: Boolean, progress: () -> Float, heightPx: () -> Float) {
+internal fun HomeTopScrim(shown: Boolean, progress: () -> Float, heightPx: () -> Float, lightGlyphs: () -> Boolean = { true }) {
     if (!shown) return
     val density = LocalDensity.current
     val barPx = WindowInsets.statusBars.getTop(density).toFloat()
@@ -496,7 +523,7 @@ internal fun HomeTopScrim(shown: Boolean, progress: () -> Float, heightPx: () ->
             .fillMaxWidth()
             .height(maxOf(barHeight * 2, HOME_TOP_SCRIM_MIN_HEIGHT))
             .drawBehind {
-                val alpha = homeTopScrimAlpha(progress(), heightPx(), barPx)
+                val alpha = homeTopScrimAlpha(progress(), heightPx(), barPx, lightGlyphs())
                 if (alpha > 0f) {
                     drawRect(Brush.verticalGradient(0f to Color.Black.copy(alpha = alpha), 1f to Color.Transparent))
                 }

@@ -57,6 +57,35 @@ class SystemBarCoversTest {
         assertThat(covers.coverIsLight).isTrue()
     }
 
+    /** A scrim a home surface draws over the whole of home (the open folder's) is no cover: home still shows,
+     *  darker. It reports how dark, as it is now (it may fade), and several stack as their layers do. */
+    @Test fun aScrimOverHomeReportsHowDarkItIs() {
+        var shown by mutableStateOf(true)
+        var alpha by mutableStateOf(0.5f)
+        var second by mutableStateOf(false)
+        compose.setContent {
+            CompositionLocalProvider(LocalSystemBarCovers provides covers) {
+                if (shown) DimSystemBars { alpha }
+                if (second) DimSystemBars { 0.5f }
+            }
+        }
+        compose.waitForIdle()
+        assertThat(covers.homeDim).isEqualTo(0.5f)
+        assertThat(covers.coverIsLight).isNull()
+
+        alpha = 0.2f
+        assertThat(covers.homeDim).isWithin(0.0001f).of(0.2f)
+
+        second = true
+        compose.waitForIdle()
+        assertThat(covers.homeDim).isWithin(0.0001f).of(0.6f)
+
+        shown = false
+        second = false
+        compose.waitForIdle()
+        assertThat(covers.homeDim).isEqualTo(0f)
+    }
+
     @Test fun theLastShownCoverDecides() {
         var second by mutableStateOf(false)
         compose.setContent {

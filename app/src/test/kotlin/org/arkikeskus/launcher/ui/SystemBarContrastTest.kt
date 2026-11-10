@@ -423,6 +423,105 @@ class SystemBarContrastTest {
         assertThat(drawerIsLightOverNavigationBar(blueDrawer, opacity = 0.4f, wallpaperSupportsDarkText = false, homeDim = 0.1f)).isFalse()
     }
 
+    /** An open folder lays a 50 % black scrim over the whole of home, the bars' strips included. Black wallpaper
+     *  and the glass at 40 % are light enough behind the status bar for dark glyphs; under the folder's scrim
+     *  they are a dark grey again (white glyphs 9.7:1, black 2.2:1). */
+    @Test fun anOpenFoldersScrimDarkensWhatIsBehindTheBars() {
+        val black = 0xFF000000.toInt()
+        val top = glassTint(0.4f).top
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = black)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = top, wallpaperColor = black, homeScrim = 0.5f)).isFalse()
+
+        val scrim = mutableFloatStateOf(0f)
+        val glyphs = SystemBarGlyphs(
+            progress = { 0f },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { _, _ -> false },
+            drawerIsLightOverNavBar = { _, _ -> false },
+            coverIsLight = { null },
+            ownBarBacksDark = { false },
+            wallpaperSupportsDarkText = { false },
+            glassTopTint = { top },
+            glassBottomTint = { glassTint(0.4f).bottom },
+            wallpaperColor = { black },
+            homeScrim = { scrim.floatValue },
+        )
+        assertThat(glyphs.darkStatus.value).isTrue()
+        // The folder opens: its scrim is state, the glyphs follow it.
+        scrim.floatValue = 0.5f
+        assertThat(glyphs.darkStatus.value).isFalse()
+        assertThat(glyphs.darkNav.value).isFalse()
+    }
+
+    /** The shell dims the whole screen as the drawer rises, the status bar's strip too while the drawer is
+     *  still below it. A mid-grey wallpaper (#757575) with the glass at 20 %, the drawer held 55 % open: what
+     *  is left of the glass alone would ask for dark glyphs, but under the 17.6 % dim the strip is darker
+     *  (white 6.0:1, black 3.5:1). */
+    @Test fun theShellsDimCountsBehindTheBareStatusBarToo() {
+        val grey = 0xFF757575.toInt()
+        val top = glassTint(0.2f).top
+        val leftOfTheGlass = top * homeContentAlpha(0.55f)
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = leftOfTheGlass, wallpaperColor = grey)).isTrue()
+        assertThat(
+            homeBackdropSupportsDarkGlyphs(
+                wallpaperSupportsDarkText = false, glassTint = leftOfTheGlass, wallpaperColor = grey, shellDim = drawerScrimAlpha(0.55f),
+            ),
+        ).isFalse()
+
+        val progress = mutableFloatStateOf(0.55f)
+        val glyphs = SystemBarGlyphs(
+            progress = { progress.floatValue },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { _, _ -> false },
+            drawerIsLightOverNavBar = { _, _ -> false },
+            coverIsLight = { null },
+            ownBarBacksDark = { false },
+            wallpaperSupportsDarkText = { false },
+            glassTopTint = { top },
+            glassBottomTint = { glassTint(0.2f).bottom },
+            wallpaperColor = { grey },
+        )
+        assertThat(glyphs.darkStatus.value).isFalse()
+    }
+
+    /** The dark gradient behind light glyphs follows the glyphs as they are NOW. A light grey wallpaper without
+     *  the hint (#B0B0B0) under the glass at 20 % takes dark glyphs and no gradient at rest; with the drawer
+     *  held 65 % open the glass has faded with home, the glyphs are light again and the gradient is back
+     *  behind them; it goes once the drawer covers the bar, as always. */
+    @Test fun theTopScrimComesBackWhenTheGlyphsTurnLight() {
+        val progress = mutableFloatStateOf(0f)
+        val glyphs = SystemBarGlyphs(
+            progress = { progress.floatValue },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { _, _ -> false },
+            drawerIsLightOverNavBar = { _, _ -> false },
+            coverIsLight = { null },
+            ownBarBacksDark = { false },
+            wallpaperSupportsDarkText = { false },
+            glassTopTint = { glassTint(0.2f).top },
+            glassBottomTint = { glassTint(0.2f).bottom },
+            wallpaperColor = { 0xFFB0B0B0.toInt() },
+        )
+        fun scrim() = homeTopScrimAlpha(progress.floatValue, heightPx = 2400f, barPx = 130f, lightGlyphs = !glyphs.darkStatus.value)
+        assertThat(glyphs.darkStatus.value).isTrue()
+        assertThat(scrim()).isEqualTo(0f)
+
+        progress.floatValue = 0.65f
+        assertThat(glyphs.darkStatus.value).isFalse()
+        assertThat(scrim()).isEqualTo(HOME_TOP_SCRIM_ALPHA)
+
+        progress.floatValue = 1f
+        assertThat(scrim()).isEqualTo(0f)
+        // Light glyphs by default: the callers that know no better keep the gradient they had.
+        assertThat(homeTopScrimAlpha(0f, heightPx = 2400f, barPx = 130f)).isEqualTo(HOME_TOP_SCRIM_ALPHA)
+    }
+
     /** ARK's own bar with a weak scrim (under the 50 % that counts as dark backing) leaves the decision to what
      *  is behind it, and that is the glass UNDER the scrim: black wallpaper, glass at 40 % and a 40 % scrim
      *  show a dark grey where white glyphs read at 7.7:1 and black ones at 2.7:1. The glass alone would have

@@ -106,6 +106,7 @@ import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
+import org.arkikeskus.launcher.ui.DimSystemBars
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -243,6 +244,8 @@ internal fun FolderCard(
     var lifted by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onDismiss)
+    // The scrim below covers the whole of home, behind the system bars too: the bars' glyph colour counts it.
+    DimSystemBars { FOLDER_SCRIM_ALPHA * dragOutAlpha.value }
 
     Box(
         modifier = Modifier
