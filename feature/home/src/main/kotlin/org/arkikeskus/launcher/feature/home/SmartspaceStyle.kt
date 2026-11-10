@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.FloatState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -31,6 +32,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -49,6 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -97,8 +101,42 @@ internal fun smartspaceInk(style: SmartspaceStyle, default: Color, wallpaper: In
 /** The wallpaper's main colour (ARGB) while it is not known, or has none to tell: a middle grey. */
 internal const val WALLPAPER_COLOR_UNKNOWN = 0xFF808080.toInt()
 
-/** The colour behind the home screen's cards ([homeBackdropColor]), for choosing readable text on see-through ones. */
-val LocalWallpaperColor = staticCompositionLocalOf { WALLPAPER_COLOR_UNKNOWN }
+/**
+ * Where the glass panel is in the window (px from the window's top), as its own modifier last laid it
+ * out. Snapshot state: a card that reads it re-picks its colours when the panel moves or resizes.
+ */
+@Stable
+class GlassPanelBounds {
+    var top by mutableFloatStateOf(0f)
+    var height by mutableFloatStateOf(0f)
+
+    /** How far down the panel the point [y] px down the window is: 0 = its top, 1 = its bottom, in steps of
+     *  a twentieth (a card that moves a little keeps its colours); the middle while the panel is not laid out. */
+    fun fractionOf(y: Float): Float {
+        if (height <= 0f) return 0.5f
+        return (((y - top) / height).coerceIn(0f, 1f) * 20f).roundToInt() / 20f
+    }
+}
+
+/**
+ * What is behind the home screen's cards, for choosing readable text on see-through ones: the
+ * [wallpaper]'s colour and, when the glass panel is on ([glassOpacity], null without it), the panel's
+ * white tint over it. The tint fades from the panel's top to its bottom, so the colour depends on how
+ * far down the [panel] a card sits.
+ */
+@Stable
+data class HomeBackdrop(
+    val wallpaper: Int = WALLPAPER_COLOR_UNKNOWN,
+    val glassOpacity: Float? = null,
+    val panel: GlassPanelBounds = GlassPanelBounds(),
+) {
+    /** The colour behind a card whose centre is [centerY] px down the window (null = not placed yet: the
+     *  panel's middle). */
+    fun colorBehind(centerY: Float?): Int =
+        homeBackdropColor(wallpaper, glassOpacity, if (centerY == null || glassOpacity == null) 0.5f else panel.fractionOf(centerY))
+}
+
+val LocalHomeBackdrop = staticCompositionLocalOf { HomeBackdrop() }
 
 /**
  * The wallpaper's colour as it becomes known: from the first read (slow, off the main thread) and from
@@ -149,13 +187,16 @@ internal fun rememberWallpaperColor(): Int {
 }
 
 /**
- * What is behind the home screen's cards (ARGB): the [wallpaper]'s colour, under the glass panel's white
- * tint at its middle strength when the panel is on. Text on a see-through card is chosen against this.
+ * What is behind a card on the home screen (ARGB): the [wallpaper]'s colour, under the glass panel's white
+ * tint when the panel is on ([glassOpacity], null without it). The tint is the panel's own gradient
+ * ([glassPanelAlphas]) at [fraction] of its height (0 = top, 1 = bottom): the panel is brighter at the top,
+ * so the same card can need dark text high on it and light text low on it.
  */
-internal fun homeBackdropColor(wallpaper: Int, glassPanel: Boolean, glassOpacity: Float): Int {
-    if (!glassPanel) return wallpaper
+internal fun homeBackdropColor(wallpaper: Int, glassOpacity: Float?, fraction: Float = 0.5f): Int {
+    if (glassOpacity == null) return wallpaper
     val alphas = glassPanelAlphas(glassOpacity)
-    return compositeOver(0xFFFFFFFF.toInt(), (alphas.top + alphas.bottom) / 2f, wallpaper)
+    val tint = alphas.top + (alphas.bottom - alphas.top) * fraction.coerceIn(0f, 1f)
+    return compositeOver(0xFFFFFFFF.toInt(), tint, wallpaper)
 }
 
 /** The name of a kind of weather, for a screen reader: a drawn icon has no text of its own. */
@@ -331,9 +372,13 @@ internal fun glassPanelAlphas(opacity: Float): GlassAlphas {
 /**
  * A frosted glass panel behind the home grid, between the wallpaper and the icons (the owner's 1.0.5
  * idea): one rounded sheet with a soft sheen and a light edge. It tints; the frosting itself is the
- * system's wallpaper blur, which a window can only ask for as a whole.
+ * system's wallpaper blur, which a window can only ask for as a whole. Where it is laid out goes to
+ * [bounds], so the cards over it can tell which part of its fading tint is behind them.
  */
-internal fun Modifier.homeGlassPanel(opacity: Float): Modifier = drawBehind {
+internal fun Modifier.homeGlassPanel(opacity: Float, bounds: GlassPanelBounds): Modifier = onGloballyPositioned {
+    bounds.top = it.positionInRoot().y
+    bounds.height = it.size.height.toFloat()
+}.drawBehind {
     val alphas = glassPanelAlphas(opacity)
     val inset = 8.dp.toPx()
     val topLeft = Offset(inset, 0f)

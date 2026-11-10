@@ -262,7 +262,10 @@ internal fun FolderCard(
         contentAlignment = Alignment.Center,
     ) {
         val themeText = MaterialTheme.colorScheme.onSurface
-        val cardColors = folderCardColors(style, MaterialTheme.colorScheme.surface, themeText, LocalWallpaperColor.current)
+        // Behind the card: the home screen at the card's own height on the glass panel (its middle until
+        // the card is laid out).
+        val behindCard = LocalHomeBackdrop.current.colorBehind(cardBounds.takeIf { it != Rect.Zero }?.center?.y)
+        val cardColors = folderCardColors(style, MaterialTheme.colorScheme.surface, themeText, behindCard)
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = cardColors.container,

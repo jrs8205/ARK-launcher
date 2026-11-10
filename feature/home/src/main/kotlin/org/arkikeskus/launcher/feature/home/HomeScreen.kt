@@ -565,12 +565,19 @@ fun HomeScreen(
     val badgeShowCount = settings.notificationDotCount
     val badgeScale = settings.notificationDotScale
 
+    // What is behind the home screen's cards: the wallpaper's colour and the glass panel over it, whose
+    // place in the window its own modifier reports (the cards choose readable text by it).
+    val glassPanelBounds = remember { GlassPanelBounds() }
+    val wallpaperColor = rememberWallpaperColor()
+    val glassOpacity = if (settings.homeGlassPanel) settings.homeGlassOpacity else null
+    val homeBackdrop = remember(wallpaperColor, glassOpacity) { HomeBackdrop(wallpaperColor, glassOpacity, glassPanelBounds) }
+
     // All app icons on home (workspace, dock, folders) honour the themed-icons setting and the
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
         LocalTonalWidgets provides settings.widgetTonalBackground,
         LocalSmartspaceStyle provides settings.smartspaceStyle(),
-        LocalWallpaperColor provides homeBackdropColor(rememberWallpaperColor(), settings.homeGlassPanel, settings.homeGlassOpacity),
+        LocalHomeBackdrop provides homeBackdrop,
         LocalThemedIcons provides settings.useThemedIcons,
         LocalThemeAllIcons provides settings.themeAllIcons,
         LocalIconPack provides settings.iconPackPackage,
@@ -771,7 +778,7 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled)
                     // The glass panel sits behind the grid, inside the workspace's own padding.
-                    .then(if (settings.homeGlassPanel) Modifier.homeGlassPanel(settings.homeGlassOpacity) else Modifier),
+                    .then(if (settings.homeGlassPanel) Modifier.homeGlassPanel(settings.homeGlassOpacity, glassPanelBounds) else Modifier),
             )
 
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install

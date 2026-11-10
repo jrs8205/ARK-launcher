@@ -38,6 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.ParentDataModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -242,7 +245,11 @@ internal fun SmartspaceContent(
 
     // The wallpaper is arbitrary, so the text carries its own soft shadow (like the home labels).
     val look = LocalSmartspaceStyle.current
-    val ink = smartspaceInk(look, widgetContentColor(), LocalWallpaperColor.current)
+    // What is behind the widget depends on where it sits on the glass panel (the panel's tint fades
+    // downwards): its centre in the window, known once it is laid out.
+    val backdrop = LocalHomeBackdrop.current
+    var centerY by remember { mutableStateOf<Float?>(null) }
+    val ink = smartspaceInk(look, widgetContentColor(), backdrop.colorBehind(centerY))
     val surface = smartspaceSurface(look, widgetSurfaceColor(), LocalTonalWidgets.current)
     // No shadow under dark text (the theme's surface, a light card of the user's).
     val shadow = Shadow(
@@ -257,7 +264,11 @@ internal fun SmartspaceContent(
     // the content instead of filling the whole grid footprint, so a tall span doesn't read as a
     // giant empty panel. The TEXT scales with the footprint (user feedback: resizing must visibly
     // grow the widget): height drives the scale, width caps it so a narrow span can't overflow.
-    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+    BoxWithConstraints(
+        // Only the panel's tint depends on the place: without the panel nothing is tracked.
+        modifier = if (backdrop.glassOpacity == null) modifier else modifier.onGloballyPositioned { centerY = it.boundsInRoot().center.y },
+        contentAlignment = Alignment.Center,
+    ) {
     // A short widget changes layout instead of shrinking every label into unreadable text.
     if (maxHeight < 140.dp) {
         // Its two lines share the footprint's height left after the card padding; each is a touch

@@ -2,16 +2,24 @@ package org.arkikeskus.launcher.feature.home
 
 import android.app.Application
 import android.os.Process
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -160,13 +168,87 @@ class SmartspaceStyleTest {
      *  a strong panel over a black wallpaper is a light backdrop, and a faint white card on it needs dark text. */
     @Test fun theGlassPanelIsPartOfWhatIsBehindACard() {
         val black = 0xFF000000.toInt()
-        assertThat(homeBackdropColor(black, glassPanel = false, glassOpacity = 0.6f)).isEqualTo(black)
-        val behindGlass = homeBackdropColor(black, glassPanel = true, glassOpacity = 0.6f)
+        assertThat(homeBackdropColor(black, glassOpacity = null)).isEqualTo(black)
+        val behindGlass = homeBackdropColor(black, glassOpacity = 0.6f)
         assertThat(argbLuminance(behindGlass)).isGreaterThan(0.25f)
 
         val faintWhite = SmartspaceStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.3f)
         assertThat(smartspaceInk(faintWhite, Color.White, wallpaper = black)).isEqualTo(Color.White)
         assertThat(smartspaceInk(faintWhite, Color.White, wallpaper = behindGlass)).isEqualTo(Color.Black)
+    }
+
+    /** The panel fades from its top to its bottom, so what is behind a card depends on how far down the
+     *  panel it sits: over a black wallpaper at strength 45 %, a see-through widget near the top is on a
+     *  light tint (dark text), one near the bottom on a dark one (light text, 7:1 against black's 2.9:1). */
+    @Test fun theBackdropGoesByHowFarDownThePanelACardSits() {
+        val black = 0xFF000000.toInt()
+        val high = homeBackdropColor(black, glassOpacity = 0.45f, fraction = 0.1f)
+        val middle = homeBackdropColor(black, glassOpacity = 0.45f)
+        val low = homeBackdropColor(black, glassOpacity = 0.45f, fraction = 0.9f)
+        assertThat(argbLuminance(high)).isGreaterThan(argbLuminance(middle))
+        assertThat(argbLuminance(middle)).isGreaterThan(argbLuminance(low))
+
+        val clear = SmartspaceStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0f)
+        assertThat(smartspaceInk(clear, Color.White, wallpaper = high)).isEqualTo(Color.Black)
+        assertThat(smartspaceInk(clear, Color.White, wallpaper = low)).isEqualTo(Color.White)
+    }
+
+    /** Where a point is on the panel, as a share of its height in steps of a twentieth (a card that
+     *  moves a little does not re-pick its colours); the middle while the panel is not laid out. */
+    @Test fun thePanelsBoundsPlaceACard() {
+        val bounds = GlassPanelBounds()
+        assertThat(bounds.fractionOf(700f)).isEqualTo(0.5f)
+        bounds.top = 100f
+        bounds.height = 1000f
+        assertThat(bounds.fractionOf(100f)).isEqualTo(0f)
+        assertThat(bounds.fractionOf(600f)).isEqualTo(0.5f)
+        assertThat(bounds.fractionOf(1000f)).isWithin(0.001f).of(0.9f)
+        assertThat(bounds.fractionOf(612f)).isEqualTo(0.5f)
+        assertThat(bounds.fractionOf(-50f)).isEqualTo(0f)
+        assertThat(bounds.fractionOf(5000f)).isEqualTo(1f)
+    }
+
+    /** The widget itself: the same see-through widget draws dark text high on the panel and light
+     *  text low on it. Read from the clock's own pixels over a grey ground: light text leaves
+     *  near-white pixels, dark text none brighter than the ground. */
+    @Config(qualifiers = "+w400dp-h900dp") // room for the widget low on an 800 dp panel
+    @Test fun theWidgetPicksItsTextByWhereItSitsOnThePanel() {
+        style = SmartspaceStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0f)
+        var top by mutableStateOf(0)
+        val state = SmartspaceState(
+            hasCalendarPermission = true, nextEvent = null, hasLocationPermission = true,
+            showWeather = true, weather = weather, weatherApp = weatherApp,
+        )
+        compose.setContent {
+            val panel = remember { GlassPanelBounds() }
+            val backdrop = remember { HomeBackdrop(wallpaper = 0xFF000000.toInt(), glassOpacity = 0.45f, panel = panel) }
+            CompositionLocalProvider(LocalSmartspaceStyle provides style, LocalHomeBackdrop provides backdrop) {
+                Box(
+                    Modifier
+                        .size(360.dp, 800.dp)
+                        .background(Color(0xFF777777))
+                        .onGloballyPositioned { panel.top = it.positionInRoot().y; panel.height = it.size.height.toFloat() },
+                ) {
+                    Box(Modifier.padding(top = top.dp).size(360.dp, 200.dp)) {
+                        SmartspaceContent(state, onRefresh = {}, onOpenWeatherApp = {}, modifier = Modifier.fillMaxSize())
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertThat(brightestClockPixel()).isLessThan(0.6f)
+
+        top = 600
+        compose.waitForIdle()
+        assertThat(brightestClockPixel()).isGreaterThan(0.85f)
+    }
+
+    /** The luminance of the brightest pixel in the clock's bounds. */
+    private fun brightestClockPixel(): Float {
+        val pixels = compose.onNodeWithTag(SMARTSPACE_CLOCK_TAG, useUnmergedTree = true).captureToImage().toPixelMap()
+        var brightest = 0f
+        for (y in 0 until pixels.height) for (x in 0 until pixels.width) brightest = maxOf(brightest, pixels[x, y].luminance())
+        return brightest
     }
 
     /** The first read of the wallpaper's colour is slow (off the main thread): a colour the system
