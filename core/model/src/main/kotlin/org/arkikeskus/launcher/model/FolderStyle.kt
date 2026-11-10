@@ -33,12 +33,26 @@ fun argbLuminance(argb: Int): Float {
     return (0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)).toFloat()
 }
 
-/**
- * Whether text on a card should be dark: the card's [colorLuminance] at its [opacity] over what is
- * behind it ([backdropLuminance]: a dimmed home screen or a wallpaper under a veil, dark by default)
- * is light enough for it. A see-through light card over a dark backdrop is a dark card.
- */
-fun contentIsDarkOn(colorLuminance: Float, opacity: Float, backdropLuminance: Float = 0.1f): Boolean {
+/** The WCAG contrast ratio (1..21) between two relative luminances. */
+fun contrastRatio(a: Float, b: Float): Float = (maxOf(a, b) + 0.05f) / (minOf(a, b) + 0.05f)
+
+/** The opaque ARGB colour seen when [color] is painted at [opacity] over [backdrop] (their alphas ignored). */
+fun compositeOver(color: Int, opacity: Float, backdrop: Int): Int {
     val a = opacity.coerceIn(0f, 1f)
-    return a * colorLuminance + (1f - a) * backdropLuminance > 0.4f
+    fun channel(shift: Int): Int {
+        val top = (color shr shift) and 0xFF
+        val under = (backdrop shr shift) and 0xFF
+        return (top * a + under * (1f - a) + 0.5f).toInt().coerceIn(0, 255)
+    }
+    return (0xFF shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+}
+
+/**
+ * Whether text on a card should be dark: black has at least the contrast white has with what the card
+ * looks like, its [color] at its [opacity] over what is behind it ([backdrop]). A see-through card
+ * goes by what shows through it.
+ */
+fun contentIsDarkOn(color: Int, opacity: Float, backdrop: Int): Boolean {
+    val seen = argbLuminance(compositeOver(color, opacity, backdrop))
+    return contrastRatio(seen, 0f) >= contrastRatio(seen, 1f)
 }

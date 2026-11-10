@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
@@ -83,7 +84,7 @@ import androidx.compose.ui.unit.toSize
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.FolderStyle
-import org.arkikeskus.launcher.model.argbLuminance
+import org.arkikeskus.launcher.model.compositeOver
 import org.arkikeskus.launcher.model.contentIsDarkOn
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.AppActions
@@ -113,16 +114,21 @@ private const val FOLDER_COLUMNS = 4
 internal data class FolderCardColors(val container: Color, val content: Color)
 
 /**
- * The card's colours for [style]: the theme's [surface] and [onSurface] as always, the surface at the
- * chosen opacity; a colour of the user's is painted at the opacity, and the text is then black or
- * white by what the card looks like over the dimmed home screen behind it.
+ * The card's colours for [style]: solid and without a colour of the user's, the theme's [surface] and
+ * [onSurface] as always. A colour of the user's, or the surface made see-through, is painted at the
+ * opacity, and the text is then black or white by its contrast with what the card looks like over the
+ * dimmed home screen behind it: the [wallpaper]'s colour under the folder's 50 % black scrim.
  */
-internal fun folderCardColors(style: FolderStyle, surface: Color, onSurface: Color): FolderCardColors {
-    val argb = style.backgroundColor
-        ?: return FolderCardColors(if (style.backgroundOpacity >= 1f) surface else surface.copy(alpha = style.backgroundOpacity), onSurface)
-    val dark = contentIsDarkOn(argbLuminance(argb), style.backgroundOpacity)
+internal fun folderCardColors(style: FolderStyle, surface: Color, onSurface: Color, wallpaper: Int): FolderCardColors {
+    if (style.backgroundColor == null && style.backgroundOpacity >= 1f) return FolderCardColors(surface, onSurface)
+    val argb = style.backgroundColor ?: surface.toArgb()
+    val dimmedHome = compositeOver(0xFF000000.toInt(), FOLDER_SCRIM_ALPHA, wallpaper)
+    val dark = contentIsDarkOn(argb, style.backgroundOpacity, dimmedHome)
     return FolderCardColors(Color(argb).copy(alpha = style.backgroundOpacity), if (dark) Color.Black else Color.White)
 }
+
+/** How dark the scrim under the open folder is. */
+private const val FOLDER_SCRIM_ALPHA = 0.5f
 
 /**
  * The open folder: a card in the home screen's own window (not a sheet in a window of its own, so a
@@ -237,7 +243,7 @@ internal fun FolderCard(
             .fillMaxSize()
             .testTag("folderScrim")
             .graphicsLayer { alpha = dragOutAlpha.value }
-            .background(Color.Black.copy(alpha = 0.5f))
+            .background(Color.Black.copy(alpha = FOLDER_SCRIM_ALPHA))
             // The scrim swallows every touch under it: nothing reaches the home grid behind. For
             // accessibility services it is a pane named after the folder (announced as it opens,
             // dismissable): a node that matters covers the home nodes under it, so a swipe through
@@ -249,7 +255,8 @@ internal fun FolderCard(
             .pointerInput(Unit) { detectTapGestures { currentOnDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
-        val cardColors = folderCardColors(style, MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.onSurface)
+        val themeText = MaterialTheme.colorScheme.onSurface
+        val cardColors = folderCardColors(style, MaterialTheme.colorScheme.surface, themeText, LocalWallpaperColor.current)
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = cardColors.container,
@@ -306,8 +313,8 @@ internal fun FolderCard(
                                 onValueChange = { name = it; onRename(it) },
                                 singleLine = true,
                                 label = { Text(stringResource(R.string.folder_name_label)) },
-                                // On a card colour of the user's the field follows the card's text colour.
-                                colors = if (style.backgroundColor == null) OutlinedTextFieldDefaults.colors() else OutlinedTextFieldDefaults.colors(
+                                // Where the card's text is not the theme's, the field follows the card's.
+                                colors = if (cardColors.content == themeText) OutlinedTextFieldDefaults.colors() else OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = cardColors.content,
                                     unfocusedTextColor = cardColors.content,
                                     focusedLabelColor = cardColors.content,

@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Varausrengas ja prosentti</string>
     <string name="smartspace_next_alarm">Seuraava herätys</string>
     <string name="smartspace_allow_location">Salli sijainti napauttamalla – sää</string>
+    <string name="weather_clear">Selkeää</string>
+    <string name="weather_partly_cloudy">Puolipilvistä</string>
+    <string name="weather_cloudy">Pilvistä</string>
+    <string name="weather_fog">Sumua</string>
+    <string name="weather_rain">Sadetta</string>
+    <string name="weather_snow">Lumisadetta</string>
+    <string name="weather_thunder">Ukkosta</string>
     <string name="notifications_widget_name">Ilmoitukset</string>
     <string name="notifications_widget_desc">Ilmoitukset sovelluskuvakkeina</string>
     <string name="notifications_widget_allow_access">Myönnä ilmoitusten käyttöoikeus napauttamalla</string>

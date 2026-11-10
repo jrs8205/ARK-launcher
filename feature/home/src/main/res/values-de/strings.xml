@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Ladestand als Ring und in Prozent</string>
     <string name="smartspace_next_alarm">Nächster Wecker</string>
     <string name="smartspace_allow_location">Tippe, um den Standortzugriff fürs Wetter zuzulassen</string>
+    <string name="weather_clear">Klar</string>
+    <string name="weather_partly_cloudy">Teils bewölkt</string>
+    <string name="weather_cloudy">Bewölkt</string>
+    <string name="weather_fog">Nebel</string>
+    <string name="weather_rain">Regen</string>
+    <string name="weather_snow">Schnee</string>
+    <string name="weather_thunder">Gewitter</string>
     <string name="notifications_widget_name">Benachrichtigungen</string>
     <string name="notifications_widget_desc">Benachrichtigungen als App-Symbole</string>
     <string name="notifications_widget_allow_access">Tippe, um den Benachrichtigungszugriff zuzulassen</string>

@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Anneau de charge et pourcentage</string>
     <string name="smartspace_next_alarm">Prochaine alarme</string>
     <string name="smartspace_allow_location">Appuyez pour autoriser l\'accès à la position – météo</string>
+    <string name="weather_clear">Dégagé</string>
+    <string name="weather_partly_cloudy">Partiellement nuageux</string>
+    <string name="weather_cloudy">Nuageux</string>
+    <string name="weather_fog">Brouillard</string>
+    <string name="weather_rain">Pluie</string>
+    <string name="weather_snow">Neige</string>
+    <string name="weather_thunder">Orage</string>
     <string name="notifications_widget_name">Notifications</string>
     <string name="notifications_widget_desc">Notifications sous forme d\'icônes d\'applications</string>
     <string name="notifications_widget_allow_access">Appuyez pour autoriser l\'accès aux notifications</string>

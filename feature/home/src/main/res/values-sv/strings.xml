@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Laddningsring och procent</string>
     <string name="smartspace_next_alarm">Nästa alarm</string>
     <string name="smartspace_allow_location">Tryck för att tillåta platsåtkomst – väder</string>
+    <string name="weather_clear">Klart</string>
+    <string name="weather_partly_cloudy">Halvklart</string>
+    <string name="weather_cloudy">Molnigt</string>
+    <string name="weather_fog">Dimma</string>
+    <string name="weather_rain">Regn</string>
+    <string name="weather_snow">Snö</string>
+    <string name="weather_thunder">Åska</string>
     <string name="notifications_widget_name">Aviseringar</string>
     <string name="notifications_widget_desc">Aviseringar som appikoner</string>
     <string name="notifications_widget_allow_access">Tryck för att tillåta åtkomst till aviseringar</string>

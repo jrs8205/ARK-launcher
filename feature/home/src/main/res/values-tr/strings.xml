@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Şarj halkası ve yüzde</string>
     <string name="smartspace_next_alarm">Sonraki alarm</string>
     <string name="smartspace_allow_location">Hava durumu için dokunup konuma izin verin</string>
+    <string name="weather_clear">Açık</string>
+    <string name="weather_partly_cloudy">Parçalı bulutlu</string>
+    <string name="weather_cloudy">Bulutlu</string>
+    <string name="weather_fog">Sis</string>
+    <string name="weather_rain">Yağmur</string>
+    <string name="weather_snow">Kar</string>
+    <string name="weather_thunder">Gök gürültülü fırtına</string>
     <string name="notifications_widget_name">Bildirimler</string>
     <string name="notifications_widget_desc">Uygulama simgesi olarak bildirimler</string>
     <string name="notifications_widget_allow_access">Bildirim erişimi vermek için dokunun</string>

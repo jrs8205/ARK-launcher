@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Pierścień naładowania i procenty</string>
     <string name="smartspace_next_alarm">Następny alarm</string>
     <string name="smartspace_allow_location">Dotknij, aby zezwolić na lokalizację – pogoda</string>
+    <string name="weather_clear">Bezchmurnie</string>
+    <string name="weather_partly_cloudy">Częściowe zachmurzenie</string>
+    <string name="weather_cloudy">Pochmurno</string>
+    <string name="weather_fog">Mgła</string>
+    <string name="weather_rain">Deszcz</string>
+    <string name="weather_snow">Śnieg</string>
+    <string name="weather_thunder">Burza</string>
     <string name="notifications_widget_name">Powiadomienia</string>
     <string name="notifications_widget_desc">Powiadomienia jako ikony aplikacji</string>
     <string name="notifications_widget_allow_access">Dotknij, aby przyznać dostęp do powiadomień</string>

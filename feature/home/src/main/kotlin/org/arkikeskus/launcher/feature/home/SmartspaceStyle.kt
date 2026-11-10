@@ -1,10 +1,15 @@
 package org.arkikeskus.launcher.feature.home
 
+import android.app.WallpaperManager
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.FloatState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,14 +34,18 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.arkikeskus.launcher.data.smartspace.WeatherCodes
 import org.arkikeskus.launcher.data.smartspace.WeatherKind
 import org.arkikeskus.launcher.model.LauncherSettings
-import org.arkikeskus.launcher.model.argbLuminance
 import org.arkikeskus.launcher.model.contentIsDarkOn
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -77,11 +86,55 @@ internal fun smartspaceSurface(style: SmartspaceStyle, default: Color, tonal: Bo
     else -> default.copy(alpha = style.backgroundOpacity)
 }
 
-/** The text colour: the [default] without a colour of the user's; on one, black or white by what the
- *  card looks like over the wallpaper (a faint light card is still a dark one). */
-internal fun smartspaceInk(style: SmartspaceStyle, default: Color): Color {
+/** The text colour: the [default] without a colour of the user's; on one, black or white by its contrast
+ *  with what the card looks like over the [wallpaper]'s colour (a faint card goes by the wallpaper). */
+internal fun smartspaceInk(style: SmartspaceStyle, default: Color, wallpaper: Int): Color {
     val argb = style.backgroundColor ?: return default
-    return if (contentIsDarkOn(argbLuminance(argb), style.backgroundOpacity, backdropLuminance = 0.25f)) Color.Black else Color.White
+    return if (contentIsDarkOn(argb, style.backgroundOpacity, wallpaper)) Color.Black else Color.White
+}
+
+/** The wallpaper's main colour (ARGB) while it is not known, or has none to tell: a middle grey. */
+internal const val WALLPAPER_COLOR_UNKNOWN = 0xFF808080.toInt()
+
+/** The wallpaper's main colour, for choosing readable text on see-through cards over it. */
+val LocalWallpaperColor = staticCompositionLocalOf { WALLPAPER_COLOR_UNKNOWN }
+
+/**
+ * The system wallpaper's primary colour as the platform reports it (no permission needed), kept up to
+ * date when the wallpaper changes; [WALLPAPER_COLOR_UNKNOWN] until it is read or when there is none.
+ */
+@Composable
+internal fun rememberWallpaperColor(): Int {
+    val context = LocalContext.current
+    var color by remember { mutableIntStateOf(WALLPAPER_COLOR_UNKNOWN) }
+    DisposableEffect(context) {
+        val manager = WallpaperManager.getInstance(context)
+        val listener = WallpaperManager.OnColorsChangedListener { colors, which ->
+            if (which and WallpaperManager.FLAG_SYSTEM != 0) color = colors?.primaryColor?.toArgb() ?: WALLPAPER_COLOR_UNKNOWN
+        }
+        runCatching { manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper())) }
+        onDispose { runCatching { manager.removeOnColorsChangedListener(listener) } }
+    }
+    LaunchedEffect(context) {
+        // The first read may extract the colours from the image: off the main thread.
+        val read = withContext(Dispatchers.IO) {
+            runCatching { WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)?.primaryColor?.toArgb() }.getOrNull()
+        }
+        if (read != null) color = read
+    }
+    return color
+}
+
+/** The name of a kind of weather, for a screen reader: a drawn icon has no text of its own. */
+@StringRes
+internal fun weatherKindName(kind: WeatherKind): Int = when (kind) {
+    WeatherKind.CLEAR -> R.string.weather_clear
+    WeatherKind.PARTLY_CLOUDY -> R.string.weather_partly_cloudy
+    WeatherKind.CLOUDY -> R.string.weather_cloudy
+    WeatherKind.FOG -> R.string.weather_fog
+    WeatherKind.RAIN -> R.string.weather_rain
+    WeatherKind.SNOW -> R.string.weather_snow
+    WeatherKind.THUNDER -> R.string.weather_thunder
 }
 
 /** How long the moving weather icon moves after the home screen comes back, then it rests (battery).
@@ -134,7 +187,11 @@ internal fun WeatherGlyph(code: Int, iconStyle: String, fontSize: TextUnit, modi
     val size = with(LocalDensity.current) { (fontSize * 2f).toDp() }
     val phase = rememberWeatherPhase(animated = iconStyle == LauncherSettings.WEATHER_ICON_ANIMATED)
     val kind = WeatherCodes.kind(code)
-    Canvas(modifier.size(size).testTag(WEATHER_GLYPH_TAG)) { drawWeather(kind, phase.floatValue) }
+    // The drawing says nothing to a screen reader by itself: it is named as the emoji was.
+    val name = stringResource(weatherKindName(kind))
+    Canvas(modifier.size(size).testTag(WEATHER_GLYPH_TAG).semantics { contentDescription = name }) {
+        drawWeather(kind, phase.floatValue)
+    }
 }
 
 private val SunCore = Color(0xFFFFC107)

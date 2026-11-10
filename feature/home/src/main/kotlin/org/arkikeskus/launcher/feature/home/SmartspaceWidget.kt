@@ -242,7 +242,7 @@ internal fun SmartspaceContent(
 
     // The wallpaper is arbitrary, so the text carries its own soft shadow (like the home labels).
     val look = LocalSmartspaceStyle.current
-    val ink = smartspaceInk(look, widgetContentColor())
+    val ink = smartspaceInk(look, widgetContentColor(), LocalWallpaperColor.current)
     val surface = smartspaceSurface(look, widgetSurfaceColor(), LocalTonalWidgets.current)
     // No shadow under dark text (the theme's surface, a light card of the user's).
     val shadow = Shadow(

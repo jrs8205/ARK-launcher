@@ -5,8 +5,9 @@ import org.junit.Test
 
 /**
  * The look of an open folder (a Telegram request: app names on or off, icon size, density and a
- * background colour of its own). The card's text turns dark or light by what the card looks like:
- * its colour at its opacity over the dimmed home screen behind it.
+ * background colour of its own). The text on a card of the user's colour is black or white by which
+ * of the two has the better contrast with what the card really looks like: its colour at its opacity
+ * over what is behind it.
  */
 class FolderStyleTest {
     private val white = 0xFFFFFFFF.toInt()
@@ -23,17 +24,35 @@ class FolderStyleTest {
         assertThat(argbLuminance(0x00FFFFFF)).isWithin(0.001f).of(1f)
     }
 
-    @Test fun aSolidLightCardTakesDarkContentAndADarkOneLight() {
-        assertThat(contentIsDarkOn(argbLuminance(white), opacity = 1f)).isTrue()
-        assertThat(contentIsDarkOn(argbLuminance(yellow), opacity = 1f)).isTrue()
-        assertThat(contentIsDarkOn(argbLuminance(black), opacity = 1f)).isFalse()
-        assertThat(contentIsDarkOn(argbLuminance(blue), opacity = 1f)).isFalse()
+    @Test fun contrastIsTheWcagRatio() {
+        assertThat(contrastRatio(1f, 0f)).isWithin(0.01f).of(21f)
+        assertThat(contrastRatio(0f, 1f)).isWithin(0.01f).of(21f)
+        assertThat(contrastRatio(0.5f, 0.5f)).isWithin(0.001f).of(1f)
     }
 
-    /** A see-through white card over the dimmed home screen is a dark card: its text stays light. */
-    @Test fun aSeeThroughLightCardTakesLightContent() {
-        assertThat(contentIsDarkOn(argbLuminance(white), opacity = 0.3f)).isFalse()
-        assertThat(contentIsDarkOn(argbLuminance(white), opacity = 0.8f)).isTrue()
+    @Test fun aColourIsPaintedOverTheBackdropAtItsOpacity() {
+        assertThat(compositeOver(white, 1f, black)).isEqualTo(white)
+        assertThat(compositeOver(white, 0f, black)).isEqualTo(black)
+        // 30 % white over black: 0.3 x 255 = 76.5 per channel.
+        assertThat(compositeOver(white, 0.3f, black) and 0xFFFFFF).isEqualTo(0x4D4D4D)
+    }
+
+    @Test fun aSolidCardTakesTheTextWithTheBetterContrast() {
+        assertThat(contentIsDarkOn(white, opacity = 1f, backdrop = black)).isTrue()
+        assertThat(contentIsDarkOn(yellow, opacity = 1f, backdrop = black)).isTrue()
+        assertThat(contentIsDarkOn(black, opacity = 1f, backdrop = white)).isFalse()
+        // The offered blue: white text has 2.65:1 on it, black 7.9:1.
+        assertThat(contentIsDarkOn(blue, opacity = 1f, backdrop = black)).isTrue()
+        // A deep blue is the other way round.
+        assertThat(contentIsDarkOn(0xFF0D47A1.toInt(), opacity = 1f, backdrop = white)).isFalse()
+    }
+
+    /** A see-through card is what shows through it: light text over a dark wallpaper, dark over a light one. */
+    @Test fun aSeeThroughCardGoesByWhatIsBehindIt() {
+        assertThat(contentIsDarkOn(white, opacity = 0.3f, backdrop = black)).isFalse()
+        assertThat(contentIsDarkOn(white, opacity = 0.3f, backdrop = white)).isTrue()
+        assertThat(contentIsDarkOn(black, opacity = 0.2f, backdrop = white)).isTrue()
+        assertThat(contentIsDarkOn(black, opacity = 0.9f, backdrop = white)).isFalse()
     }
 
     @Test fun theSettingsCarryTheFolderStyle() {

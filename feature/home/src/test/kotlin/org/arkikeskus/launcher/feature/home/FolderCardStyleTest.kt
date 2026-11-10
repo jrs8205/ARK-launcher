@@ -108,20 +108,36 @@ class FolderCardStyleTest {
         assertThat(gridHeight()).isGreaterThan(normal)
     }
 
-    /** No colour chosen: the theme's surface and its text colour, as before. A colour is painted at
-     *  the opacity, and the text turns dark or light by what the card then looks like. */
+    /** No colour chosen and solid: the theme's surface and its text colour, as before. Anything else
+     *  takes black or white text by the contrast with what the card looks like over the dimmed home
+     *  screen (the wallpaper under the folder's 50 % black scrim). */
     @Test fun theCardColours() {
         val surface = Color(0xFFFBFCFF)
         val onSurface = Color(0xFF1A1C1E)
-        assertThat(folderCardColors(FolderStyle(), surface, onSurface)).isEqualTo(FolderCardColors(surface, onSurface))
-        assertThat(folderCardColors(FolderStyle(backgroundOpacity = 0.5f), surface, onSurface).container).isEqualTo(surface.copy(alpha = 0.5f))
+        val blackWallpaper = 0xFF000000.toInt()
+        val whiteWallpaper = 0xFFFFFFFF.toInt()
+        assertThat(folderCardColors(FolderStyle(), surface, onSurface, blackWallpaper)).isEqualTo(FolderCardColors(surface, onSurface))
 
-        val black = folderCardColors(FolderStyle(backgroundColor = 0xFF000000.toInt()), surface, onSurface)
+        val black = folderCardColors(FolderStyle(backgroundColor = 0xFF000000.toInt()), surface, onSurface, whiteWallpaper)
         assertThat(black).isEqualTo(FolderCardColors(Color.Black, Color.White))
-        val yellow = folderCardColors(FolderStyle(backgroundColor = 0xFFFFEE58.toInt(), backgroundOpacity = 0.9f), surface, onSurface)
-        assertThat(yellow.content).isEqualTo(Color.Black)
+        // The offered blue, solid: black text reads far better than white (7.9:1 against 2.65:1).
+        assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFF42A5F5.toInt()), surface, onSurface, blackWallpaper).content)
+            .isEqualTo(Color.Black)
         // A faint light card over the dimmed home screen is dark: light text.
-        assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.25f), surface, onSurface).content)
+        assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.25f), surface, onSurface, blackWallpaper).content)
             .isEqualTo(Color.White)
+    }
+
+    /** The theme's own light surface at 20 % over a black wallpaper is a nearly black card: its text
+     *  must turn light too, not stay the theme's dark one. */
+    @Test fun theThemesSurfaceMadeSeeThroughTakesReadableText() {
+        val surface = Color(0xFFFBFCFF)
+        val onSurface = Color(0xFF1A1C1E)
+        val faint = folderCardColors(FolderStyle(backgroundOpacity = 0.2f), surface, onSurface, wallpaper = 0xFF000000.toInt())
+        assertThat(faint.container).isEqualTo(surface.copy(alpha = 0.2f))
+        assertThat(faint.content).isEqualTo(Color.White)
+        // Nearly solid it is still a light card.
+        assertThat(folderCardColors(FolderStyle(backgroundOpacity = 0.9f), surface, onSurface, wallpaper = 0xFF000000.toInt()).content)
+            .isEqualTo(Color.Black)
     }
 }

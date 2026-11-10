@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Кольцо заряда и проценты</string>
     <string name="smartspace_next_alarm">Следующий будильник</string>
     <string name="smartspace_allow_location">Погода: нажмите, чтобы разрешить доступ к местоположению</string>
+    <string name="weather_clear">Ясно</string>
+    <string name="weather_partly_cloudy">Переменная облачность</string>
+    <string name="weather_cloudy">Облачно</string>
+    <string name="weather_fog">Туман</string>
+    <string name="weather_rain">Дождь</string>
+    <string name="weather_snow">Снег</string>
+    <string name="weather_thunder">Гроза</string>
     <string name="notifications_widget_name">Уведомления</string>
     <string name="notifications_widget_desc">Уведомления в виде значков приложений</string>
     <string name="notifications_widget_allow_access">Нажмите, чтобы предоставить доступ к уведомлениям</string>

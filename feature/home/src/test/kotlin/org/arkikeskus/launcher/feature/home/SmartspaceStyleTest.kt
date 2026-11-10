@@ -12,7 +12,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -20,12 +22,14 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.data.smartspace.CurrentWeather
+import org.arkikeskus.launcher.data.smartspace.WeatherKind
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -112,10 +116,33 @@ class SmartspaceStyleTest {
         assertThat(smartspaceSurface(SmartspaceStyle(backgroundColor = yellow, backgroundOpacity = 0.5f), default = veil, tonal = true))
             .isEqualTo(Color(yellow).copy(alpha = 0.5f))
 
-        assertThat(smartspaceInk(SmartspaceStyle(), default = Color.White)).isEqualTo(Color.White)
-        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = yellow, backgroundOpacity = 0.9f), default = Color.White)).isEqualTo(Color.Black)
-        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = yellow, backgroundOpacity = 0.2f), default = Color.White)).isEqualTo(Color.White)
-        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = 0xFF000000.toInt(), backgroundOpacity = 1f), default = Color.Black)).isEqualTo(Color.White)
+        val blackWallpaper = 0xFF000000.toInt()
+        val whiteWallpaper = 0xFFFFFFFF.toInt()
+        assertThat(smartspaceInk(SmartspaceStyle(), default = Color.White, wallpaper = whiteWallpaper)).isEqualTo(Color.White)
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = yellow, backgroundOpacity = 0.9f), Color.White, blackWallpaper)).isEqualTo(Color.Black)
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = yellow, backgroundOpacity = 0.2f), Color.White, blackWallpaper)).isEqualTo(Color.White)
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = 0xFF000000.toInt(), backgroundOpacity = 1f), Color.Black, whiteWallpaper)).isEqualTo(Color.White)
+        // The offered blue, solid: black reads far better on it than white (7.9:1 against 2.65:1).
+        assertThat(smartspaceInk(SmartspaceStyle(backgroundColor = 0xFF42A5F5.toInt(), backgroundOpacity = 1f), Color.White, blackWallpaper)).isEqualTo(Color.Black)
+        // A faint white card goes by the wallpaper behind it: light text over a black one, dark over a white one.
+        val faintWhite = SmartspaceStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.3f)
+        assertThat(smartspaceInk(faintWhite, Color.White, blackWallpaper)).isEqualTo(Color.White)
+        assertThat(smartspaceInk(faintWhite, Color.White, whiteWallpaper)).isEqualTo(Color.Black)
+    }
+
+    /** A drawn icon says what weather it shows: a screen reader hears it as it heard the emoji. */
+    @Test fun theDrawnIconNamesTheWeather() {
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR)
+        show(height = 280)
+
+        compose.onNodeWithContentDescription("Rain", useUnmergedTree = true).assertExists()
+        // The whole line, as a screen reader takes it: the temperature, the weather and the place.
+        compose.onNode(hasText("12°", substring = true) and hasContentDescription("Rain")).assertExists()
+    }
+
+    @Test fun everyKindOfWeatherHasAName() {
+        val names = WeatherKind.entries.map { RuntimeEnvironment.getApplication().getString(weatherKindName(it)) }
+        assertThat(names.toSet()).hasSize(WeatherKind.entries.size)
     }
 
     /** The moving icon moves for a while after the home screen comes back, then rests (battery). */

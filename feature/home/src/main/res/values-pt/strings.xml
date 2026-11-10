@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Anel de carga e porcentagem</string>
     <string name="smartspace_next_alarm">Próximo alarme</string>
     <string name="smartspace_allow_location">Toque para permitir a localização – clima</string>
+    <string name="weather_clear">Céu limpo</string>
+    <string name="weather_partly_cloudy">Parcialmente nublado</string>
+    <string name="weather_cloudy">Nublado</string>
+    <string name="weather_fog">Neblina</string>
+    <string name="weather_rain">Chuva</string>
+    <string name="weather_snow">Neve</string>
+    <string name="weather_thunder">Trovoada</string>
     <string name="notifications_widget_name">Notificações</string>
     <string name="notifications_widget_desc">Notificações como ícones de apps</string>
     <string name="notifications_widget_allow_access">Toque para conceder acesso a notificações</string>

@@ -14,6 +14,13 @@
     <string name="battery_widget_desc">Charge ring and percent</string>
     <string name="smartspace_next_alarm">Next alarm</string>
     <string name="smartspace_allow_location">Tap to allow location – weather</string>
+    <string name="weather_clear">Clear</string>
+    <string name="weather_partly_cloudy">Partly cloudy</string>
+    <string name="weather_cloudy">Cloudy</string>
+    <string name="weather_fog">Fog</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_snow">Snow</string>
+    <string name="weather_thunder">Thunderstorm</string>
     <string name="notifications_widget_name">Notifications</string>
     <string name="notifications_widget_desc">Notifications as app icons</string>
     <string name="notifications_widget_allow_access">Tap to grant notification access</string>
