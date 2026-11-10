@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">İki satırlı etiketler</string>
     <string name="settings_show_folder_names">Klasör adlarını göster</string>
     <string name="settings_folder_columns">Klasör sütunları</string>
-    <string name="settings_glass_panel">Ana ekran simgelerinin arkasında cam panel</string>
-    <string name="settings_glass_panel_desc">Duvar kâğıdı ile simgeler arasında buzlu bir levha: hafif renkli ve ışıklı kenarlı.</string>
+    <string name="settings_glass_panel">Duvar kâğıdının üzerinde cam katman</string>
+    <string name="settings_glass_panel_desc">Duvar kâğıdının tamamını kaplayan buzlu bir levha: ekranın üstünden altına, simgelerin ve çubukların arkasında.</string>
     <string name="settings_glass_strength">Cam yoğunluğu</string>
     <string name="settings_folder_appearance">Klasör görünümü</string>
     <string name="settings_folder_app_names">Klasörlerde uygulama adlarını göster</string>

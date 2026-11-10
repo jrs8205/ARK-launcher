@@ -48,6 +48,7 @@ import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
+import org.arkikeskus.launcher.model.glassTint
 import kotlin.math.roundToInt
 
 /**
@@ -174,6 +175,7 @@ fun LauncherShell(
         wallpaperDarkText = wallpaperDarkText,
         drawerSurface = statusBars.drawerSurface,
         drawerPicture = statusBars.drawerPicture,
+        glassOpacity = statusBars.glassOpacity,
     )
     // The wallpaper behind the window softens as the drawer rises (opt-in, Android 12 and newer).
     DrawerWallpaperBlur(enabled = drawerBlur.enabled, strength = drawerBlur.strength, progress = { currentProgress })
@@ -232,7 +234,11 @@ fun LauncherShell(
                     // revealed system bar over a blanked own bar gets the gradient too.
                     statusBarPx = WindowInsets.statusBars.getTop(density).toFloat(),
                     headsUpActive = headsUpActive,
-                    wallpaperSupportsDarkText = wallpaperDarkText.value,
+                    // Dark glyphs need no dark gradient: the wallpaper's hint, or the glass layer making it light.
+                    wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(
+                        wallpaperDarkText.value,
+                        statusBars.glassOpacity?.let { glassTint(it).top } ?: 0f,
+                    ),
                     covered = barCovers.coverIsLight != null,
                 ),
                 progress = { currentProgress },

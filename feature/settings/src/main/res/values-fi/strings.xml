@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Nimet kahdella rivillä</string>
     <string name="settings_show_folder_names">Näytä kansioiden nimet</string>
     <string name="settings_folder_columns">Kansion sarakkeet</string>
-    <string name="settings_glass_panel">Lasipaneeli aloitusnäytön kuvakkeiden takana</string>
-    <string name="settings_glass_panel_desc">Himmeä lasilevy taustakuvan ja kuvakkeiden välissä: kevyt sävy ja valoisa reuna.</string>
+    <string name="settings_glass_panel">Lasikerros taustakuvan päällä</string>
+    <string name="settings_glass_panel_desc">Himmeä lasikerros koko taustakuvan päällä näytön yläreunasta alareunaan, kuvakkeiden ja palkkien takana.</string>
     <string name="settings_glass_strength">Lasin voimakkuus</string>
     <string name="settings_folder_appearance">Kansioiden ulkoasu</string>
     <string name="settings_folder_app_names">Näytä sovellusten nimet kansioissa</string>

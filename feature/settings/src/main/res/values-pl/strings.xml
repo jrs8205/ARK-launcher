@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Etykiety w dwóch wierszach</string>
     <string name="settings_show_folder_names">Pokazuj nazwy folderów</string>
     <string name="settings_folder_columns">Kolumny folderu</string>
-    <string name="settings_glass_panel">Szklany panel za ikonami ekranu głównego</string>
-    <string name="settings_glass_panel_desc">Matowa tafla między tapetą a ikonami, zabarwiona i z jasną krawędzią.</string>
+    <string name="settings_glass_panel">Szklana warstwa na tapecie</string>
+    <string name="settings_glass_panel_desc">Matowa tafla na całej tapecie, od góry do dołu ekranu, za ikonami i paskami.</string>
     <string name="settings_glass_strength">Intensywność szkła</string>
     <string name="settings_folder_appearance">Wygląd folderów</string>
     <string name="settings_folder_app_names">Pokazuj nazwy aplikacji w folderach</string>

@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Noms sur deux lignes</string>
     <string name="settings_show_folder_names">Afficher les noms des dossiers</string>
     <string name="settings_folder_columns">Colonnes des dossiers</string>
-    <string name="settings_glass_panel">Panneau de verre derrière les icônes de l’accueil</string>
-    <string name="settings_glass_panel_desc">Une plaque dépolie entre le fond d’écran et les icônes, teintée et bordée de lumière.</string>
+    <string name="settings_glass_panel">Couche de verre sur le fond d’écran</string>
+    <string name="settings_glass_panel_desc">Une plaque dépolie sur tout le fond d’écran, du haut au bas de l’écran, derrière les icônes et les barres.</string>
     <string name="settings_glass_strength">Intensité du verre</string>
     <string name="settings_folder_appearance">Apparence des dossiers</string>
     <string name="settings_folder_app_names">Afficher les noms des applis dans les dossiers</string>

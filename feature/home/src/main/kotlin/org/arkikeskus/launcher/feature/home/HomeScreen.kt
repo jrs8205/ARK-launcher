@@ -565,7 +565,7 @@ fun HomeScreen(
     val badgeShowCount = settings.notificationDotCount
     val badgeScale = settings.notificationDotScale
 
-    // What is behind the home screen's cards: the wallpaper's colour and the glass panel over it, whose
+    // What is behind the home screen's cards: the wallpaper's colour and the glass layer over it, whose
     // place in the window its own modifier reports (the cards choose readable text by it).
     val glassPanelBounds = remember { GlassPanelBounds() }
     val wallpaperColor = rememberWallpaperColor()
@@ -598,6 +598,10 @@ fun HomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            // The glass layer covers the whole screen, edge to edge: under the status bar above and the dock and
+            // the navigation bar below, behind everything home draws. It is part of home, so it fades with it
+            // under the rising drawer.
+            .then(if (settings.homeGlassPanel) Modifier.homeGlassPanel(settings.homeGlassOpacity, glassPanelBounds) else Modifier)
             .onGloballyPositioned {
                 homeOrigin = it.positionInRoot()
                 homeWidthPx = it.size.width
@@ -776,9 +780,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled)
-                    // The glass panel sits behind the grid, inside the workspace's own padding.
-                    .then(if (settings.homeGlassPanel) Modifier.homeGlassPanel(settings.homeGlassOpacity, glassPanelBounds) else Modifier),
+                    .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled),
             )
 
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install

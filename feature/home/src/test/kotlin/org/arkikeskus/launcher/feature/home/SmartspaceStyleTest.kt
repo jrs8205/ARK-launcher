@@ -275,14 +275,4 @@ class SmartspaceStyleTest {
         empty.onFirstRead(null)
         assertThat(empty.color).isEqualTo(WALLPAPER_COLOR_UNKNOWN)
     }
-
-    /** The glass panel's sheen: brighter at the top than the bottom, both following the strength. */
-    @Test fun theGlassPanelFollowsItsStrength() {
-        val soft = glassPanelAlphas(0.1f)
-        val strong = glassPanelAlphas(0.5f)
-        assertThat(soft.top).isGreaterThan(soft.bottom)
-        assertThat(strong.top).isGreaterThan(soft.top)
-        assertThat(strong.bottom).isGreaterThan(soft.bottom)
-        assertThat(glassPanelAlphas(5f).top).isAtMost(1f)
-    }
 }

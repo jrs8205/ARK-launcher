@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Подписи в две строки</string>
     <string name="settings_show_folder_names">Показывать названия папок</string>
     <string name="settings_folder_columns">Столбцы папки</string>
-    <string name="settings_glass_panel">Стеклянная панель за значками главного экрана</string>
-    <string name="settings_glass_panel_desc">Матовое стекло между обоями и значками: лёгкий оттенок и светлая кромка.</string>
+    <string name="settings_glass_panel">Стеклянный слой поверх обоев</string>
+    <string name="settings_glass_panel_desc">Матовое стекло поверх всех обоев, от верха до низа экрана, под значками и панелями.</string>
     <string name="settings_glass_strength">Плотность стекла</string>
     <string name="settings_folder_appearance">Вид папок</string>
     <string name="settings_folder_app_names">Показывать названия приложений в папках</string>

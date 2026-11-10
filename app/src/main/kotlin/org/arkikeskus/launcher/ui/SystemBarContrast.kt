@@ -39,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.model.DrawerSurface
+import org.arkikeskus.launcher.model.glassTint
 
 /**
  * Whether the system status bar draws dark glyphs. Once the drawer covers the bar its surface decides;
@@ -102,13 +103,36 @@ internal fun ownBarVisible(ownBarShown: Boolean, systemBarHidden: Boolean, statu
     ownBarShown && !(systemBarHidden && (statusBarPx > 0f || headsUpActive))
 
 /**
+ * The luminance of the wallpaper as home shows it behind a bar: its dark-text hint taken as white or black,
+ * under the glass layer's white tint ([glassTint], 0 without the layer). The layer is part of home and
+ * covers the whole screen, the bars' strips included; it is judged as the screen shows it ([shownLuminance]).
+ */
+internal fun wallpaperOnHomeLuminance(wallpaperSupportsDarkText: Boolean, glassTint: Float): Float {
+    val wallpaper = if (wallpaperSupportsDarkText) 1f else 0f
+    return if (glassTint <= 0f) wallpaper else shownLuminance(Color.White, glassTint, wallpaper)
+}
+
+/**
+ * Whether dark glyphs read better on home's backdrop: the wallpaper's own hint, and over a wallpaper without
+ * it a glass layer strong enough to make it light ([darkReadsBetter]). Without the layer it is the hint.
+ */
+internal fun homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText: Boolean, glassTint: Float): Boolean =
+    wallpaperSupportsDarkText || (glassTint > 0f && darkReadsBetter(wallpaperOnHomeLuminance(false, glassTint)))
+
+/**
  * The luminance behind the status bar on home: the wallpaper's dark-text hint taken as white or black,
  * under ARK's own bar's black scrim at [scrimOpacity] while the bar is on screen ([ownBarVisible]). The
  * scrim counts only as strong as it is, as the screen shows it ([dimmedLuminance], sRGB compositing): the
  * default 60 % over a white wallpaper leaves sRGB 0.4 -- relative luminance 0.13 -- not black.
  */
-internal fun behindStatusBarLuminance(ownBarVisible: Boolean, scrimOpacity: Float, wallpaperSupportsDarkText: Boolean): Float {
-    val wallpaper = if (wallpaperSupportsDarkText) 1f else 0f
+internal fun behindStatusBarLuminance(
+    ownBarVisible: Boolean,
+    scrimOpacity: Float,
+    wallpaperSupportsDarkText: Boolean,
+    /** The glass layer's tint behind the bar as much of it as is on screen; the own bar's scrim is drawn over it. */
+    glassTint: Float = 0f,
+): Float {
+    val wallpaper = wallpaperOnHomeLuminance(wallpaperSupportsDarkText, glassTint)
     return if (ownBarVisible) dimmedLuminance(wallpaper, scrimOpacity) else wallpaper
 }
 
@@ -154,16 +178,23 @@ internal fun drawerIsLightOverStatusBar(
     scrimOpacity: Float,
     wallpaperSupportsDarkText: Boolean,
     homeDim: Float,
+    glassTint: Float = 0f,
 ): Boolean = drawerSurfaceIsLight(
     surface,
     opacity,
-    dimmedUnderDrawer(behindStatusBarLuminance(ownBarVisible, scrimOpacity, wallpaperSupportsDarkText), homeDim),
+    dimmedUnderDrawer(behindStatusBarLuminance(ownBarVisible, scrimOpacity, wallpaperSupportsDarkText, glassTint), homeDim),
 )
 
 /** [drawerSurfaceIsLight] over the navigation bar: behind a see-through drawer is the wallpaper under
  *  the shell's dim ([dimmedUnderDrawer]). */
-internal fun drawerIsLightOverNavigationBar(surface: Color, opacity: Float, wallpaperSupportsDarkText: Boolean, homeDim: Float): Boolean =
-    drawerSurfaceIsLight(surface, opacity, dimmedUnderDrawer(if (wallpaperSupportsDarkText) 1f else 0f, homeDim))
+internal fun drawerIsLightOverNavigationBar(
+    surface: Color,
+    opacity: Float,
+    wallpaperSupportsDarkText: Boolean,
+    homeDim: Float,
+    glassTint: Float = 0f,
+): Boolean =
+    drawerSurfaceIsLight(surface, opacity, dimmedUnderDrawer(wallpaperOnHomeLuminance(wallpaperSupportsDarkText, glassTint), homeDim))
 
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
@@ -237,11 +268,15 @@ internal class SystemBarGlyphs(
      *  with home dimmed by the given amount under it and faded to the given alpha. */
     drawerIsLightOverStatusBar: (homeDim: Float, homeAlpha: Float) -> Boolean,
     /** The same over the navigation bar ([drawerIsLightOverNavigationBar]). */
-    drawerIsLightOverNavBar: (homeDim: Float) -> Boolean,
+    drawerIsLightOverNavBar: (homeDim: Float, homeAlpha: Float) -> Boolean,
     coverIsLight: () -> Boolean?,
     /** ARK's own bar backs the glyphs with a dark scrim ([ownBarBacksDark]) at home's given alpha. */
     ownBarBacksDark: (homeAlpha: Float) -> Boolean,
     wallpaperSupportsDarkText: () -> Boolean,
+    /** The glass layer's tint over the wallpaper behind the status bar and behind the navigation bar, at home's
+     *  full alpha (0 without the layer); it fades with home ([homeBackdropSupportsDarkGlyphs]). */
+    glassTopTint: () -> Float = { 0f },
+    glassBottomTint: () -> Float = { 0f },
 ) {
     /** The status bar draws dark glyphs ([statusBarDarkIcons]). */
     val darkStatus: State<Boolean> = derivedStateOf {
@@ -252,18 +287,19 @@ internal class SystemBarGlyphs(
             drawerSurfaceIsLight = drawerIsLightOverStatusBar(drawerScrimAlpha(progress), homeAlpha),
             coverIsLight = coverIsLight(),
             ownBarBacksDark = ownBarBacksDark(homeAlpha),
-            wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
+            wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText(), glassTopTint() * homeAlpha),
         )
     }
 
     /** The navigation bar draws dark glyphs ([navigationBarDarkIcons]). */
     val darkNav: State<Boolean> = derivedStateOf {
         val progress = progress()
+        val homeAlpha = homeContentAlpha(progress)
         navigationBarDarkIcons(
             drawerCoversBar = drawerCoversNavigationBar(progress, heightPx(), navBarPx()),
-            drawerSurfaceIsLight = drawerIsLightOverNavBar(drawerScrimAlpha(progress)),
+            drawerSurfaceIsLight = drawerIsLightOverNavBar(drawerScrimAlpha(progress), homeAlpha),
             coverIsLight = coverIsLight(),
-            wallpaperSupportsDarkText = wallpaperSupportsDarkText(),
+            wallpaperSupportsDarkText = homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText(), glassBottomTint() * homeAlpha),
         )
     }
 }
@@ -290,6 +326,8 @@ internal fun SystemBarContrast(
     /** The user's own picture behind the drawer, or null without one: the lightness of the window's crop of it is what
      *  shows through ([behindDrawerLuminance]). */
     drawerPicture: DrawerWallpaper? = null,
+    /** The strength of the glass layer over the wallpaper on home, or null without it ([glassTint]). */
+    glassOpacity: Float? = null,
 ) {
     val view = LocalView.current
     val window = remember(view) { view.context.findActivity()?.window } ?: return
@@ -308,6 +346,7 @@ internal fun SystemBarContrast(
     val currentSystemBarHidden = rememberUpdatedState(systemBarHidden)
     val currentScrim = rememberUpdatedState(scrimOpacity)
     val currentHeadsUp = rememberUpdatedState(headsUpActive)
+    val currentGlass = rememberUpdatedState(glassOpacity?.let { glassTint(it) })
     val ownBarOnScreen = {
         ownBarVisible(currentOwnBarShown.value, currentSystemBarHidden.value, statusBarPx.value, currentHeadsUp.value)
     }
@@ -323,18 +362,27 @@ internal fun SystemBarContrast(
             // With the user's own picture behind the drawer, the picture is what shows through instead.
             drawerIsLightOverStatusBar = { homeDim, homeAlpha ->
                 val behindHome = dimmedUnderDrawer(
-                    behindStatusBarLuminance(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha), wallpaperDarkText.value),
+                    behindStatusBarLuminance(
+                        ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha), wallpaperDarkText.value,
+                        // The glass is part of home too: as much of it as is on screen.
+                        glassTint = (currentGlass.value?.top ?: 0f) * homeAlpha,
+                    ),
                     homeDim,
                 )
                 drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
             },
-            drawerIsLightOverNavBar = { homeDim ->
-                val behindHome = dimmedUnderDrawer(if (wallpaperDarkText.value) 1f else 0f, homeDim)
+            drawerIsLightOverNavBar = { homeDim, homeAlpha ->
+                val behindHome = dimmedUnderDrawer(
+                    wallpaperOnHomeLuminance(wallpaperDarkText.value, (currentGlass.value?.bottom ?: 0f) * homeAlpha),
+                    homeDim,
+                )
                 drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
             },
             coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { homeAlpha -> ownBarBacksDark(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha)) },
             wallpaperSupportsDarkText = { wallpaperDarkText.value },
+            glassTopTint = { currentGlass.value?.top ?: 0f },
+            glassBottomTint = { currentGlass.value?.bottom ?: 0f },
         )
     }
     LaunchedEffect(window, view) {

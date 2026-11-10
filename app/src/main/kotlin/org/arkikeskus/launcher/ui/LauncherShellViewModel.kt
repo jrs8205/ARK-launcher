@@ -30,6 +30,9 @@ data class StatusBarSettings(
      *  lets through, in place of home and the wallpaper -- its lightness for the window's crop of it
      *  ([DrawerWallpaper.luminanceFor]). */
     val drawerPicture: DrawerWallpaper? = null,
+    /** The strength of the glass layer over the wallpaper on home, or null without it: a white tint behind the bars
+     *  too, which a strong setting makes light enough for dark glyphs ([homeBackdropSupportsDarkGlyphs]). */
+    val glassOpacity: Float? = null,
 )
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
@@ -69,6 +72,7 @@ class LauncherShellViewModel @Inject constructor(
                 scrimOpacity = it.statusBarScrimOpacity,
                 drawerSurface = drawerSurface(it.drawerBackgroundColor, it.drawerBackgroundOpacity, picture != null, it.drawerPictureDim),
                 drawerPicture = picture,
+                glassOpacity = if (it.homeGlassPanel) it.homeGlassOpacity else null,
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())

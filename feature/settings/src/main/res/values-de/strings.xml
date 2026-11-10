@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Zweizeilige Beschriftungen</string>
     <string name="settings_show_folder_names">Ordnernamen anzeigen</string>
     <string name="settings_folder_columns">Ordnerspalten</string>
-    <string name="settings_glass_panel">Glasfläche hinter den Startbildschirm-Symbolen</string>
-    <string name="settings_glass_panel_desc">Eine mattierte Scheibe zwischen Hintergrundbild und Symbolen, getönt und mit hellem Rand.</string>
+    <string name="settings_glass_panel">Glasschicht über dem Hintergrundbild</string>
+    <string name="settings_glass_panel_desc">Eine mattierte Scheibe über dem ganzen Hintergrundbild, vom oberen bis zum unteren Bildschirmrand, hinter Symbolen und Leisten.</string>
     <string name="settings_glass_strength">Glasstärke</string>
     <string name="settings_folder_appearance">Ordnerdarstellung</string>
     <string name="settings_folder_app_names">App-Namen in Ordnern anzeigen</string>

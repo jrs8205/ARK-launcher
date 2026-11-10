@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Two-line labels</string>
     <string name="settings_show_folder_names">Show folder names</string>
     <string name="settings_folder_columns">Folder columns</string>
-    <string name="settings_glass_panel">Glass panel behind the home icons</string>
-    <string name="settings_glass_panel_desc">A frosted sheet between the wallpaper and the icons, tinted and edged with light.</string>
+    <string name="settings_glass_panel">Glass layer over the wallpaper</string>
+    <string name="settings_glass_panel_desc">A frosted sheet over the whole wallpaper, from the top of the screen to the bottom, behind the icons and the bars.</string>
     <string name="settings_glass_strength">Glass strength</string>
     <string name="settings_folder_appearance">Folder appearance</string>
     <string name="settings_folder_app_names">Show app names in folders</string>

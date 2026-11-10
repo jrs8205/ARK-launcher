@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Appnamn på två rader</string>
     <string name="settings_show_folder_names">Visa mappnamn</string>
     <string name="settings_folder_columns">Mappkolumner</string>
-    <string name="settings_glass_panel">Glaspanel bakom startskärmens ikoner</string>
-    <string name="settings_glass_panel_desc">En frostad skiva mellan bakgrundsbilden och ikonerna, tonad och med en ljus kant.</string>
+    <string name="settings_glass_panel">Glasskikt över bakgrundsbilden</string>
+    <string name="settings_glass_panel_desc">En frostad skiva över hela bakgrundsbilden, från skärmens överkant till nederkant, bakom ikonerna och fälten.</string>
     <string name="settings_glass_strength">Glasets styrka</string>
     <string name="settings_folder_appearance">Mapparnas utseende</string>
     <string name="settings_folder_app_names">Visa appnamn i mappar</string>

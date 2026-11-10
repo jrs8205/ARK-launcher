@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Nombres en dos líneas</string>
     <string name="settings_show_folder_names">Mostrar nombres de carpetas</string>
     <string name="settings_folder_columns">Columnas de carpeta</string>
-    <string name="settings_glass_panel">Panel de cristal tras los iconos de inicio</string>
-    <string name="settings_glass_panel_desc">Una lámina esmerilada entre el fondo de pantalla y los iconos, tintada y con un borde de luz.</string>
+    <string name="settings_glass_panel">Capa de cristal sobre el fondo de pantalla</string>
+    <string name="settings_glass_panel_desc">Una lámina esmerilada sobre todo el fondo de pantalla, de arriba abajo, detrás de los iconos y las barras.</string>
     <string name="settings_glass_strength">Intensidad del cristal</string>
     <string name="settings_folder_appearance">Aspecto de las carpetas</string>
     <string name="settings_folder_app_names">Mostrar nombres de apps en las carpetas</string>

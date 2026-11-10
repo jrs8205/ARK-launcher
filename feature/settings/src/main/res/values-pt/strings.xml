@@ -24,8 +24,8 @@
     <string name="settings_two_line_labels">Nomes em duas linhas</string>
     <string name="settings_show_folder_names">Mostrar nomes das pastas</string>
     <string name="settings_folder_columns">Colunas da pasta</string>
-    <string name="settings_glass_panel">Painel de vidro atrás dos ícones da tela inicial</string>
-    <string name="settings_glass_panel_desc">Uma lâmina fosca entre o papel de parede e os ícones, tingida e com uma borda de luz.</string>
+    <string name="settings_glass_panel">Camada de vidro sobre o papel de parede</string>
+    <string name="settings_glass_panel_desc">Uma lâmina fosca sobre todo o papel de parede, de cima a baixo da tela, atrás dos ícones e das barras.</string>
     <string name="settings_glass_strength">Intensidade do vidro</string>
     <string name="settings_folder_appearance">Aparência das pastas</string>
     <string name="settings_folder_app_names">Mostrar nomes dos apps nas pastas</string>

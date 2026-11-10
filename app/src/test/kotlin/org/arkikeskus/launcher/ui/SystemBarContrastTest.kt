@@ -11,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import org.arkikeskus.launcher.model.DrawerSurface
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.drawerSurface
+import org.arkikeskus.launcher.model.glassTint
 import org.junit.Test
 
 /**
@@ -103,7 +104,7 @@ class SystemBarContrastTest {
             statusBarPx = { 130f },
             navBarPx = { 60f },
             drawerIsLightOverStatusBar = { dim, _ -> drawerIsLightOverStatusBar(darkTheme, 0f, visible(), 1f, wallpaperSupportsDarkText = true, homeDim = dim) },
-            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = it) },
+            drawerIsLightOverNavBar = { dim, _ -> drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = dim) },
             coverIsLight = { null },
             ownBarBacksDark = { ownBarBacksDark(visible(), 1f) },
             wallpaperSupportsDarkText = { true },
@@ -132,7 +133,7 @@ class SystemBarContrastTest {
             statusBarPx = { 130f },
             navBarPx = { 60f },
             drawerIsLightOverStatusBar = { dim, _ -> drawerIsLightOverStatusBar(darkTheme, 0f, ownBarVisible = true, scrimOpacity = 1f, wallpaperSupportsDarkText = true, homeDim = dim) },
-            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = it) },
+            drawerIsLightOverNavBar = { dim, _ -> drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = dim) },
             coverIsLight = { null },
             ownBarBacksDark = { ownBar },
             wallpaperSupportsDarkText = { true },
@@ -191,7 +192,7 @@ class SystemBarContrastTest {
                     darkTheme, 0f, ownBarVisible = true, scrimOpacity = ownBarScrimOnScreen(1f, alpha), wallpaperSupportsDarkText = true, homeDim = dim,
                 )
             },
-            drawerIsLightOverNavBar = { drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = it) },
+            drawerIsLightOverNavBar = { dim, _ -> drawerIsLightOverNavigationBar(darkTheme, 0f, wallpaperSupportsDarkText = true, homeDim = dim) },
             coverIsLight = { null },
             ownBarBacksDark = { alpha -> ownBarBacksDark(ownBarShown = true, scrimOpacity = ownBarScrimOnScreen(1f, alpha)) },
             wallpaperSupportsDarkText = { true },
@@ -234,7 +235,7 @@ class SystemBarContrastTest {
                 dimsSeen += dim
                 drawerIsLightOverStatusBar(lightTheme, 0.05f, ownBarVisible = true, scrimOpacity = 0.5f, wallpaperSupportsDarkText = true, homeDim = dim)
             },
-            drawerIsLightOverNavBar = { dim -> drawerIsLightOverNavigationBar(darkTheme, 0.4f, wallpaperSupportsDarkText = true, homeDim = dim) },
+            drawerIsLightOverNavBar = { dim, _ -> drawerIsLightOverNavigationBar(darkTheme, 0.4f, wallpaperSupportsDarkText = true, homeDim = dim) },
             coverIsLight = { null },
             ownBarBacksDark = { ownBarBacksDark(ownBarShown = true, scrimOpacity = 0.5f) },
             wallpaperSupportsDarkText = { true },
@@ -288,6 +289,66 @@ class SystemBarContrastTest {
         assertThat(navigationBarDarkIcons(drawerCoversBar = true, drawerSurfaceIsLight = false, coverIsLight = true, wallpaperSupportsDarkText = true)).isFalse()
 
         assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = false, covered = true)).isFalse()
+    }
+
+    /** The glass layer (1.0.5) is a white tint over the whole wallpaper, behind the bars too. A strong one
+     *  turns a dark wallpaper light behind the status bar, where dark glyphs then read better; a weak one
+     *  leaves it dark; a light wallpaper stays light. The tint is weaker at the bottom: even the strongest
+     *  setting leaves a dark wallpaper dark behind the navigation bar. */
+    @Test fun theGlassLayerLightensWhatIsBehindTheBars() {
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = 0f)).isFalse()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = true, glassTint = 0f)).isTrue()
+        val strong = glassTint(0.6f)
+        val weak = glassTint(LauncherSettings.DEFAULT_GLASS_OPACITY)
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.top)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = weak.top)).isFalse()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = true, glassTint = strong.top)).isTrue()
+        assertThat(homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = strong.bottom)).isFalse()
+        // What the screen shows: white at 81 % over black is sRGB 0.81, relative luminance 0.62.
+        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = 0.81f)).isWithin(0.02f).of(0.62f)
+        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = false, glassTint = 0f)).isEqualTo(0f)
+        assertThat(wallpaperOnHomeLuminance(wallpaperSupportsDarkText = true, glassTint = 0f)).isEqualTo(1f)
+    }
+
+    /** On home the glyphs follow the glass as much of it as is on screen: it is part of home, which fades
+     *  out under the rising drawer, and the dark wallpaper is back behind the bar once it has. */
+    @Test fun theGlyphsFollowTheGlassWhileHomeIsOnScreen() {
+        val progress = mutableFloatStateOf(0f)
+        val strong = glassTint(0.6f)
+        val glyphs = SystemBarGlyphs(
+            progress = { progress.floatValue },
+            heightPx = { 2400f },
+            statusBarPx = { 130f },
+            navBarPx = { 60f },
+            drawerIsLightOverStatusBar = { _, _ -> false },
+            drawerIsLightOverNavBar = { _, _ -> false },
+            coverIsLight = { null },
+            ownBarBacksDark = { false },
+            wallpaperSupportsDarkText = { false },
+            glassTopTint = { strong.top },
+            glassBottomTint = { strong.bottom },
+        )
+        assertThat(glyphs.darkStatus.value).isTrue()
+        assertThat(glyphs.darkNav.value).isFalse()
+
+        progress.floatValue = HOME_FADE_SPAN
+        assertThat(glyphs.darkStatus.value).isFalse()
+    }
+
+    /** ARK's own bar draws its scrim over the glass: the scrim dims the lightened wallpaper as it dims a
+     *  light one, and where the glass makes the glyphs dark there is no dark gradient behind them. */
+    @Test fun theOwnBarsScrimAndTheTopScrimCountTheGlass() {
+        assertThat(behindStatusBarLuminance(ownBarVisible = false, scrimOpacity = 0.6f, wallpaperSupportsDarkText = false, glassTint = 0.81f))
+            .isWithin(0.02f).of(0.62f)
+        assertThat(behindStatusBarLuminance(ownBarVisible = true, scrimOpacity = 0.6f, wallpaperSupportsDarkText = false, glassTint = 0.81f))
+            .isLessThan(0.12f)
+        // A see-through drawer over the navigation bar: the glass under it lightens a dark wallpaper there too.
+        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = false, homeDim = 0f, glassTint = 0.81f)).isTrue()
+        assertThat(drawerIsLightOverNavigationBar(darkTheme, opacity = 0f, wallpaperSupportsDarkText = false, homeDim = 0f)).isFalse()
+
+        val darkGlyphs = homeBackdropSupportsDarkGlyphs(wallpaperSupportsDarkText = false, glassTint = 0.81f)
+        assertThat(homeTopScrimShown(ownBarShown = false, systemBarHidden = false, statusBarPx = 130f, headsUpActive = false, wallpaperSupportsDarkText = darkGlyphs, covered = false))
+            .isFalse()
     }
 
     @Test fun theNavigationBarFollowsTheDrawerOrTheWallpaper() {
@@ -368,7 +429,7 @@ class SystemBarContrastTest {
             statusBarPx = { statusBar.floatValue },
             navBarPx = { 60f },
             drawerIsLightOverStatusBar = { _, _ -> true },
-            drawerIsLightOverNavBar = { true },
+            drawerIsLightOverNavBar = { _, _ -> true },
             coverIsLight = { null },
             ownBarBacksDark = { false },
             wallpaperSupportsDarkText = { false },

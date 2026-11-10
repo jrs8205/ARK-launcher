@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -48,6 +47,7 @@ import org.arkikeskus.launcher.data.smartspace.WeatherKind
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.compositeOver
 import org.arkikeskus.launcher.model.contentIsDarkOn
+import org.arkikeskus.launcher.model.glassTint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
@@ -188,15 +188,13 @@ internal fun rememberWallpaperColor(): Int {
 
 /**
  * What is behind a card on the home screen (ARGB): the [wallpaper]'s colour, under the glass panel's white
- * tint when the panel is on ([glassOpacity], null without it). The tint is the panel's own gradient
- * ([glassPanelAlphas]) at [fraction] of its height (0 = top, 1 = bottom): the panel is brighter at the top,
- * so the same card can need dark text high on it and light text low on it.
+ * tint when the layer is on ([glassOpacity], null without it). The tint is the layer's own gradient
+ * ([glassTint]) at [fraction] of its height (0 = top, 1 = bottom): it is brighter at the top, so the
+ * same card can need dark text high on it and light text low on it.
  */
 internal fun homeBackdropColor(wallpaper: Int, glassOpacity: Float?, fraction: Float = 0.5f): Int {
     if (glassOpacity == null) return wallpaper
-    val alphas = glassPanelAlphas(glassOpacity)
-    val tint = alphas.top + (alphas.bottom - alphas.top) * fraction.coerceIn(0f, 1f)
-    return compositeOver(0xFFFFFFFF.toInt(), tint, wallpaper)
+    return compositeOver(0xFFFFFFFF.toInt(), glassTint(glassOpacity).at(fraction), wallpaper)
 }
 
 /** The name of a kind of weather, for a screen reader: a drawn icon has no text of its own. */
@@ -360,36 +358,17 @@ private fun DrawScope.cloud(center: Offset, width: Float, color: Color) {
     drawCircle(color, width * 0.27f, Offset(center.x + width * 0.10f, center.y - width * 0.04f))
 }
 
-/** The glass panel's tints, white over the wallpaper: brighter at the [top] than the [bottom], and a
- *  lighter [edge] line, all following the strength setting. */
-internal data class GlassAlphas(val top: Float, val bottom: Float, val edge: Float)
-
-internal fun glassPanelAlphas(opacity: Float): GlassAlphas {
-    val o = opacity.coerceIn(0f, 1f)
-    return GlassAlphas(top = (o * 1.35f).coerceAtMost(1f), bottom = o * 0.7f, edge = (o * 2.2f + 0.12f).coerceAtMost(0.9f))
-}
-
 /**
- * A frosted glass panel behind the home grid, between the wallpaper and the icons (the owner's 1.0.5
- * idea): one rounded sheet with a soft sheen and a light edge. It tints; the frosting itself is the
- * system's wallpaper blur, which a window can only ask for as a whole. Where it is laid out goes to
- * [bounds], so the cards over it can tell which part of its fading tint is behind them.
+ * A frosted glass layer between the wallpaper and the home screen (the owner's 1.0.5 idea): one sheet
+ * over the whole screen, from its top edge to its bottom edge, under the status bar, the icons, the dock
+ * and the navigation bar, with a soft sheen that fades downwards ([glassTint]). It tints; the frosting
+ * itself is the system's wallpaper blur, which a window can only ask for as a whole. Where it is laid
+ * out goes to [bounds], so the cards over it can tell which part of its fading tint is behind them.
  */
 internal fun Modifier.homeGlassPanel(opacity: Float, bounds: GlassPanelBounds): Modifier = onGloballyPositioned {
     bounds.top = it.positionInRoot().y
     bounds.height = it.size.height.toFloat()
 }.drawBehind {
-    val alphas = glassPanelAlphas(opacity)
-    val inset = 8.dp.toPx()
-    val topLeft = Offset(inset, 0f)
-    val panel = Size(size.width - 2 * inset, size.height)
-    val corner = CornerRadius(28.dp.toPx())
-    drawRoundRect(
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = alphas.top), Color.White.copy(alpha = alphas.bottom))),
-        topLeft, panel, corner,
-    )
-    drawRoundRect(
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = alphas.edge), Color.White.copy(alpha = alphas.edge * 0.25f))),
-        topLeft, panel, corner, style = Stroke(width = 1.dp.toPx()),
-    )
+    val tint = glassTint(opacity)
+    drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = tint.top), Color.White.copy(alpha = tint.bottom))))
 }
