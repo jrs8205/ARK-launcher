@@ -318,7 +318,7 @@ internal fun SmartspaceContent(
                     if (detail != null) TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = detailTap) {
                         val detailStyle = MaterialTheme.typography.bodySmall.scaledBy(look.textScale)
                         if (hasPermission && event == null && weather != null) {
-                            WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, color = ink.copy(alpha = 0.85f), textStyle = detailStyle)
+                            WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink.copy(alpha = 0.85f), textStyle = detailStyle)
                         } else {
                             Text(detail, color = ink.copy(alpha = 0.85f), style = detailStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -407,7 +407,7 @@ internal fun SmartspaceContent(
                     TapTarget(onTap = openWeather, fillWidth = false, fillHeight = true, interactionSource = noIndication,
                         modifier = Modifier.weight(1f, fill = false)) {
                         WeatherLine(
-                            w, withCity = true, iconStyle = look.weatherIcon, color = ink,
+                            w, withCity = true, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink,
                             textStyle = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
                         )
                     }
@@ -448,7 +448,7 @@ internal fun SmartspaceContent(
             if (w != null) {
                 TapTarget(onTap = openWeather, interactionSource = noIndication) {
                     WeatherLine(
-                        w, withCity = true, iconStyle = look.weatherIcon, color = ink,
+                        w, withCity = true, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink,
                         textStyle = themedTextStyle(TextStyle(fontSize = (16 * scale).sp, shadow = shadow)),
                     )
                 }
@@ -569,14 +569,15 @@ private fun TextStyle.scaledBy(scale: Float): TextStyle =
 
 /**
  * The weather line: the temperature, the weather's icon and, [withCity], the place. With the standard
- * icon it is the one text it has always been (the emoji in the text); every other style draws the icon
- * beside the temperature ([WeatherGlyph]), and the place alone gives way when the line runs out of width.
+ * icon at the standard size it is the one text it has always been (the emoji in the text); every other
+ * style, and the [large] size of any, draws the icon beside the temperature ([WeatherGlyph]), and the
+ * place alone gives way when the line runs out of width.
  */
 @Composable
-private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String, color: Color, textStyle: TextStyle) {
+private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String, large: Boolean, color: Color, textStyle: TextStyle) {
     val city = if (withCity) w.city else null
     val temperature = "${w.temperatureC.roundToInt()}°"
-    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI) {
+    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI && !large) {
         Text(
             text = "$temperature ${WeatherCodes.emoji(w.weatherCode)}" + city?.let { " $it" }.orEmpty(),
             color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -586,7 +587,7 @@ private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String,
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(temperature, color = color, style = textStyle, maxLines = 1)
         Spacer(Modifier.width(4.dp))
-        WeatherGlyph(w.weatherCode, iconStyle, textStyle.fontSize)
+        WeatherGlyph(w.weatherCode, iconStyle, large, textStyle.fontSize)
         if (city != null) {
             Spacer(Modifier.width(4.dp))
             Text(city, color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))

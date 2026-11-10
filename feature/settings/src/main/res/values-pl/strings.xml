@@ -42,6 +42,7 @@
     <string name="settings_weather_icon_large">Duża</string>
     <string name="settings_weather_icon_color">Kolorowa</string>
     <string name="settings_weather_icon_animated">Animowana</string>
+    <string name="settings_weather_icon_size">Rozmiar ikony pogody</string>
     <string name="settings_section_expanded">Rozwinięte</string>
     <string name="settings_section_collapsed">Zwinięte</string>
     <string name="settings_blur_behind_drawer">Rozmyj tapetę za szufladą aplikacji</string>

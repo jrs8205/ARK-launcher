@@ -42,6 +42,7 @@
     <string name="settings_weather_icon_large">Stor</string>
     <string name="settings_weather_icon_color">Färgglad</string>
     <string name="settings_weather_icon_animated">Animerad</string>
+    <string name="settings_weather_icon_size">Väderikonens storlek</string>
     <string name="settings_section_expanded">Utfälld</string>
     <string name="settings_section_collapsed">Infälld</string>
     <string name="settings_blur_behind_drawer">Sudda bakgrunden bakom applådan</string>

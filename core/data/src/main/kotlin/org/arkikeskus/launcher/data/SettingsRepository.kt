@@ -170,6 +170,7 @@ class SettingsRepository @Inject constructor(
                 (p[Keys.SMARTSPACE_TEXT_SCALE] ?: 1f).coerceIn(MIN_SMARTSPACE_TEXT_SCALE, MAX_SMARTSPACE_TEXT_SCALE),
             weatherIconStyle = (p[Keys.WEATHER_ICON_STYLE] ?: LauncherSettings.WEATHER_ICON_EMOJI)
                 .let { if (it in LauncherSettings.WEATHER_ICON_STYLES) it else LauncherSettings.WEATHER_ICON_EMOJI },
+            weatherIconLarge = p[Keys.WEATHER_ICON_LARGE] ?: false,
             homeGlassPanel = p[Keys.HOME_GLASS_PANEL] ?: false,
             homeGlassOpacity =
                 (p[Keys.HOME_GLASS_OPACITY] ?: LauncherSettings.DEFAULT_GLASS_OPACITY).coerceIn(MIN_GLASS_OPACITY, MAX_GLASS_OPACITY),
@@ -620,6 +621,8 @@ class SettingsRepository @Inject constructor(
         edit { it[Keys.SMARTSPACE_TEXT_SCALE] = value.coerceIn(MIN_SMARTSPACE_TEXT_SCALE, MAX_SMARTSPACE_TEXT_SCALE) }
     /** One of [LauncherSettings.WEATHER_ICON_STYLES]; anything else reads as the standard emoji. */
     suspend fun setWeatherIconStyle(value: String) = edit { it[Keys.WEATHER_ICON_STYLE] = value }
+    /** The large weather icon, whatever its style. */
+    suspend fun setWeatherIconLarge(value: Boolean) = edit { it[Keys.WEATHER_ICON_LARGE] = value }
 
     // The glass panel behind the home grid.
     suspend fun setHomeGlassPanel(value: Boolean) = edit { it[Keys.HOME_GLASS_PANEL] = value }
@@ -888,6 +891,7 @@ class SettingsRepository @Inject constructor(
         val SMARTSPACE_BACKGROUND_OPACITY = floatPreferencesKey("smartspace_background_opacity")
         val SMARTSPACE_TEXT_SCALE = floatPreferencesKey("smartspace_text_scale")
         val WEATHER_ICON_STYLE = stringPreferencesKey("weather_icon_style")
+        val WEATHER_ICON_LARGE = booleanPreferencesKey("weather_icon_large")
         val HOME_GLASS_PANEL = booleanPreferencesKey("home_glass_panel")
         val HOME_GLASS_OPACITY = floatPreferencesKey("home_glass_opacity")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
@@ -979,6 +983,7 @@ class SettingsRepository @Inject constructor(
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
             "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders", "blur_behind_drawer",
             "theme_all_icons", "hide_system_navigation_bar", "folder_show_labels", "home_glass_panel",
+            "weather_icon_large",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

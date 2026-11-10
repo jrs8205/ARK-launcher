@@ -47,16 +47,23 @@ class AppearanceSettingsTest {
         assertThat(defaults.smartspaceBackgroundOpacity).isEqualTo(LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND)
         assertThat(defaults.smartspaceTextScale).isEqualTo(1f)
         assertThat(defaults.weatherIconStyle).isEqualTo(LauncherSettings.WEATHER_ICON_EMOJI)
+        assertThat(defaults.weatherIconLarge).isFalse()
 
         repo.setSmartspaceBackgroundColor(blue)
         repo.setSmartspaceBackgroundOpacity(2f)
         repo.setSmartspaceTextScale(9f)
         repo.setWeatherIconStyle(LauncherSettings.WEATHER_ICON_ANIMATED)
+        repo.setWeatherIconLarge(true)
         val set = repo.settings.first()
         assertThat(set.smartspaceBackgroundColor).isEqualTo(blue)
         assertThat(set.smartspaceBackgroundOpacity).isEqualTo(1f)
         assertThat(set.smartspaceTextScale).isEqualTo(SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE)
         assertThat(set.weatherIconStyle).isEqualTo(LauncherSettings.WEATHER_ICON_ANIMATED)
+        // The size is its own setting: the moving icon can be large too.
+        assertThat(set.weatherIconLarge).isTrue()
+        assertThat(LauncherSettings.WEATHER_ICON_STYLES).containsExactly(
+            LauncherSettings.WEATHER_ICON_EMOJI, LauncherSettings.WEATHER_ICON_COLOR, LauncherSettings.WEATHER_ICON_ANIMATED,
+        )
 
         // An unknown style (a newer version's backup, a typo) reads as the standard one.
         repo.setWeatherIconStyle("hologram")
@@ -86,6 +93,7 @@ class AppearanceSettingsTest {
         repo.setSmartspaceBackgroundColor(blue)
         repo.setSmartspaceTextScale(1.2f)
         repo.setWeatherIconStyle(LauncherSettings.WEATHER_ICON_COLOR)
+        repo.setWeatherIconLarge(true)
         repo.setHomeGlassPanel(true)
         repo.setHideSystemNavigationBar(true)
 
@@ -93,6 +101,7 @@ class AppearanceSettingsTest {
         assertThat(exported).containsEntry("folder_show_labels", false)
         assertThat(exported).containsEntry("folder_background_color", blue)
         assertThat(exported).containsEntry("weather_icon_style", LauncherSettings.WEATHER_ICON_COLOR)
+        assertThat(exported).containsEntry("weather_icon_large", true)
 
         val restored = newRepository()
         restored.importRaw(exported)

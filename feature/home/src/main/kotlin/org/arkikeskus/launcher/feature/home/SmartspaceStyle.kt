@@ -66,6 +66,8 @@ data class SmartspaceStyle(
     val backgroundOpacity: Float = LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND,
     val textScale: Float = 1f,
     val weatherIcon: String = LauncherSettings.WEATHER_ICON_EMOJI,
+    /** The large icon: a choice of its own, for every style. */
+    val weatherIconLarge: Boolean = false,
 )
 
 /** The widget's look as the settings have it. */
@@ -74,6 +76,7 @@ fun LauncherSettings.smartspaceStyle(): SmartspaceStyle = SmartspaceStyle(
     backgroundOpacity = smartspaceBackgroundOpacity,
     textScale = smartspaceTextScale,
     weatherIcon = weatherIconStyle,
+    weatherIconLarge = weatherIconLarge,
 )
 
 val LocalSmartspaceStyle = staticCompositionLocalOf { SmartspaceStyle() }
@@ -246,17 +249,22 @@ private fun rememberWeatherPhase(animated: Boolean): FloatState {
     return phase
 }
 
+/** The drawn icon's side as a multiple of the line's font size: about an emoji's, and the large one. */
+internal const val WEATHER_ICON_STANDARD = 1.4f
+internal const val WEATHER_ICON_LARGE = 2f
+
 /**
- * The weather icon beside the temperature for every style but the standard emoji-in-the-text:
- * the emoji larger, or an icon drawn in colour, still or moving. Sized from the line's [fontSize].
+ * The weather icon beside the temperature whenever it is not the standard emoji in the text: the emoji
+ * [large], or an icon drawn in colour, still or moving, at the standard size or [large]. Sized from the
+ * line's [fontSize].
  */
 @Composable
-internal fun WeatherGlyph(code: Int, iconStyle: String, fontSize: TextUnit, modifier: Modifier = Modifier) {
-    if (iconStyle == LauncherSettings.WEATHER_ICON_LARGE) {
+internal fun WeatherGlyph(code: Int, iconStyle: String, large: Boolean, fontSize: TextUnit, modifier: Modifier = Modifier) {
+    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI) {
         Text(WeatherCodes.emoji(code), fontSize = fontSize * 1.7f, maxLines = 1, modifier = modifier.testTag(WEATHER_GLYPH_TAG))
         return
     }
-    val size = with(LocalDensity.current) { (fontSize * 2f).toDp() }
+    val size = with(LocalDensity.current) { (fontSize * (if (large) WEATHER_ICON_LARGE else WEATHER_ICON_STANDARD)).toDp() }
     val phase = rememberWeatherPhase(animated = iconStyle == LauncherSettings.WEATHER_ICON_ANIMATED)
     val kind = WeatherCodes.kind(code)
     // The drawing says nothing to a screen reader by itself: it is named as the emoji was.
@@ -266,15 +274,22 @@ internal fun WeatherGlyph(code: Int, iconStyle: String, fontSize: TextUnit, modi
     }
 }
 
-private val SunCore = Color(0xFFFFC107)
-private val SunRay = Color(0xFFFFB300)
-private val CloudLight = Color(0xFFF5F7FA)
-private val CloudShade = Color(0xFFB0BEC5)
-private val CloudDark = Color(0xFF78909C)
-private val RainDrop = Color(0xFF4FC3F7)
+// Vivid on purpose: this is the style chosen for colour (the first set, mostly white and grey clouds, read as pale).
+private val SunCentre = Color(0xFFFFEA00)
+private val SunEdge = Color(0xFFFF9100)
+private val SunRay = Color(0xFFFF6D00)
+private val FairCloud = listOf(Color(0xFFE3F2FD), Color(0xFF42A5F5))
+private val BackCloud = listOf(Color(0xFF90CAF9), Color(0xFF1565C0))
+private val FogCloud = listOf(Color(0xFFE0F7FA), Color(0xFF26C6DA))
+private val FogLines = listOf(Color(0xFF80DEEA), Color(0xFF4DD0E1), Color(0xFF26C6DA))
+private val RainCloud = listOf(Color(0xFF90CAF9), Color(0xFF3949AB))
+private val RainDrop = Color(0xFF00B0FF)
+private val SnowCloud = listOf(Color(0xFFE1F5FE), Color(0xFF29B6F6))
 private val SnowFlake = Color(0xFFFFFFFF)
-private val Bolt = Color(0xFFFFD54F)
-private val FogLine = Color(0xFFCFD8DC)
+private val SnowRim = Color(0xFF29B6F6)
+private val StormCloud = listOf(Color(0xFFB39DDB), Color(0xFF4527A0))
+private val BoltTop = Color(0xFFFFEA00)
+private val BoltBottom = Color(0xFFFF9100)
 
 private fun wave(t: Float, periodSeconds: Float): Float = sin(2f * PI.toFloat() * t / periodSeconds)
 private fun cycle(t: Float, periodSeconds: Float, offset: Float = 0f): Float = (t / periodSeconds + offset).mod(1f)
@@ -286,18 +301,18 @@ private fun DrawScope.drawWeather(kind: WeatherKind, t: Float) {
         WeatherKind.CLEAR -> sun(Offset(s * 0.5f, s * 0.5f), s * 0.22f, t)
         WeatherKind.PARTLY_CLOUDY -> {
             sun(Offset(s * 0.36f, s * 0.36f), s * 0.16f, t)
-            cloud(Offset(s * 0.56f + wave(t, 4f) * s * 0.03f, s * 0.62f), s * 0.62f, CloudLight)
+            cloud(Offset(s * 0.56f + wave(t, 4f) * s * 0.03f, s * 0.62f), s * 0.62f, FairCloud)
         }
         WeatherKind.CLOUDY -> {
-            cloud(Offset(s * 0.40f - wave(t, 4f) * s * 0.03f, s * 0.42f), s * 0.50f, CloudShade)
-            cloud(Offset(s * 0.54f + wave(t, 4f) * s * 0.03f, s * 0.60f), s * 0.66f, CloudLight)
+            cloud(Offset(s * 0.40f - wave(t, 4f) * s * 0.03f, s * 0.42f), s * 0.50f, BackCloud)
+            cloud(Offset(s * 0.54f + wave(t, 4f) * s * 0.03f, s * 0.60f), s * 0.66f, FairCloud)
         }
         WeatherKind.FOG -> {
-            cloud(Offset(s * 0.5f, s * 0.36f), s * 0.60f, CloudLight)
+            cloud(Offset(s * 0.5f, s * 0.36f), s * 0.60f, FogCloud)
             for (i in 0..2) {
                 val shift = wave(t + i * 0.7f, 4f) * s * 0.05f - wave(i * 0.7f, 4f) * s * 0.05f
                 val y = s * (0.66f + i * 0.12f)
-                drawLine(FogLine, Offset(s * 0.2f + shift, y), Offset(s * 0.8f + shift, y), strokeWidth = s * 0.07f, cap = StrokeCap.Round)
+                drawLine(FogLines[i], Offset(s * 0.2f + shift, y), Offset(s * 0.8f + shift, y), strokeWidth = s * 0.07f, cap = StrokeCap.Round)
             }
         }
         WeatherKind.RAIN -> {
@@ -310,15 +325,18 @@ private fun DrawScope.drawWeather(kind: WeatherKind, t: Float) {
                     strokeWidth = s * 0.06f, cap = StrokeCap.Round,
                 )
             }
-            cloud(Offset(s * 0.5f, s * 0.38f), s * 0.68f, CloudShade)
+            cloud(Offset(s * 0.5f, s * 0.38f), s * 0.68f, RainCloud)
         }
         WeatherKind.SNOW -> {
             for (i in 0..2) {
                 val p = cycle(t, 2f, i / 3f)
                 val x = s * (0.32f + i * 0.18f) + wave(t + i, 2f) * s * 0.02f - wave(i.toFloat(), 2f) * s * 0.02f
-                drawCircle(SnowFlake.copy(alpha = 1f - p * 0.5f), s * 0.045f, Offset(x, s * (0.62f + p * 0.32f)))
+                // A white flake in a blue rim, so it shows on a light wallpaper too.
+                val flake = Offset(x, s * (0.62f + p * 0.32f))
+                drawCircle(SnowRim.copy(alpha = 1f - p * 0.5f), s * 0.055f, flake)
+                drawCircle(SnowFlake.copy(alpha = 1f - p * 0.5f), s * 0.032f, flake)
             }
-            cloud(Offset(s * 0.5f, s * 0.38f), s * 0.68f, CloudLight)
+            cloud(Offset(s * 0.5f, s * 0.38f), s * 0.68f, SnowCloud)
         }
         WeatherKind.THUNDER -> {
             val c = cycle(t, 2f)
@@ -332,8 +350,12 @@ private fun DrawScope.drawWeather(kind: WeatherKind, t: Float) {
                 lineTo(s * 0.53f, s * 0.68f)
                 close()
             }
-            drawPath(bolt, Bolt.copy(alpha = if (flash) 1f else 0.6f))
-            cloud(Offset(s * 0.5f, s * 0.36f), s * 0.70f, CloudDark)
+            drawPath(
+                bolt,
+                Brush.verticalGradient(listOf(BoltTop, BoltBottom), startY = s * 0.52f, endY = s * 0.96f),
+                alpha = if (flash) 1f else 0.7f,
+            )
+            cloud(Offset(s * 0.5f, s * 0.36f), s * 0.70f, StormCloud)
         }
     }
 }
@@ -347,15 +369,17 @@ private fun DrawScope.sun(center: Offset, radius: Float, t: Float) {
             drawLine(SunRay, center + dir * (radius * 1.4f), center + dir * (radius * 1.85f), strokeWidth = radius * 0.24f, cap = StrokeCap.Round)
         }
     }
-    drawCircle(SunCore, radius, center)
+    drawCircle(Brush.radialGradient(listOf(SunCentre, SunEdge), center = center, radius = radius), radius, center)
 }
 
-/** A cloud [width] wide around [center]: a rounded base under two bumps. */
-private fun DrawScope.cloud(center: Offset, width: Float, color: Color) {
+/** A cloud [width] wide around [center]: a rounded base under two bumps, shaded from [colors]' first at its
+ *  top to their last at its bottom (one brush over the three shapes, so they read as one body). */
+private fun DrawScope.cloud(center: Offset, width: Float, colors: List<Color>) {
     val base = width * 0.32f
-    drawRoundRect(color, Offset(center.x - width / 2f, center.y), Size(width, base), CornerRadius(base / 2f))
-    drawCircle(color, width * 0.20f, Offset(center.x - width * 0.18f, center.y + base * 0.15f))
-    drawCircle(color, width * 0.27f, Offset(center.x + width * 0.10f, center.y - width * 0.04f))
+    val brush = Brush.verticalGradient(colors, startY = center.y - width * 0.31f, endY = center.y + base)
+    drawRoundRect(brush, Offset(center.x - width / 2f, center.y), Size(width, base), CornerRadius(base / 2f))
+    drawCircle(brush, width * 0.20f, Offset(center.x - width * 0.18f, center.y + base * 0.15f))
+    drawCircle(brush, width * 0.27f, Offset(center.x + width * 0.10f, center.y - width * 0.04f))
 }
 
 /**

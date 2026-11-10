@@ -42,6 +42,7 @@
     <string name="settings_weather_icon_large">Grande</string>
     <string name="settings_weather_icon_color">Colorido</string>
     <string name="settings_weather_icon_animated">Animado</string>
+    <string name="settings_weather_icon_size">Tamanho do ícone do clima</string>
     <string name="settings_section_expanded">Expandido</string>
     <string name="settings_section_collapsed">Recolhido</string>
     <string name="settings_blur_behind_drawer">Desfocar o papel de parede atrás da gaveta de apps</string>

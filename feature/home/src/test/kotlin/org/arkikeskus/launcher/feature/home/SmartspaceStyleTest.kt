@@ -83,16 +83,54 @@ class SmartspaceStyleTest {
     }
 
     @Test fun everyOtherStyleShowsAnIconOfItsOwnAndTheLineStillOpensTheWeatherApp() {
-        for (icon in listOf(LauncherSettings.WEATHER_ICON_LARGE, LauncherSettings.WEATHER_ICON_COLOR, LauncherSettings.WEATHER_ICON_ANIMATED)) {
-            style = SmartspaceStyle(weatherIcon = icon)
-            if (icon == LauncherSettings.WEATHER_ICON_LARGE) show(height = 280) else compose.waitForIdle()
+        val looks = listOf(
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI, weatherIconLarge = true),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR, weatherIconLarge = true),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconLarge = true),
+        )
+        looks.forEachIndexed { i, look ->
+            style = look
+            if (i == 0) show(height = 280) else compose.waitForIdle()
 
             assertThat(glyphs()).hasSize(1)
             compose.onNode(hasText("12°", substring = true)).assertHasClickAction().performClick()
         }
-        assertThat(opened).isEqualTo(3)
+        assertThat(opened).isEqualTo(looks.size)
         // The place still shows beside it.
         compose.onNode(hasText("Oulu", substring = true)).assertExists()
+    }
+
+    /** The size is a choice of its own beside the style (the owner's note: animated AND large at once):
+     *  the drawn icon, still or moving, is larger with it, and the emoji leaves the text for an icon of
+     *  its own; at the standard size the emoji is the text it always was. */
+    @Test fun theSizeSettingAppliesToEveryStyle() {
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR)
+        show(height = 280)
+        val standard = glyphs().single().size.height
+
+        for (icon in listOf(LauncherSettings.WEATHER_ICON_COLOR, LauncherSettings.WEATHER_ICON_ANIMATED)) {
+            style = SmartspaceStyle(weatherIcon = icon, weatherIconLarge = true)
+            compose.waitForIdle()
+            assertThat(glyphs().single().size.height).isGreaterThan(standard)
+        }
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED)
+        compose.waitForIdle()
+        assertThat(glyphs().single().size.height).isEqualTo(standard)
+
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI, weatherIconLarge = true)
+        compose.waitForIdle()
+        assertThat(glyphs()).hasSize(1)
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI)
+        compose.waitForIdle()
+        assertThat(glyphs()).isEmpty()
+    }
+
+    @Test fun theSettingsCarryTheStyleAndTheSize() {
+        assertThat(LauncherSettings().smartspaceStyle()).isEqualTo(SmartspaceStyle())
+        assertThat(LauncherSettings(weatherIconStyle = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconLarge = true).smartspaceStyle())
+            .isEqualTo(SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconLarge = true))
     }
 
     @Test fun theIconShowsInTheCompactAndTheShortLayoutToo() {

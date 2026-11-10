@@ -332,7 +332,10 @@ fun SettingsScreen(
                         valueRange = SettingsRepository.MIN_SMARTSPACE_TEXT_SCALE..SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE,
                         valueText = percentText,
                     )
-                    if (s.showWeather) WeatherIconRow(selected = s.weatherIconStyle, onPick = viewModel::setWeatherIconStyle)
+                    if (s.showWeather) {
+                        WeatherIconRow(selected = s.weatherIconStyle, onPick = viewModel::setWeatherIconStyle)
+                        WeatherIconSizeRow(large = s.weatherIconLarge, onPick = viewModel::setWeatherIconLarge)
+                    }
                 }
 
                 CollapsibleSection(
@@ -1747,14 +1750,13 @@ internal fun CardColorRow(title: String, selected: Int?, onPick: (Int?) -> Unit)
     }
 }
 
-/** How the clock/weather widget shows the weather's icon: the emoji in the text, the emoji larger, an icon drawn in
- *  colour, or the drawn icon moving for a moment whenever the home screen comes back. */
+/** How the clock/weather widget shows the weather's icon: the emoji, an icon drawn in colour, or the drawn icon
+ *  moving for a moment whenever the home screen comes back. Its size is the row below ([WeatherIconSizeRow]). */
 @Composable
 internal fun WeatherIconRow(selected: String, onPick: (String) -> Unit) {
     val p = LocalExpressivePalette.current
     val styles = listOf(
         LauncherSettings.WEATHER_ICON_EMOJI to R.string.settings_weather_icon_standard,
-        LauncherSettings.WEATHER_ICON_LARGE to R.string.settings_weather_icon_large,
         LauncherSettings.WEATHER_ICON_COLOR to R.string.settings_weather_icon_color,
         LauncherSettings.WEATHER_ICON_ANIMATED to R.string.settings_weather_icon_animated,
     )
@@ -1775,6 +1777,35 @@ internal fun WeatherIconRow(selected: String, onPick: (String) -> Unit) {
                 styles.forEach { (key, label) ->
                     FilterChip(selected = selected == key, onClick = { onPick(key) }, label = { Text(stringResource(label)) })
                 }
+            }
+        }
+    }
+}
+
+/** The weather icon's size, for every style: standard or large (the owner's note: a moving icon that is large too). */
+@Composable
+internal fun WeatherIconSizeRow(large: Boolean, onPick: (Boolean) -> Unit) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = RoundedCornerShape(20.dp),
+        shadowElevation = p.shadow,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_weather_icon_size))
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilterChip(
+                    selected = !large,
+                    onClick = { onPick(false) },
+                    label = { Text(stringResource(R.string.settings_weather_icon_standard)) },
+                )
+                FilterChip(
+                    selected = large,
+                    onClick = { onPick(true) },
+                    label = { Text(stringResource(R.string.settings_weather_icon_large)) },
+                )
             }
         }
     }

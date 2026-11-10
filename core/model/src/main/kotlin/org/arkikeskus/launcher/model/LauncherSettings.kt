@@ -153,9 +153,10 @@ data class LauncherSettings(
     val smartspaceBackgroundOpacity: Float = DEFAULT_SMARTSPACE_BACKGROUND,
     /** the multiplier on its text sizes (0.8-1.4) */
     val smartspaceTextScale: Float = 1.0f,
-    /** and how its weather icon is shown: [WEATHER_ICON_EMOJI], [WEATHER_ICON_LARGE], [WEATHER_ICON_COLOR]
-     *  or [WEATHER_ICON_ANIMATED]. */
+    /** how its weather icon is shown: [WEATHER_ICON_EMOJI], [WEATHER_ICON_COLOR] or [WEATHER_ICON_ANIMATED], */
     val weatherIconStyle: String = WEATHER_ICON_EMOJI,
+    /** and whether that icon is the large one: a choice of its own, for every style. */
+    val weatherIconLarge: Boolean = false,
     /** A frosted glass panel behind the home grid, between the wallpaper and the icons, */
     val homeGlassPanel: Boolean = false,
     /** and how strong its tint is. */
@@ -249,13 +250,11 @@ data class LauncherSettings(
 
         /** [weatherIconStyle]: the emoji in the text, as always. */
         const val WEATHER_ICON_EMOJI = "emoji"
-        /** The emoji, larger, beside the text. */
-        const val WEATHER_ICON_LARGE = "large"
         /** A drawn icon in colour. */
         const val WEATHER_ICON_COLOR = "color"
         /** The drawn icon, moving for a moment whenever the home screen comes back. */
         const val WEATHER_ICON_ANIMATED = "animated"
-        val WEATHER_ICON_STYLES = listOf(WEATHER_ICON_EMOJI, WEATHER_ICON_LARGE, WEATHER_ICON_COLOR, WEATHER_ICON_ANIMATED)
+        val WEATHER_ICON_STYLES = listOf(WEATHER_ICON_EMOJI, WEATHER_ICON_COLOR, WEATHER_ICON_ANIMATED)
 
         /** [drawerPictureDim] out of the box: none, only the picture shows. */
         const val DEFAULT_DRAWER_PICTURE_DIM = 0f

@@ -42,6 +42,7 @@
     <string name="settings_weather_icon_large">Büyük</string>
     <string name="settings_weather_icon_color">Renkli</string>
     <string name="settings_weather_icon_animated">Hareketli</string>
+    <string name="settings_weather_icon_size">Hava durumu simgesinin boyutu</string>
     <string name="settings_section_expanded">Genişletildi</string>
     <string name="settings_section_collapsed">Daraltıldı</string>
     <string name="settings_blur_behind_drawer">Uygulama çekmecesinin arkasındaki duvar kağıdını bulanıklaştır</string>

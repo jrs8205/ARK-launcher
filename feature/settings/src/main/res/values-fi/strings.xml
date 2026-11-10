@@ -42,6 +42,7 @@
     <string name="settings_weather_icon_large">Suuri</string>
     <string name="settings_weather_icon_color">Värikäs</string>
     <string name="settings_weather_icon_animated">Animoitu</string>
+    <string name="settings_weather_icon_size">Sääkuvakkeen koko</string>
     <string name="settings_section_expanded">Avattu</string>
     <string name="settings_section_collapsed">Suljettu</string>
     <string name="settings_blur_behind_drawer">Sumenna taustakuva sovellusvalikon takana</string>

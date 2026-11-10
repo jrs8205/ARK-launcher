@@ -182,6 +182,7 @@ class SettingsViewModel @Inject constructor(
     fun setSmartspaceBackgroundOpacity(value: Float) = update { repository.setSmartspaceBackgroundOpacity(value) }
     fun setSmartspaceTextScale(value: Float) = update { repository.setSmartspaceTextScale(value) }
     fun setWeatherIconStyle(value: String) = update { repository.setWeatherIconStyle(value) }
+    fun setWeatherIconLarge(value: Boolean) = update { repository.setWeatherIconLarge(value) }
     fun setHomeGlassPanel(value: Boolean) = update { repository.setHomeGlassPanel(value) }
     fun setHomeGlassOpacity(value: Float) = update { repository.setHomeGlassOpacity(value) }
     fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }

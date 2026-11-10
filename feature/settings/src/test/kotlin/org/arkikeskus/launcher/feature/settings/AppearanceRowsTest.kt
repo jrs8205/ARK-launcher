@@ -57,17 +57,32 @@ class AppearanceRowsTest {
         assertThat(picked).containsExactly(null)
     }
 
-    @Test fun theWeatherIconRowOffersTheFourStyles() {
+    @Test fun theWeatherIconRowOffersTheThreeStyles() {
         val picked = mutableListOf<String>()
         compose.setContent { WeatherIconRow(selected = LauncherSettings.WEATHER_ICON_EMOJI, onPick = { picked += it }) }
         compose.waitForIdle()
 
         compose.onNodeWithText(res.getString(R.string.settings_weather_icon)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.settings_weather_icon_standard)).assertIsSelected()
-        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_large)).assertIsNotSelected()
-        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_color)).performScrollTo().performClick()
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_color)).assertIsNotSelected().performScrollTo().performClick()
         compose.onNodeWithText(res.getString(R.string.settings_weather_icon_animated)).performScrollTo().performClick()
+        // The size is no style: it has a row of its own.
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_large)).assertDoesNotExist()
 
         assertThat(picked).containsExactly(LauncherSettings.WEATHER_ICON_COLOR, LauncherSettings.WEATHER_ICON_ANIMATED).inOrder()
+    }
+
+    /** The size beside the style (the owner's note: a moving icon that is large too). */
+    @Test fun theWeatherIconSizeRowOffersStandardAndLarge() {
+        val picked = mutableListOf<Boolean>()
+        compose.setContent { WeatherIconSizeRow(large = false, onPick = { picked += it }) }
+        compose.waitForIdle()
+
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_size)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_standard)).assertIsSelected()
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_large)).assertIsNotSelected().performClick()
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_standard)).performClick()
+
+        assertThat(picked).containsExactly(true, false).inOrder()
     }
 }

@@ -42,6 +42,7 @@
     <string name="settings_weather_icon_large">Крупный</string>
     <string name="settings_weather_icon_color">Цветной</string>
     <string name="settings_weather_icon_animated">Анимированный</string>
+    <string name="settings_weather_icon_size">Размер значка погоды</string>
     <string name="settings_section_expanded">Развёрнуто</string>
     <string name="settings_section_collapsed">Свёрнуто</string>
     <string name="settings_blur_behind_drawer">Размывать обои за списком приложений</string>
