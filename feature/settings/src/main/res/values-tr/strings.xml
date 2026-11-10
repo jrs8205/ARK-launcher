@@ -149,6 +149,8 @@
     <string name="settings_close">Kapat</string>
     <string name="settings_lock_desktop">Ana ekran düzenini kilitle</string>
     <string name="settings_hide_status_bar">Sistem durum çubuğunu gizle (tam ekran)</string>
+    <string name="settings_hide_navigation_bar">Sistem gezinme çubuğunu gizle</string>
+    <string name="settings_hide_navigation_bar_desc">Ana ekran ve uygulama çekmecesi. Kısa süreliğine göstermek için alt kenardan yukarı kaydırın.</string>
     <string name="settings_status_bar">Durum çubuğu (saat, pil, sinyal)</string>
     <string name="settings_status_bar_scrim">Durum çubuğu arka plan koyuluğu</string>
     <string name="settings_frequent_apps">En çok kullanılanlar üstte</string>

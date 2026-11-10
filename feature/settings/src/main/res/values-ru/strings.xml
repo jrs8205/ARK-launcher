@@ -155,6 +155,8 @@
     <string name="settings_close">Закрыть</string>
     <string name="settings_lock_desktop">Заблокировать макет</string>
     <string name="settings_hide_status_bar">Скрыть системную строку состояния (полноэкранный режим)</string>
+    <string name="settings_hide_navigation_bar">Скрыть системную панель навигации</string>
+    <string name="settings_hide_navigation_bar_desc">Главный экран и меню приложений. Проведите вверх от нижнего края, чтобы показать её на мгновение.</string>
     <string name="settings_status_bar">Строка состояния (часы, батарея, сигнал)</string>
     <string name="settings_status_bar_scrim">Затемнение фона строки состояния</string>
     <string name="settings_frequent_apps">Часто используемые вверху</string>

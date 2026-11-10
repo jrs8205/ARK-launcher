@@ -155,6 +155,8 @@
     <string name="settings_close">Zamknij</string>
     <string name="settings_lock_desktop">Zablokuj układ</string>
     <string name="settings_hide_status_bar">Ukryj systemowy pasek stanu (pełny ekran)</string>
+    <string name="settings_hide_navigation_bar">Ukryj systemowy pasek nawigacji</string>
+    <string name="settings_hide_navigation_bar_desc">Ekran główny i szuflada aplikacji. Przesuń w górę od dolnej krawędzi, aby pokazać go na chwilę.</string>
     <string name="settings_status_bar">Pasek stanu (zegar, bateria, sygnał)</string>
     <string name="settings_status_bar_scrim">Przyciemnienie tła paska stanu</string>
     <string name="settings_frequent_apps">Najczęściej używane na górze</string>

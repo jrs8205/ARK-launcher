@@ -152,6 +152,8 @@
     <string name="settings_close">Fechar</string>
     <string name="settings_lock_desktop">Bloquear layout da tela inicial</string>
     <string name="settings_hide_status_bar">Ocultar barra de status do sistema (tela cheia)</string>
+    <string name="settings_hide_navigation_bar">Ocultar barra de navegação do sistema</string>
+    <string name="settings_hide_navigation_bar_desc">Tela inicial e gaveta de apps. Deslize para cima a partir da borda inferior para mostrá-la por um instante.</string>
     <string name="settings_status_bar">Barra de status (relógio, bateria, sinal)</string>
     <string name="settings_status_bar_scrim">Escurecimento da barra de status</string>
     <string name="settings_frequent_apps">Mais usados no topo</string>

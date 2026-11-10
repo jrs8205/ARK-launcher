@@ -120,6 +120,17 @@ import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.abs
 
+/** Which system bars the launcher's window asks to [hide] and to [show] (WindowInsets.Type masks). */
+internal data class SystemBarsRequest(val hide: Int, val show: Int)
+
+/** The two hiding settings are independent: each bar follows its own switch. */
+internal fun systemBarsRequest(hideStatusBar: Boolean, hideNavigationBar: Boolean): SystemBarsRequest {
+    val status = android.view.WindowInsets.Type.statusBars()
+    val navigation = android.view.WindowInsets.Type.navigationBars()
+    val hide = (if (hideStatusBar) status else 0) or (if (hideNavigationBar) navigation else 0)
+    return SystemBarsRequest(hide = hide, show = (status or navigation) and hide.inv())
+}
+
 /** The space above and below the workspace in the home column. */
 internal val WORKSPACE_VERTICAL_PADDING = 12.dp
 
@@ -184,23 +195,24 @@ fun HomeScreen(
     val context = LocalContext.current
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
 
-    // Optionally hide the system status bar while the launcher is foreground (immersive home). No root
-    // needed; the bar returns for any other app. Re-applied on every ON_RESUME so returning from another
-    // app re-hides it. A swipe from the top still transiently reveals it (Android safety behaviour).
+    // Optionally hide the system status bar and/or navigation bar while the launcher is foreground
+    // (immersive home; the app drawer lives in the same window, so it follows). No root needed; the bars
+    // return for any other app. Re-applied on every ON_RESUME so returning from another app re-hides
+    // them. A swipe from the edge still transiently reveals a hidden bar (Android safety behaviour).
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(settings.hideSystemStatusBar, lifecycleOwner, view) {
+    DisposableEffect(settings.hideSystemStatusBar, settings.hideSystemNavigationBar, lifecycleOwner, view) {
         val window = generateSequence(view.context) { (it as? ContextWrapper)?.baseContext }
             .filterIsInstance<Activity>().firstOrNull()?.window
         fun apply() {
             val controller = window?.insetsController ?: return
-            if (settings.hideSystemStatusBar) {
+            val request = systemBarsRequest(settings.hideSystemStatusBar, settings.hideSystemNavigationBar)
+            if (request.hide != 0) {
                 controller.systemBarsBehavior =
                     android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                controller.hide(android.view.WindowInsets.Type.statusBars())
-            } else {
-                controller.show(android.view.WindowInsets.Type.statusBars())
+                controller.hide(request.hide)
             }
+            if (request.show != 0) controller.show(request.show)
         }
         apply()
         val observer = LifecycleEventObserver { _, event ->

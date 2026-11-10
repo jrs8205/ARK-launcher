@@ -149,6 +149,8 @@
     <string name="settings_close">Close</string>
     <string name="settings_lock_desktop">Lock desktop</string>
     <string name="settings_hide_status_bar">Hide system status bar (fullscreen)</string>
+    <string name="settings_hide_navigation_bar">Hide system navigation bar</string>
+    <string name="settings_hide_navigation_bar_desc">Home screen and app drawer. Swipe up from the bottom edge to show it for a moment.</string>
     <string name="settings_status_bar">Status bar (clock, battery, signal)</string>
     <string name="settings_status_bar_scrim">Status bar background darkness</string>
     <string name="settings_frequent_apps">Most used at the top</string>

@@ -171,6 +171,7 @@ class SettingsViewModel @Inject constructor(
     fun setPeopleBatchEnabled(value: Boolean) = update { repository.setPeopleBatchEnabled(value) }
     fun setPeopleBatchTimes(value: String) = update { repository.setPeopleBatchTimes(value) }
     fun setHideSystemStatusBar(value: Boolean) = update { repository.setHideSystemStatusBar(value) }
+    fun setHideSystemNavigationBar(value: Boolean) = update { repository.setHideSystemNavigationBar(value) }
     fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }
 
     private fun update(block: suspend () -> Unit) {

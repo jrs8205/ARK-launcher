@@ -384,6 +384,12 @@ fun SettingsScreen(
                         s.hideSystemStatusBar,
                         viewModel::setHideSystemStatusBar,
                     )
+                    SwitchRow(
+                        stringResource(R.string.settings_hide_navigation_bar),
+                        stringResource(R.string.settings_hide_navigation_bar_desc),
+                        s.hideSystemNavigationBar,
+                        viewModel::setHideSystemNavigationBar,
+                    )
                     SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, viewModel::setWidgetTonalBackground)
                     SwitchRow(
                         stringResource(R.string.settings_widget_inset),

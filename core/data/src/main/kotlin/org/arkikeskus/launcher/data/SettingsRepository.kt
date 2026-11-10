@@ -155,6 +155,7 @@ class SettingsRepository @Inject constructor(
             showWeather = p[Keys.SHOW_WEATHER] ?: true,
             networkPlaceNames = p[Keys.NETWORK_PLACE_NAMES] ?: false,
             hideSystemStatusBar = p[Keys.HIDE_SYSTEM_STATUS_BAR] ?: false,
+            hideSystemNavigationBar = p[Keys.HIDE_SYSTEM_NAVIGATION_BAR] ?: false,
             statusBarScrimOpacity = (p[Keys.STATUS_BAR_SCRIM] ?: LauncherSettings.DEFAULT_STATUS_BAR_SCRIM).coerceIn(0f, 1f),
             widgetTonalBackground = p[Keys.WIDGET_TONAL_BACKGROUND] ?: false,
             widgetEdgesAlignWithIcons = p[Keys.WIDGET_INSET_LIKE_ICONS] ?: false,
@@ -562,6 +563,7 @@ class SettingsRepository @Inject constructor(
 
     /** Hides/shows the system status bar while the launcher is foreground (immersive home). */
     suspend fun setHideSystemStatusBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = value }
+    suspend fun setHideSystemNavigationBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_NAVIGATION_BAR] = value }
 
     /** Darkness of the themed status bar's scrim (0..1). */
     suspend fun setStatusBarScrimOpacity(value: Float) =
@@ -813,6 +815,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_WEATHER = booleanPreferencesKey("show_weather")
         val NETWORK_PLACE_NAMES = booleanPreferencesKey("network_place_names")
         val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
+        val HIDE_SYSTEM_NAVIGATION_BAR = booleanPreferencesKey("hide_system_navigation_bar")
         val STATUS_BAR_SCRIM = floatPreferencesKey("status_bar_scrim")
         val DEFAULT_LAYOUT_SEEDED = booleanPreferencesKey("default_layout_seeded")
         val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
@@ -886,7 +889,7 @@ class SettingsRepository @Inject constructor(
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
             "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders", "blur_behind_drawer",
-            "theme_all_icons",
+            "theme_all_icons", "hide_system_navigation_bar",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

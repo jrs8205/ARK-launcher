@@ -149,6 +149,8 @@
     <string name="settings_close">Stäng</string>
     <string name="settings_lock_desktop">Lås startskärmens layout</string>
     <string name="settings_hide_status_bar">Dölj systemets statusfält (helskärm)</string>
+    <string name="settings_hide_navigation_bar">Dölj systemets navigeringsfält</string>
+    <string name="settings_hide_navigation_bar_desc">Startskärmen och applådan. Svep uppåt från nederkanten för att visa det en stund.</string>
     <string name="settings_status_bar">Statusfält (klocka, batteri, signal)</string>
     <string name="settings_status_bar_scrim">Mörkhet bakom statusfältet</string>
     <string name="settings_frequent_apps">Mest använda högst upp</string>

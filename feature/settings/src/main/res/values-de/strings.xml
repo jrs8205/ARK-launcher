@@ -149,6 +149,8 @@
     <string name="settings_close">Schließen</string>
     <string name="settings_lock_desktop">Startbildschirm-Layout sperren</string>
     <string name="settings_hide_status_bar">System-Statusleiste ausblenden (Vollbild)</string>
+    <string name="settings_hide_navigation_bar">System-Navigationsleiste ausblenden</string>
+    <string name="settings_hide_navigation_bar_desc">Startbildschirm und App-Übersicht. Vom unteren Rand nach oben wischen, um sie kurz einzublenden.</string>
     <string name="settings_status_bar">Statusleiste (Uhr, Akku, Signal)</string>
     <string name="settings_status_bar_scrim">Abdunklung hinter der Statusleiste</string>
     <string name="settings_frequent_apps">Meistgenutzte Apps oben</string>

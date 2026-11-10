@@ -152,6 +152,8 @@
     <string name="settings_close">Cerrar</string>
     <string name="settings_lock_desktop">Bloquear escritorio</string>
     <string name="settings_hide_status_bar">Ocultar barra de estado del sistema (pantalla completa)</string>
+    <string name="settings_hide_navigation_bar">Ocultar barra de navegación del sistema</string>
+    <string name="settings_hide_navigation_bar_desc">Pantalla de inicio y cajón de aplicaciones. Desliza hacia arriba desde el borde inferior para mostrarla un momento.</string>
     <string name="settings_status_bar">Barra de estado (reloj, batería, señal)</string>
     <string name="settings_status_bar_scrim">Oscurecimiento de la barra de estado</string>
     <string name="settings_frequent_apps">Mostrar las más usadas arriba</string>

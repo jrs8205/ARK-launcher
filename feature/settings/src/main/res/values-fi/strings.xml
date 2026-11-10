@@ -149,6 +149,8 @@
     <string name="settings_close">Sulje</string>
     <string name="settings_lock_desktop">Lukitse työpöytä</string>
     <string name="settings_hide_status_bar">Piilota järjestelmän tilapalkki (koko näyttö)</string>
+    <string name="settings_hide_navigation_bar">Piilota järjestelmän navigointipalkki</string>
+    <string name="settings_hide_navigation_bar_desc">Aloitusnäyttö ja sovellusvalikko. Palkki tulee hetkeksi näkyviin pyyhkäisemällä alareunasta ylös.</string>
     <string name="settings_status_bar">Tilapalkki (kello, akku, signaali)</string>
     <string name="settings_status_bar_scrim">Tilapalkin taustan tummuus</string>
     <string name="settings_frequent_apps">Eniten käytetyt ylimmäisinä</string>
