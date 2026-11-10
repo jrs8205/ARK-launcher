@@ -570,7 +570,7 @@ fun HomeScreen(
     CompositionLocalProvider(
         LocalTonalWidgets provides settings.widgetTonalBackground,
         LocalSmartspaceStyle provides settings.smartspaceStyle(),
-        LocalWallpaperColor provides rememberWallpaperColor(),
+        LocalWallpaperColor provides homeBackdropColor(rememberWallpaperColor(), settings.homeGlassPanel, settings.homeGlassOpacity),
         LocalThemedIcons provides settings.useThemedIcons,
         LocalThemeAllIcons provides settings.themeAllIcons,
         LocalIconPack provides settings.iconPackPackage,

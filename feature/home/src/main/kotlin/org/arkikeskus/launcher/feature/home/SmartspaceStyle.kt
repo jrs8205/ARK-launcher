@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.arkikeskus.launcher.data.smartspace.WeatherCodes
 import org.arkikeskus.launcher.data.smartspace.WeatherKind
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.compositeOver
 import org.arkikeskus.launcher.model.contentIsDarkOn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -96,8 +97,30 @@ internal fun smartspaceInk(style: SmartspaceStyle, default: Color, wallpaper: In
 /** The wallpaper's main colour (ARGB) while it is not known, or has none to tell: a middle grey. */
 internal const val WALLPAPER_COLOR_UNKNOWN = 0xFF808080.toInt()
 
-/** The wallpaper's main colour, for choosing readable text on see-through cards over it. */
+/** The colour behind the home screen's cards ([homeBackdropColor]), for choosing readable text on see-through ones. */
 val LocalWallpaperColor = staticCompositionLocalOf { WALLPAPER_COLOR_UNKNOWN }
+
+/**
+ * The wallpaper's colour as it becomes known: from the first read (slow, off the main thread) and from
+ * the system's announcements of a change. An announcement is always the newer word, so a first read
+ * that finishes after one is dropped.
+ */
+internal class WallpaperColorState {
+    var color by mutableIntStateOf(WALLPAPER_COLOR_UNKNOWN)
+        private set
+    private var announced = false
+
+    /** The system says the wallpaper's colours changed to [argb] (null = it has none to tell). */
+    fun onAnnounced(argb: Int?) {
+        announced = true
+        color = argb ?: WALLPAPER_COLOR_UNKNOWN
+    }
+
+    /** The first read came back with [argb] (null = nothing read). */
+    fun onFirstRead(argb: Int?) {
+        if (!announced && argb != null) color = argb
+    }
+}
 
 /**
  * The system wallpaper's primary colour as the platform reports it (no permission needed), kept up to
@@ -106,11 +129,11 @@ val LocalWallpaperColor = staticCompositionLocalOf { WALLPAPER_COLOR_UNKNOWN }
 @Composable
 internal fun rememberWallpaperColor(): Int {
     val context = LocalContext.current
-    var color by remember { mutableIntStateOf(WALLPAPER_COLOR_UNKNOWN) }
+    val state = remember { WallpaperColorState() }
     DisposableEffect(context) {
         val manager = WallpaperManager.getInstance(context)
         val listener = WallpaperManager.OnColorsChangedListener { colors, which ->
-            if (which and WallpaperManager.FLAG_SYSTEM != 0) color = colors?.primaryColor?.toArgb() ?: WALLPAPER_COLOR_UNKNOWN
+            if (which and WallpaperManager.FLAG_SYSTEM != 0) state.onAnnounced(colors?.primaryColor?.toArgb())
         }
         runCatching { manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper())) }
         onDispose { runCatching { manager.removeOnColorsChangedListener(listener) } }
@@ -120,9 +143,19 @@ internal fun rememberWallpaperColor(): Int {
         val read = withContext(Dispatchers.IO) {
             runCatching { WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)?.primaryColor?.toArgb() }.getOrNull()
         }
-        if (read != null) color = read
+        state.onFirstRead(read)
     }
-    return color
+    return state.color
+}
+
+/**
+ * What is behind the home screen's cards (ARGB): the [wallpaper]'s colour, under the glass panel's white
+ * tint at its middle strength when the panel is on. Text on a see-through card is chosen against this.
+ */
+internal fun homeBackdropColor(wallpaper: Int, glassPanel: Boolean, glassOpacity: Float): Int {
+    if (!glassPanel) return wallpaper
+    val alphas = glassPanelAlphas(glassOpacity)
+    return compositeOver(0xFFFFFFFF.toInt(), (alphas.top + alphas.bottom) / 2f, wallpaper)
 }
 
 /** The name of a kind of weather, for a screen reader: a drawn icon has no text of its own. */

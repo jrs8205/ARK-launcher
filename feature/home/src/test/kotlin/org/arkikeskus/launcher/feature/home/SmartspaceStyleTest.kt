@@ -25,6 +25,7 @@ import org.arkikeskus.launcher.data.smartspace.CurrentWeather
 import org.arkikeskus.launcher.data.smartspace.WeatherKind
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.argbLuminance
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -153,6 +154,44 @@ class SmartspaceStyleTest {
         assertThat(weatherAnimationRunning(elapsedMs = 0, animated = false, systemAnimations = true)).isFalse()
         // "Remove animations" in the system's accessibility settings stills it.
         assertThat(weatherAnimationRunning(elapsedMs = 0, animated = true, systemAnimations = false)).isFalse()
+    }
+
+    /** What is behind the home screen's cards is the wallpaper, and the glass panel over it when it is on:
+     *  a strong panel over a black wallpaper is a light backdrop, and a faint white card on it needs dark text. */
+    @Test fun theGlassPanelIsPartOfWhatIsBehindACard() {
+        val black = 0xFF000000.toInt()
+        assertThat(homeBackdropColor(black, glassPanel = false, glassOpacity = 0.6f)).isEqualTo(black)
+        val behindGlass = homeBackdropColor(black, glassPanel = true, glassOpacity = 0.6f)
+        assertThat(argbLuminance(behindGlass)).isGreaterThan(0.25f)
+
+        val faintWhite = SmartspaceStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.3f)
+        assertThat(smartspaceInk(faintWhite, Color.White, wallpaper = black)).isEqualTo(Color.White)
+        assertThat(smartspaceInk(faintWhite, Color.White, wallpaper = behindGlass)).isEqualTo(Color.Black)
+    }
+
+    /** The first read of the wallpaper's colour is slow (off the main thread): a colour the system
+     *  announced meanwhile is newer and must not be overwritten by it. */
+    @Test fun aLateFirstReadNeverReplacesANewerAnnouncedColour() {
+        val white = 0xFFFFFFFF.toInt()
+        val black = 0xFF000000.toInt()
+        val state = WallpaperColorState()
+        assertThat(state.color).isEqualTo(WALLPAPER_COLOR_UNKNOWN)
+        state.onFirstRead(white)
+        assertThat(state.color).isEqualTo(white)
+
+        val raced = WallpaperColorState()
+        raced.onAnnounced(black)
+        raced.onFirstRead(white)
+        assertThat(raced.color).isEqualTo(black)
+        // An announcement without colours is still the newer word: unknown, not the stale read.
+        val cleared = WallpaperColorState()
+        cleared.onAnnounced(null)
+        cleared.onFirstRead(white)
+        assertThat(cleared.color).isEqualTo(WALLPAPER_COLOR_UNKNOWN)
+        // A read that found nothing changes nothing.
+        val empty = WallpaperColorState()
+        empty.onFirstRead(null)
+        assertThat(empty.color).isEqualTo(WALLPAPER_COLOR_UNKNOWN)
     }
 
     /** The glass panel's sheen: brighter at the top than the bottom, both following the strength. */
