@@ -474,6 +474,18 @@ class WidgetPinSizingTest {
         assertThat(lostToBars(LauncherSettings(dockEnabled = false), bars)).isWithin(0.01f).of(24f + 48f)
     }
 
+    /** A hidden navigation bar takes nothing off the grid, with the dock or without (a pin request that
+     *  starts the process is sized by this estimate alone: counting the hidden bar refused a widget that fits). */
+    @Test fun aHiddenNavigationBarTakesNothingOffTheGrid() {
+        val bars = HomeWindow(320f, 470f, statusBarDp = 24f, navigationBarDp = 48f)
+
+        assertThat(lostToBars(LauncherSettings(hideSystemNavigationBar = true), bars)).isWithin(0.01f).of(24f)
+        assertThat(lostToBars(LauncherSettings(hideSystemNavigationBar = true, dockEnabled = false), bars)).isWithin(0.01f).of(24f)
+        assertThat(lostToBars(LauncherSettings(hideSystemNavigationBar = true, hideSystemStatusBar = true), bars)).isWithin(0.01f).of(0f)
+        // A cell measured with the bar shown is not this home screen's once it is hidden.
+        assertThat(chromeOf(LauncherSettings(hideSystemNavigationBar = true))).isNotEqualTo(chromeOf(LauncherSettings()))
+    }
+
     /** The themed bar counts at its tallest: under a shown system bar, that bar and its own two lines
      *  and fade; in the hidden bar's place, at least the cutout's band, its glyphs dropped level with
      *  the camera's centre. */

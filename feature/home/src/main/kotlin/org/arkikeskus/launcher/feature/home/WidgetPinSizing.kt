@@ -58,6 +58,8 @@ internal data class WorkspaceChrome(
     val homeLabelsDp: Float = 0f,
     /** The user's space under the dock (issue #24), which lifts the dock and shortens the grid; 0 without the dock. */
     val dockBottomSpacingDp: Float = 0f,
+    /** The system navigation bar is hidden (the setting): nothing is kept clear for it at the bottom. */
+    val systemNavigationBarHidden: Boolean = false,
 )
 
 /** The chrome of a home screen with [settings], [pageCount] pages (the dots show from two on) and
@@ -81,6 +83,7 @@ internal fun workspaceChrome(settings: LauncherSettings, pageCount: Int, fontSca
         systemStatusBarHidden = settings.hideSystemStatusBar,
         pageDotsDp = if (settings.showPageIndicator && pageCount > 1) pageDotsRowHeight(settings.homePageMarker).value else 0f,
         dockBottomSpacingDp = if (settings.dockEnabled) settings.dockBottomSpacing.toFloat() else 0f,
+        systemNavigationBarHidden = settings.hideSystemNavigationBar,
         widgetInsets = settings.widgetEdgesAlignWithIcons,
         homeLabelsDp = labelBlockHeight(
             settings.showHomeLabels, settings.appLabelTextScale, labelFontFactor(fontScale),
@@ -265,11 +268,13 @@ class HomeCellSize {
          *  label line rounded up to whole pixels) with its padding, above the navigation bar. Without
          *  the dock the workspace keeps clear of the navigation bar itself. */
         private fun dockZoneDp(chrome: WorkspaceChrome, home: HomeWindow, onePixelDp: Float): Float {
-            if (!chrome.dock) return home.navigationBarDp
+            // A hidden navigation bar leaves no inset: the dock (or the grid) reaches the bottom edge.
+            val navigationBarDp = if (chrome.systemNavigationBarHidden) 0f else home.navigationBarDp
+            if (!chrome.dock) return navigationBarDp
             val labels = if (chrome.dockLabelsDp > 0f) chrome.dockLabelsDp + onePixelDp else 0f
             val icon = DOCK_ICON_SIZE.value * chrome.iconScale
             val row = maxOf(DOCK_ROW_MIN_HEIGHT.value, 2 * DOCK_ROW_VERTICAL_PADDING.value + icon + labels)
-            return home.navigationBarDp + chrome.dockBottomSpacingDp + 2 * DOCK_OUTER_PADDING.value + row
+            return navigationBarDp + chrome.dockBottomSpacingDp + 2 * DOCK_OUTER_PADDING.value + row
         }
 
         /** From this smallest width on, the platform turns even a portrait-locked launcher (Android 16). */
