@@ -397,6 +397,32 @@ class SystemBarContrastTest {
             .isWithin(0.01f).of(0.044f)
     }
 
+    /** A see-through drawer with a colour of its own is mixed over the glassed wallpaper's COLOUR too, layer by
+     *  layer: a blue drawer at 40 % over a red wallpaper under the glass at 20 % (bottom tint 0.14), home dimmed
+     *  10 %, shows a dull violet of luminance 0.16 where light glyphs read better; mixed over a grey as bright as
+     *  that backdrop it came out at 0.23 and chose dark ones. Without the glass nothing changes. */
+    @Test fun aColouredSeeThroughDrawerIsMixedOverTheGlassedWallpapersColour() {
+        val blueDrawer = Color(0xFF42A5F5)
+        val red = 0xFFFF0000.toInt()
+        val bottom = glassTint(0.2f).bottom
+        assertThat(drawerIsLightOverNavigationBar(blueDrawer, opacity = 0.4f, wallpaperSupportsDarkText = false, homeDim = 0.1f, glassTint = bottom, wallpaperColor = red))
+            .isFalse()
+        // The status bar's side of the same: no own bar, the glass's top tint.
+        assertThat(
+            drawerIsLightOverStatusBar(
+                blueDrawer, opacity = 0.4f, ownBarVisible = false, scrimOpacity = 0f, wallpaperSupportsDarkText = false, homeDim = 0.1f,
+                glassTint = bottom, wallpaperColor = red,
+            ),
+        ).isFalse()
+        // The layers one by one: 14 % white over red, 10 % black over that, 40 % of the drawer's blue over that.
+        assertThat(drawerSurfaceIsLightOverColor(blueDrawer, opacity = 0.4f, behind = 0xFFFF2424.toInt(), homeDim = 0.1f)).isFalse()
+        // An opaque drawer is its own colour whatever is behind (the offered blue reads with dark glyphs).
+        assertThat(drawerIsLightOverNavigationBar(blueDrawer, opacity = 1f, wallpaperSupportsDarkText = false, homeDim = 0.1f, glassTint = bottom, wallpaperColor = red))
+            .isTrue()
+        // Without the glass: the hint as black, as before.
+        assertThat(drawerIsLightOverNavigationBar(blueDrawer, opacity = 0.4f, wallpaperSupportsDarkText = false, homeDim = 0.1f)).isFalse()
+    }
+
     /** ARK's own bar with a weak scrim (under the 50 % that counts as dark backing) leaves the decision to what
      *  is behind it, and that is the glass UNDER the scrim: black wallpaper, glass at 40 % and a 40 % scrim
      *  show a dark grey where white glyphs read at 7.7:1 and black ones at 2.7:1. The glass alone would have

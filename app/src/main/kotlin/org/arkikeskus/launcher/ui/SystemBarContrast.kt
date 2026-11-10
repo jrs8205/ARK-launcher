@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -207,6 +208,16 @@ internal fun dimmedUnderDrawer(luminance: Float, homeDim: Float): Float = dimmed
 internal fun behindDrawerLuminance(pictureLuminance: Float?, behindHome: Float): Float =
     pictureLuminance?.coerceIn(0f, 1f) ?: behindHome
 
+/**
+ * [drawerSurfaceIsLight] over a backdrop with a colour of its own (home under the glass layer): every layer mixed
+ * channel by channel -- the shell's dim ([homeDim]) over [behind], the drawer's [surface] at its [opacity] over
+ * that -- and the luminance taken from the result. A grey as bright as the backdrop mixes differently under a
+ * coloured, see-through drawer (a blue drawer at 40 % over a red wallpaper under the glass shows a dull violet for
+ * light glyphs; over the grey it came out light enough for dark ones).
+ */
+internal fun drawerSurfaceIsLightOverColor(surface: Color, opacity: Float, behind: Int, homeDim: Float): Boolean =
+    darkReadsBetter(argbLuminance(compositeOver(surface.toArgb(), opacity, compositeOver(BLACK, homeDim, behind))))
+
 /** [drawerSurfaceIsLight] over the status bar: behind a see-through drawer is home's top edge,
  *  [behindStatusBarLuminance] (the own bar's scrim, when on screen, over the wallpaper), under the
  *  shell's dim ([dimmedUnderDrawer]). */
@@ -219,11 +230,13 @@ internal fun drawerIsLightOverStatusBar(
     homeDim: Float,
     glassTint: Float = 0f,
     wallpaperColor: Int? = null,
-): Boolean = drawerSurfaceIsLight(
-    surface,
-    opacity,
-    dimmedUnderDrawer(behindStatusBarLuminance(ownBarVisible, scrimOpacity, wallpaperSupportsDarkText, glassTint, wallpaperColor), homeDim),
-)
+): Boolean = if (glassTint <= 0f) {
+    drawerSurfaceIsLight(surface, opacity, dimmedUnderDrawer(behindStatusBarLuminance(ownBarVisible, scrimOpacity, wallpaperSupportsDarkText), homeDim))
+} else {
+    // Under the glass home has a colour: the own bar's scrim, the dim and the drawer are mixed over it layer by layer.
+    val glassed = wallpaperOnHomeColor(wallpaperSupportsDarkText, glassTint, wallpaperColor)
+    drawerSurfaceIsLightOverColor(surface, opacity, if (ownBarVisible) compositeOver(BLACK, scrimOpacity, glassed) else glassed, homeDim)
+}
 
 /** [drawerSurfaceIsLight] over the navigation bar: behind a see-through drawer is the wallpaper under
  *  the shell's dim ([dimmedUnderDrawer]). */
@@ -234,11 +247,11 @@ internal fun drawerIsLightOverNavigationBar(
     homeDim: Float,
     glassTint: Float = 0f,
     wallpaperColor: Int? = null,
-): Boolean = drawerSurfaceIsLight(
-    surface,
-    opacity,
-    dimmedUnderDrawer(wallpaperOnHomeLuminance(wallpaperSupportsDarkText, glassTint, wallpaperColor), homeDim),
-)
+): Boolean = if (glassTint <= 0f) {
+    drawerSurfaceIsLight(surface, opacity, dimmedUnderDrawer(if (wallpaperSupportsDarkText) 1f else 0f, homeDim))
+} else {
+    drawerSurfaceIsLightOverColor(surface, opacity, wallpaperOnHomeColor(wallpaperSupportsDarkText, glassTint, wallpaperColor), homeDim)
+}
 
 /** The drawer's top edge (it slides up from the bottom) is past the middle of the status bar. */
 internal fun drawerCoversStatusBar(progress: Float, heightPx: Float, barPx: Float): Boolean =
@@ -414,23 +427,31 @@ internal fun SystemBarContrast(
             // The own bar fades with home under the rising drawer: its scrim counts as much as is on screen.
             // With the user's own picture behind the drawer, the picture is what shows through instead.
             drawerIsLightOverStatusBar = { homeDim, homeAlpha ->
-                val behindHome = dimmedUnderDrawer(
-                    behindStatusBarLuminance(
-                        ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha), wallpaperDarkText.value,
+                val picture = currentPicture.value
+                if (picture != null) {
+                    // The user's own picture sits inside the drawer and covers home and the wallpaper alike.
+                    drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(picture, 0f))
+                } else {
+                    drawerIsLightOverStatusBar(
+                        surfaceColor.value, currentDrawerOpacity.value,
+                        ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha), wallpaperDarkText.value, homeDim,
                         // The glass is part of home too: as much of it as is on screen.
                         glassTint = (currentGlass.value?.top ?: 0f) * homeAlpha,
                         wallpaperColor = wallpaperColor.value,
-                    ),
-                    homeDim,
-                )
-                drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
+                    )
+                }
             },
             drawerIsLightOverNavBar = { homeDim, homeAlpha ->
-                val behindHome = dimmedUnderDrawer(
-                    wallpaperOnHomeLuminance(wallpaperDarkText.value, (currentGlass.value?.bottom ?: 0f) * homeAlpha, wallpaperColor.value),
-                    homeDim,
-                )
-                drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(currentPicture.value, behindHome))
+                val picture = currentPicture.value
+                if (picture != null) {
+                    drawerSurfaceIsLight(surfaceColor.value, currentDrawerOpacity.value, behindDrawerLuminance(picture, 0f))
+                } else {
+                    drawerIsLightOverNavigationBar(
+                        surfaceColor.value, currentDrawerOpacity.value, wallpaperDarkText.value, homeDim,
+                        glassTint = (currentGlass.value?.bottom ?: 0f) * homeAlpha,
+                        wallpaperColor = wallpaperColor.value,
+                    )
+                }
             },
             coverIsLight = { covers.coverIsLight },
             ownBarBacksDark = { homeAlpha -> ownBarBacksDark(ownBarOnScreen(), ownBarScrimOnScreen(currentScrim.value, homeAlpha)) },
