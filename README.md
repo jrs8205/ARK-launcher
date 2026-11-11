@@ -102,8 +102,9 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ F
 - Optional **themed status bar** with the clock, status indicators and notification icons.
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, a configurable
   **left-edge swipe** that launches an app of your choice, an opt-in **swipe up on a home folder**
-  that opens the folder's first app, and a per-icon **"Swipe up opens"** choice (Edit) that opens
-  another app from a home or dock icon.
+  that opens the folder's first app, and per-icon **"Swipe up opens"** and **"Swipe down opens"**
+  choices (Edit) that open another app from a home or dock icon. An **icon swipe distance** slider
+  sets how far such a swipe must travel before it fires.
 - **Customizable look** — a **font** for everything the launcher draws (six families Android ships),
   adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
@@ -115,6 +116,15 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ F
   edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder
   columns**, page indicator, and more. App drawer folders can lead the list or sit among the apps
   A–Z, and every settings section folds under its title.
+- **Glass layer over the wallpaper** — an optional frosted sheet behind the icons and the bars, from
+  the top of the screen to the bottom, with a strength slider; the system bars' icons stay readable
+  over it.
+- **Folder appearance** — show or hide app names in folders, folder icon size, row spacing, and a
+  background colour and opacity of your own (the text turns dark or light to match).
+- **Clock and weather widget look** — background colour and opacity, text size, and a weather icon
+  that is standard, colourful or animated, in two sizes.
+- **Hide the system navigation bar** on the home screen and the app drawer (swipe up from the bottom
+  edge to show it for a moment).
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
