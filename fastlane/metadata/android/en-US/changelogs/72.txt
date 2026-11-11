@@ -1,0 +1,9 @@
+New
+- Glass layer over the wallpaper, behind the icons and the bars, with a strength slider.
+- Folder appearance: app names, icon size, row spacing, background colour and opacity.
+- Clock and weather widget: background, text size, colourful or animated weather icons.
+- Swipe down on an app icon opens another app (Edit); an icon swipe distance slider.
+- Hide the system navigation bar on the home screen and in the app drawer.
+
+Improved
+- The start is profiled again for this release.
