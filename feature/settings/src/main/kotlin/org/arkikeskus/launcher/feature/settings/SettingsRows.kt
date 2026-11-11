@@ -80,13 +80,14 @@ internal fun ChoicePicker(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 48.dp)
                             .clickable { onPick(value) }
                             .padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             stringResource(labelRes),
-                            color = if (selected == value) Accent else p.text,
+                            color = if (selected == value) p.accent else p.text,
                             fontSize = 16.sp,
                         )
                     }
@@ -94,7 +95,7 @@ internal fun ChoicePicker(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = p.accent) }
         },
     )
 }
@@ -120,16 +121,18 @@ internal fun SingleAppPicker(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .clickable { onPick(null) }
                         .padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(R.string.settings_left_edge_none), color = Accent, fontSize = 16.sp)
+                    Text(stringResource(R.string.settings_left_edge_none), color = p.accent, fontSize = 16.sp)
                 }
                 apps.forEach { app ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 48.dp)
                             .clickable { onPick(app.key) }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -141,7 +144,7 @@ internal fun SingleAppPicker(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = p.accent) }
         },
     )
 }
@@ -248,7 +251,7 @@ private fun StepButton(@DrawableRes icon: Int, contentDescription: String, onCli
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = Accent,
+            tint = p.accent,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -300,7 +303,7 @@ internal fun CardColorRow(title: String, selected: Int?, onPick: (Int?) -> Unit)
             RowLabel(title)
             Spacer(Modifier.height(14.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {

@@ -44,7 +44,6 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.ui.LauncherIcons
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -361,11 +360,11 @@ internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: (Uri) -> Un
                     onClick = { runCatching { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
                     modifier = Modifier.testTag(DRAWER_WALLPAPER_PICK_TAG),
                 ) {
-                    Text(stringResource(R.string.settings_drawer_wallpaper_pick), color = Accent)
+                    Text(stringResource(R.string.settings_drawer_wallpaper_pick), color = p.accent)
                 }
                 if (wallpaper != null) {
                     TextButton(onClick = onClear, modifier = Modifier.testTag(DRAWER_WALLPAPER_REMOVE_TAG)) {
-                        Text(stringResource(R.string.settings_drawer_wallpaper_remove), color = Accent)
+                        Text(stringResource(R.string.settings_drawer_wallpaper_remove), color = p.accent)
                     }
                 }
             }
@@ -393,7 +392,7 @@ internal fun DrawerColorRow(selected: Int?, locked: Boolean = false, onPick: (In
             }
             Spacer(Modifier.height(14.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
@@ -432,7 +431,7 @@ internal fun DrawerLabelColorRow(selected: Int?, onPick: (Int?) -> Unit) {
             RowLabel(stringResource(R.string.settings_label_color))
             Spacer(Modifier.height(14.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {

@@ -131,7 +131,7 @@ internal fun ScaleSliderRow(
                         },
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     ) {
-                        Text(stringResource(R.string.settings_reset_default, valueText(default)), color = Accent, fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_reset_default, valueText(default)), color = p.accent, fontSize = 13.sp)
                     }
                 }
             }

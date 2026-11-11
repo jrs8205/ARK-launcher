@@ -28,7 +28,6 @@ import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -333,7 +332,7 @@ internal fun OwnStatusBarRows(s: LauncherSettings, actions: SettingsActions) {
 
 /** Free-text "HH:mm, HH:mm" editor for the people batch delivery times. */
 @Composable
-private fun BatchTimesEditor(initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun BatchTimesEditor(initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
     val p = LocalExpressivePalette.current
     var text by remember(initial) { mutableStateOf(initial) }
     AlertDialog(
@@ -352,10 +351,10 @@ private fun BatchTimesEditor(initial: String, onSave: (String) -> Unit, onDismis
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.settings_people_batch_times_save), color = Accent) }
+            TextButton(onClick = { onSave(text) }) { Text(stringResource(R.string.settings_people_batch_times_save), color = p.accent) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = p.accent) }
         },
     )
 }

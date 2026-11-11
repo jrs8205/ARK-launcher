@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.model.LauncherSettings
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.launcherFontFamily
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
@@ -111,7 +110,7 @@ internal fun IconsRows(s: LauncherSettings, iconPacks: List<IconPackInfo>, actio
 
 /** Single-select icon-pack picker: a "System default" entry on top, then every installed pack. */
 @Composable
-private fun IconPackPicker(
+internal fun IconPackPicker(
     packs: List<IconPackInfo>,
     selected: String,
     onPick: (String) -> Unit,
@@ -131,13 +130,14 @@ private fun IconPackPicker(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .clickable { onPick("") }
                         .padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         stringResource(R.string.settings_icon_pack_system),
-                        color = if (selected.isBlank()) Accent else p.text,
+                        color = if (selected.isBlank()) p.accent else p.text,
                         fontSize = 16.sp,
                     )
                 }
@@ -145,13 +145,14 @@ private fun IconPackPicker(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 48.dp)
                             .clickable { onPick(pack.packageName) }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             pack.label,
-                            color = if (selected == pack.packageName) Accent else p.text,
+                            color = if (selected == pack.packageName) p.accent else p.text,
                             fontSize = 16.sp,
                         )
                     }
@@ -159,7 +160,7 @@ private fun IconPackPicker(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = p.accent) }
         },
     )
 }
@@ -179,7 +180,7 @@ private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
             RowLabel(stringResource(R.string.settings_label_color))
             Spacer(Modifier.height(14.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
                 COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }

@@ -38,8 +38,6 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
-import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
-import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
 /** The launcher's Settings: the view model's state handed to [SettingsContent], which is the page. */
@@ -114,7 +112,7 @@ internal fun SettingsContent(
     LifecycleResumeEffect(Unit) {
         onPauseOrDispose { SettingsScrollMemory.remember(mainScrollState.value, SystemClock.elapsedRealtime()) }
     }
-    val palette = if (isSystemInDarkTheme()) DarkExpressivePalette else LightExpressivePalette
+    val palette = settingsPalette(isSystemInDarkTheme())
 
     CompositionLocalProvider(
         LocalExpressivePalette provides palette,

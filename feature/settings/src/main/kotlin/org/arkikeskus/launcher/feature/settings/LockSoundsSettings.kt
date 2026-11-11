@@ -41,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.launcher.system.ShortSoundPlayer
 import org.arkikeskus.launcher.ui.LauncherIcons
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
@@ -115,7 +114,7 @@ private fun SoundRow(
     val p = LocalExpressivePalette.current
     ExpressiveCard(onClick = onPick) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(label, color = Accent, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = p.accent, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Text(
                 if (uri.isBlank()) stringResource(R.string.settings_sound_none) else soundName(uri),
                 color = p.dim,
@@ -127,7 +126,7 @@ private fun SoundRow(
                 Icon(
                     painter = painterResource(LauncherIcons.Play),
                     contentDescription = stringResource(R.string.settings_sound_play),
-                    tint = Accent,
+                    tint = p.accent,
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -159,7 +158,7 @@ private fun SoundSourceDialog(title: String, onPick: (SoundSource) -> Unit, onDi
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = Accent) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_close), color = p.accent) }
         },
     )
 }
