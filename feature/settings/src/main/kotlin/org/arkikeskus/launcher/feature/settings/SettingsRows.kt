@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.model.AppItem
@@ -334,6 +335,6 @@ internal fun rememberLauncherIconBitmap(): ImageBitmap? {
 /** A size multiplier's readout as a whole percent, so 100 is the default and the number is easy to come back to. */
 @Composable
 internal fun percentReadout(): (Float) -> String {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     return { resources.getString(R.string.settings_percent, scalePercent(it)) }
 }

@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
@@ -21,7 +22,7 @@ import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 /** Settings > Gestures: the swipes, the left-edge app, double tap to lock and the two press timings. */
 @Composable
 internal fun GesturesRows(s: LauncherSettings, allApps: List<AppItem>, actions: SettingsActions) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     var showLeftSwipePicker by rememberSaveable { mutableStateOf(false) }
     SettingRow("G1") {
         SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, actions::setSwipeUp)
