@@ -1,24 +1,45 @@
 package org.arkikeskus.launcher.feature.settings
 
 import android.os.Build
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import org.arkikeskus.launcher.ui.LauncherIcons
 
-/** The pages of Settings, in the order the main page lists them. */
-internal enum class SettingsCategory(val key: String) {
-    HOME("home"),
-    DOCK("dock"),
-    DRAWER("drawer"),
-    FOLDERS("folders"),
-    WIDGETS("widgets"),
-    ICONS("icons"),
-    GESTURES("gestures"),
-    BARS("bars"),
-    NOTIFICATIONS("notifications"),
-    SOUNDS("sounds"),
-    PERMISSIONS("permissions"),
-    BACKUP("backup"),
-    ABOUT("about"),
+/**
+ * The pages of Settings, in the order the main page lists them: each with its [key] (kept in the saved state), its
+ * name, the one line that says what is on it, and its icon.
+ */
+internal enum class SettingsCategory(
+    val key: String,
+    @StringRes val title: Int,
+    @StringRes val summary: Int,
+    @DrawableRes val icon: Int,
+) {
+    HOME("home", R.string.settings_home, R.string.settings_cat_home_summary, LauncherIcons.Home),
+    DOCK("dock", R.string.settings_dock, R.string.settings_cat_dock_summary, LauncherIcons.Dock),
+    DRAWER("drawer", R.string.settings_drawer, R.string.settings_cat_drawer_summary, LauncherIcons.Apps),
+    FOLDERS("folders", R.string.settings_folder_appearance, R.string.settings_cat_folders_summary, LauncherIcons.Folder),
+    WIDGETS("widgets", R.string.settings_cat_widgets, R.string.settings_cat_widgets_summary, LauncherIcons.Widgets),
+    ICONS("icons", R.string.settings_icons, R.string.settings_cat_icons_summary, LauncherIcons.Category),
+    GESTURES("gestures", R.string.settings_gestures, R.string.settings_cat_gestures_summary, LauncherIcons.SwipeUp),
+    BARS("bars", R.string.settings_cat_bars, R.string.settings_cat_bars_summary, LauncherIcons.SystemBars),
+    NOTIFICATIONS(
+        "notifications", R.string.settings_notifications, R.string.settings_cat_notifications_summary, LauncherIcons.Notifications,
+    ),
+    SOUNDS("sounds", R.string.settings_sounds, R.string.settings_lock_sounds, LauncherIcons.VolumeUp),
+    PERMISSIONS("permissions", R.string.settings_permissions, R.string.settings_cat_permissions_summary, LauncherIcons.Shield),
+    BACKUP("backup", R.string.settings_backup, R.string.settings_cat_backup_summary, LauncherIcons.Backup),
+    ABOUT("about", R.string.settings_cat_about, R.string.settings_cat_about_summary, LauncherIcons.Info),
+    ;
+
+    companion object {
+        /** The page saved under [key]; null (the main page) for no key and for one this version does not know. */
+        fun fromKey(key: String?): SettingsCategory? = entries.firstOrNull { it.key == key }
+    }
 }
+
+/** The tag a category's row carries on the main page. */
+internal fun categoryTag(key: String): String = "category-$key"
 
 /**
  * One row of Settings: its [id] (also the row's tag on the page, see [settingTag]), its [title] and static

@@ -79,6 +79,7 @@ internal fun DrawerRows(
     SettingRow("A6") {
         SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, actions::setShowDrawerSearch)
     }
+    ContactsSearchRow(s, actions)
     SettingRow("A7") {
         SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, actions::setShowFrequentApps)
     }

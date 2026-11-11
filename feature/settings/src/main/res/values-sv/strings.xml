@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Färgglad</string>
     <string name="settings_weather_icon_animated">Animerad</string>
     <string name="settings_weather_icon_size">Väderikonens storlek</string>
-    <string name="settings_section_expanded">Utfälld</string>
-    <string name="settings_section_collapsed">Infälld</string>
     <string name="settings_blur_behind_drawer">Sudda bakgrunden bakom applådan</string>
     <string name="settings_blur_behind_drawer_desc">Bakgrundsbilden, eller din egen bild, suddas när lådan höjs. Android 12 eller nyare; systemet hoppar över det i batterisparläge.</string>
     <string name="settings_blur_behind_drawer_needs_12">Kräver Android 12 eller nyare; den här telefonen har en äldre version.</string>
@@ -162,7 +160,6 @@
     <string name="settings_font_monospace">Fast bredd</string>
     <string name="settings_font_casual">Ledig</string>
     <string name="settings_font_cursive">Handskrift</string>
-    <string name="settings_search">Sökning</string>
     <string name="settings_search_contacts">Sök bland kontakter</string>
     <string name="settings_left_edge">Vänsterkant</string>
     <string name="settings_left_edge_none">Ingen</string>
@@ -215,4 +212,23 @@
     <string name="settings_sound_picked">Valt ljud</string>
     <string name="settings_phone_sound_settings">Telefonens ljudinställningar</string>
     <string name="settings_phone_sound_settings_desc">Stäng av telefonens eget skärmlåsljud där, så att båda inte spelas samtidigt.</string>
+    <string name="settings_cat_widgets">Widgetar</string>
+    <string name="settings_cat_bars">Statusfält och navigering</string>
+    <string name="settings_cat_about">Om och feedback</string>
+    <string name="settings_cat_home_summary">Rutnät, appnamn, glasskikt, sidor</string>
+    <string name="settings_cat_dock_summary">Synlighet, ikoner, bakgrund, avstånd</string>
+    <string name="settings_cat_drawer_summary">Layout, bakgrund, suddning, mappar, dolda appar</string>
+    <string name="settings_cat_folders_summary">Ikonstorlek, radavstånd, färg</string>
+    <string name="settings_cat_widgets_summary">Klocka och väder, aviseringar, personer</string>
+    <string name="settings_cat_icons_summary">Storlek, appnamn, typsnitt, ikonpaket</string>
+    <string name="settings_cat_gestures_summary">Svep, dubbeltryck, långtryck</string>
+    <string name="settings_cat_bars_summary">Dölj systemfälten, eget statusfält</string>
+    <string name="settings_cat_notifications_summary">Aviseringsprickar på ikoner</string>
+    <string name="settings_cat_permissions_summary">Vad ARK-launcher får använda</string>
+    <string name="settings_cat_backup_summary">Spara och återställ layout och inställningar</string>
+    <string name="settings_cat_about_summary">Uppdateringar, feedbackkanaler, version</string>
+    <string name="settings_back">Tillbaka</string>
+    <string name="settings_heading_notif_widget">Aviseringswidget</string>
+    <string name="settings_heading_people_widget">Widgeten Personer</string>
+    <string name="settings_heading_all_widgets">Alla widgetar</string>
 </resources>

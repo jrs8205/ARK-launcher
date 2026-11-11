@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">En color</string>
     <string name="settings_weather_icon_animated">Animado</string>
     <string name="settings_weather_icon_size">Tamaño del icono del tiempo</string>
-    <string name="settings_section_expanded">Desplegado</string>
-    <string name="settings_section_collapsed">Plegado</string>
     <string name="settings_blur_behind_drawer">Desenfocar el fondo detrás del cajón de aplicaciones</string>
     <string name="settings_blur_behind_drawer_desc">El fondo de pantalla, o tu propia imagen, se desenfoca al subir el cajón. Android 12 o posterior; el sistema lo omite en ahorro de batería.</string>
     <string name="settings_blur_behind_drawer_needs_12">Necesita Android 12 o posterior; este teléfono tiene una versión anterior.</string>
@@ -165,7 +163,6 @@
     <string name="settings_font_monospace">Monoespaciada</string>
     <string name="settings_font_casual">Informal</string>
     <string name="settings_font_cursive">Manuscrita</string>
-    <string name="settings_search">Búsqueda</string>
     <string name="settings_search_contacts">Buscar contactos</string>
     <string name="settings_left_edge">Borde izquierdo</string>
     <string name="settings_left_edge_none">Ninguna</string>
@@ -218,4 +215,23 @@
     <string name="settings_sound_picked">Sonido elegido</string>
     <string name="settings_phone_sound_settings">Ajustes de sonido del teléfono</string>
     <string name="settings_phone_sound_settings_desc">Desactiva allí el sonido de bloqueo de pantalla del propio teléfono para que no suenen los dos a la vez.</string>
+    <string name="settings_cat_widgets">Widgets</string>
+    <string name="settings_cat_bars">Barra de estado y navegación</string>
+    <string name="settings_cat_about">Información y comentarios</string>
+    <string name="settings_cat_home_summary">Cuadrícula, nombres, capa de cristal, páginas</string>
+    <string name="settings_cat_dock_summary">Visibilidad, iconos, fondo, espaciado</string>
+    <string name="settings_cat_drawer_summary">Diseño, fondo, desenfoque, carpetas, aplicaciones ocultas</string>
+    <string name="settings_cat_folders_summary">Tamaño de los iconos, espaciado, color</string>
+    <string name="settings_cat_widgets_summary">Reloj y tiempo, notificaciones, personas</string>
+    <string name="settings_cat_icons_summary">Tamaño, nombres, fuente, paquete de iconos</string>
+    <string name="settings_cat_gestures_summary">Deslizamientos, doble toque, pulsación larga</string>
+    <string name="settings_cat_bars_summary">Ocultar las barras del sistema, barra de estado propia</string>
+    <string name="settings_cat_notifications_summary">Puntos de notificación en los iconos</string>
+    <string name="settings_cat_permissions_summary">Lo que ARK-launcher puede usar</string>
+    <string name="settings_cat_backup_summary">Guardar y restaurar el diseño y la configuración</string>
+    <string name="settings_cat_about_summary">Actualizaciones, canales de comentarios, versión</string>
+    <string name="settings_back">Atrás</string>
+    <string name="settings_heading_notif_widget">Widget de notificaciones</string>
+    <string name="settings_heading_people_widget">Widget Personas</string>
+    <string name="settings_heading_all_widgets">Todos los widgets</string>
 </resources>

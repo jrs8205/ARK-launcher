@@ -105,7 +105,6 @@ internal class SettingsViewModel @Inject constructor(
     override fun setFontFamily(font: String) = update { repository.setFontFamily(font) }
     override fun setThemeAllIcons(value: Boolean) = update { repository.setThemeAllIcons(value) }
     override fun setFolderColumns(value: Int) = update { repository.setFolderColumns(value) }
-    override fun setSectionCollapsed(id: String, collapsed: Boolean) = update { repository.setSettingsSectionCollapsed(id, collapsed) }
     override fun setHomeColumns(value: Int) = update {
         // Shrinking the grid can leave shortcuts at an out-of-range cellX; repack them back on-screen
         // before the new (smaller) column count reaches the home screen, so nothing draws off-grid.

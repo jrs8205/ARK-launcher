@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Colourful</string>
     <string name="settings_weather_icon_animated">Animated</string>
     <string name="settings_weather_icon_size">Weather icon size</string>
-    <string name="settings_section_expanded">Expanded</string>
-    <string name="settings_section_collapsed">Collapsed</string>
     <string name="settings_blur_behind_drawer">Blur the wallpaper behind the app drawer</string>
     <string name="settings_blur_behind_drawer_desc">The wallpaper, or your own picture, blurs as the drawer rises. Android 12 or newer; the system skips it in battery saver.</string>
     <string name="settings_blur_behind_drawer_needs_12">Needs Android 12 or newer; this phone runs an older version.</string>
@@ -162,7 +160,6 @@
     <string name="settings_font_monospace">Monospace</string>
     <string name="settings_font_casual">Casual</string>
     <string name="settings_font_cursive">Handwriting</string>
-    <string name="settings_search">Search</string>
     <string name="settings_search_contacts">Search contacts</string>
     <string name="settings_left_edge">Left edge</string>
     <string name="settings_left_edge_none">None</string>
@@ -215,4 +212,23 @@
     <string name="settings_sound_picked">Picked sound</string>
     <string name="settings_phone_sound_settings">Phone\'s sound settings</string>
     <string name="settings_phone_sound_settings_desc">Turn off the phone\'s own screen locking sound there, so the two don\'t play together.</string>
+    <string name="settings_cat_widgets">Widgets</string>
+    <string name="settings_cat_bars">Status bar and navigation</string>
+    <string name="settings_cat_about">About and feedback</string>
+    <string name="settings_cat_home_summary">Grid, labels, glass layer, pages</string>
+    <string name="settings_cat_dock_summary">Visibility, icons, background, spacing</string>
+    <string name="settings_cat_drawer_summary">Layout, background, blur, folders, hidden apps</string>
+    <string name="settings_cat_folders_summary">Icon size, spacing, color</string>
+    <string name="settings_cat_widgets_summary">Clock and weather, notifications, people</string>
+    <string name="settings_cat_icons_summary">Size, labels, font, icon pack</string>
+    <string name="settings_cat_gestures_summary">Swipes, double tap, long press</string>
+    <string name="settings_cat_bars_summary">Hide the system bars, own status bar</string>
+    <string name="settings_cat_notifications_summary">Notification dots on icons</string>
+    <string name="settings_cat_permissions_summary">What ARK-launcher may use</string>
+    <string name="settings_cat_backup_summary">Save and restore the layout and settings</string>
+    <string name="settings_cat_about_summary">Updates, feedback channels, version</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_heading_notif_widget">Notifications widget</string>
+    <string name="settings_heading_people_widget">People widget</string>
+    <string name="settings_heading_all_widgets">All widgets</string>
 </resources>

@@ -1,37 +1,30 @@
 package org.arkikeskus.launcher.feature.settings
 
 import android.os.SystemClock
-import android.provider.Settings
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
-import org.arkikeskus.launcher.data.DrawerWallpaper
-import org.arkikeskus.launcher.data.DrawerFolder
-import org.arkikeskus.launcher.data.IconPackInfo
-import androidx.compose.ui.semantics.selected
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.data.DrawerFolder
+import org.arkikeskus.launcher.data.DrawerWallpaper
+import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.feature.backup.BackupScreen
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
@@ -74,10 +67,22 @@ internal class SettingsLists(
     val drawerWallpaper: DrawerWallpaper? = null,
 )
 
+/** The main page, as a screen of [SettingsContent]. */
+private const val SCREEN_MAIN = ""
+
+/** The two sub-screens of the App drawer page; the prefix keeps them apart from the category keys. */
+private const val SCREEN_HIDDEN_APPS = "sub:hidden"
+private const val SCREEN_DRAWER_FOLDERS = "sub:folders"
+
 /**
- * The Settings page itself, free of the view model: it shows [s] and [lists] and asks for every change through
- * [actions], so a test can show any part of it. [blurAvailability] and [backupScreen] are parameters for the same
- * reason (the device's answer, and a screen with a view model of its own).
+ * Settings itself, free of the view model: it shows [s] and [lists] and asks for every change through [actions], so
+ * a test can show any part of it. [blurAvailability] and [backupScreen] are parameters for the same reason (the
+ * device's answer, and a screen with a view model of its own).
+ *
+ * One screen shows at a time: the main page with the categories, a category's page, or a sub-screen opened from the
+ * App drawer page. Which one is saveable state, so it survives the activity being recreated (rotation, a theme
+ * switch), also under a system picker: a page that forgot it was open never received the picker's result. Back
+ * leaves a sub-screen for its page, a page for the main page, and the main page for wherever Settings was opened.
  */
 @Composable
 internal fun SettingsContent(
@@ -87,30 +92,25 @@ internal fun SettingsContent(
     modifier: Modifier = Modifier,
     blurAvailability: BlurAvailability = rememberBlurAvailability(),
     backupScreen: @Composable (onBack: () -> Unit) -> Unit = {
-        BackupScreen(onBack = it, modifier = modifier.fillMaxSize())
+        BackupScreen(onBack = it, modifier = Modifier.fillMaxSize())
     },
 ) {
-    val allApps = lists.apps
-    val hiddenKeys = lists.hiddenKeys
-    val drawerFolders = lists.drawerFolders
-    val context = LocalContext.current
-    // Saveable: the activity is recreated on rotation and on a theme switch, and that can happen
-    // under the Backup page's file picker — a page that forgot it was open never received the
-    // picker's result (an empty file in Downloads, no message).
-    var showHiddenManager by rememberSaveable { mutableStateOf(false) }
-    var showFolderManager by rememberSaveable { mutableStateOf(false) }
-    var showBackup by rememberSaveable { mutableStateOf(false) }
-    // Hoisted above the subpage early-returns so the main list's scroll position survives a visit to
-    // the hidden-apps / backup subpage (an inline rememberScrollState would leave composition with the
-    // list and forget the position — the "settings always restart at the top" complaint). Saveable so
-    // it also survives activity recreation. A fresh Settings open starts where the list was left if
-    // that was less than five minutes ago (SettingsScrollMemory), else at the top.
-    val mainScrollState = rememberSaveable(saver = ScrollState.Saver) {
+    // The open category's key, or null on the main page; a key this version does not know counts as the main page.
+    var pageKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var subScreen by rememberSaveable { mutableStateOf<String?>(null) }
+    // Hoisted above the screens, so a page's place survives a visit to a sub-screen or to another page (a scroll
+    // state kept inside a page would leave the composition with it), and saveable, so it survives recreation. A
+    // fresh Settings open starts where the main list was left if that was less than five minutes ago
+    // (SettingsScrollMemory), else at the top.
+    val mainScroll = rememberSaveable(saver = ScrollState.Saver) {
         ScrollState(SettingsScrollMemory.restore(SystemClock.elapsedRealtime()))
+    }
+    val pageScrolls = SettingsCategory.entries.associateWith { category ->
+        key(category.key) { rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) } }
     }
     // Leaving (HOME, Back, another app on top): note the place and the time for the next open.
     LifecycleResumeEffect(Unit) {
-        onPauseOrDispose { SettingsScrollMemory.remember(mainScrollState.value, SystemClock.elapsedRealtime()) }
+        onPauseOrDispose { SettingsScrollMemory.remember(mainScroll.value, SystemClock.elapsedRealtime()) }
     }
     val palette = settingsPalette(isSystemInDarkTheme())
 
@@ -122,195 +122,57 @@ internal fun SettingsContent(
         LocalThemedIcons provides s.useThemedIcons,
         LocalThemeAllIcons provides s.themeAllIcons,
     ) {
-        if (showBackup) {
-            backupScreen { showBackup = false }
-            return@CompositionLocalProvider
-        }
-
-        if (showHiddenManager) {
-            HiddenAppsManager(
-                apps = allApps,
-                hiddenKeys = hiddenKeys,
-                onSetHidden = actions::setAppHidden,
-                onBack = { showHiddenManager = false },
-                modifier = modifier.fillMaxSize(),
-            )
-            return@CompositionLocalProvider
-        }
-
-        if (showFolderManager) {
-            val newFolderName = stringResource(R.string.drawer_folder_default)
-            DrawerFoldersManager(
-                folders = drawerFolders,
-                apps = allApps,
-                hiddenKeys = hiddenKeys,
-                onCreate = { actions.createDrawerFolder(newFolderName) },
-                onRename = actions::renameDrawerFolder,
-                onDelete = actions::deleteDrawerFolder,
-                onSetMember = actions::setAppInDrawerFolder,
-                onBack = { showFolderManager = false },
-                modifier = modifier.fillMaxSize(),
-            )
-            return@CompositionLocalProvider
-        }
-
         Surface(modifier = modifier.fillMaxSize(), color = palette.bg) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .verticalScroll(mainScrollState)
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 24.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_title),
-                    color = palette.text,
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.3).sp,
-                    modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 6.dp),
-                )
+            val screen = subScreen ?: SettingsCategory.fromKey(pageKey)?.key ?: SCREEN_MAIN
+            AnimatedContent(
+                targetState = screen,
+                transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
+                label = "settings screen",
+            ) { shown ->
+                when (shown) {
+                    SCREEN_MAIN -> SettingsMainPage(onOpen = { pageKey = it.key }, scroll = mainScroll)
 
-                SettingRow("T2") { DefaultLauncherRow() }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_gestures),
-                    collapsed = "gestures" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("gestures", it) },
-                ) {
-                    GesturesRows(s, allApps, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_folder_appearance),
-                    collapsed = "folders" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("folders", it) },
-                ) {
-                    FolderAppearanceRows(s, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_clock_widget),
-                    collapsed = "clock_widget" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("clock_widget", it) },
-                ) {
-                    ClockWidgetLookRows(s, actions)
-                    WeatherIconRows(s, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_dock),
-                    collapsed = "dock" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("dock", it) },
-                ) {
-                    DockRows(s, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_drawer),
-                    collapsed = "drawer" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("drawer", it) },
-                ) {
-                    DrawerRows(
-                        s = s,
-                        lists = lists,
-                        actions = actions,
-                        blurAvailability = blurAvailability,
-                        onOpenHiddenApps = { showHiddenManager = true },
-                        onOpenFolders = { showFolderManager = true },
+                    SCREEN_HIDDEN_APPS -> HiddenAppsManager(
+                        apps = lists.apps,
+                        hiddenKeys = lists.hiddenKeys,
+                        onSetHidden = actions::setAppHidden,
+                        onBack = { subScreen = null },
+                        modifier = Modifier.fillMaxSize(),
                     )
+
+                    SCREEN_DRAWER_FOLDERS -> {
+                        val newFolderName = stringResource(R.string.drawer_folder_default)
+                        DrawerFoldersManager(
+                            folders = lists.drawerFolders,
+                            apps = lists.apps,
+                            hiddenKeys = lists.hiddenKeys,
+                            onCreate = { actions.createDrawerFolder(newFolderName) },
+                            onRename = actions::renameDrawerFolder,
+                            onDelete = actions::deleteDrawerFolder,
+                            onSetMember = actions::setAppInDrawerFolder,
+                            onBack = { subScreen = null },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    // The backup category has one thing on it: the backup screen itself.
+                    SettingsCategory.BACKUP.key -> backupScreen { pageKey = null }
+
+                    else -> {
+                        val category = SettingsCategory.fromKey(shown) ?: return@AnimatedContent
+                        SettingsCategoryPage(
+                            category = category,
+                            s = s,
+                            lists = lists,
+                            actions = actions,
+                            blurAvailability = blurAvailability,
+                            onBack = { pageKey = null },
+                            onOpenHiddenApps = { subScreen = SCREEN_HIDDEN_APPS },
+                            onOpenFolders = { subScreen = SCREEN_DRAWER_FOLDERS },
+                            scroll = pageScrolls.getValue(category),
+                        )
+                    }
                 }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_home),
-                    collapsed = "home" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("home", it) },
-                ) {
-                    HomeGridRows(s, actions)
-                    SystemBarsHideRows(s, actions)
-                    WidgetGeneralRows(s, actions)
-                    WeatherToggleRow(s, actions)
-                    WeatherDetailRows(s, allApps, actions)
-                    NotificationWidgetRows(s, actions)
-                    PeopleWidgetRows(s, actions)
-                    OwnStatusBarRows(s, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_icons),
-                    collapsed = "icons" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("icons", it) },
-                ) {
-                    IconsRows(s, lists.iconPacks, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_notifications),
-                    collapsed = "notifications" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("notifications", it) },
-                ) {
-                    NotificationsRows(s, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_sounds),
-                    collapsed = "sounds" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("sounds", it) },
-                ) {
-                    LockSoundsSettings(
-                        enabled = s.lockSoundsEnabled,
-                        lockUri = s.lockSoundUri,
-                        unlockUri = s.unlockSoundUri,
-                        onSetEnabled = actions::setLockSoundsEnabled,
-                        onSetSound = actions::setLockSound,
-                    )
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_search),
-                    collapsed = "search" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("search", it) },
-                ) {
-                    ContactsSearchRow(s, actions)
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_permissions),
-                    collapsed = "permissions" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("permissions", it) },
-                ) {
-                    PermissionsRows()
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_backup),
-                    collapsed = "backup" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("backup", it) },
-                ) {
-                    BackupRow(onOpen = { showBackup = true })
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_updates),
-                    collapsed = "updates" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("updates", it) },
-                ) {
-                    UpdatesRow()
-                }
-
-                CollapsibleSection(
-                    title = stringResource(R.string.settings_feedback),
-                    collapsed = "feedback" in s.collapsedSettingsSections,
-                    onToggle = { actions.setSectionCollapsed("feedback", it) },
-                ) {
-                    FeedbackRows(onOpen = { openLink(context, it) })
-                }
-
-                // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
-                SettingRow("E1") { SupportSection(onOpen = { openSupportLink(context, it) }) }
-
-                VersionLine()
             }
         }
     }

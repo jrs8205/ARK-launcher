@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Renkli</string>
     <string name="settings_weather_icon_animated">Hareketli</string>
     <string name="settings_weather_icon_size">Hava durumu simgesinin boyutu</string>
-    <string name="settings_section_expanded">Genişletildi</string>
-    <string name="settings_section_collapsed">Daraltıldı</string>
     <string name="settings_blur_behind_drawer">Uygulama çekmecesinin arkasındaki duvar kağıdını bulanıklaştır</string>
     <string name="settings_blur_behind_drawer_desc">Çekmece yükseldikçe duvar kağıdı veya kendi resminiz bulanıklaşır. Android 12 veya üzeri; pil tasarrufunda sistem bunu atlar.</string>
     <string name="settings_blur_behind_drawer_needs_12">Android 12 veya üzeri gerekir; bu telefonda daha eski bir sürüm var.</string>
@@ -162,7 +160,6 @@
     <string name="settings_font_monospace">Eş aralıklı</string>
     <string name="settings_font_casual">Rahat</string>
     <string name="settings_font_cursive">El yazısı</string>
-    <string name="settings_search">Arama</string>
     <string name="settings_search_contacts">Kişilerde ara</string>
     <string name="settings_left_edge">Sol kenar</string>
     <string name="settings_left_edge_none">Yok</string>
@@ -215,4 +212,23 @@
     <string name="settings_sound_picked">Seçilen ses</string>
     <string name="settings_phone_sound_settings">Telefonun ses ayarları</string>
     <string name="settings_phone_sound_settings_desc">Orada telefonun kendi ekran kilidi sesini kapatın, böylece iki ses aynı anda çalmaz.</string>
+    <string name="settings_cat_widgets">Widget\'lar</string>
+    <string name="settings_cat_bars">Durum çubuğu ve gezinme</string>
+    <string name="settings_cat_about">Hakkında ve geri bildirim</string>
+    <string name="settings_cat_home_summary">Izgara, etiketler, cam katman, sayfalar</string>
+    <string name="settings_cat_dock_summary">Görünürlük, simgeler, arka plan, boşluk</string>
+    <string name="settings_cat_drawer_summary">Düzen, arka plan, bulanıklık, klasörler, gizli uygulamalar</string>
+    <string name="settings_cat_folders_summary">Simge boyutu, satır aralığı, renk</string>
+    <string name="settings_cat_widgets_summary">Saat ve hava durumu, bildirimler, kişiler</string>
+    <string name="settings_cat_icons_summary">Boyut, etiketler, yazı tipi, simge paketi</string>
+    <string name="settings_cat_gestures_summary">Kaydırmalar, çift dokunma, uzun basma</string>
+    <string name="settings_cat_bars_summary">Sistem çubuklarını gizleme, kendi durum çubuğu</string>
+    <string name="settings_cat_notifications_summary">Simgelerde bildirim noktaları</string>
+    <string name="settings_cat_permissions_summary">ARK-launcher\'ın kullanabildikleri</string>
+    <string name="settings_cat_backup_summary">Düzeni ve ayarları kaydedin ve geri yükleyin</string>
+    <string name="settings_cat_about_summary">Güncellemeler, geri bildirim kanalları, sürüm</string>
+    <string name="settings_back">Geri</string>
+    <string name="settings_heading_notif_widget">Bildirimler widget\'ı</string>
+    <string name="settings_heading_people_widget">Kişiler widget\'ı</string>
+    <string name="settings_heading_all_widgets">Tüm widget\'lar</string>
 </resources>

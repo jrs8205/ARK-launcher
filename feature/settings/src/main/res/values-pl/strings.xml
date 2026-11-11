@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Kolorowa</string>
     <string name="settings_weather_icon_animated">Animowana</string>
     <string name="settings_weather_icon_size">Rozmiar ikony pogody</string>
-    <string name="settings_section_expanded">Rozwinięte</string>
-    <string name="settings_section_collapsed">Zwinięte</string>
     <string name="settings_blur_behind_drawer">Rozmyj tapetę za szufladą aplikacji</string>
     <string name="settings_blur_behind_drawer_desc">Tapeta lub własny obraz rozmywa się, gdy szuflada się unosi. Android 12 lub nowszy; w trybie oszczędzania baterii system to pomija.</string>
     <string name="settings_blur_behind_drawer_needs_12">Wymaga Androida 12 lub nowszego; ten telefon ma starszą wersję.</string>
@@ -168,7 +166,6 @@
     <string name="settings_font_monospace">Stałej szerokości</string>
     <string name="settings_font_casual">Swobodna</string>
     <string name="settings_font_cursive">Odręczna</string>
-    <string name="settings_search">Wyszukiwanie</string>
     <string name="settings_search_contacts">Wyszukuj kontakty</string>
     <string name="settings_left_edge">Lewa krawędź</string>
     <string name="settings_left_edge_none">Brak</string>
@@ -221,4 +218,23 @@
     <string name="settings_sound_picked">Wybrany dźwięk</string>
     <string name="settings_phone_sound_settings">Ustawienia dźwięku telefonu</string>
     <string name="settings_phone_sound_settings_desc">Wyłącz tam dźwięk blokady ekranu samego telefonu, aby oba dźwięki nie grały jednocześnie.</string>
+    <string name="settings_cat_widgets">Widżety</string>
+    <string name="settings_cat_bars">Pasek stanu i nawigacja</string>
+    <string name="settings_cat_about">Informacje i opinie</string>
+    <string name="settings_cat_home_summary">Siatka, etykiety, szklana warstwa, strony</string>
+    <string name="settings_cat_dock_summary">Widoczność, ikony, tło, odstęp</string>
+    <string name="settings_cat_drawer_summary">Układ, tło, rozmycie, foldery, ukryte aplikacje</string>
+    <string name="settings_cat_folders_summary">Rozmiar ikon, odstęp, kolor</string>
+    <string name="settings_cat_widgets_summary">Zegar i pogoda, powiadomienia, osoby</string>
+    <string name="settings_cat_icons_summary">Rozmiar, etykiety, czcionka, pakiet ikon</string>
+    <string name="settings_cat_gestures_summary">Przesunięcia, dwukrotne dotknięcie, długie naciśnięcie</string>
+    <string name="settings_cat_bars_summary">Ukrywanie pasków systemowych, własny pasek stanu</string>
+    <string name="settings_cat_notifications_summary">Kropki powiadomień na ikonach</string>
+    <string name="settings_cat_permissions_summary">Z czego ARK-launcher może korzystać</string>
+    <string name="settings_cat_backup_summary">Zapisz i przywróć układ oraz ustawienia</string>
+    <string name="settings_cat_about_summary">Aktualizacje, kanały opinii, wersja</string>
+    <string name="settings_back">Wstecz</string>
+    <string name="settings_heading_notif_widget">Widżet powiadomień</string>
+    <string name="settings_heading_people_widget">Widżet Osoby</string>
+    <string name="settings_heading_all_widgets">Wszystkie widżety</string>
 </resources>

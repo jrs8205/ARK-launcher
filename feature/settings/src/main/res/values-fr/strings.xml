@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">En couleur</string>
     <string name="settings_weather_icon_animated">Animée</string>
     <string name="settings_weather_icon_size">Taille de l’icône météo</string>
-    <string name="settings_section_expanded">Déplié</string>
-    <string name="settings_section_collapsed">Replié</string>
     <string name="settings_blur_behind_drawer">Flouter le fond d\'écran derrière la liste des applications</string>
     <string name="settings_blur_behind_drawer_desc">Le fond d’écran, ou votre propre image, se floute à mesure que la liste monte. Android 12 ou plus récent ; le système l’ignore en économie de batterie.</string>
     <string name="settings_blur_behind_drawer_needs_12">Nécessite Android 12 ou plus récent ; ce téléphone a une version plus ancienne.</string>
@@ -165,7 +163,6 @@
     <string name="settings_font_monospace">À chasse fixe</string>
     <string name="settings_font_casual">Décontractée</string>
     <string name="settings_font_cursive">Manuscrite</string>
-    <string name="settings_search">Recherche</string>
     <string name="settings_search_contacts">Rechercher dans les contacts</string>
     <string name="settings_left_edge">Bord gauche</string>
     <string name="settings_left_edge_none">Aucune</string>
@@ -218,4 +215,23 @@
     <string name="settings_sound_picked">Son choisi</string>
     <string name="settings_phone_sound_settings">Paramètres sonores du téléphone</string>
     <string name="settings_phone_sound_settings_desc">Désactivez-y le son de verrouillage de l\'écran du téléphone pour que les deux ne soient pas joués en même temps.</string>
+    <string name="settings_cat_widgets">Widgets</string>
+    <string name="settings_cat_bars">Barre d\'état et navigation</string>
+    <string name="settings_cat_about">À propos et commentaires</string>
+    <string name="settings_cat_home_summary">Grille, noms, couche de verre, pages</string>
+    <string name="settings_cat_dock_summary">Visibilité, icônes, arrière-plan, espacement</string>
+    <string name="settings_cat_drawer_summary">Disposition, arrière-plan, flou, dossiers, applications masquées</string>
+    <string name="settings_cat_folders_summary">Taille des icônes, espacement, couleur</string>
+    <string name="settings_cat_widgets_summary">Horloge et météo, notifications, personnes</string>
+    <string name="settings_cat_icons_summary">Taille, noms, police, pack d\'icônes</string>
+    <string name="settings_cat_gestures_summary">Balayages, double appui, appui long</string>
+    <string name="settings_cat_bars_summary">Masquer les barres système, barre d\'état propre</string>
+    <string name="settings_cat_notifications_summary">Pastilles de notification sur les icônes</string>
+    <string name="settings_cat_permissions_summary">Ce que ARK-launcher peut utiliser</string>
+    <string name="settings_cat_backup_summary">Enregistrer et restaurer la disposition et les paramètres</string>
+    <string name="settings_cat_about_summary">Mises à jour, canaux de commentaires, version</string>
+    <string name="settings_back">Retour</string>
+    <string name="settings_heading_notif_widget">Widget Notifications</string>
+    <string name="settings_heading_people_widget">Widget Personnes</string>
+    <string name="settings_heading_all_widgets">Tous les widgets</string>
 </resources>

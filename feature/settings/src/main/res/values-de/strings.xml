@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Farbig</string>
     <string name="settings_weather_icon_animated">Animiert</string>
     <string name="settings_weather_icon_size">Größe des Wettersymbols</string>
-    <string name="settings_section_expanded">Ausgeklappt</string>
-    <string name="settings_section_collapsed">Eingeklappt</string>
     <string name="settings_blur_behind_drawer">Hintergrund hinter dem App-Drawer weichzeichnen</string>
     <string name="settings_blur_behind_drawer_desc">Das Hintergrundbild oder dein eigenes Bild verschwimmt, während der Drawer aufgeht. Ab Android 12; im Energiesparmodus lässt das System es aus.</string>
     <string name="settings_blur_behind_drawer_needs_12">Braucht Android 12 oder neuer; dieses Telefon hat eine ältere Version.</string>
@@ -162,7 +160,6 @@
     <string name="settings_font_monospace">Festbreite</string>
     <string name="settings_font_casual">Leger</string>
     <string name="settings_font_cursive">Handschrift</string>
-    <string name="settings_search">Suche</string>
     <string name="settings_search_contacts">Kontakte durchsuchen</string>
     <string name="settings_left_edge">Linker Rand</string>
     <string name="settings_left_edge_none">Keine</string>
@@ -215,4 +212,23 @@
     <string name="settings_sound_picked">Ausgewählter Ton</string>
     <string name="settings_phone_sound_settings">Toneinstellungen des Telefons</string>
     <string name="settings_phone_sound_settings_desc">Schalte dort den eigenen Displaysperre-Ton des Telefons aus, damit nicht beide gleichzeitig erklingen.</string>
+    <string name="settings_cat_widgets">Widgets</string>
+    <string name="settings_cat_bars">Statusleiste und Navigation</string>
+    <string name="settings_cat_about">Info und Feedback</string>
+    <string name="settings_cat_home_summary">Raster, Beschriftungen, Glasschicht, Seiten</string>
+    <string name="settings_cat_dock_summary">Sichtbarkeit, Symbole, Hintergrund, Abstand</string>
+    <string name="settings_cat_drawer_summary">Layout, Hintergrund, Weichzeichnung, Ordner, ausgeblendete Apps</string>
+    <string name="settings_cat_folders_summary">Symbolgröße, Zeilenabstand, Farbe</string>
+    <string name="settings_cat_widgets_summary">Uhr und Wetter, Benachrichtigungen, Personen</string>
+    <string name="settings_cat_icons_summary">Größe, Beschriftungen, Schrift, Symbolpaket</string>
+    <string name="settings_cat_gestures_summary">Wischgesten, Doppeltippen, langes Drücken</string>
+    <string name="settings_cat_bars_summary">Systemleisten ausblenden, eigene Statusleiste</string>
+    <string name="settings_cat_notifications_summary">Benachrichtigungspunkte auf Symbolen</string>
+    <string name="settings_cat_permissions_summary">Was ARK-launcher verwenden darf</string>
+    <string name="settings_cat_backup_summary">Layout und Einstellungen sichern und wiederherstellen</string>
+    <string name="settings_cat_about_summary">Updates, Feedback-Kanäle, Version</string>
+    <string name="settings_back">Zurück</string>
+    <string name="settings_heading_notif_widget">Benachrichtigungs-Widget</string>
+    <string name="settings_heading_people_widget">Personen-Widget</string>
+    <string name="settings_heading_all_widgets">Alle Widgets</string>
 </resources>

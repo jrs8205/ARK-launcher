@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.feature.settings
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import com.google.common.truth.Truth.assertThat
@@ -29,6 +30,15 @@ class SettingsPaletteTest {
                 assertWithMessage("${if (dark) "dark" else "light"}: $ink on $ground")
                     .that(ratio(colour, behind)).isAtLeast(READABLE_TEXT)
             }
+        }
+    }
+
+    @Test fun aCategoryIconReadsOnItsTintedTile() {
+        // The main page draws each category's icon in the accent on a tile of the accent at 16 % over the page.
+        for (dark in listOf(true, false)) {
+            val p = settingsPalette(dark)
+            val tile = p.accent.copy(alpha = CATEGORY_TILE_ALPHA).compositeOver(p.bg)
+            assertWithMessage(if (dark) "dark" else "light").that(ratio(p.accent, tile)).isAtLeast(3f)
         }
     }
 

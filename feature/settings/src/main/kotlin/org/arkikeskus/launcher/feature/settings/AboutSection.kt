@@ -47,17 +47,6 @@ internal fun DefaultLauncherRow() {
     }
 }
 
-/** Settings > Backup: opens the backup page. */
-@Composable
-internal fun BackupRow(onOpen: () -> Unit) {
-    SettingRow("B1") {
-        ExpressiveActionRow(
-            label = stringResource(R.string.settings_backup),
-            description = "",
-        ) { onOpen() }
-    }
-}
-
 /** Settings > Updates: the releases page in the browser. */
 @Composable
 internal fun UpdatesRow() {

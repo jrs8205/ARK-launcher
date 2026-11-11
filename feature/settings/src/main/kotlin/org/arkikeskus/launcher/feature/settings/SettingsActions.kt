@@ -36,7 +36,6 @@ internal interface SettingsActions {
     fun setFontFamily(font: String)
     fun setThemeAllIcons(value: Boolean)
     fun setFolderColumns(value: Int)
-    fun setSectionCollapsed(id: String, collapsed: Boolean)
     fun setHomeColumns(value: Int)
     fun setHomeRows(value: Int)
     fun setShowDockLabels(value: Boolean)

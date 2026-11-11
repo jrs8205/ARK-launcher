@@ -8,6 +8,10 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.data.DrawerWallpaper
@@ -22,8 +26,8 @@ import java.io.File
 
 /**
  * Nothing may go missing from Settings. Every row the page had in 1.0.5 is listed in [SettingsIndex] under an id,
- * every row on the page carries its id as a tag, and these tests hold the two together: the list is the 1.0.5 one,
- * the page shows exactly the listed rows in each state, and each tagged row is the row its entry names.
+ * every row carries its id as a tag, and these tests hold the two together: the list is the 1.0.5 one, each page
+ * shows exactly its listed rows, in the listed order, in each state, and each tagged row is the row its entry names.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
@@ -146,34 +150,45 @@ class SettingsInventoryTest {
         }
     }
 
-    @Test fun withEverythingOffOnlyTheUnconditionalRowsShow() {
-        show(everythingOff)
-        val shown = shownIds()
-        assertThat(shown).containsNoDuplicates()
-        assertThat(shown).containsExactlyElementsIn(unconditionalIds)
+    /** The ids of [category]'s rows (null = the main page) among [visible], in the registry's order. */
+    private fun rowsOf(category: SettingsCategory?, visible: Collection<String>): List<String> =
+        SettingsIndex.entries.filter { it.category == category && it.id in visible }.map { it.id }
+
+    /** Walks every page and holds its rows, in order, against the registry's for that page. */
+    private fun assertEveryPageShowsExactlyItsRows(visible: Collection<String>, eachRow: (SettingEntry) -> Unit = {}) {
+        assertWithMessage("main page").that(shownIds()).containsExactlyElementsIn(rowsOf(null, visible)).inOrder()
+        rowsOf(null, visible).forEach { eachRow(SettingsIndex.entry(it)) }
+        for (category in SettingsCategory.entries) {
+            // The backup category opens the backup screen itself (SettingsNavigationTest); it has no page of rows.
+            if (category == SettingsCategory.BACKUP) continue
+            compose.onNodeWithTag(categoryTag(category.key)).performScrollTo().performClick()
+            compose.waitForIdle()
+            assertWithMessage(category.key).that(shownIds()).containsExactlyElementsIn(rowsOf(category, visible)).inOrder()
+            rowsOf(category, visible).forEach { eachRow(SettingsIndex.entry(it)) }
+            compose.onNodeWithContentDescription(res.getString(R.string.settings_back)).performClick()
+            compose.waitForIdle()
+        }
     }
 
-    @Test fun withEverythingOnEveryRowShowsButThePictureDim() {
+    @Test fun theBackupRowIsTheBackupCategoryItself() {
+        assertThat(SettingsIndex.entries.filter { it.category == SettingsCategory.BACKUP }.map { it.id }).containsExactly("B1")
+    }
+
+    @Test fun withEverythingOffEachPageShowsItsUnconditionalRowsInOrder() {
+        show(everythingOff)
+        assertEveryPageShowsExactlyItsRows(unconditionalIds - "B1")
+    }
+
+    @Test fun withEverythingOnEachPageShowsAllItsRowsButThePictureDim() {
         show(everythingOn)
-        val shown = shownIds()
-        assertThat(shown).containsNoDuplicates()
-        assertThat(shown).containsExactlyElementsIn(allIds - "A13")
+        assertEveryPageShowsExactlyItsRows(allIds - "A13" - "B1", eachRow = ::assertRowNamesItsTitle)
     }
 
     @Test fun withAPictureBehindTheDrawerItsDimShowsInPlaceOfTheColourOpacity() {
         show(everythingOn, wallpaper = picture)
-        val shown = shownIds()
-        assertThat(shown).containsNoDuplicates()
-        assertThat(shown).containsExactlyElementsIn(allIds - "A11")
-    }
-
-    @Test fun eachRowCarriesItsTitle() {
-        show(everythingOn)
-        (SettingsIndex.entries.filter { it.id != "A13" }).forEach(::assertRowNamesItsTitle)
-    }
-
-    @Test fun thePictureDimRowCarriesItsTitle() {
-        show(everythingOn, wallpaper = picture)
+        compose.onNodeWithTag(categoryTag(SettingsCategory.DRAWER.key)).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertThat(shownIds()).containsExactlyElementsIn(rowsOf(SettingsCategory.DRAWER, allIds - "A11")).inOrder()
         assertRowNamesItsTitle(SettingsIndex.entry("A13"))
     }
 

@@ -32,4 +32,15 @@ object LauncherIcons {
     @DrawableRes val Work: Int = R.drawable.ic_work
     @DrawableRes val Play: Int = R.drawable.ic_play_arrow
     @DrawableRes val ExpandMore: Int = R.drawable.ic_expand_more
+    @DrawableRes val ArrowBack: Int = R.drawable.ic_arrow_back
+    @DrawableRes val Apps: Int = R.drawable.ic_apps
+    @DrawableRes val Folder: Int = R.drawable.ic_folder
+    @DrawableRes val Notifications: Int = R.drawable.ic_notifications
+    @DrawableRes val VolumeUp: Int = R.drawable.ic_volume_up
+    @DrawableRes val Dock: Int = R.drawable.ic_dock
+    @DrawableRes val Category: Int = R.drawable.ic_category
+    @DrawableRes val SwipeUp: Int = R.drawable.ic_swipe_up
+    @DrawableRes val SystemBars: Int = R.drawable.ic_system_bars
+    @DrawableRes val Shield: Int = R.drawable.ic_shield
+    @DrawableRes val Backup: Int = R.drawable.ic_backup
 }

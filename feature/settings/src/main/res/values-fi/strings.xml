@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Värikäs</string>
     <string name="settings_weather_icon_animated">Animoitu</string>
     <string name="settings_weather_icon_size">Sääkuvakkeen koko</string>
-    <string name="settings_section_expanded">Avattu</string>
-    <string name="settings_section_collapsed">Suljettu</string>
     <string name="settings_blur_behind_drawer">Sumenna taustakuva sovellusvalikon takana</string>
     <string name="settings_blur_behind_drawer_desc">Taustakuva tai oma kuvasi sumenee valikon noustessa. Android 12 tai uudempi; virransäästötilassa järjestelmä ohittaa sen.</string>
     <string name="settings_blur_behind_drawer_needs_12">Vaatii Android 12:n tai uudemman; tässä puhelimessa on vanhempi versio.</string>
@@ -162,7 +160,6 @@
     <string name="settings_font_monospace">Tasalevyinen</string>
     <string name="settings_font_casual">Rento</string>
     <string name="settings_font_cursive">Käsiala</string>
-    <string name="settings_search">Haku</string>
     <string name="settings_search_contacts">Hae yhteystietoja</string>
     <string name="settings_left_edge">Vasen reuna</string>
     <string name="settings_left_edge_none">Ei mitään</string>
@@ -215,4 +212,23 @@
     <string name="settings_sound_picked">Valittu ääni</string>
     <string name="settings_phone_sound_settings">Puhelimen ääniasetukset</string>
     <string name="settings_phone_sound_settings_desc">Sammuta siellä puhelimen oma näytön lukitusääni, jotta äänet eivät soi päällekkäin.</string>
+    <string name="settings_cat_widgets">Widgetit</string>
+    <string name="settings_cat_bars">Tilapalkki ja navigointi</string>
+    <string name="settings_cat_about">Tietoja ja palaute</string>
+    <string name="settings_cat_home_summary">Ruudukko, nimet, lasikerros, sivut</string>
+    <string name="settings_cat_dock_summary">Näkyvyys, kuvakkeet, tausta, väli</string>
+    <string name="settings_cat_drawer_summary">Asettelu, tausta, sumennus, kansiot, piilotetut sovellukset</string>
+    <string name="settings_cat_folders_summary">Kuvakekoko, riviväli, väri</string>
+    <string name="settings_cat_widgets_summary">Kello ja sää, ilmoitukset, ihmiset</string>
+    <string name="settings_cat_icons_summary">Koko, nimet, fontti, ikonipaketti</string>
+    <string name="settings_cat_gestures_summary">Pyyhkäisyt, tuplanapautus, pitkä painallus</string>
+    <string name="settings_cat_bars_summary">Järjestelmän palkkien piilotus, oma tilapalkki</string>
+    <string name="settings_cat_notifications_summary">Ilmoituspisteet kuvakkeissa</string>
+    <string name="settings_cat_permissions_summary">Mitä ARK-launcher saa käyttää</string>
+    <string name="settings_cat_backup_summary">Tallenna ja palauta asettelu ja asetukset</string>
+    <string name="settings_cat_about_summary">Päivitykset, palautekanavat, versio</string>
+    <string name="settings_back">Takaisin</string>
+    <string name="settings_heading_notif_widget">Ilmoitukset-widget</string>
+    <string name="settings_heading_people_widget">Ihmiset-widget</string>
+    <string name="settings_heading_all_widgets">Kaikki widgetit</string>
 </resources>

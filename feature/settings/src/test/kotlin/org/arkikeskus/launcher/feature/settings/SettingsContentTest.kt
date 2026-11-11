@@ -5,6 +5,7 @@ import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -36,11 +37,14 @@ class SettingsContentTest {
     @Test fun thePageRendersWithoutAViewModel() {
         show()
         compose.onNodeWithText(res.getString(R.string.settings_title)).assertExists()
-        compose.onNodeWithText(res.getString(R.string.settings_swipe_up_drawer)).assertExists()
+        compose.onNodeWithText(res.getString(R.string.settings_set_default)).assertExists()
+        compose.onNodeWithTag(categoryTag(SettingsCategory.GESTURES.key)).assertExists()
     }
 
     @Test fun aRowReportsThroughTheActions() {
         show(LauncherSettings(swipeUpForDrawer = true))
+        compose.onNodeWithTag(categoryTag(SettingsCategory.GESTURES.key)).performScrollTo().performClick()
+        compose.waitForIdle()
         compose.onNode(isToggleable() and hasAnySibling(hasText(res.getString(R.string.settings_swipe_up_drawer))))
             .performScrollTo()
             .performClick()

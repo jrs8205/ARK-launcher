@@ -43,8 +43,6 @@
     <string name="settings_weather_icon_color">Цветной</string>
     <string name="settings_weather_icon_animated">Анимированный</string>
     <string name="settings_weather_icon_size">Размер значка погоды</string>
-    <string name="settings_section_expanded">Развёрнуто</string>
-    <string name="settings_section_collapsed">Свёрнуто</string>
     <string name="settings_blur_behind_drawer">Размывать обои за списком приложений</string>
     <string name="settings_blur_behind_drawer_desc">Обои или ваша картинка размываются по мере открытия списка. Android 12 и новее; в режиме энергосбережения система это пропускает.</string>
     <string name="settings_blur_behind_drawer_needs_12">Нужен Android 12 или новее; на этом телефоне более старая версия.</string>
@@ -168,7 +166,6 @@
     <string name="settings_font_monospace">Моноширинный</string>
     <string name="settings_font_casual">Свободный</string>
     <string name="settings_font_cursive">Рукописный</string>
-    <string name="settings_search">Поиск</string>
     <string name="settings_search_contacts">Поиск контактов</string>
     <string name="settings_left_edge">Левый край</string>
     <string name="settings_left_edge_none">Нет</string>
@@ -221,4 +218,23 @@
     <string name="settings_sound_picked">Выбранный звук</string>
     <string name="settings_phone_sound_settings">Настройки звука телефона</string>
     <string name="settings_phone_sound_settings_desc">Отключите там собственный звук блокировки экрана телефона, чтобы оба звука не звучали одновременно.</string>
+    <string name="settings_cat_widgets">Виджеты</string>
+    <string name="settings_cat_bars">Строка состояния и навигация</string>
+    <string name="settings_cat_about">О приложении и обратная связь</string>
+    <string name="settings_cat_home_summary">Сетка, подписи, стеклянный слой, страницы</string>
+    <string name="settings_cat_dock_summary">Видимость, значки, фон, отступ</string>
+    <string name="settings_cat_drawer_summary">Макет, фон, размытие, папки, скрытые приложения</string>
+    <string name="settings_cat_folders_summary">Размер значков, интервал, цвет</string>
+    <string name="settings_cat_widgets_summary">Часы и погода, уведомления, люди</string>
+    <string name="settings_cat_icons_summary">Размер, подписи, шрифт, набор значков</string>
+    <string name="settings_cat_gestures_summary">Свайпы, двойное нажатие, долгое нажатие</string>
+    <string name="settings_cat_bars_summary">Скрытие системных панелей, своя строка состояния</string>
+    <string name="settings_cat_notifications_summary">Значки уведомлений на приложениях</string>
+    <string name="settings_cat_permissions_summary">Что может использовать ARK-launcher</string>
+    <string name="settings_cat_backup_summary">Сохранение и восстановление макета и настроек</string>
+    <string name="settings_cat_about_summary">Обновления, каналы обратной связи, версия</string>
+    <string name="settings_back">Назад</string>
+    <string name="settings_heading_notif_widget">Виджет уведомлений</string>
+    <string name="settings_heading_people_widget">Виджет «Люди»</string>
+    <string name="settings_heading_all_widgets">Все виджеты</string>
 </resources>
