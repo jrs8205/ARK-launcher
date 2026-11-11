@@ -47,6 +47,8 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import org.arkikeskus.launcher.ui.component.DrawerWallpaperPicture
 import org.arkikeskus.launcher.data.DrawerWallpaper
+import org.arkikeskus.launcher.data.DrawerFolder
+import org.arkikeskus.launcher.data.IconPackInfo
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
@@ -105,17 +107,61 @@ import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
+/** The launcher's Settings: the view model's state handed to [SettingsContent], which is the page. */
 @Composable
-fun SettingsScreen(
-    modifier: Modifier = Modifier,
-    viewModel: SettingsViewModel = hiltViewModel(),
-) {
+fun SettingsScreen(modifier: Modifier = Modifier) {
+    val viewModel: SettingsViewModel = hiltViewModel()
     val s by viewModel.settings.collectAsStateWithLifecycle()
     val drawerWallpaper by viewModel.drawerWallpaperPicture.collectAsStateWithLifecycle()
     val allApps by viewModel.apps.collectAsStateWithLifecycle()
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
     val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
+    SettingsContent(
+        s = s,
+        lists = SettingsLists(
+            apps = allApps,
+            hiddenKeys = hiddenKeys,
+            drawerFolders = drawerFolders,
+            iconPacks = iconPacks,
+            drawerWallpaper = drawerWallpaper,
+        ),
+        actions = viewModel,
+        modifier = modifier,
+    )
+}
+
+/** What the page shows besides the settings themselves: the apps, what is hidden, the drawer's folders (null while
+ *  they load), the installed icon packs and the user's own picture behind the drawer. */
+internal class SettingsLists(
+    val apps: List<AppItem> = emptyList(),
+    val hiddenKeys: Set<String> = emptySet(),
+    val drawerFolders: List<DrawerFolder>? = emptyList(),
+    val iconPacks: List<IconPackInfo> = emptyList(),
+    val drawerWallpaper: DrawerWallpaper? = null,
+)
+
+/**
+ * The Settings page itself, free of the view model: it shows [s] and [lists] and asks for every change through
+ * [actions], so a test can show any part of it. [blurAvailability] and [backupScreen] are parameters for the same
+ * reason (the device's answer, and a screen with a view model of its own).
+ */
+@Composable
+internal fun SettingsContent(
+    s: LauncherSettings,
+    lists: SettingsLists,
+    actions: SettingsActions,
+    modifier: Modifier = Modifier,
+    blurAvailability: BlurAvailability = rememberBlurAvailability(),
+    backupScreen: @Composable (onBack: () -> Unit) -> Unit = {
+        BackupScreen(onBack = it, modifier = modifier.fillMaxSize())
+    },
+) {
+    val drawerWallpaper = lists.drawerWallpaper
+    val allApps = lists.apps
+    val hiddenKeys = lists.hiddenKeys
+    val drawerFolders = lists.drawerFolders
+    val iconPacks = lists.iconPacks
     val context = LocalContext.current
     val resources = context.resources
     // Size multipliers read as whole percents, so 100 is the default and the number is easy to come back to.
@@ -172,7 +218,7 @@ fun SettingsScreen(
         LocalThemeAllIcons provides s.themeAllIcons,
     ) {
         if (showBackup) {
-            BackupScreen(onBack = { showBackup = false }, modifier = modifier.fillMaxSize())
+            backupScreen { showBackup = false }
             return@CompositionLocalProvider
         }
 
@@ -180,7 +226,7 @@ fun SettingsScreen(
             HiddenAppsManager(
                 apps = allApps,
                 hiddenKeys = hiddenKeys,
-                onSetHidden = viewModel::setAppHidden,
+                onSetHidden = actions::setAppHidden,
                 onBack = { showHiddenManager = false },
                 modifier = modifier.fillMaxSize(),
             )
@@ -193,10 +239,10 @@ fun SettingsScreen(
                 folders = drawerFolders,
                 apps = allApps,
                 hiddenKeys = hiddenKeys,
-                onCreate = { viewModel.createDrawerFolder(newFolderName) },
-                onRename = viewModel::renameDrawerFolder,
-                onDelete = viewModel::deleteDrawerFolder,
-                onSetMember = viewModel::setAppInDrawerFolder,
+                onCreate = { actions.createDrawerFolder(newFolderName) },
+                onRename = actions::renameDrawerFolder,
+                onDelete = actions::deleteDrawerFolder,
+                onSetMember = actions::setAppInDrawerFolder,
                 onBack = { showFolderManager = false },
                 modifier = modifier.fillMaxSize(),
             )
@@ -233,15 +279,15 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_gestures),
                     collapsed = "gestures" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("gestures", it) },
+                    onToggle = { actions.setSectionCollapsed("gestures", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, viewModel::setSwipeUp)
-                    SwitchRow(stringResource(R.string.settings_swipe_down_notif), s.swipeDownForNotifications, viewModel::setSwipeDown)
+                    SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, actions::setSwipeUp)
+                    SwitchRow(stringResource(R.string.settings_swipe_down_notif), s.swipeDownForNotifications, actions::setSwipeDown)
                     SwitchRow(
                         stringResource(R.string.settings_folder_swipe_first_app),
                         stringResource(R.string.settings_folder_swipe_first_app_desc),
                         s.folderSwipeOpensFirstApp,
-                        viewModel::setFolderSwipeOpensFirstApp,
+                        actions::setFolderSwipeOpensFirstApp,
                     )
                     val leftSwipeLabel = allApps.firstOrNull { it.key == s.leftSwipeAppKey }?.label
                         ?: stringResource(R.string.settings_left_edge_none)
@@ -249,7 +295,7 @@ fun SettingsScreen(
                         label = stringResource(R.string.settings_left_edge),
                         description = leftSwipeLabel,
                     ) { showLeftSwipePicker = true }
-                    DoubleTapLockToggle(enabled = s.doubleTapToLock, onSetEnabled = viewModel::setDoubleTapToLock)
+                    DoubleTapLockToggle(enabled = s.doubleTapToLock, onSetEnabled = actions::setDoubleTapToLock)
                     // Read out in milliseconds of this phone's own long-press timeout times the setting, so the
                     // number is the real wait here and the default chip names it.
                     val systemLongPress = rememberSystemLongPressTimeout()
@@ -257,7 +303,7 @@ fun SettingsScreen(
                         label = stringResource(R.string.settings_long_press_delay),
                         description = stringResource(R.string.settings_long_press_delay_desc),
                         value = s.longPressScale,
-                        onValueChange = viewModel::setLongPressScale,
+                        onValueChange = actions::setLongPressScale,
                         valueRange = LongPressScale.MIN..LongPressScale.MAX,
                         step = 0.1f,
                         valueText = { resources.getString(R.string.settings_millis, (systemLongPress * it).roundToInt()) },
@@ -266,7 +312,7 @@ fun SettingsScreen(
                         label = stringResource(R.string.settings_icon_swipe_distance),
                         description = stringResource(R.string.settings_icon_swipe_distance_desc),
                         value = s.iconSwipeDistance,
-                        onValueChange = viewModel::setIconSwipeDistance,
+                        onValueChange = actions::setIconSwipeDistance,
                         valueRange = 1f..4f,
                         step = 0.25f,
                         valueText = { resources.getString(R.string.settings_percent, (it * 100).roundToInt()) },
@@ -276,32 +322,32 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_folder_appearance),
                     collapsed = "folders" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("folders", it) },
+                    onToggle = { actions.setSectionCollapsed("folders", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_folder_app_names), s.folderShowLabels, viewModel::setFolderShowLabels)
+                    SwitchRow(stringResource(R.string.settings_folder_app_names), s.folderShowLabels, actions::setFolderShowLabels)
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_folder_icon_size),
                         value = s.folderIconScale,
-                        onValueChange = viewModel::setFolderIconScale,
+                        onValueChange = actions::setFolderIconScale,
                         valueRange = SettingsRepository.MIN_FOLDER_ICON_SCALE..SettingsRepository.MAX_FOLDER_ICON_SCALE,
                         valueText = percentText,
                     )
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_folder_spacing),
                         value = s.folderSpacing,
-                        onValueChange = viewModel::setFolderSpacing,
+                        onValueChange = actions::setFolderSpacing,
                         valueRange = SettingsRepository.MIN_FOLDER_SPACING..SettingsRepository.MAX_FOLDER_SPACING,
                         valueText = percentText,
                     )
                     CardColorRow(
                         title = stringResource(R.string.settings_folder_color),
                         selected = s.folderBackgroundColor,
-                        onPick = viewModel::setFolderBackgroundColor,
+                        onPick = actions::setFolderBackgroundColor,
                     )
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_folder_opacity),
                         value = s.folderBackgroundOpacity,
-                        onValueChange = viewModel::setFolderBackgroundOpacity,
+                        onValueChange = actions::setFolderBackgroundOpacity,
                         valueRange = SettingsRepository.MIN_CARD_OPACITY..1f,
                         valueText = percentText,
                     )
@@ -310,17 +356,17 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_clock_widget),
                     collapsed = "clock_widget" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("clock_widget", it) },
+                    onToggle = { actions.setSectionCollapsed("clock_widget", it) },
                 ) {
                     CardColorRow(
                         title = stringResource(R.string.settings_clock_widget_color),
                         selected = s.smartspaceBackgroundColor,
-                        onPick = viewModel::setSmartspaceBackgroundColor,
+                        onPick = actions::setSmartspaceBackgroundColor,
                     )
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_clock_widget_opacity),
                         value = s.smartspaceBackgroundOpacity,
-                        onValueChange = viewModel::setSmartspaceBackgroundOpacity,
+                        onValueChange = actions::setSmartspaceBackgroundOpacity,
                         valueRange = 0f..1f,
                         valueText = percentText,
                         default = LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND,
@@ -328,63 +374,63 @@ fun SettingsScreen(
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_clock_widget_text_size),
                         value = s.smartspaceTextScale,
-                        onValueChange = viewModel::setSmartspaceTextScale,
+                        onValueChange = actions::setSmartspaceTextScale,
                         valueRange = SettingsRepository.MIN_SMARTSPACE_TEXT_SCALE..SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE,
                         valueText = percentText,
                     )
                     if (s.showWeather) {
-                        WeatherIconRow(selected = s.weatherIconStyle, onPick = viewModel::setWeatherIconStyle)
-                        WeatherIconSizeRow(large = s.weatherIconLarge, onPick = viewModel::setWeatherIconLarge)
+                        WeatherIconRow(selected = s.weatherIconStyle, onPick = actions::setWeatherIconStyle)
+                        WeatherIconSizeRow(large = s.weatherIconLarge, onPick = actions::setWeatherIconLarge)
                     }
                 }
 
                 CollapsibleSection(
                     title = stringResource(R.string.settings_dock),
                     collapsed = "dock" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("dock", it) },
+                    onToggle = { actions.setSectionCollapsed("dock", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, viewModel::setDockEnabled)
-                    StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, viewModel::setDockColumns)
-                    SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, viewModel::setShowDockLabels)
-                    DockBackgroundRow(s.dockBackgroundOpacity, viewModel::setDockBackgroundOpacity)
-                    DockBottomSpacingRow(s.dockBottomSpacing, viewModel::setDockBottomSpacing)
+                    SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, actions::setDockEnabled)
+                    StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, actions::setDockColumns)
+                    SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, actions::setShowDockLabels)
+                    DockBackgroundRow(s.dockBackgroundOpacity, actions::setDockBackgroundOpacity)
+                    DockBottomSpacingRow(s.dockBottomSpacing, actions::setDockBottomSpacing)
                     DockPreview(opacity = s.dockBackgroundOpacity, icon = previewIcon)
                 }
 
                 CollapsibleSection(
                     title = stringResource(R.string.settings_drawer),
                     collapsed = "drawer" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("drawer", it) },
+                    onToggle = { actions.setSectionCollapsed("drawer", it) },
                 ) {
-                    StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, viewModel::setDrawerColumns)
-                    SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, viewModel::setShowDrawerLabels)
-                    SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineDrawerLabels, viewModel::setTwoLineDrawerLabels)
-                    DrawerLabelColorRow(selected = s.drawerLabelColor, onPick = viewModel::setDrawerLabelColor)
-                    SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, viewModel::setShowDrawerFolderNames)
-                    SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, viewModel::setShowDrawerSearch)
-                    SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, viewModel::setShowFrequentApps)
+                    StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, actions::setDrawerColumns)
+                    SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, actions::setShowDrawerLabels)
+                    SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineDrawerLabels, actions::setTwoLineDrawerLabels)
+                    DrawerLabelColorRow(selected = s.drawerLabelColor, onPick = actions::setDrawerLabelColor)
+                    SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, actions::setShowDrawerFolderNames)
+                    SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, actions::setShowDrawerSearch)
+                    SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, actions::setShowFrequentApps)
                     SwitchRow(
                         stringResource(R.string.settings_hide_home_apps),
                         stringResource(R.string.settings_hide_home_apps_desc),
                         s.hideHomeAppsFromDrawer,
-                        viewModel::setHideHomeAppsFromDrawer,
+                        actions::setHideHomeAppsFromDrawer,
                     )
-                    SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, viewModel::setDrawerOpensAtTop)
+                    SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, actions::setDrawerOpensAtTop)
                     DrawerBackdropRows(
                         settings = s,
                         wallpaper = drawerWallpaper,
-                        blurAvailability = rememberBlurAvailability(),
+                        blurAvailability = blurAvailability,
                         actions = DrawerBackdropActions(
-                            onColor = viewModel::setDrawerBackgroundColor,
-                            onColorOpacity = viewModel::setDrawerBackgroundOpacity,
-                            onPickPicture = viewModel::importDrawerWallpaper,
-                            onClearPicture = viewModel::clearDrawerWallpaper,
-                            onPictureDim = viewModel::setDrawerPictureDim,
-                            onBlur = viewModel::setBlurBehindDrawer,
-                            onBlurStrength = viewModel::setDrawerBlurStrength,
+                            onColor = actions::setDrawerBackgroundColor,
+                            onColorOpacity = actions::setDrawerBackgroundOpacity,
+                            onPickPicture = actions::importDrawerWallpaper,
+                            onClearPicture = actions::clearDrawerWallpaper,
+                            onPictureDim = actions::setDrawerPictureDim,
+                            onBlur = actions::setBlurBehindDrawer,
+                            onBlurStrength = actions::setDrawerBlurStrength,
                         ),
                     )
-                    DrawerIconSizeRow(s.drawerIconScale, viewModel::setDrawerIconScale)
+                    DrawerIconSizeRow(s.drawerIconScale, actions::setDrawerIconScale)
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_hidden_apps),
                         description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
@@ -402,54 +448,54 @@ fun SettingsScreen(
                         description = stringResource(R.string.settings_new_drawer_folder_desc),
                         trailingIcon = LauncherIcons.Add,
                     ) {
-                        viewModel.createDrawerFolder(newFolderName)
+                        actions.createDrawerFolder(newFolderName)
                         android.widget.Toast.makeText(context, folderCreatedMsg, android.widget.Toast.LENGTH_SHORT).show()
                     }
                     SwitchRow(
                         stringResource(R.string.settings_sort_drawer_folders),
                         stringResource(R.string.settings_sort_drawer_folders_desc),
                         s.sortDrawerFolders,
-                        viewModel::setSortDrawerFolders,
+                        actions::setSortDrawerFolders,
                     )
                     SwitchRow(
                         stringResource(R.string.settings_mix_drawer_folders),
                         stringResource(R.string.settings_mix_drawer_folders_desc),
                         s.mixDrawerFolders,
-                        viewModel::setMixDrawerFolders,
+                        actions::setMixDrawerFolders,
                     )
                 }
 
                 CollapsibleSection(
                     title = stringResource(R.string.settings_home),
                     collapsed = "home" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("home", it) },
+                    onToggle = { actions.setSectionCollapsed("home", it) },
                 ) {
-                    StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS, viewModel::setHomeColumns)
-                    StepperRow(stringResource(R.string.settings_rows), s.homeRows, SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS, viewModel::setHomeRows)
-                    SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, viewModel::setShowHomeLabels)
-                    SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineHomeLabels, viewModel::setTwoLineHomeLabels)
-                    SwitchRow(stringResource(R.string.settings_show_folder_names), s.showHomeFolderNames, viewModel::setShowHomeFolderNames)
+                    StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS, actions::setHomeColumns)
+                    StepperRow(stringResource(R.string.settings_rows), s.homeRows, SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS, actions::setHomeRows)
+                    SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, actions::setShowHomeLabels)
+                    SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineHomeLabels, actions::setTwoLineHomeLabels)
+                    SwitchRow(stringResource(R.string.settings_show_folder_names), s.showHomeFolderNames, actions::setShowHomeFolderNames)
                     StepperRow(
                         stringResource(R.string.settings_folder_columns), s.folderColumns,
-                        SettingsRepository.MIN_FOLDER_COLUMNS, SettingsRepository.MAX_FOLDER_COLUMNS, viewModel::setFolderColumns,
+                        SettingsRepository.MIN_FOLDER_COLUMNS, SettingsRepository.MAX_FOLDER_COLUMNS, actions::setFolderColumns,
                     )
                     SwitchRow(
                         stringResource(R.string.settings_glass_panel),
                         stringResource(R.string.settings_glass_panel_desc),
                         s.homeGlassPanel,
-                        viewModel::setHomeGlassPanel,
+                        actions::setHomeGlassPanel,
                     )
                     if (s.homeGlassPanel) {
                         ScaleSliderRow(
                             label = stringResource(R.string.settings_glass_strength),
                             value = s.homeGlassOpacity,
-                            onValueChange = viewModel::setHomeGlassOpacity,
+                            onValueChange = actions::setHomeGlassOpacity,
                             valueRange = SettingsRepository.MIN_GLASS_OPACITY..SettingsRepository.MAX_GLASS_OPACITY,
                             valueText = percentText,
                             default = LauncherSettings.DEFAULT_GLASS_OPACITY,
                         )
                     }
-                    SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, viewModel::setShowPageIndicator)
+                    SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, actions::setShowPageIndicator)
                     if (s.showPageIndicator) {
                         ExpressiveActionRow(
                             label = stringResource(R.string.settings_home_page_marker),
@@ -466,28 +512,28 @@ fun SettingsScreen(
                         stringResource(R.string.settings_infinite_scroll),
                         stringResource(R.string.settings_infinite_scroll_desc),
                         s.infiniteScroll,
-                        viewModel::setInfiniteScroll,
+                        actions::setInfiniteScroll,
                     )
-                    SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, viewModel::setDesktopLocked)
+                    SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, actions::setDesktopLocked)
                     SwitchRow(
                         stringResource(R.string.settings_hide_status_bar),
                         s.hideSystemStatusBar,
-                        viewModel::setHideSystemStatusBar,
+                        actions::setHideSystemStatusBar,
                     )
                     SwitchRow(
                         stringResource(R.string.settings_hide_navigation_bar),
                         stringResource(R.string.settings_hide_navigation_bar_desc),
                         s.hideSystemNavigationBar,
-                        viewModel::setHideSystemNavigationBar,
+                        actions::setHideSystemNavigationBar,
                     )
-                    SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, viewModel::setWidgetTonalBackground)
+                    SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, actions::setWidgetTonalBackground)
                     SwitchRow(
                         stringResource(R.string.settings_widget_inset),
                         stringResource(R.string.settings_widget_inset_desc),
                         s.widgetEdgesAlignWithIcons,
-                        viewModel::setWidgetEdgesAlignWithIcons,
+                        actions::setWidgetEdgesAlignWithIcons,
                     )
-                    WeatherToggle(enabled = s.showWeather, onSetEnabled = viewModel::setShowWeather)
+                    WeatherToggle(enabled = s.showWeather, onSetEnabled = actions::setShowWeather)
                     if (s.showWeather) {
                         WeatherAppRow(appLabel = allApps.firstOrNull { it.key == s.weatherAppKey }?.label) {
                             showWeatherAppPicker = true
@@ -496,7 +542,7 @@ fun SettingsScreen(
                             stringResource(R.string.settings_network_place_names),
                             stringResource(R.string.settings_network_place_names_desc),
                             s.networkPlaceNames,
-                            viewModel::setNetworkPlaceNames,
+                            actions::setNetworkPlaceNames,
                         )
                     }
                     ExpressiveActionRow(
@@ -522,12 +568,12 @@ fun SettingsScreen(
                     SwitchRow(
                         stringResource(R.string.settings_people_show_apps),
                         s.peopleShowApps,
-                        viewModel::setPeopleShowApps,
+                        actions::setPeopleShowApps,
                     )
                     SwitchRow(
                         stringResource(R.string.settings_people_batch),
                         s.peopleBatchEnabled,
-                        viewModel::setPeopleBatchEnabled,
+                        actions::setPeopleBatchEnabled,
                     )
                     if (s.peopleBatchEnabled) {
                         ExpressiveActionRow(
@@ -535,46 +581,46 @@ fun SettingsScreen(
                             description = s.peopleBatchTimes.replace(",", ", "),
                         ) { showBatchTimesEditor = true }
                     }
-                    StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = viewModel::setShowStatusBar)
+                    StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = actions::setShowStatusBar)
                     if (s.showStatusBar) {
-                        StatusBarScrimRow(s.statusBarScrimOpacity, viewModel::setStatusBarScrimOpacity)
+                        StatusBarScrimRow(s.statusBarScrimOpacity, actions::setStatusBarScrimOpacity)
                     }
                 }
 
                 CollapsibleSection(
                     title = stringResource(R.string.settings_icons),
                     collapsed = "icons" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("icons", it) },
+                    onToggle = { actions.setSectionCollapsed("icons", it) },
                 ) {
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_label_size),
                         value = s.appLabelTextScale,
-                        onValueChange = viewModel::setAppLabelTextScale,
+                        onValueChange = actions::setAppLabelTextScale,
                         valueRange = 0.8f..1.6f,
                         valueText = percentText,
                     )
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_icon_size),
                         value = s.iconScale,
-                        onValueChange = viewModel::setIconScale,
+                        onValueChange = actions::setIconScale,
                         valueRange = 0.8f..1.3f,
                         valueText = percentText,
                     )
-                    LabelColorRow(selected = s.appLabelColor, onPick = viewModel::setAppLabelColor)
-                    FontRow(selected = s.fontFamily, onPick = viewModel::setFontFamily)
+                    LabelColorRow(selected = s.appLabelColor, onPick = actions::setAppLabelColor)
+                    FontRow(selected = s.fontFamily, onPick = actions::setFontFamily)
                     // Themed (monochrome) icons need the adaptive-icon monochrome API (Android 13+).
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                         SwitchRow(
                             stringResource(R.string.settings_themed_icons),
                             s.useThemedIcons,
-                            viewModel::setUseThemedIcons,
+                            actions::setUseThemedIcons,
                         )
                         if (s.useThemedIcons) {
                             SwitchRow(
                                 stringResource(R.string.settings_theme_all_icons),
                                 stringResource(R.string.settings_theme_all_icons_desc),
                                 s.themeAllIcons,
-                                viewModel::setThemeAllIcons,
+                                actions::setThemeAllIcons,
                             )
                         }
                     }
@@ -589,14 +635,14 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_notifications),
                     collapsed = "notifications" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("notifications", it) },
+                    onToggle = { actions.setSectionCollapsed("notifications", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_notif_dots), s.showNotificationDots, viewModel::setShowNotificationDots)
-                    SwitchRow(stringResource(R.string.settings_notif_count), s.notificationDotCount, viewModel::setNotificationDotCount)
+                    SwitchRow(stringResource(R.string.settings_notif_dots), s.showNotificationDots, actions::setShowNotificationDots)
+                    SwitchRow(stringResource(R.string.settings_notif_count), s.notificationDotCount, actions::setNotificationDotCount)
                     ScaleSliderRow(
                         label = stringResource(R.string.settings_notif_size),
                         value = s.notificationDotScale,
-                        onValueChange = viewModel::setNotificationDotScale,
+                        onValueChange = actions::setNotificationDotScale,
                         valueRange = 0.6f..1.8f,
                         valueText = percentText,
                     )
@@ -611,25 +657,25 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_sounds),
                     collapsed = "sounds" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("sounds", it) },
+                    onToggle = { actions.setSectionCollapsed("sounds", it) },
                 ) {
                     LockSoundsSettings(
                         enabled = s.lockSoundsEnabled,
                         lockUri = s.lockSoundUri,
                         unlockUri = s.unlockSoundUri,
-                        onSetEnabled = viewModel::setLockSoundsEnabled,
-                        onSetSound = viewModel::setLockSound,
+                        onSetEnabled = actions::setLockSoundsEnabled,
+                        onSetSound = actions::setLockSound,
                     )
                 }
 
                 CollapsibleSection(
                     title = stringResource(R.string.settings_search),
                     collapsed = "search" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("search", it) },
+                    onToggle = { actions.setSectionCollapsed("search", it) },
                 ) {
                     ContactsSearchToggle(
                         enabled = s.searchContacts,
-                        onSetEnabled = viewModel::setSearchContacts,
+                        onSetEnabled = actions::setSearchContacts,
                     )
 
                     // Every permission the launcher uses, with a live granted/not-granted status
@@ -639,7 +685,7 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_permissions),
                     collapsed = "permissions" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("permissions", it) },
+                    onToggle = { actions.setSectionCollapsed("permissions", it) },
                 ) {
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_notif_access),
@@ -674,7 +720,7 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_backup),
                     collapsed = "backup" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("backup", it) },
+                    onToggle = { actions.setSectionCollapsed("backup", it) },
                 ) {
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_backup),
@@ -685,7 +731,7 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_updates),
                     collapsed = "updates" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("updates", it) },
+                    onToggle = { actions.setSectionCollapsed("updates", it) },
                 ) {
                     ExpressiveActionRow(
                         label = stringResource(R.string.settings_updates_check),
@@ -696,7 +742,7 @@ fun SettingsScreen(
                 CollapsibleSection(
                     title = stringResource(R.string.settings_feedback),
                     collapsed = "feedback" in s.collapsedSettingsSections,
-                    onToggle = { viewModel.setSectionCollapsed("feedback", it) },
+                    onToggle = { actions.setSectionCollapsed("feedback", it) },
                 ) {
                     FeedbackRows(onOpen = { openLink(context, it) })
                 }
@@ -725,7 +771,7 @@ fun SettingsScreen(
             SingleAppPicker(
                 apps = allApps,
                 onPick = { key ->
-                    viewModel.setLeftSwipeAppKey(key)
+                    actions.setLeftSwipeAppKey(key)
                     showLeftSwipePicker = false
                 },
                 onDismiss = { showLeftSwipePicker = false },
@@ -741,7 +787,7 @@ fun SettingsScreen(
                 ),
                 selected = s.pageSwitchSpeed,
                 onPick = { speed ->
-                    viewModel.setPageSwitchSpeed(speed)
+                    actions.setPageSwitchSpeed(speed)
                     showPageSpeedPicker = false
                 },
                 onDismiss = { showPageSpeedPicker = false },
@@ -751,7 +797,7 @@ fun SettingsScreen(
             SingleAppPicker(
                 apps = allApps,
                 onPick = { key ->
-                    viewModel.setWeatherAppKey(key)
+                    actions.setWeatherAppKey(key)
                     showWeatherAppPicker = false
                 },
                 onDismiss = { showWeatherAppPicker = false },
@@ -762,7 +808,7 @@ fun SettingsScreen(
                 packs = iconPacks,
                 selected = s.iconPackPackage,
                 onPick = { pkg ->
-                    viewModel.setIconPack(pkg)
+                    actions.setIconPack(pkg)
                     showIconPackPicker = false
                 },
                 onDismiss = { showIconPackPicker = false },
@@ -777,7 +823,7 @@ fun SettingsScreen(
                 ),
                 selected = s.homePageMarker,
                 onPick = {
-                    viewModel.setHomePageMarker(it)
+                    actions.setHomePageMarker(it)
                     showHomeMarkerPicker = false
                 },
                 onDismiss = { showHomeMarkerPicker = false },
@@ -793,7 +839,7 @@ fun SettingsScreen(
                 ),
                 selected = s.notificationWidgetCountStyle,
                 onPick = {
-                    viewModel.setNotificationWidgetCountStyle(it)
+                    actions.setNotificationWidgetCountStyle(it)
                     showCountStylePicker = false
                 },
                 onDismiss = { showCountStylePicker = false },
@@ -803,7 +849,7 @@ fun SettingsScreen(
             BatchTimesEditor(
                 initial = s.peopleBatchTimes.replace(",", ", "),
                 onSave = {
-                    viewModel.setPeopleBatchTimes(it)
+                    actions.setPeopleBatchTimes(it)
                     showBatchTimesEditor = false
                 },
                 onDismiss = { showBatchTimesEditor = false },
@@ -819,7 +865,7 @@ fun SettingsScreen(
                 ),
                 selected = s.peoplePrivacy,
                 onPick = {
-                    viewModel.setPeoplePrivacy(it)
+                    actions.setPeoplePrivacy(it)
                     showPeoplePrivacyPicker = false
                 },
                 onDismiss = { showPeoplePrivacyPicker = false },
@@ -899,7 +945,7 @@ private fun ChoicePicker(
 /** Single-select icon-pack picker: a "System default" entry on top, then every installed pack. */
 @Composable
 private fun IconPackPicker(
-    packs: List<org.arkikeskus.launcher.data.IconPackInfo>,
+    packs: List<IconPackInfo>,
     selected: String,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
