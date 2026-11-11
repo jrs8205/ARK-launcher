@@ -12,12 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -125,10 +127,21 @@ internal fun SettingsContent(
     var query by rememberSaveable { mutableStateOf("") }
     val searchable = rememberSearchableSettings()
     val hits = remember(query, searchable) { searchSettings(query, searchable) }
+    // The row a search result asked for. Once its page is composed and its rows have noted themselves, the jump is
+    // decided by what is really on screen: that row, or the one it depends on when it is not shown.
+    val jumps = remember { SettingJumps() }
+    var pendingJump by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingJump, pageKey, query) {
+        val asked = pendingJump ?: return@LaunchedEffect
+        repeat(2) { withFrameNanos { } }
+        jumps.target = jumps.resolve(asked)
+        pendingJump = null
+    }
     val palette = settingsPalette(isSystemInDarkTheme())
 
     CompositionLocalProvider(
         LocalExpressivePalette provides palette,
+        LocalSettingJumps provides jumps,
         // So AppIcons in the pickers (left-edge app, hidden apps) match the selected icon pack / themed
         // icons like every other surface.
         LocalIconPack provides s.iconPackPackage,
@@ -150,6 +163,7 @@ internal fun SettingsContent(
                         onQueryChange = { query = it },
                         hits = hits,
                         onOpenHit = { hit ->
+                            pendingJump = hit.setting.id
                             // A row of the main page itself is under the search: clearing it shows the row.
                             val category = hit.setting.category
                             if (category != null) pageKey = category.key else query = ""
