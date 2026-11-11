@@ -36,7 +36,7 @@ It speaks **English, Finnish, German, Spanish, French, Polish, Portuguese, Russi
 
 Download the latest signed APK from the
 [**Releases**](https://github.com/jrs8205/ARK-launcher/releases/latest) page and open it on
-your device to install. To update, install the newer APK from the same page (Settings ▸ Updates ▸
+your device to install. To update, install the newer APK from the same page (Settings ▸ About and feedback ▸
 "Check for updates" opens it), or let Obtainium do it for you (below). Every release is also
 mirrored on [**SourceForge**](https://sourceforge.net/projects/ark-launcher/).
 
@@ -68,7 +68,7 @@ Questions, ideas, and general chat are all welcome in
 [**r/ArkLauncher**](https://www.reddit.com/r/ArkLauncher/) community — in English or Finnish; release
 news goes out on the [**Telegram channel**](https://t.me/ARKLauncherUpdates).
 Found a bug? Please [open an issue](https://github.com/jrs8205/ARK-launcher/issues) instead.
-Discussions, the channel and Reddit are also linked in the app: **Settings ▸ Feedback**.
+Discussions, the channel and Reddit are also linked in the app: **Settings ▸ About and feedback**.
 
 ## Features
 
@@ -115,7 +115,9 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ F
   strength slider; the home screen fades out under a see-through drawer so only the wallpaper shows), widget
   edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder
   columns**, page indicator, and more. App drawer folders can lead the list or sit among the apps
-  A–Z, and every settings section folds under its title.
+  A–Z.
+- **Settings that are easy to find** — a short main page of categories, each with a page of its own, and a
+  search field that finds any setting by its name or description and opens its page at the row.
 - **Glass layer over the wallpaper** — an optional frosted sheet behind the icons and the bars, from
   the top of the screen to the bottom, with a strength slider; the system bars' icons stay readable
   over it.
