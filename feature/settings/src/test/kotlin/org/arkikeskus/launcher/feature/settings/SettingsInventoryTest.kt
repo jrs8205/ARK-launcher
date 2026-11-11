@@ -16,6 +16,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,6 +34,8 @@ import java.io.File
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class SettingsInventoryTest {
     @get:Rule val compose = createComposeRule()
+
+    @Before fun nothingRemembered() = SettingsScrollMemory.clear()
     private val res = RuntimeEnvironment.getApplication().resources
 
     /** Everything that makes a conditional row show is off, and the drawer has no colour layer and no picture. */

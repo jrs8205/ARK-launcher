@@ -15,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -95,22 +96,29 @@ internal fun SettingsContent(
         BackupScreen(onBack = it, modifier = Modifier.fillMaxSize())
     },
 ) {
+    // Where Settings was left, if that was less than five minutes ago (SettingsScrollMemory): the page and its place.
+    val start = remember { SettingsScrollMemory.restore(SystemClock.elapsedRealtime()) }
+    val startPage = SettingsCategory.fromKey(start.page)
     // The open category's key, or null on the main page; a key this version does not know counts as the main page.
-    var pageKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var pageKey by rememberSaveable { mutableStateOf(startPage?.key) }
     var subScreen by rememberSaveable { mutableStateOf<String?>(null) }
     // Hoisted above the screens, so a page's place survives a visit to a sub-screen or to another page (a scroll
-    // state kept inside a page would leave the composition with it), and saveable, so it survives recreation. A
-    // fresh Settings open starts where the main list was left if that was less than five minutes ago
-    // (SettingsScrollMemory), else at the top.
+    // state kept inside a page would leave the composition with it), and saveable, so it survives recreation.
     val mainScroll = rememberSaveable(saver = ScrollState.Saver) {
-        ScrollState(SettingsScrollMemory.restore(SystemClock.elapsedRealtime()))
+        ScrollState(if (start.page == null) start.offset else 0)
     }
     val pageScrolls = SettingsCategory.entries.associateWith { category ->
-        key(category.key) { rememberSaveable(saver = ScrollState.Saver) { ScrollState(0) } }
+        key(category.key) {
+            rememberSaveable(saver = ScrollState.Saver) { ScrollState(if (category == startPage) start.offset else 0) }
+        }
     }
-    // Leaving (HOME, Back, another app on top): note the place and the time for the next open.
+    // Leaving (HOME, Back, another app on top): note the page, its place and the time for the next open.
     LifecycleResumeEffect(Unit) {
-        onPauseOrDispose { SettingsScrollMemory.remember(mainScroll.value, SystemClock.elapsedRealtime()) }
+        onPauseOrDispose {
+            val page = SettingsCategory.fromKey(pageKey)
+            val offset = if (page == null) mainScroll.value else pageScrolls.getValue(page).value
+            SettingsScrollMemory.remember(page?.key, offset, SystemClock.elapsedRealtime())
+        }
     }
     val palette = settingsPalette(isSystemInDarkTheme())
 

@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.settings
 
 import android.Manifest
 import android.app.Application
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.lifecycle.Lifecycle
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,6 +42,8 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class SettingsNavigationTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Before fun nothingRemembered() = SettingsScrollMemory.clear()
     private val res = RuntimeEnvironment.getApplication().resources
     private val recorded = RecordedActions()
 
@@ -196,6 +200,45 @@ class SettingsNavigationTest {
         compose.waitForIdle()
         compose.onNode(calendar and hasAnyDescendant(hasText(res.getString(R.string.settings_permission_granted))), useUnmergedTree = true)
             .assertExists()
+    }
+
+    @Test fun leavingSettingsNotesThePageThatWasOpen() {
+        show()
+        open(SettingsCategory.DOCK)
+        // HOME or another app comes on top.
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+        assertThat(SettingsScrollMemory.restore(SystemClock.elapsedRealtime()).page).isEqualTo("dock")
+    }
+
+    @Test fun leavingFromTheMainPageNotesTheMainPage() {
+        show()
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+        assertThat(SettingsScrollMemory.restore(SystemClock.elapsedRealtime()).page).isNull()
+    }
+
+    @Test fun reopenedSoonSettingsStartsOnThePageThatWasOpen() {
+        SettingsScrollMemory.remember(page = "icons", offset = 0, now = SystemClock.elapsedRealtime())
+        show()
+        compose.onNode(hasText(res.getString(R.string.settings_icons)) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assertExists()
+        assertThat(tags("category-")).isEmpty()
+        // And Back still leads to the main page.
+        systemBack()
+        assertOnMainPage()
+    }
+
+    @Test fun reopenedLaterSettingsStartsOnTheMainPage() {
+        SettingsScrollMemory.remember(
+            page = "icons", offset = 0, now = SystemClock.elapsedRealtime() - SettingsScrollMemory.WINDOW_MS - 1,
+        )
+        show()
+        assertOnMainPage()
+    }
+
+    @Test fun aRememberedPageThisVersionDoesNotKnowIsTheMainPage() {
+        SettingsScrollMemory.remember(page = "nonsense", offset = 40, now = SystemClock.elapsedRealtime())
+        show()
+        assertOnMainPage()
     }
 
     @Test fun anUnknownPageKeyIsTheMainPage() {

@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +27,8 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class SettingsContentTest {
     @get:Rule val compose = createComposeRule()
+
+    @Before fun nothingRemembered() = SettingsScrollMemory.clear()
     private val res = RuntimeEnvironment.getApplication().resources
     private val recorded = RecordedActions()
 

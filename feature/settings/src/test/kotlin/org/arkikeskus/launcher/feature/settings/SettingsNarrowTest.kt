@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,6 +39,8 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE) // real text measurement, so a long translation really is wide
 class SettingsNarrowTest {
     @get:Rule val compose = createComposeRule()
+
+    @Before fun nothingRemembered() = SettingsScrollMemory.clear()
     private val res get() = RuntimeEnvironment.getApplication().resources
 
     private fun show() {
