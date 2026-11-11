@@ -16,16 +16,22 @@ internal const val REDDIT_URL = "https://www.reddit.com/r/ArkLauncher/"
  */
 @Composable
 internal fun FeedbackRows(onOpen: (String) -> Unit) {
-    ExpressiveActionRow(
-        label = stringResource(R.string.settings_feedback_discussions),
-        description = stringResource(R.string.settings_feedback_discussions_desc),
-    ) { onOpen(DISCUSSIONS_URL) }
-    ExpressiveActionRow(
-        label = stringResource(R.string.settings_feedback_telegram),
-        description = stringResource(R.string.settings_feedback_telegram_desc),
-    ) { onOpen(TELEGRAM_URL) }
-    ExpressiveActionRow(
-        label = stringResource(R.string.settings_feedback_reddit),
-        description = stringResource(R.string.settings_feedback_reddit_desc),
-    ) { onOpen(REDDIT_URL) }
+    SettingRow("FB1") {
+        ExpressiveActionRow(
+            label = stringResource(R.string.settings_feedback_discussions),
+            description = stringResource(R.string.settings_feedback_discussions_desc),
+        ) { onOpen(DISCUSSIONS_URL) }
+    }
+    SettingRow("FB2") {
+        ExpressiveActionRow(
+            label = stringResource(R.string.settings_feedback_telegram),
+            description = stringResource(R.string.settings_feedback_telegram_desc),
+        ) { onOpen(TELEGRAM_URL) }
+    }
+    SettingRow("FB3") {
+        ExpressiveActionRow(
+            label = stringResource(R.string.settings_feedback_reddit),
+            description = stringResource(R.string.settings_feedback_reddit_desc),
+        ) { onOpen(REDDIT_URL) }
+    }
 }

@@ -69,21 +69,29 @@ internal fun LockSoundsSection(
     onOpenSoundSettings: () -> Unit,
 ) {
     var choosing by rememberSaveable { mutableStateOf<SoundSlot?>(null) }
-    SwitchRow(
-        stringResource(R.string.settings_lock_sounds),
-        stringResource(R.string.settings_lock_sounds_desc),
-        enabled,
-        onSetEnabled,
-    )
+    SettingRow("S1") {
+        SwitchRow(
+            stringResource(R.string.settings_lock_sounds),
+            stringResource(R.string.settings_lock_sounds_desc),
+            enabled,
+            onSetEnabled,
+        )
+    }
     if (!enabled) return
-    SoundRow(stringResource(R.string.settings_lock_sound), lockUri, soundName, onPick = { choosing = SoundSlot.Lock }, onPreview)
-    SoundRow(stringResource(R.string.settings_unlock_sound), unlockUri, soundName, onPick = { choosing = SoundSlot.Unlock }, onPreview)
-    ExpressiveActionRow(
-        label = stringResource(R.string.settings_phone_sound_settings),
-        description = stringResource(R.string.settings_phone_sound_settings_desc),
-        trailingIcon = LauncherIcons.OpenInNew,
-        onClick = onOpenSoundSettings,
-    )
+    SettingRow("S2") {
+        SoundRow(stringResource(R.string.settings_lock_sound), lockUri, soundName, onPick = { choosing = SoundSlot.Lock }, onPreview)
+    }
+    SettingRow("S3") {
+        SoundRow(stringResource(R.string.settings_unlock_sound), unlockUri, soundName, onPick = { choosing = SoundSlot.Unlock }, onPreview)
+    }
+    SettingRow("S4") {
+        ExpressiveActionRow(
+            label = stringResource(R.string.settings_phone_sound_settings),
+            description = stringResource(R.string.settings_phone_sound_settings_desc),
+            trailingIcon = LauncherIcons.OpenInNew,
+            onClick = onOpenSoundSettings,
+        )
+    }
     choosing?.let { slot ->
         SoundSourceDialog(
             title = stringResource(if (slot == SoundSlot.Lock) R.string.settings_lock_sound else R.string.settings_unlock_sound),

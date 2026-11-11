@@ -267,13 +267,15 @@ internal fun SettingsContent(
                     modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 6.dp),
                 )
 
-                ExpressiveActionRow(
-                    label = stringResource(R.string.settings_set_default),
-                    description = stringResource(
-                        if (isDefaultLauncher) R.string.settings_default_current else R.string.settings_default_tap,
-                    ),
-                ) {
-                    runCatching { setDefaultLauncher.launch(DefaultLauncher.requestIntent(context)) }
+                SettingRow("T2") {
+                    ExpressiveActionRow(
+                        label = stringResource(R.string.settings_set_default),
+                        description = stringResource(
+                            if (isDefaultLauncher) R.string.settings_default_current else R.string.settings_default_tap,
+                        ),
+                    ) {
+                        runCatching { setDefaultLauncher.launch(DefaultLauncher.requestIntent(context)) }
+                    }
                 }
 
                 CollapsibleSection(
@@ -281,42 +283,54 @@ internal fun SettingsContent(
                     collapsed = "gestures" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("gestures", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, actions::setSwipeUp)
-                    SwitchRow(stringResource(R.string.settings_swipe_down_notif), s.swipeDownForNotifications, actions::setSwipeDown)
-                    SwitchRow(
-                        stringResource(R.string.settings_folder_swipe_first_app),
-                        stringResource(R.string.settings_folder_swipe_first_app_desc),
-                        s.folderSwipeOpensFirstApp,
-                        actions::setFolderSwipeOpensFirstApp,
-                    )
+                    SettingRow("G1") {
+                        SwitchRow(stringResource(R.string.settings_swipe_up_drawer), s.swipeUpForDrawer, actions::setSwipeUp)
+                    }
+                    SettingRow("G2") {
+                        SwitchRow(stringResource(R.string.settings_swipe_down_notif), s.swipeDownForNotifications, actions::setSwipeDown)
+                    }
+                    SettingRow("G3") {
+                        SwitchRow(
+                            stringResource(R.string.settings_folder_swipe_first_app),
+                            stringResource(R.string.settings_folder_swipe_first_app_desc),
+                            s.folderSwipeOpensFirstApp,
+                            actions::setFolderSwipeOpensFirstApp,
+                        )
+                    }
                     val leftSwipeLabel = allApps.firstOrNull { it.key == s.leftSwipeAppKey }?.label
                         ?: stringResource(R.string.settings_left_edge_none)
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_left_edge),
-                        description = leftSwipeLabel,
-                    ) { showLeftSwipePicker = true }
+                    SettingRow("G4") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_left_edge),
+                            description = leftSwipeLabel,
+                        ) { showLeftSwipePicker = true }
+                    }
                     DoubleTapLockToggle(enabled = s.doubleTapToLock, onSetEnabled = actions::setDoubleTapToLock)
                     // Read out in milliseconds of this phone's own long-press timeout times the setting, so the
                     // number is the real wait here and the default chip names it.
                     val systemLongPress = rememberSystemLongPressTimeout()
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_long_press_delay),
-                        description = stringResource(R.string.settings_long_press_delay_desc),
-                        value = s.longPressScale,
-                        onValueChange = actions::setLongPressScale,
-                        valueRange = LongPressScale.MIN..LongPressScale.MAX,
-                        step = 0.1f,
-                        valueText = { resources.getString(R.string.settings_millis, (systemLongPress * it).roundToInt()) },
-                    )
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_icon_swipe_distance),
-                        description = stringResource(R.string.settings_icon_swipe_distance_desc),
-                        value = s.iconSwipeDistance,
-                        onValueChange = actions::setIconSwipeDistance,
-                        valueRange = 1f..4f,
-                        step = 0.25f,
-                        valueText = { resources.getString(R.string.settings_percent, (it * 100).roundToInt()) },
-                    )
+                    SettingRow("G6") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_long_press_delay),
+                            description = stringResource(R.string.settings_long_press_delay_desc),
+                            value = s.longPressScale,
+                            onValueChange = actions::setLongPressScale,
+                            valueRange = LongPressScale.MIN..LongPressScale.MAX,
+                            step = 0.1f,
+                            valueText = { resources.getString(R.string.settings_millis, (systemLongPress * it).roundToInt()) },
+                        )
+                    }
+                    SettingRow("G7") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_icon_swipe_distance),
+                            description = stringResource(R.string.settings_icon_swipe_distance_desc),
+                            value = s.iconSwipeDistance,
+                            onValueChange = actions::setIconSwipeDistance,
+                            valueRange = 1f..4f,
+                            step = 0.25f,
+                            valueText = { resources.getString(R.string.settings_percent, (it * 100).roundToInt()) },
+                        )
+                    }
                 }
 
                 CollapsibleSection(
@@ -324,33 +338,43 @@ internal fun SettingsContent(
                     collapsed = "folders" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("folders", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_folder_app_names), s.folderShowLabels, actions::setFolderShowLabels)
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_folder_icon_size),
-                        value = s.folderIconScale,
-                        onValueChange = actions::setFolderIconScale,
-                        valueRange = SettingsRepository.MIN_FOLDER_ICON_SCALE..SettingsRepository.MAX_FOLDER_ICON_SCALE,
-                        valueText = percentText,
-                    )
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_folder_spacing),
-                        value = s.folderSpacing,
-                        onValueChange = actions::setFolderSpacing,
-                        valueRange = SettingsRepository.MIN_FOLDER_SPACING..SettingsRepository.MAX_FOLDER_SPACING,
-                        valueText = percentText,
-                    )
-                    CardColorRow(
-                        title = stringResource(R.string.settings_folder_color),
-                        selected = s.folderBackgroundColor,
-                        onPick = actions::setFolderBackgroundColor,
-                    )
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_folder_opacity),
-                        value = s.folderBackgroundOpacity,
-                        onValueChange = actions::setFolderBackgroundOpacity,
-                        valueRange = SettingsRepository.MIN_CARD_OPACITY..1f,
-                        valueText = percentText,
-                    )
+                    SettingRow("F1") {
+                        SwitchRow(stringResource(R.string.settings_folder_app_names), s.folderShowLabels, actions::setFolderShowLabels)
+                    }
+                    SettingRow("F2") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_folder_icon_size),
+                            value = s.folderIconScale,
+                            onValueChange = actions::setFolderIconScale,
+                            valueRange = SettingsRepository.MIN_FOLDER_ICON_SCALE..SettingsRepository.MAX_FOLDER_ICON_SCALE,
+                            valueText = percentText,
+                        )
+                    }
+                    SettingRow("F3") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_folder_spacing),
+                            value = s.folderSpacing,
+                            onValueChange = actions::setFolderSpacing,
+                            valueRange = SettingsRepository.MIN_FOLDER_SPACING..SettingsRepository.MAX_FOLDER_SPACING,
+                            valueText = percentText,
+                        )
+                    }
+                    SettingRow("F4") {
+                        CardColorRow(
+                            title = stringResource(R.string.settings_folder_color),
+                            selected = s.folderBackgroundColor,
+                            onPick = actions::setFolderBackgroundColor,
+                        )
+                    }
+                    SettingRow("F5") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_folder_opacity),
+                            value = s.folderBackgroundOpacity,
+                            onValueChange = actions::setFolderBackgroundOpacity,
+                            valueRange = SettingsRepository.MIN_CARD_OPACITY..1f,
+                            valueText = percentText,
+                        )
+                    }
                 }
 
                 CollapsibleSection(
@@ -358,29 +382,39 @@ internal fun SettingsContent(
                     collapsed = "clock_widget" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("clock_widget", it) },
                 ) {
-                    CardColorRow(
-                        title = stringResource(R.string.settings_clock_widget_color),
-                        selected = s.smartspaceBackgroundColor,
-                        onPick = actions::setSmartspaceBackgroundColor,
-                    )
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_clock_widget_opacity),
-                        value = s.smartspaceBackgroundOpacity,
-                        onValueChange = actions::setSmartspaceBackgroundOpacity,
-                        valueRange = 0f..1f,
-                        valueText = percentText,
-                        default = LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND,
-                    )
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_clock_widget_text_size),
-                        value = s.smartspaceTextScale,
-                        onValueChange = actions::setSmartspaceTextScale,
-                        valueRange = SettingsRepository.MIN_SMARTSPACE_TEXT_SCALE..SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE,
-                        valueText = percentText,
-                    )
+                    SettingRow("C1") {
+                        CardColorRow(
+                            title = stringResource(R.string.settings_clock_widget_color),
+                            selected = s.smartspaceBackgroundColor,
+                            onPick = actions::setSmartspaceBackgroundColor,
+                        )
+                    }
+                    SettingRow("C2") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_clock_widget_opacity),
+                            value = s.smartspaceBackgroundOpacity,
+                            onValueChange = actions::setSmartspaceBackgroundOpacity,
+                            valueRange = 0f..1f,
+                            valueText = percentText,
+                            default = LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND,
+                        )
+                    }
+                    SettingRow("C3") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_clock_widget_text_size),
+                            value = s.smartspaceTextScale,
+                            onValueChange = actions::setSmartspaceTextScale,
+                            valueRange = SettingsRepository.MIN_SMARTSPACE_TEXT_SCALE..SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE,
+                            valueText = percentText,
+                        )
+                    }
                     if (s.showWeather) {
-                        WeatherIconRow(selected = s.weatherIconStyle, onPick = actions::setWeatherIconStyle)
-                        WeatherIconSizeRow(large = s.weatherIconLarge, onPick = actions::setWeatherIconLarge)
+                        SettingRow("C4") {
+                            WeatherIconRow(selected = s.weatherIconStyle, onPick = actions::setWeatherIconStyle)
+                        }
+                        SettingRow("C5") {
+                            WeatherIconSizeRow(large = s.weatherIconLarge, onPick = actions::setWeatherIconLarge)
+                        }
                     }
                 }
 
@@ -389,11 +423,21 @@ internal fun SettingsContent(
                     collapsed = "dock" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("dock", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, actions::setDockEnabled)
-                    StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, actions::setDockColumns)
-                    SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, actions::setShowDockLabels)
-                    DockBackgroundRow(s.dockBackgroundOpacity, actions::setDockBackgroundOpacity)
-                    DockBottomSpacingRow(s.dockBottomSpacing, actions::setDockBottomSpacing)
+                    SettingRow("D1") {
+                        SwitchRow(stringResource(R.string.settings_dock_show), s.dockEnabled, actions::setDockEnabled)
+                    }
+                    SettingRow("D2") {
+                        StepperRow(stringResource(R.string.settings_dock_icons), s.dockColumns, 3, 7, actions::setDockColumns)
+                    }
+                    SettingRow("D3") {
+                        SwitchRow(stringResource(R.string.settings_show_labels), s.showDockLabels, actions::setShowDockLabels)
+                    }
+                    SettingRow("D4") {
+                        DockBackgroundRow(s.dockBackgroundOpacity, actions::setDockBackgroundOpacity)
+                    }
+                    SettingRow("D5") {
+                        DockBottomSpacingRow(s.dockBottomSpacing, actions::setDockBottomSpacing)
+                    }
                     DockPreview(opacity = s.dockBackgroundOpacity, icon = previewIcon)
                 }
 
@@ -402,20 +446,38 @@ internal fun SettingsContent(
                     collapsed = "drawer" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("drawer", it) },
                 ) {
-                    StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, actions::setDrawerColumns)
-                    SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, actions::setShowDrawerLabels)
-                    SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineDrawerLabels, actions::setTwoLineDrawerLabels)
-                    DrawerLabelColorRow(selected = s.drawerLabelColor, onPick = actions::setDrawerLabelColor)
-                    SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, actions::setShowDrawerFolderNames)
-                    SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, actions::setShowDrawerSearch)
-                    SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, actions::setShowFrequentApps)
-                    SwitchRow(
-                        stringResource(R.string.settings_hide_home_apps),
-                        stringResource(R.string.settings_hide_home_apps_desc),
-                        s.hideHomeAppsFromDrawer,
-                        actions::setHideHomeAppsFromDrawer,
-                    )
-                    SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, actions::setDrawerOpensAtTop)
+                    SettingRow("A1") {
+                        StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, actions::setDrawerColumns)
+                    }
+                    SettingRow("A2") {
+                        SwitchRow(stringResource(R.string.settings_show_labels), s.showDrawerLabels, actions::setShowDrawerLabels)
+                    }
+                    SettingRow("A3") {
+                        SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineDrawerLabels, actions::setTwoLineDrawerLabels)
+                    }
+                    SettingRow("A4") {
+                        DrawerLabelColorRow(selected = s.drawerLabelColor, onPick = actions::setDrawerLabelColor)
+                    }
+                    SettingRow("A5") {
+                        SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, actions::setShowDrawerFolderNames)
+                    }
+                    SettingRow("A6") {
+                        SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, actions::setShowDrawerSearch)
+                    }
+                    SettingRow("A7") {
+                        SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, actions::setShowFrequentApps)
+                    }
+                    SettingRow("A8") {
+                        SwitchRow(
+                            stringResource(R.string.settings_hide_home_apps),
+                            stringResource(R.string.settings_hide_home_apps_desc),
+                            s.hideHomeAppsFromDrawer,
+                            actions::setHideHomeAppsFromDrawer,
+                        )
+                    }
+                    SettingRow("A9") {
+                        SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, actions::setDrawerOpensAtTop)
+                    }
                     DrawerBackdropRows(
                         settings = s,
                         wallpaper = drawerWallpaper,
@@ -430,39 +492,51 @@ internal fun SettingsContent(
                             onBlurStrength = actions::setDrawerBlurStrength,
                         ),
                     )
-                    DrawerIconSizeRow(s.drawerIconScale, actions::setDrawerIconScale)
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_hidden_apps),
-                        description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
-                    ) { showHiddenManager = true }
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_drawer_folders),
-                        description = pluralStringResource(
-                            R.plurals.settings_drawer_folders_count, drawerFolders.orEmpty().size, drawerFolders.orEmpty().size,
-                        ),
-                    ) { showFolderManager = true }
+                    SettingRow("A16") {
+                        DrawerIconSizeRow(s.drawerIconScale, actions::setDrawerIconScale)
+                    }
+                    SettingRow("A17") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_hidden_apps),
+                            description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
+                        ) { showHiddenManager = true }
+                    }
+                    SettingRow("A18") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_drawer_folders),
+                            description = pluralStringResource(
+                                R.plurals.settings_drawer_folders_count, drawerFolders.orEmpty().size, drawerFolders.orEmpty().size,
+                            ),
+                        ) { showFolderManager = true }
+                    }
                     val newFolderName = stringResource(R.string.drawer_folder_default)
                     val folderCreatedMsg = stringResource(R.string.settings_drawer_folder_created)
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_new_drawer_folder),
-                        description = stringResource(R.string.settings_new_drawer_folder_desc),
-                        trailingIcon = LauncherIcons.Add,
-                    ) {
-                        actions.createDrawerFolder(newFolderName)
-                        android.widget.Toast.makeText(context, folderCreatedMsg, android.widget.Toast.LENGTH_SHORT).show()
+                    SettingRow("A19") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_new_drawer_folder),
+                            description = stringResource(R.string.settings_new_drawer_folder_desc),
+                            trailingIcon = LauncherIcons.Add,
+                        ) {
+                            actions.createDrawerFolder(newFolderName)
+                            android.widget.Toast.makeText(context, folderCreatedMsg, android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
-                    SwitchRow(
-                        stringResource(R.string.settings_sort_drawer_folders),
-                        stringResource(R.string.settings_sort_drawer_folders_desc),
-                        s.sortDrawerFolders,
-                        actions::setSortDrawerFolders,
-                    )
-                    SwitchRow(
-                        stringResource(R.string.settings_mix_drawer_folders),
-                        stringResource(R.string.settings_mix_drawer_folders_desc),
-                        s.mixDrawerFolders,
-                        actions::setMixDrawerFolders,
-                    )
+                    SettingRow("A20") {
+                        SwitchRow(
+                            stringResource(R.string.settings_sort_drawer_folders),
+                            stringResource(R.string.settings_sort_drawer_folders_desc),
+                            s.sortDrawerFolders,
+                            actions::setSortDrawerFolders,
+                        )
+                    }
+                    SettingRow("A21") {
+                        SwitchRow(
+                            stringResource(R.string.settings_mix_drawer_folders),
+                            stringResource(R.string.settings_mix_drawer_folders_desc),
+                            s.mixDrawerFolders,
+                            actions::setMixDrawerFolders,
+                        )
+                    }
                 }
 
                 CollapsibleSection(
@@ -470,120 +544,174 @@ internal fun SettingsContent(
                     collapsed = "home" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("home", it) },
                 ) {
-                    StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS, actions::setHomeColumns)
-                    StepperRow(stringResource(R.string.settings_rows), s.homeRows, SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS, actions::setHomeRows)
-                    SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, actions::setShowHomeLabels)
-                    SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineHomeLabels, actions::setTwoLineHomeLabels)
-                    SwitchRow(stringResource(R.string.settings_show_folder_names), s.showHomeFolderNames, actions::setShowHomeFolderNames)
-                    StepperRow(
-                        stringResource(R.string.settings_folder_columns), s.folderColumns,
-                        SettingsRepository.MIN_FOLDER_COLUMNS, SettingsRepository.MAX_FOLDER_COLUMNS, actions::setFolderColumns,
-                    )
-                    SwitchRow(
-                        stringResource(R.string.settings_glass_panel),
-                        stringResource(R.string.settings_glass_panel_desc),
-                        s.homeGlassPanel,
-                        actions::setHomeGlassPanel,
-                    )
-                    if (s.homeGlassPanel) {
-                        ScaleSliderRow(
-                            label = stringResource(R.string.settings_glass_strength),
-                            value = s.homeGlassOpacity,
-                            onValueChange = actions::setHomeGlassOpacity,
-                            valueRange = SettingsRepository.MIN_GLASS_OPACITY..SettingsRepository.MAX_GLASS_OPACITY,
-                            valueText = percentText,
-                            default = LauncherSettings.DEFAULT_GLASS_OPACITY,
+                    SettingRow("H1") {
+                        StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS, actions::setHomeColumns)
+                    }
+                    SettingRow("H2") {
+                        StepperRow(stringResource(R.string.settings_rows), s.homeRows, SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS, actions::setHomeRows)
+                    }
+                    SettingRow("H3") {
+                        SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, actions::setShowHomeLabels)
+                    }
+                    SettingRow("H4") {
+                        SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineHomeLabels, actions::setTwoLineHomeLabels)
+                    }
+                    SettingRow("H5") {
+                        SwitchRow(stringResource(R.string.settings_show_folder_names), s.showHomeFolderNames, actions::setShowHomeFolderNames)
+                    }
+                    SettingRow("H6") {
+                        StepperRow(
+                            stringResource(R.string.settings_folder_columns), s.folderColumns,
+                            SettingsRepository.MIN_FOLDER_COLUMNS, SettingsRepository.MAX_FOLDER_COLUMNS, actions::setFolderColumns,
                         )
                     }
-                    SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, actions::setShowPageIndicator)
+                    SettingRow("H7") {
+                        SwitchRow(
+                            stringResource(R.string.settings_glass_panel),
+                            stringResource(R.string.settings_glass_panel_desc),
+                            s.homeGlassPanel,
+                            actions::setHomeGlassPanel,
+                        )
+                    }
+                    if (s.homeGlassPanel) {
+                        SettingRow("H8") {
+                            ScaleSliderRow(
+                                label = stringResource(R.string.settings_glass_strength),
+                                value = s.homeGlassOpacity,
+                                onValueChange = actions::setHomeGlassOpacity,
+                                valueRange = SettingsRepository.MIN_GLASS_OPACITY..SettingsRepository.MAX_GLASS_OPACITY,
+                                valueText = percentText,
+                                default = LauncherSettings.DEFAULT_GLASS_OPACITY,
+                            )
+                        }
+                    }
+                    SettingRow("H9") {
+                        SwitchRow(stringResource(R.string.settings_page_indicator), s.showPageIndicator, actions::setShowPageIndicator)
+                    }
                     if (s.showPageIndicator) {
+                        SettingRow("H10") {
+                            ExpressiveActionRow(
+                                label = stringResource(R.string.settings_home_page_marker),
+                                description = stringResource(
+                                    when (s.homePageMarker) {
+                                        LauncherSettings.MARKER_HOUSE -> R.string.settings_home_page_marker_house
+                                        else -> R.string.settings_home_page_marker_ring
+                                    },
+                                ),
+                            ) { showHomeMarkerPicker = true }
+                        }
+                    }
+                    SettingRow("H11") {
+                        PageSwitchSpeedRow(selected = s.pageSwitchSpeed) { showPageSpeedPicker = true }
+                    }
+                    SettingRow("H12") {
+                        SwitchRow(
+                            stringResource(R.string.settings_infinite_scroll),
+                            stringResource(R.string.settings_infinite_scroll_desc),
+                            s.infiniteScroll,
+                            actions::setInfiniteScroll,
+                        )
+                    }
+                    SettingRow("H13") {
+                        SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, actions::setDesktopLocked)
+                    }
+                    SettingRow("H14") {
+                        SwitchRow(
+                            stringResource(R.string.settings_hide_status_bar),
+                            s.hideSystemStatusBar,
+                            actions::setHideSystemStatusBar,
+                        )
+                    }
+                    SettingRow("H15") {
+                        SwitchRow(
+                            stringResource(R.string.settings_hide_navigation_bar),
+                            stringResource(R.string.settings_hide_navigation_bar_desc),
+                            s.hideSystemNavigationBar,
+                            actions::setHideSystemNavigationBar,
+                        )
+                    }
+                    SettingRow("H16") {
+                        SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, actions::setWidgetTonalBackground)
+                    }
+                    SettingRow("H17") {
+                        SwitchRow(
+                            stringResource(R.string.settings_widget_inset),
+                            stringResource(R.string.settings_widget_inset_desc),
+                            s.widgetEdgesAlignWithIcons,
+                            actions::setWidgetEdgesAlignWithIcons,
+                        )
+                    }
+                    SettingRow("H18") {
+                        WeatherToggle(enabled = s.showWeather, onSetEnabled = actions::setShowWeather)
+                    }
+                    if (s.showWeather) {
+                        SettingRow("H19") {
+                            WeatherAppRow(appLabel = allApps.firstOrNull { it.key == s.weatherAppKey }?.label) {
+                                showWeatherAppPicker = true
+                            }
+                        }
+                        SettingRow("H20") {
+                            SwitchRow(
+                                stringResource(R.string.settings_network_place_names),
+                                stringResource(R.string.settings_network_place_names_desc),
+                                s.networkPlaceNames,
+                                actions::setNetworkPlaceNames,
+                            )
+                        }
+                    }
+                    SettingRow("H21") {
                         ExpressiveActionRow(
-                            label = stringResource(R.string.settings_home_page_marker),
+                            label = stringResource(R.string.settings_notif_widget_count),
                             description = stringResource(
-                                when (s.homePageMarker) {
-                                    LauncherSettings.MARKER_HOUSE -> R.string.settings_home_page_marker_house
-                                    else -> R.string.settings_home_page_marker_ring
+                                when (s.notificationWidgetCountStyle) {
+                                    LauncherSettings.COUNT_DOT -> R.string.settings_notif_widget_count_dot
+                                    LauncherSettings.COUNT_NONE -> R.string.settings_notif_widget_count_none
+                                    else -> R.string.settings_notif_widget_count_number
                                 },
                             ),
-                        ) { showHomeMarkerPicker = true }
+                        ) { showCountStylePicker = true }
                     }
-                    PageSwitchSpeedRow(selected = s.pageSwitchSpeed) { showPageSpeedPicker = true }
-                    SwitchRow(
-                        stringResource(R.string.settings_infinite_scroll),
-                        stringResource(R.string.settings_infinite_scroll_desc),
-                        s.infiniteScroll,
-                        actions::setInfiniteScroll,
-                    )
-                    SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, actions::setDesktopLocked)
-                    SwitchRow(
-                        stringResource(R.string.settings_hide_status_bar),
-                        s.hideSystemStatusBar,
-                        actions::setHideSystemStatusBar,
-                    )
-                    SwitchRow(
-                        stringResource(R.string.settings_hide_navigation_bar),
-                        stringResource(R.string.settings_hide_navigation_bar_desc),
-                        s.hideSystemNavigationBar,
-                        actions::setHideSystemNavigationBar,
-                    )
-                    SwitchRow(stringResource(R.string.settings_widget_tonal), s.widgetTonalBackground, actions::setWidgetTonalBackground)
-                    SwitchRow(
-                        stringResource(R.string.settings_widget_inset),
-                        stringResource(R.string.settings_widget_inset_desc),
-                        s.widgetEdgesAlignWithIcons,
-                        actions::setWidgetEdgesAlignWithIcons,
-                    )
-                    WeatherToggle(enabled = s.showWeather, onSetEnabled = actions::setShowWeather)
-                    if (s.showWeather) {
-                        WeatherAppRow(appLabel = allApps.firstOrNull { it.key == s.weatherAppKey }?.label) {
-                            showWeatherAppPicker = true
-                        }
+                    SettingRow("H22") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_people_privacy),
+                            description = stringResource(
+                                when (s.peoplePrivacy) {
+                                    LauncherSettings.PRIVACY_SENDER -> R.string.settings_people_privacy_sender
+                                    LauncherSettings.PRIVACY_COUNT -> R.string.settings_people_privacy_count
+                                    else -> R.string.settings_people_privacy_all
+                                },
+                            ),
+                        ) { showPeoplePrivacyPicker = true }
+                    }
+                    SettingRow("H23") {
                         SwitchRow(
-                            stringResource(R.string.settings_network_place_names),
-                            stringResource(R.string.settings_network_place_names_desc),
-                            s.networkPlaceNames,
-                            actions::setNetworkPlaceNames,
+                            stringResource(R.string.settings_people_show_apps),
+                            s.peopleShowApps,
+                            actions::setPeopleShowApps,
                         )
                     }
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_notif_widget_count),
-                        description = stringResource(
-                            when (s.notificationWidgetCountStyle) {
-                                LauncherSettings.COUNT_DOT -> R.string.settings_notif_widget_count_dot
-                                LauncherSettings.COUNT_NONE -> R.string.settings_notif_widget_count_none
-                                else -> R.string.settings_notif_widget_count_number
-                            },
-                        ),
-                    ) { showCountStylePicker = true }
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_people_privacy),
-                        description = stringResource(
-                            when (s.peoplePrivacy) {
-                                LauncherSettings.PRIVACY_SENDER -> R.string.settings_people_privacy_sender
-                                LauncherSettings.PRIVACY_COUNT -> R.string.settings_people_privacy_count
-                                else -> R.string.settings_people_privacy_all
-                            },
-                        ),
-                    ) { showPeoplePrivacyPicker = true }
-                    SwitchRow(
-                        stringResource(R.string.settings_people_show_apps),
-                        s.peopleShowApps,
-                        actions::setPeopleShowApps,
-                    )
-                    SwitchRow(
-                        stringResource(R.string.settings_people_batch),
-                        s.peopleBatchEnabled,
-                        actions::setPeopleBatchEnabled,
-                    )
-                    if (s.peopleBatchEnabled) {
-                        ExpressiveActionRow(
-                            label = stringResource(R.string.settings_people_batch_times),
-                            description = s.peopleBatchTimes.replace(",", ", "),
-                        ) { showBatchTimesEditor = true }
+                    SettingRow("H24") {
+                        SwitchRow(
+                            stringResource(R.string.settings_people_batch),
+                            s.peopleBatchEnabled,
+                            actions::setPeopleBatchEnabled,
+                        )
                     }
-                    StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = actions::setShowStatusBar)
+                    if (s.peopleBatchEnabled) {
+                        SettingRow("H25") {
+                            ExpressiveActionRow(
+                                label = stringResource(R.string.settings_people_batch_times),
+                                description = s.peopleBatchTimes.replace(",", ", "),
+                            ) { showBatchTimesEditor = true }
+                        }
+                    }
+                    SettingRow("H26") {
+                        StatusBarToggle(enabled = s.showStatusBar, onSetEnabled = actions::setShowStatusBar)
+                    }
                     if (s.showStatusBar) {
-                        StatusBarScrimRow(s.statusBarScrimOpacity, actions::setStatusBarScrimOpacity)
+                        SettingRow("H27") {
+                            StatusBarScrimRow(s.statusBarScrimOpacity, actions::setStatusBarScrimOpacity)
+                        }
                     }
                 }
 
@@ -592,44 +720,58 @@ internal fun SettingsContent(
                     collapsed = "icons" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("icons", it) },
                 ) {
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_label_size),
-                        value = s.appLabelTextScale,
-                        onValueChange = actions::setAppLabelTextScale,
-                        valueRange = 0.8f..1.6f,
-                        valueText = percentText,
-                    )
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_icon_size),
-                        value = s.iconScale,
-                        onValueChange = actions::setIconScale,
-                        valueRange = 0.8f..1.3f,
-                        valueText = percentText,
-                    )
-                    LabelColorRow(selected = s.appLabelColor, onPick = actions::setAppLabelColor)
-                    FontRow(selected = s.fontFamily, onPick = actions::setFontFamily)
+                    SettingRow("I1") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_label_size),
+                            value = s.appLabelTextScale,
+                            onValueChange = actions::setAppLabelTextScale,
+                            valueRange = 0.8f..1.6f,
+                            valueText = percentText,
+                        )
+                    }
+                    SettingRow("I2") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_icon_size),
+                            value = s.iconScale,
+                            onValueChange = actions::setIconScale,
+                            valueRange = 0.8f..1.3f,
+                            valueText = percentText,
+                        )
+                    }
+                    SettingRow("I3") {
+                        LabelColorRow(selected = s.appLabelColor, onPick = actions::setAppLabelColor)
+                    }
+                    SettingRow("I4") {
+                        FontRow(selected = s.fontFamily, onPick = actions::setFontFamily)
+                    }
                     // Themed (monochrome) icons need the adaptive-icon monochrome API (Android 13+).
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        SwitchRow(
-                            stringResource(R.string.settings_themed_icons),
-                            s.useThemedIcons,
-                            actions::setUseThemedIcons,
-                        )
-                        if (s.useThemedIcons) {
+                        SettingRow("I5") {
                             SwitchRow(
-                                stringResource(R.string.settings_theme_all_icons),
-                                stringResource(R.string.settings_theme_all_icons_desc),
-                                s.themeAllIcons,
-                                actions::setThemeAllIcons,
+                                stringResource(R.string.settings_themed_icons),
+                                s.useThemedIcons,
+                                actions::setUseThemedIcons,
                             )
+                        }
+                        if (s.useThemedIcons) {
+                            SettingRow("I6") {
+                                SwitchRow(
+                                    stringResource(R.string.settings_theme_all_icons),
+                                    stringResource(R.string.settings_theme_all_icons_desc),
+                                    s.themeAllIcons,
+                                    actions::setThemeAllIcons,
+                                )
+                            }
                         }
                     }
                     val iconPackName = iconPacks.firstOrNull { it.packageName == s.iconPackPackage }?.label
                         ?: stringResource(R.string.settings_icon_pack_system)
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_icon_pack),
-                        description = iconPackName,
-                    ) { showIconPackPicker = true }
+                    SettingRow("I7") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_icon_pack),
+                            description = iconPackName,
+                        ) { showIconPackPicker = true }
+                    }
                 }
 
                 CollapsibleSection(
@@ -637,15 +779,21 @@ internal fun SettingsContent(
                     collapsed = "notifications" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("notifications", it) },
                 ) {
-                    SwitchRow(stringResource(R.string.settings_notif_dots), s.showNotificationDots, actions::setShowNotificationDots)
-                    SwitchRow(stringResource(R.string.settings_notif_count), s.notificationDotCount, actions::setNotificationDotCount)
-                    ScaleSliderRow(
-                        label = stringResource(R.string.settings_notif_size),
-                        value = s.notificationDotScale,
-                        onValueChange = actions::setNotificationDotScale,
-                        valueRange = 0.6f..1.8f,
-                        valueText = percentText,
-                    )
+                    SettingRow("N1") {
+                        SwitchRow(stringResource(R.string.settings_notif_dots), s.showNotificationDots, actions::setShowNotificationDots)
+                    }
+                    SettingRow("N2") {
+                        SwitchRow(stringResource(R.string.settings_notif_count), s.notificationDotCount, actions::setNotificationDotCount)
+                    }
+                    SettingRow("N3") {
+                        ScaleSliderRow(
+                            label = stringResource(R.string.settings_notif_size),
+                            value = s.notificationDotScale,
+                            onValueChange = actions::setNotificationDotScale,
+                            valueRange = 0.6f..1.8f,
+                            valueText = percentText,
+                        )
+                    }
                     BadgePreview(
                         icon = previewIcon,
                         showDots = s.showNotificationDots,
@@ -673,10 +821,12 @@ internal fun SettingsContent(
                     collapsed = "search" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("search", it) },
                 ) {
-                    ContactsSearchToggle(
-                        enabled = s.searchContacts,
-                        onSetEnabled = actions::setSearchContacts,
-                    )
+                    SettingRow("Q1") {
+                        ContactsSearchToggle(
+                            enabled = s.searchContacts,
+                            onSetEnabled = actions::setSearchContacts,
+                        )
+                    }
 
                     // Every permission the launcher uses, with a live granted/not-granted status
                     // (the notif-access row moved here from the Notifications section).
@@ -687,34 +837,44 @@ internal fun SettingsContent(
                     collapsed = "permissions" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("permissions", it) },
                 ) {
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_notif_access),
-                        description = stringResource(
-                            if (notifAccessGranted) {
-                                R.string.settings_notif_access_granted
-                            } else {
-                                R.string.settings_notif_access_not_granted
-                            },
-                        ),
-                    ) {
-                        openNotificationAccess(context)
+                    SettingRow("P1") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_notif_access),
+                            description = stringResource(
+                                if (notifAccessGranted) {
+                                    R.string.settings_notif_access_granted
+                                } else {
+                                    R.string.settings_notif_access_not_granted
+                                },
+                            ),
+                        ) {
+                            openNotificationAccess(context)
+                        }
                     }
-                    PermissionRow(
-                        label = stringResource(R.string.settings_permission_calendar),
-                        permission = android.Manifest.permission.READ_CALENDAR,
-                    )
-                    PermissionRow(
-                        label = stringResource(R.string.settings_permission_contacts),
-                        permission = android.Manifest.permission.READ_CONTACTS,
-                    )
-                    PermissionRow(
-                        label = stringResource(R.string.settings_permission_phone),
-                        permission = android.Manifest.permission.READ_PHONE_STATE,
-                    )
-                    PermissionRow(
-                        label = stringResource(R.string.settings_permission_location),
-                        permission = android.Manifest.permission.ACCESS_COARSE_LOCATION,
-                    )
+                    SettingRow("P2") {
+                        PermissionRow(
+                            label = stringResource(R.string.settings_permission_calendar),
+                            permission = android.Manifest.permission.READ_CALENDAR,
+                        )
+                    }
+                    SettingRow("P3") {
+                        PermissionRow(
+                            label = stringResource(R.string.settings_permission_contacts),
+                            permission = android.Manifest.permission.READ_CONTACTS,
+                        )
+                    }
+                    SettingRow("P4") {
+                        PermissionRow(
+                            label = stringResource(R.string.settings_permission_phone),
+                            permission = android.Manifest.permission.READ_PHONE_STATE,
+                        )
+                    }
+                    SettingRow("P5") {
+                        PermissionRow(
+                            label = stringResource(R.string.settings_permission_location),
+                            permission = android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                        )
+                    }
                 }
 
                 CollapsibleSection(
@@ -722,10 +882,12 @@ internal fun SettingsContent(
                     collapsed = "backup" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("backup", it) },
                 ) {
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_backup),
-                        description = "",
-                    ) { showBackup = true }
+                    SettingRow("B1") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_backup),
+                            description = "",
+                        ) { showBackup = true }
+                    }
                 }
 
                 CollapsibleSection(
@@ -733,10 +895,12 @@ internal fun SettingsContent(
                     collapsed = "updates" in s.collapsedSettingsSections,
                     onToggle = { actions.setSectionCollapsed("updates", it) },
                 ) {
-                    ExpressiveActionRow(
-                        label = stringResource(R.string.settings_updates_check),
-                        description = stringResource(R.string.settings_updates_check_desc),
-                    ) { openLink(context, RELEASES_URL) }
+                    SettingRow("U1") {
+                        ExpressiveActionRow(
+                            label = stringResource(R.string.settings_updates_check),
+                            description = stringResource(R.string.settings_updates_check_desc),
+                        ) { openLink(context, RELEASES_URL) }
+                    }
                 }
 
                 CollapsibleSection(
@@ -748,7 +912,7 @@ internal fun SettingsContent(
                 }
 
                 // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
-                SupportSection(onOpen = { openSupportLink(context, it) })
+                SettingRow("E1") { SupportSection(onOpen = { openSupportLink(context, it) }) }
 
                 // The installed build, last of all, so a glance here answers "which version is this"
                 // without the system's app info — and compares with the newest release above.
@@ -1237,15 +1401,19 @@ private fun DoubleTapLockToggle(enabled: Boolean, onSetEnabled: (Boolean) -> Uni
             )
         }
     }
-    SwitchRow(stringResource(R.string.settings_double_tap_lock), enabled) { wantOn ->
-        onSetEnabled(wantOn)
-        if (wantOn && !lockServiceEnabled(context)) openAccessibilitySettings()
+    SettingRow("G5") {
+        SwitchRow(stringResource(R.string.settings_double_tap_lock), enabled) { wantOn ->
+            onSetEnabled(wantOn)
+            if (wantOn && !lockServiceEnabled(context)) openAccessibilitySettings()
+        }
     }
     if (enabled && !serviceEnabled) {
-        ExpressiveActionRow(
-            label = stringResource(R.string.settings_double_tap_lock_grant),
-            description = stringResource(R.string.settings_double_tap_lock_grant_desc),
-        ) { openAccessibilitySettings() }
+        SettingRow("G5a") {
+            ExpressiveActionRow(
+                label = stringResource(R.string.settings_double_tap_lock_grant),
+                description = stringResource(R.string.settings_double_tap_lock_grant_desc),
+            ) { openAccessibilitySettings() }
+        }
     }
 }
 
@@ -1518,24 +1686,30 @@ internal fun DrawerBackdropRows(
 ) {
     val hasPicture = wallpaper != null
     val surface = drawerSurface(settings.drawerBackgroundColor, settings.drawerBackgroundOpacity, hasPicture, settings.drawerPictureDim)
-    DrawerColorRow(selected = settings.drawerBackgroundColor, locked = hasPicture, onPick = actions.onColor)
-    if (!hasPicture && settings.drawerBackgroundColor != LauncherSettings.DRAWER_COLOR_TRANSPARENT) {
-        DrawerBackgroundRow(settings.drawerBackgroundOpacity, actions.onColorOpacity)
+    SettingRow("A10") {
+        DrawerColorRow(selected = settings.drawerBackgroundColor, locked = hasPicture, onPick = actions.onColor)
     }
-    DrawerWallpaperRow(wallpaper = wallpaper, onPick = actions.onPickPicture, onClear = actions.onClearPicture)
-    if (hasPicture) DrawerPictureDimRow(settings.drawerPictureDim, actions.onPictureDim)
+    if (!hasPicture && settings.drawerBackgroundColor != LauncherSettings.DRAWER_COLOR_TRANSPARENT) {
+        SettingRow("A11") { DrawerBackgroundRow(settings.drawerBackgroundOpacity, actions.onColorOpacity) }
+    }
+    SettingRow("A12") {
+        DrawerWallpaperRow(wallpaper = wallpaper, onPick = actions.onPickPicture, onClear = actions.onClearPicture)
+    }
+    if (hasPicture) SettingRow("A13") { DrawerPictureDimRow(settings.drawerPictureDim, actions.onPictureDim) }
     // Greyed with the reason where the system cannot blur behind the window (Android 11, a Fairphone 6 report),
     // instead of a switch that silently does nothing -- except with the user's own picture, which is blurred inside
     // the window on any Android 12 (forOwnPicture).
     val blur = if (hasPicture) blurAvailability.forOwnPicture() else blurAvailability
-    BlurBehindDrawerRow(
-        availability = blur,
-        checked = settings.blurBehindDrawer,
-        drawerOpaque = surface.opacity >= 1f,
-        onCheckedChange = actions.onBlur,
-    )
+    SettingRow("A14") {
+        BlurBehindDrawerRow(
+            availability = blur,
+            checked = settings.blurBehindDrawer,
+            drawerOpaque = surface.opacity >= 1f,
+            onCheckedChange = actions.onBlur,
+        )
+    }
     if (settings.blurBehindDrawer && blur == BlurAvailability.AVAILABLE) {
-        DrawerBlurStrengthRow(settings.drawerBlurStrength, actions.onBlurStrength)
+        SettingRow("A15") { DrawerBlurStrengthRow(settings.drawerBlurStrength, actions.onBlurStrength) }
     }
 }
 
