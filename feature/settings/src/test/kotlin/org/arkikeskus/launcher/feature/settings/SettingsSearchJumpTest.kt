@@ -133,4 +133,23 @@ class SettingsSearchJumpTest {
         compose.waitForIdle()
         assertNotFocused("D1")
     }
+
+    @Test fun leavingThePageWhileTheRowIsStillMarkedDoesNotMarkItOnTheNextOpen() {
+        show()
+        openFromSearch(res.getString(R.string.settings_dock_show), "D1")
+        compose.onNodeWithTag(settingTag("D1")).assertIsFocused()
+        // Back while the mark is still on: the jump ends here, it must not wait for the next visit.
+        compose.onNodeWithContentDescription(res.getString(R.string.settings_back)).performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription(res.getString(R.string.settings_search_clear)).performClick()
+        compose.waitForIdle()
+        // The same page from its category, looked at before any mark could have run its course.
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag(categoryTag(SettingsCategory.DOCK.key)).performScrollTo().performClick()
+        compose.mainClock.advanceTimeBy(600)
+        assertNotFocused("D1")
+        compose.mainClock.autoAdvance = true
+    }
 }

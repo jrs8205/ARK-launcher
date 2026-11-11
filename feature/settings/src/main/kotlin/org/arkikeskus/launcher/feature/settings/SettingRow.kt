@@ -19,7 +19,9 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
@@ -51,10 +53,14 @@ internal val LocalSettingJumps = staticCompositionLocalOf<SettingJumps?> { null 
 private const val MARK_HOLD_MS = 250
 private const val MARK_FADE_MS = 1250
 
+/** The width of the mark: a ring in the accent along the edge of the row's card. */
+private val MARK_RING = 3.dp
+
 /**
  * One row of Settings as [SettingsIndex] lists it: [content] under the row's [id], so the page and the list can be
  * held against each other. The frame adds nothing to the look, except for a moment after a search result has led
- * here: the row is scrolled into view, takes the focus (a screen reader follows it) and wears a mark that fades.
+ * here: the row is scrolled into view, takes the focus (a screen reader follows it) and wears a mark that fades,
+ * a ring around its card.
  */
 @Composable
 internal fun SettingRow(id: String, content: @Composable () -> Unit) {
@@ -72,12 +78,17 @@ internal fun SettingRow(id: String, content: @Composable () -> Unit) {
         }
         LaunchedEffect(isTarget) {
             if (!isTarget) return@LaunchedEffect
-            // Marked and focused at once; the scroll to it takes a moment, and the mark fades after it has arrived.
-            mark.snapTo(1f)
-            runCatching { focus.requestFocus() }
-            bringIntoView.bringIntoView()
-            mark.animateTo(0f, tween(durationMillis = MARK_FADE_MS, delayMillis = MARK_HOLD_MS))
-            jumps.target = null
+            try {
+                // Marked and focused at once; the scroll to it takes a moment, and the mark fades after it has arrived.
+                mark.snapTo(1f)
+                runCatching { focus.requestFocus() }
+                bringIntoView.bringIntoView()
+                mark.animateTo(0f, tween(durationMillis = MARK_FADE_MS, delayMillis = MARK_HOLD_MS))
+            } finally {
+                // Also when the page is left before the mark has faded: a jump happens once, and one cut short
+                // must not wait for the row's next visit. A newer jump to another row is left alone.
+                if (jumps.target == id) jumps.target = null
+            }
         }
     }
 
@@ -90,12 +101,17 @@ internal fun SettingRow(id: String, content: @Composable () -> Unit) {
             .drawWithContent {
                 drawContent()
                 if (mark.value > 0f) {
-                    // Over the row's card: the frame's last 10 dp are the gap to the next row.
+                    // A ring along the edge of the row's card, inside its padding: nothing is drawn over what is
+                    // written on the row, so the text reads as it does without the mark. The frame's last 10 dp
+                    // are the gap to the next row.
                     val gap = 10.dp.toPx()
+                    val ring = MARK_RING.toPx()
                     drawRoundRect(
-                        color = markColor.copy(alpha = 0.20f * mark.value),
-                        size = Size(size.width, (size.height - gap).coerceAtLeast(0f)),
-                        cornerRadius = CornerRadius(20.dp.toPx()),
+                        color = markColor.copy(alpha = mark.value),
+                        topLeft = Offset(ring / 2, ring / 2),
+                        size = Size(size.width - ring, (size.height - gap - ring).coerceAtLeast(0f)),
+                        cornerRadius = CornerRadius(20.dp.toPx() - ring / 2),
+                        style = Stroke(width = ring),
                     )
                 }
             },
