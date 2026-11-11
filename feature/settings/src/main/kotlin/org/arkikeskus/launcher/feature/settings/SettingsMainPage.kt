@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,17 +39,24 @@ import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 internal const val CATEGORY_TILE_ALPHA = 0.16f
 
 /**
- * The first page of Settings: the title, the default-launcher row, the categories, each opening a page of its own
- * through [onOpen], then the support block and the installed version.
+ * The first page of Settings: the title, the search field, the default-launcher row, the categories, each opening a
+ * page of its own through [onOpen], then the support block and the installed version. While something is typed in
+ * the field ([query]), the rows it found ([hits]) take the place of everything below it; [onOpenHit] opens one.
  */
 @Composable
 internal fun SettingsMainPage(
     onOpen: (SettingsCategory) -> Unit,
     modifier: Modifier = Modifier,
     scroll: ScrollState = rememberScrollState(),
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    hits: List<SearchHit> = emptyList(),
+    onOpenHit: (SearchHit) -> Unit = {},
 ) {
     val p = LocalExpressivePalette.current
     val context = LocalContext.current
+    // Back clears what was typed before it leaves Settings.
+    BackHandler(enabled = query.isNotEmpty()) { onQueryChange("") }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -66,15 +74,22 @@ internal fun SettingsMainPage(
             modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 6.dp),
         )
 
-        SettingRow("T2") { DefaultLauncherRow() }
-        Spacer(Modifier.height(6.dp))
+        SettingsSearchField(query = query, onQueryChange = onQueryChange, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
 
-        SettingsCategory.entries.forEach { category -> CategoryRow(category) { onOpen(category) } }
+        if (query.isNotBlank()) {
+            // Searching: the rows found take the place of everything below the field.
+            SettingsSearchResults(hits = hits, onOpen = onOpenHit)
+        } else {
+            SettingRow("T2") { DefaultLauncherRow() }
+            Spacer(Modifier.height(6.dp))
 
-        // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
-        SettingRow("E1") { SupportSection(onOpen = { openSupportLink(context, it) }) }
+            SettingsCategory.entries.forEach { category -> CategoryRow(category) { onOpen(category) } }
 
-        VersionLine()
+            // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
+            SettingRow("E1") { SupportSection(onOpen = { openSupportLink(context, it) }) }
+
+            VersionLine()
+        }
     }
 }
 

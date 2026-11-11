@@ -231,4 +231,11 @@
     <string name="settings_heading_notif_widget">Ilmoitukset-widget</string>
     <string name="settings_heading_people_widget">Ihmiset-widget</string>
     <string name="settings_heading_all_widgets">Kaikki widgetit</string>
+    <string name="settings_search_hint">Hae asetuksista</string>
+    <string name="settings_search_clear">Tyhjennä haku</string>
+    <string name="settings_search_none">Asetuksia ei löytynyt</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d tulos</item>
+        <item quantity="other">%d tulosta</item>
+    </plurals>
 </resources>

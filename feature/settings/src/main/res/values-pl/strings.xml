@@ -237,4 +237,13 @@
     <string name="settings_heading_notif_widget">Widżet powiadomień</string>
     <string name="settings_heading_people_widget">Widżet Osoby</string>
     <string name="settings_heading_all_widgets">Wszystkie widżety</string>
+    <string name="settings_search_hint">Szukaj w ustawieniach</string>
+    <string name="settings_search_clear">Wyczyść wyszukiwanie</string>
+    <string name="settings_search_none">Nie znaleziono ustawień</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d wynik</item>
+        <item quantity="few">%d wyniki</item>
+        <item quantity="many">%d wyników</item>
+        <item quantity="other">%d wyniku</item>
+    </plurals>
 </resources>

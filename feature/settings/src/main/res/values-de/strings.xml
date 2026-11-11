@@ -231,4 +231,11 @@
     <string name="settings_heading_notif_widget">Benachrichtigungs-Widget</string>
     <string name="settings_heading_people_widget">Personen-Widget</string>
     <string name="settings_heading_all_widgets">Alle Widgets</string>
+    <string name="settings_search_hint">Einstellungen durchsuchen</string>
+    <string name="settings_search_clear">Suche löschen</string>
+    <string name="settings_search_none">Keine Einstellungen gefunden</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d Ergebnis</item>
+        <item quantity="other">%d Ergebnisse</item>
+    </plurals>
 </resources>

@@ -231,4 +231,11 @@
     <string name="settings_heading_notif_widget">Bildirimler widget\'ı</string>
     <string name="settings_heading_people_widget">Kişiler widget\'ı</string>
     <string name="settings_heading_all_widgets">Tüm widget\'lar</string>
+    <string name="settings_search_hint">Ayarlarda ara</string>
+    <string name="settings_search_clear">Aramayı temizle</string>
+    <string name="settings_search_none">Ayar bulunamadı</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d sonuç</item>
+        <item quantity="other">%d sonuç</item>
+    </plurals>
 </resources>

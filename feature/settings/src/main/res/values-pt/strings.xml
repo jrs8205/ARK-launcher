@@ -234,4 +234,12 @@
     <string name="settings_heading_notif_widget">Widget de notificações</string>
     <string name="settings_heading_people_widget">Widget Pessoas</string>
     <string name="settings_heading_all_widgets">Todos os widgets</string>
+    <string name="settings_search_hint">Pesquisar nas configurações</string>
+    <string name="settings_search_clear">Limpar pesquisa</string>
+    <string name="settings_search_none">Nenhuma configuração encontrada</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d resultado</item>
+        <item quantity="many">%d resultados</item>
+        <item quantity="other">%d resultados</item>
+    </plurals>
 </resources>

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.core.app.ActivityOptionsCompat
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.model.LauncherSettings
@@ -105,6 +106,17 @@ class SettingsRestorationTest {
         compose.waitForIdle()
         compose.onNodeWithTag(settingTag("A17")).assertDoesNotExist()
         compose.onNodeWithText(res.getString(R.string.settings_hidden_apps)).assertExists()
+    }
+
+    @Test fun whatWasTypedInTheSearchSurvivesRecreation() {
+        show()
+        compose.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput("dock")
+        compose.waitForIdle()
+        compose.onNodeWithTag(searchHitTag("D1")).assertExists()
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        compose.onNodeWithTag(searchHitTag("D1")).assertExists()
+        compose.onNodeWithTag(categoryTag("dock")).assertDoesNotExist()
     }
 
     @Test fun aPickersResultReachesItsRowAfterRecreation() {

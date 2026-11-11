@@ -120,6 +120,11 @@ internal fun SettingsContent(
             SettingsScrollMemory.remember(page?.key, offset, SystemClock.elapsedRealtime())
         }
     }
+    // What is typed in the main page's search field. Kept while a page opened from it is visited, so Back returns
+    // to what was found; not kept over a fresh open of Settings.
+    var query by rememberSaveable { mutableStateOf("") }
+    val searchable = rememberSearchableSettings()
+    val hits = remember(query, searchable) { searchSettings(query, searchable) }
     val palette = settingsPalette(isSystemInDarkTheme())
 
     CompositionLocalProvider(
@@ -138,7 +143,18 @@ internal fun SettingsContent(
                 label = "settings screen",
             ) { shown ->
                 when (shown) {
-                    SCREEN_MAIN -> SettingsMainPage(onOpen = { pageKey = it.key }, scroll = mainScroll)
+                    SCREEN_MAIN -> SettingsMainPage(
+                        onOpen = { pageKey = it.key },
+                        scroll = mainScroll,
+                        query = query,
+                        onQueryChange = { query = it },
+                        hits = hits,
+                        onOpenHit = { hit ->
+                            // A row of the main page itself is under the search: clearing it shows the row.
+                            val category = hit.setting.category
+                            if (category != null) pageKey = category.key else query = ""
+                        },
+                    )
 
                     SCREEN_HIDDEN_APPS -> HiddenAppsManager(
                         apps = lists.apps,

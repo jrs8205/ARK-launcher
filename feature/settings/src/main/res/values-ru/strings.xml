@@ -237,4 +237,13 @@
     <string name="settings_heading_notif_widget">Виджет уведомлений</string>
     <string name="settings_heading_people_widget">Виджет «Люди»</string>
     <string name="settings_heading_all_widgets">Все виджеты</string>
+    <string name="settings_search_hint">Поиск по настройкам</string>
+    <string name="settings_search_clear">Очистить поиск</string>
+    <string name="settings_search_none">Настройки не найдены</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d результат</item>
+        <item quantity="few">%d результата</item>
+        <item quantity="many">%d результатов</item>
+        <item quantity="other">%d результата</item>
+    </plurals>
 </resources>

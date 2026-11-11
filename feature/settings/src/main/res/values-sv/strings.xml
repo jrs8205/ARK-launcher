@@ -231,4 +231,11 @@
     <string name="settings_heading_notif_widget">Aviseringswidget</string>
     <string name="settings_heading_people_widget">Widgeten Personer</string>
     <string name="settings_heading_all_widgets">Alla widgetar</string>
+    <string name="settings_search_hint">Sök i inställningar</string>
+    <string name="settings_search_clear">Rensa sökningen</string>
+    <string name="settings_search_none">Inga inställningar hittades</string>
+    <plurals name="settings_search_count">
+        <item quantity="one">%d resultat</item>
+        <item quantity="other">%d resultat</item>
+    </plurals>
 </resources>

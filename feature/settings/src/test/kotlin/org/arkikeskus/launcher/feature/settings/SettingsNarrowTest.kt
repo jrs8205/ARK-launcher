@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -116,6 +117,27 @@ class SettingsNarrowTest {
             compose.waitForIdle()
         }
     }
+
+    /** Searching for a long row title: the field and every row found keep their text whole and their height. */
+    private fun theSearchFieldAndWhatItFindsFit() {
+        show()
+        val title = res.getString(R.string.settings_hide_navigation_bar)
+        compose.onNodeWithTag(SEARCH_FIELD_TAG).assertHeightIsAtLeast(48.dp)
+        compose.onNodeWithTag(SEARCH_FIELD_TAG).performTextInput(title.substringBefore(' '))
+        compose.waitForIdle()
+        val hit = compose.onNodeWithTag(searchHitTag("H15"), useUnmergedTree = true)
+        hit.performScrollTo()
+        assertNoTextIsCut(hit.fetchSemanticsNode(), "the row found")
+        compose.onNodeWithTag(searchHitTag("H15")).assertHeightIsAtLeast(48.dp)
+    }
+
+    @Test
+    @Config(sdk = [35], application = Application::class, qualifiers = "de")
+    fun searchingInGerman() = theSearchFieldAndWhatItFindsFit()
+
+    @Test
+    @Config(sdk = [35], application = Application::class, qualifiers = "ru")
+    fun searchingInRussian() = theSearchFieldAndWhatItFindsFit()
 
     @Test
     @Config(sdk = [35], application = Application::class, qualifiers = "de")
