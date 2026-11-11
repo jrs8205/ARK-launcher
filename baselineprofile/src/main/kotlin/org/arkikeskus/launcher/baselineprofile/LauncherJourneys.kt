@@ -83,7 +83,8 @@ internal fun MacrobenchmarkScope.closeDrawer() {
 
 /**
  * Settings from the home menu: a long-press on an empty spot low on the page (above the dock, under
- * the seeded rows), the "Launcher" entry, the first screen of Settings scrolled once, then Back.
+ * the seeded rows), the "Launcher" entry, the main page of Settings scrolled once, the Home screen
+ * category opened and its page scrolled once, then Back to the main page and Back out.
  */
 internal fun MacrobenchmarkScope.openSettingsAndBack() {
     val x = device.displayWidth / 2
@@ -97,7 +98,24 @@ internal fun MacrobenchmarkScope.openSettingsAndBack() {
     val title = By.text(appString(packageName, "settings_title"))
     check(device.wait(Until.hasObject(title), 2 * WAIT_MS)) { "Settings did not open from the home menu" }
     device.waitForIdle()
-    device.swipe(x, (device.displayHeight * 0.80f).toInt(), x, (device.displayHeight * 0.30f).toInt(), SWIPE_STEPS)
+    val top = (device.displayHeight * 0.30f).toInt()
+    val bottom = (device.displayHeight * 0.80f).toInt()
+    device.swipe(x, bottom, x, top, SWIPE_STEPS)
+    device.waitForIdle()
+    device.swipe(x, top, x, bottom, SWIPE_STEPS)
+    device.waitForIdle()
+    // A category row is one node whose text starts with the category's name (its summary follows);
+    // its page has no "Settings" title, and its first row is the grid's column count.
+    val category = By.textStartsWith(appString(packageName, "settings_home"))
+    check(device.wait(Until.hasObject(category), WAIT_MS)) { "the Home screen category is not on the main page" }
+    device.findObject(category).click()
+    val firstRow = By.text(appString(packageName, "settings_columns"))
+    check(device.wait(Until.hasObject(firstRow), WAIT_MS)) { "the Home screen page did not open" }
+    device.waitForIdle()
+    device.swipe(x, bottom, x, top, SWIPE_STEPS)
+    device.waitForIdle()
+    device.pressBack()
+    check(device.wait(Until.hasObject(title), WAIT_MS)) { "back did not return to the main page of Settings" }
     device.waitForIdle()
     device.pressBack()
     check(device.wait(Until.gone(title), WAIT_MS)) { "Settings did not close on back" }
