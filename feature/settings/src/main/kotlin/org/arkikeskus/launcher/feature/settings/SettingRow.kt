@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
 /**
@@ -77,12 +78,19 @@ internal fun SettingRow(id: String, content: @Composable () -> Unit) {
             onDispose { jumps.shown -= id }
         }
         LaunchedEffect(isTarget) {
-            if (!isTarget) return@LaunchedEffect
+            if (!isTarget) {
+                // However the jump to this row ended (a newer one took its place while the mark was still on),
+                // a row that is not the target wears no mark.
+                if (mark.value != 0f) mark.snapTo(0f)
+                return@LaunchedEffect
+            }
             try {
                 // Marked and focused at once; the scroll to it takes a moment, and the mark fades after it has arrived.
                 mark.snapTo(1f)
                 runCatching { focus.requestFocus() }
-                bringIntoView.bringIntoView()
+                // The scroll is a job of its own: when it is cut short (a finger takes the page over, the container
+                // cancels the request) only the scroll ends, and the mark still fades.
+                launch { bringIntoView.bringIntoView() }.join()
                 mark.animateTo(0f, tween(durationMillis = MARK_FADE_MS, delayMillis = MARK_HOLD_MS))
             } finally {
                 // Also when the page is left before the mark has faded: a jump happens once, and one cut short
