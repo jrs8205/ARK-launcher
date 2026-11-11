@@ -218,7 +218,7 @@
     <string name="settings_cat_home_summary">Grid, labels, glass layer, pages</string>
     <string name="settings_cat_dock_summary">Visibility, icons, background, spacing</string>
     <string name="settings_cat_drawer_summary">Layout, background, blur, folders, hidden apps</string>
-    <string name="settings_cat_folders_summary">Icon size, spacing, color</string>
+    <string name="settings_cat_folders_summary">Icon size, spacing, colour</string>
     <string name="settings_cat_widgets_summary">Clock and weather, notifications, people</string>
     <string name="settings_cat_icons_summary">Size, labels, font, icon pack</string>
     <string name="settings_cat_gestures_summary">Swipes, double tap, long press</string>
