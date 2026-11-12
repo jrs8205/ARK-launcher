@@ -238,4 +238,21 @@
         <item quantity="one">%d tulos</item>
         <item quantity="other">%d tulosta</item>
     </plurals>
+    <string name="settings_cat_appearance">Ulkoasu</string>
+    <string name="settings_cat_appearance_summary">Perusväri</string>
+    <string name="settings_cat_appearance_summary_value">Perusväri: %1$s</string>
+    <string name="settings_base_colour">Perusväri</string>
+    <string name="settings_base_colour_desc">Värittää koko launcherin</string>
+    <string name="settings_base_colour_keywords">väri teema korostus paletti color theme</string>
+    <string name="base_colour_orange">Oranssi</string>
+    <string name="base_colour_blue">Sininen</string>
+    <string name="base_colour_green">Vihreä</string>
+    <string name="base_colour_violet">Violetti</string>
+    <string name="base_colour_rose">Roosa</string>
+    <string name="base_colour_teal">Turkoosi</string>
+    <string name="base_colour_yellow">Keltainen</string>
+    <string name="base_colour_red">Punainen</string>
+    <string name="base_colour_black">Musta</string>
+    <string name="base_colour_chameleon">Kameleontti</string>
+    <string name="base_colour_chameleon_desc">Seuraa taustakuvaasi</string>
 </resources>

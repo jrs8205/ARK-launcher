@@ -62,6 +62,7 @@ internal fun SettingsCategoryPage(
                 .padding(top = 4.dp, bottom = 24.dp),
         ) {
             when (category) {
+                SettingsCategory.APPEARANCE -> AppearanceRows(s, actions)
                 SettingsCategory.HOME -> HomeGridRows(s, actions)
                 SettingsCategory.DOCK -> DockRows(s, actions)
                 SettingsCategory.DRAWER -> DrawerRows(

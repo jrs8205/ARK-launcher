@@ -158,6 +158,7 @@ internal fun SettingsContent(
                 when (shown) {
                     SCREEN_MAIN -> SettingsMainPage(
                         onOpen = { pageKey = it.key },
+                        baseColour = s.baseColour,
                         scroll = mainScroll,
                         query = query,
                         onQueryChange = { query = it },

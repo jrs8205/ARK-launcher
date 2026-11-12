@@ -238,4 +238,21 @@
         <item quantity="one">%d result</item>
         <item quantity="other">%d results</item>
     </plurals>
+    <string name="settings_cat_appearance">Appearance</string>
+    <string name="settings_cat_appearance_summary">Base colour</string>
+    <string name="settings_cat_appearance_summary_value">Base colour: %1$s</string>
+    <string name="settings_base_colour">Base colour</string>
+    <string name="settings_base_colour_desc">Colours the whole launcher</string>
+    <string name="settings_base_colour_keywords">color theme accent palette</string>
+    <string name="base_colour_orange">Orange</string>
+    <string name="base_colour_blue">Blue</string>
+    <string name="base_colour_green">Green</string>
+    <string name="base_colour_violet">Violet</string>
+    <string name="base_colour_rose">Rose</string>
+    <string name="base_colour_teal">Teal</string>
+    <string name="base_colour_yellow">Yellow</string>
+    <string name="base_colour_red">Red</string>
+    <string name="base_colour_black">Black</string>
+    <string name="base_colour_chameleon">Chameleon</string>
+    <string name="base_colour_chameleon_desc">Follows your wallpaper</string>
 </resources>

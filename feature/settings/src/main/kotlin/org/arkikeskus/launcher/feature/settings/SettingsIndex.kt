@@ -15,6 +15,9 @@ internal enum class SettingsCategory(
     @StringRes val summary: Int,
     @DrawableRes val icon: Int,
 ) {
+    APPEARANCE(
+        "appearance", R.string.settings_cat_appearance, R.string.settings_cat_appearance_summary, LauncherIcons.Palette,
+    ),
     HOME("home", R.string.settings_home, R.string.settings_cat_home_summary, LauncherIcons.Home),
     DOCK("dock", R.string.settings_dock, R.string.settings_cat_dock_summary, LauncherIcons.Dock),
     DRAWER("drawer", R.string.settings_drawer, R.string.settings_cat_drawer_summary, LauncherIcons.Apps),
@@ -77,6 +80,13 @@ internal object SettingsIndex {
         ) = add(SettingEntry(id, title, description, category, fallback, minSdk, keywords))
 
         row("T2", null, R.string.settings_set_default)
+
+        SettingsCategory.APPEARANCE.let { c ->
+            row(
+                "AP1", c, R.string.settings_base_colour, R.string.settings_base_colour_desc,
+                keywords = listOf(R.string.settings_base_colour_keywords),
+            )
+        }
 
         SettingsCategory.HOME.let { c ->
             row("H1", c, R.string.settings_columns)

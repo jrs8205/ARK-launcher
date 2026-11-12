@@ -39,6 +39,7 @@ object LauncherIcons {
     @DrawableRes val VolumeUp: Int = R.drawable.ic_volume_up
     @DrawableRes val Dock: Int = R.drawable.ic_dock
     @DrawableRes val Category: Int = R.drawable.ic_category
+    @DrawableRes val Palette: Int = R.drawable.ic_palette
     @DrawableRes val SwipeUp: Int = R.drawable.ic_swipe_up
     @DrawableRes val SystemBars: Int = R.drawable.ic_system_bars
     @DrawableRes val Shield: Int = R.drawable.ic_shield

@@ -246,4 +246,21 @@
         <item quantity="many">%d результатов</item>
         <item quantity="other">%d результата</item>
     </plurals>
+    <string name="settings_cat_appearance">Оформление</string>
+    <string name="settings_cat_appearance_summary">Основной цвет</string>
+    <string name="settings_cat_appearance_summary_value">Основной цвет: %1$s</string>
+    <string name="settings_base_colour">Основной цвет</string>
+    <string name="settings_base_colour_desc">Окрашивает весь лаунчер</string>
+    <string name="settings_base_colour_keywords">цвет тема акцент палитра color theme</string>
+    <string name="base_colour_orange">Оранжевый</string>
+    <string name="base_colour_blue">Синий</string>
+    <string name="base_colour_green">Зелёный</string>
+    <string name="base_colour_violet">Фиолетовый</string>
+    <string name="base_colour_rose">Розовый</string>
+    <string name="base_colour_teal">Бирюзовый</string>
+    <string name="base_colour_yellow">Жёлтый</string>
+    <string name="base_colour_red">Красный</string>
+    <string name="base_colour_black">Чёрный</string>
+    <string name="base_colour_chameleon">Хамелеон</string>
+    <string name="base_colour_chameleon_desc">Следует за обоями</string>
 </resources>

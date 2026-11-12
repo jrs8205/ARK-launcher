@@ -103,6 +103,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setDrawerLabelColor(argb: Int?) = update { repository.setDrawerLabelColor(argb) }
     override fun setDrawerPictureDim(value: Float) = update { repository.setDrawerPictureDim(value) }
     override fun setFontFamily(font: String) = update { repository.setFontFamily(font) }
+    override fun setBaseColour(colour: String) = update { repository.setBaseColour(colour) }
     override fun setThemeAllIcons(value: Boolean) = update { repository.setThemeAllIcons(value) }
     override fun setFolderColumns(value: Int) = update { repository.setFolderColumns(value) }
     override fun setHomeColumns(value: Int) = update {

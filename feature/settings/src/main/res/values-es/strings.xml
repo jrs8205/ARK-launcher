@@ -242,4 +242,21 @@
         <item quantity="many">%d resultados</item>
         <item quantity="other">%d resultados</item>
     </plurals>
+    <string name="settings_cat_appearance">Apariencia</string>
+    <string name="settings_cat_appearance_summary">Color base</string>
+    <string name="settings_cat_appearance_summary_value">Color base: %1$s</string>
+    <string name="settings_base_colour">Color base</string>
+    <string name="settings_base_colour_desc">Da color a todo el launcher</string>
+    <string name="settings_base_colour_keywords">color tema acento paleta theme</string>
+    <string name="base_colour_orange">Naranja</string>
+    <string name="base_colour_blue">Azul</string>
+    <string name="base_colour_green">Verde</string>
+    <string name="base_colour_violet">Violeta</string>
+    <string name="base_colour_rose">Rosa</string>
+    <string name="base_colour_teal">Turquesa</string>
+    <string name="base_colour_yellow">Amarillo</string>
+    <string name="base_colour_red">Rojo</string>
+    <string name="base_colour_black">Negro</string>
+    <string name="base_colour_chameleon">Camaleón</string>
+    <string name="base_colour_chameleon_desc">Sigue tu fondo de pantalla</string>
 </resources>

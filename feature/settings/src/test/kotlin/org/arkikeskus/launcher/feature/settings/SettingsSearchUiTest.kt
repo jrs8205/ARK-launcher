@@ -14,8 +14,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Before
 import org.junit.Rule
@@ -104,6 +106,17 @@ class SettingsSearchUiTest {
         val count = res.getQuantityString(R.plurals.settings_search_count, 3, 3)
         val node = compose.onNodeWithText(count).fetchSemanticsNode()
         assertThat(node.config[SemanticsProperties.LiveRegion]).isEqualTo(LiveRegionMode.Polite)
+    }
+
+    @Test fun theBaseColourIsFoundByItsNameAndByOtherWordsForIt() {
+        show()
+        // By its title, by the other spelling, and by what people call it.
+        for (words in listOf("base colour", "color", "theme", "accent")) {
+            type(words)
+            assertWithMessage(words).that(tags("search-hit-")).contains(searchHitTag("AP1"))
+            compose.onNodeWithTag(SEARCH_FIELD_TAG).performTextClearance()
+            compose.waitForIdle()
+        }
     }
 
     @Test fun nothingFoundSaysSoPolitely() {

@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -52,6 +53,8 @@ internal fun SettingsMainPage(
     onQueryChange: (String) -> Unit = {},
     hits: List<SearchHit> = emptyList(),
     onOpenHit: (SearchHit) -> Unit = {},
+    /** The stored base colour, named on the Appearance row. */
+    baseColour: String = LauncherSettings.BASE_COLOUR_DEFAULT,
 ) {
     val p = LocalExpressivePalette.current
     val context = LocalContext.current
@@ -83,7 +86,15 @@ internal fun SettingsMainPage(
             SettingRow("T2") { DefaultLauncherRow() }
             Spacer(Modifier.height(6.dp))
 
-            SettingsCategory.entries.forEach { category -> CategoryRow(category) { onOpen(category) } }
+            SettingsCategory.entries.forEach { category ->
+                // Appearance says which colour is chosen; the other rows say what their page holds.
+                val summary = if (category == SettingsCategory.APPEARANCE) {
+                    stringResource(R.string.settings_cat_appearance_summary_value, stringResource(baseColourName(baseColour)))
+                } else {
+                    stringResource(category.summary)
+                }
+                CategoryRow(category, summary) { onOpen(category) }
+            }
 
             // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
             SettingRow("E1") { SupportSection(onOpen = { openSupportLink(context, it) }) }
@@ -98,7 +109,11 @@ internal fun SettingsMainPage(
  * chevron. The whole row is one button, at least 48 dp high, read as "name, summary".
  */
 @Composable
-internal fun CategoryRow(category: SettingsCategory, onClick: () -> Unit) {
+internal fun CategoryRow(
+    category: SettingsCategory,
+    summary: String = stringResource(category.summary),
+    onClick: () -> Unit,
+) {
     val p = LocalExpressivePalette.current
     Row(
         modifier = Modifier
@@ -125,7 +140,7 @@ internal fun CategoryRow(category: SettingsCategory, onClick: () -> Unit) {
         }
         Column(modifier = Modifier.weight(1f).padding(horizontal = 14.dp)) {
             Text(stringResource(category.title), color = p.text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text(stringResource(category.summary), color = p.dim, fontSize = 12.5.sp)
+            Text(summary, color = p.dim, fontSize = 12.5.sp)
         }
         Icon(
             painter = painterResource(LauncherIcons.ChevronRight),

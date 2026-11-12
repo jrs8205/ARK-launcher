@@ -238,4 +238,21 @@
         <item quantity="one">%d resultat</item>
         <item quantity="other">%d resultat</item>
     </plurals>
+    <string name="settings_cat_appearance">Utseende</string>
+    <string name="settings_cat_appearance_summary">Grundfärg</string>
+    <string name="settings_cat_appearance_summary_value">Grundfärg: %1$s</string>
+    <string name="settings_base_colour">Grundfärg</string>
+    <string name="settings_base_colour_desc">Färgar hela launchern</string>
+    <string name="settings_base_colour_keywords">färg tema accent palett color theme</string>
+    <string name="base_colour_orange">Orange</string>
+    <string name="base_colour_blue">Blå</string>
+    <string name="base_colour_green">Grön</string>
+    <string name="base_colour_violet">Violett</string>
+    <string name="base_colour_rose">Rosa</string>
+    <string name="base_colour_teal">Turkos</string>
+    <string name="base_colour_yellow">Gul</string>
+    <string name="base_colour_red">Röd</string>
+    <string name="base_colour_black">Svart</string>
+    <string name="base_colour_chameleon">Kameleont</string>
+    <string name="base_colour_chameleon_desc">Följer din bakgrundsbild</string>
 </resources>

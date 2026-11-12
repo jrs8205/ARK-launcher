@@ -34,6 +34,7 @@ internal interface SettingsActions {
     fun setDrawerLabelColor(argb: Int?)
     fun setDrawerPictureDim(value: Float)
     fun setFontFamily(font: String)
+    fun setBaseColour(colour: String)
     fun setThemeAllIcons(value: Boolean)
     fun setFolderColumns(value: Int)
     fun setHomeColumns(value: Int)

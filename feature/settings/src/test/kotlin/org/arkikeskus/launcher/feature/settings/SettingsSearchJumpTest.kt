@@ -145,9 +145,11 @@ class SettingsSearchJumpTest {
         compose.waitForIdle()
         compose.onNodeWithContentDescription(res.getString(R.string.settings_search_clear)).performClick()
         compose.waitForIdle()
-        // The same page from its category, looked at before any mark could have run its course.
+        // The same page from its category, looked at before any mark could have run its course. The row is brought
+        // into view first: a scroll cannot finish once the clock stands still.
+        compose.onNodeWithTag(categoryTag(SettingsCategory.DOCK.key)).performScrollTo()
         compose.mainClock.autoAdvance = false
-        compose.onNodeWithTag(categoryTag(SettingsCategory.DOCK.key)).performScrollTo().performClick()
+        compose.onNodeWithTag(categoryTag(SettingsCategory.DOCK.key)).performClick()
         compose.mainClock.advanceTimeBy(600)
         assertNotFocused("D1")
         compose.mainClock.autoAdvance = true

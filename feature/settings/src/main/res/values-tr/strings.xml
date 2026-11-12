@@ -238,4 +238,21 @@
         <item quantity="one">%d sonuç</item>
         <item quantity="other">%d sonuç</item>
     </plurals>
+    <string name="settings_cat_appearance">Görünüm</string>
+    <string name="settings_cat_appearance_summary">Ana renk</string>
+    <string name="settings_cat_appearance_summary_value">Ana renk: %1$s</string>
+    <string name="settings_base_colour">Ana renk</string>
+    <string name="settings_base_colour_desc">Tüm launcher’ı renklendirir</string>
+    <string name="settings_base_colour_keywords">renk tema vurgu palet color theme</string>
+    <string name="base_colour_orange">Turuncu</string>
+    <string name="base_colour_blue">Mavi</string>
+    <string name="base_colour_green">Yeşil</string>
+    <string name="base_colour_violet">Mor</string>
+    <string name="base_colour_rose">Pembe</string>
+    <string name="base_colour_teal">Turkuaz</string>
+    <string name="base_colour_yellow">Sarı</string>
+    <string name="base_colour_red">Kırmızı</string>
+    <string name="base_colour_black">Siyah</string>
+    <string name="base_colour_chameleon">Bukalemun</string>
+    <string name="base_colour_chameleon_desc">Duvar kâğıdınızı takip eder</string>
 </resources>

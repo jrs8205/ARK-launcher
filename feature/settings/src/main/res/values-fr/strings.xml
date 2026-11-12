@@ -242,4 +242,21 @@
         <item quantity="many">%d résultats</item>
         <item quantity="other">%d résultats</item>
     </plurals>
+    <string name="settings_cat_appearance">Apparence</string>
+    <string name="settings_cat_appearance_summary">Couleur de base</string>
+    <string name="settings_cat_appearance_summary_value">Couleur de base : %1$s</string>
+    <string name="settings_base_colour">Couleur de base</string>
+    <string name="settings_base_colour_desc">Colore tout le launcher</string>
+    <string name="settings_base_colour_keywords">couleur thème accent palette color theme</string>
+    <string name="base_colour_orange">Orange</string>
+    <string name="base_colour_blue">Bleu</string>
+    <string name="base_colour_green">Vert</string>
+    <string name="base_colour_violet">Violet</string>
+    <string name="base_colour_rose">Rose</string>
+    <string name="base_colour_teal">Turquoise</string>
+    <string name="base_colour_yellow">Jaune</string>
+    <string name="base_colour_red">Rouge</string>
+    <string name="base_colour_black">Noir</string>
+    <string name="base_colour_chameleon">Caméléon</string>
+    <string name="base_colour_chameleon_desc">Suit votre fond d’écran</string>
 </resources>
