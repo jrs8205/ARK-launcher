@@ -69,7 +69,7 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
    poistu laitteelta.
 2. **Kuntanimi** sään vieressä: nimi selvitetään laitteen omalla
    geokooderilla. Vain jos olet ottanut käyttöön asetuksen *Paikkakunta
-   verkosta* (Asetukset ▸ Etusivu, oletuksena pois) eikä laitteessa ole
+   verkosta* (Asetukset ▸ Widgetit, oletuksena pois) eikä laitteessa ole
    toimivaa geokooderia (joissakin malleissa ei ole), sovellus käyttää sen
    sijaan avaimetonta
    [BigDataCloud](https://www.bigdatacloud.com)-käänteisgeokoodausrajapintaa

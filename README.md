@@ -88,7 +88,7 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   Resize handles show the footprint and respect the widget's size limits; compatible widgets can
   stretch to full width or be reconfigured. Collection widgets (e.g. chat lists) scroll in place.
   Built-in clock (with the next event, alarm and optional weather), battery and notification
-  widgets adapt to their size and offer translucent or themed backgrounds in Home screen settings.
+  widgets adapt to their size and offer translucent or themed backgrounds in Settings ▸ Widgets.
 - **Folders** on the home screen and inside the drawer: a tap opens a folder to look, a pencil opens its editor.
 - **Notification dots / badges** (via a notification-listener service; dot or Nova-style count).
 - **People widget**: messages, missed calls and mail grouped by person as tiles, with optional

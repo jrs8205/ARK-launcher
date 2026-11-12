@@ -62,7 +62,7 @@ public, so every claim here can be verified:
    position never leaves the device.
 2. **Municipality name** shown next to the weather: the name is resolved with
    the device's own geocoder. Only if you turn on *Place name from the
-   internet* (Settings ▸ Home, off by default) and the device has no working
+   internet* (Settings ▸ Widgets, off by default) and the device has no working
    geocoder backend (some models don't), the app asks the keyless
    [BigDataCloud](https://www.bigdatacloud.com) reverse-geocoding API instead,
    sending the same ~1 km rounded coordinates plus the device's interface
