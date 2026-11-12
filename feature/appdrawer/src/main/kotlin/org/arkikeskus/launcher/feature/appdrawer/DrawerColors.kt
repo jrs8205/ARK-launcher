@@ -17,7 +17,6 @@ import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
 import org.arkikeskus.launcher.ui.READABLE_TEXT
 import org.arkikeskus.launcher.ui.contrastRatio
 import org.arkikeskus.launcher.ui.darkReadsBetter
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.toExpressive
 import org.arkikeskus.launcher.ui.readableOn
@@ -152,7 +151,7 @@ internal fun drawerExpressivePalette(
         faint = base.text.copy(alpha = FAINT_TEXT).compositeOver(card),
         btn = onBackground.copy(alpha = 0.07f),
         // The accent (result text, titles, icon tints) vanished on a red or orange card (1.0:1): pushed toward the text.
-        accent = readableOn(Accent, card, base.text),
+        accent = readableOn(base.fill, card, base.text),
     )
 }
 

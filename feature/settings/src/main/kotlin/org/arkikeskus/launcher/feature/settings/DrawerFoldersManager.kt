@@ -17,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,7 +28,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -42,8 +40,7 @@ import org.arkikeskus.launcher.data.DrawerFolder
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
-import org.arkikeskus.launcher.ui.expressive.Accent
-import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.ExpressiveSwitch
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
 internal const val FOLDER_MANAGER_FOLDER_ROW_TAG = "folder-manager-folder"
@@ -235,7 +232,7 @@ private fun FolderPage(
                         color = p.text,
                         fontSize = 16.sp,
                     )
-                    Switch(checked = member, onCheckedChange = null, colors = expressiveSwitchColors(p))
+                    ExpressiveSwitch(checked = member, onCheckedChange = null)
                 }
             }
         }
@@ -263,13 +260,3 @@ private fun FolderPage(
         )
     }
 }
-
-@Composable
-private fun expressiveSwitchColors(p: ExpressivePalette) = SwitchDefaults.colors(
-    checkedTrackColor = Accent,
-    checkedThumbColor = Color.White,
-    checkedBorderColor = Accent,
-    uncheckedTrackColor = p.trackOff,
-    uncheckedThumbColor = p.thumbOff,
-    uncheckedBorderColor = p.trackOff,
-)

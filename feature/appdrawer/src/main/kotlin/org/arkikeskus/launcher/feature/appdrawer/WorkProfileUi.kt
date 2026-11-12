@@ -22,7 +22,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,7 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.ui.LauncherIcons
-import org.arkikeskus.launcher.ui.expressive.Accent
+import org.arkikeskus.launcher.ui.expressive.expressiveButtonColors
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -81,7 +80,7 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
                     .fillMaxHeight()
                     .heightIn(min = 40.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (isSelected) Accent else Color.Transparent)
+                    .background(if (isSelected) palette.fill else Color.Transparent)
                     .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
                 contentAlignment = Alignment.Center,
             ) {
@@ -89,7 +88,7 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
                     text = stringResource(
                         if (tab == DrawerTab.Personal) R.string.drawer_tab_personal else R.string.drawer_tab_work,
                     ),
-                    color = if (isSelected) Color.White else palette.text,
+                    color = if (isSelected) palette.onFill else palette.text,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
@@ -177,7 +176,7 @@ internal fun PauseWorkAppsButton(enabled: Boolean, onClick: () -> Unit, modifier
         onClick = onClick,
         enabled = enabled,
         shape = RoundedCornerShape(24.dp),
-        colors = accentButtonColors(),
+        colors = expressiveButtonColors(),
         modifier = modifier.heightIn(min = PauseButtonMinHeight),
     ) {
         Icon(painter = painterResource(LauncherIcons.Work), contentDescription = null, modifier = Modifier.size(20.dp))
@@ -236,7 +235,7 @@ internal fun WorkPausedCard(canPause: Boolean, enabled: Boolean, onUnpause: () -
                         onClick = onUnpause,
                         enabled = enabled,
                         shape = RoundedCornerShape(24.dp),
-                        colors = accentButtonColors(),
+                        colors = expressiveButtonColors(),
                     ) {
                         Text(stringResource(R.string.work_apps_unpause))
                     }
@@ -246,11 +245,3 @@ internal fun WorkPausedCard(canPause: Boolean, enabled: Boolean, onUnpause: () -
         }
     }
 }
-
-@Composable
-private fun accentButtonColors() = ButtonDefaults.buttonColors(
-    containerColor = Accent,
-    contentColor = Color.White,
-    disabledContainerColor = Accent.copy(alpha = 0.5f),
-    disabledContentColor = Color.White.copy(alpha = 0.7f),
-)

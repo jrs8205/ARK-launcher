@@ -31,8 +31,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,7 +54,7 @@ import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
-import org.arkikeskus.launcher.ui.expressive.Accent
+import org.arkikeskus.launcher.ui.expressive.ExpressiveSwitch
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
@@ -194,19 +192,7 @@ internal fun SwitchRow(
                 Text(description, color = p.dim, fontSize = 12.5.sp)
             }
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedTrackColor = Accent,
-                checkedThumbColor = Color.White,
-                checkedBorderColor = Accent,
-                uncheckedTrackColor = p.trackOff,
-                uncheckedThumbColor = p.thumbOff,
-                uncheckedBorderColor = p.trackOff,
-            ),
-        )
+        ExpressiveSwitch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
 
@@ -266,7 +252,7 @@ internal val COLOR_SWATCHES: List<Int> = listOf(
 /** A test tag per swatch, by its colour. */
 internal fun colorSwatchTag(argb: Int): String = "color-swatch-%06X".format(argb and 0xFFFFFF)
 
-/** One round colour swatch; the chosen one wears the accent ring. Disabled ([enabled] false) it fades and takes no taps. */
+/** One round colour swatch; the chosen one wears a ring of the fill. Disabled ([enabled] false) it fades and takes no taps. */
 @Composable
 internal fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
@@ -279,7 +265,7 @@ internal fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, 
             .background(Color(argb).copy(alpha = fade))
             .border(
                 width = if (selected) 3.dp else 1.dp,
-                color = (if (selected) Accent else p.faint).copy(alpha = fade),
+                color = (if (selected) p.fill else p.faint).copy(alpha = fade),
                 shape = CircleShape,
             )
             .testTag(colorSwatchTag(argb))

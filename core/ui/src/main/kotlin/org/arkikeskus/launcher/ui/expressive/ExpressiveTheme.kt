@@ -12,9 +12,6 @@ import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
 import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 
-/** Warm-orange accent shared by the settings page and the drawer search results. */
-val Accent = Color(0xFFE2714A)
-
 /**
  * The colours of the hand-made surfaces (Settings, the app drawer, the long-press menus): a view of
  * the base palette ([toExpressive]) under the names those screens have always used.
@@ -32,13 +29,13 @@ data class ExpressivePalette(
     /** The accent as a FOREGROUND on [bg] and [surfaceHi] (titles, result text, icon tints): the fill where it reads
      *  as text, pushed toward the text where it does not (and again on a chosen drawer colour whose cards it would
      *  vanish on, see the drawer's palette). Filled surfaces take [fill] with [onFill] on it. */
-    val accent: Color = Accent,
+    val accent: Color,
     /** A switch that is on, a filled button, the selected tab, an icon chip; and what is drawn on it. */
-    val fill: Color = Accent,
-    val onFill: Color = Color.White,
+    val fill: Color,
+    val onFill: Color,
     /** A search field, a tonal button, a menu item; and what is drawn on it. */
-    val container: Color = surfaceHi,
-    val onContainer: Color = text,
+    val container: Color,
+    val onContainer: Color,
 )
 
 /** The base palette under the hand-made surfaces' names. */

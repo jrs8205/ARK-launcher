@@ -9,16 +9,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import org.arkikeskus.launcher.ui.expressive.Accent
+import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 
-/** A round contact avatar: the photo when available, otherwise an initial on an accent circle. */
+/** A round contact avatar: the photo when available, otherwise an initial on a circle of the fill, in the
+ *  fill's content colour. Read from the theme root's palette: the avatar is on the home screen too. */
 @Composable
 fun ContactAvatar(name: String, photoUri: String?, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     if (!photoUri.isNullOrEmpty()) {
@@ -29,13 +29,14 @@ fun ContactAvatar(name: String, photoUri: String?, modifier: Modifier = Modifier
             modifier = modifier.size(size).clip(CircleShape),
         )
     } else {
+        val palette = currentBasePalette()
         Box(
-            modifier = modifier.size(size).clip(CircleShape).background(Accent.copy(alpha = 0.85f)),
+            modifier = modifier.size(size).clip(CircleShape).background(palette.fill),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = initialOf(name),
-                color = Color.White, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Medium,
+                color = palette.onFill, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.Medium,
             )
         }
     }

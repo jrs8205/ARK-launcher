@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.component.NotificationBadge
-import org.arkikeskus.launcher.ui.expressive.Accent
 
 /** Settings > Notifications: the badges on the icons, with a preview. */
 @Composable
@@ -56,7 +56,7 @@ private fun BadgePreview(icon: ImageBitmap?, showDots: Boolean, showCount: Boole
         if (icon != null) {
             Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(56.dp))
         } else {
-            Box(Modifier.size(56.dp).background(Accent, RoundedCornerShape(14.dp)))
+            Box(Modifier.size(56.dp).background(LocalExpressivePalette.current.fill, RoundedCornerShape(14.dp)))
         }
         if (showDots) {
             NotificationBadge(count = 5, showCount = showCount, scale = scale)

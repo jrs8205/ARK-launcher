@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,7 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import org.arkikeskus.launcher.ui.expressive.Accent
+import org.arkikeskus.launcher.ui.expressive.expressiveSliderColors
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import kotlin.math.roundToInt
 
@@ -113,13 +112,7 @@ internal fun ScaleSliderRow(
                 onValueChangeFinished = { feltBase = null },
                 valueRange = valueRange,
                 steps = scaleSliderSteps(valueRange, step),
-                colors = SliderDefaults.colors(
-                    thumbColor = Accent,
-                    activeTrackColor = Accent,
-                    inactiveTrackColor = p.trackOff,
-                    activeTickColor = Accent,
-                    inactiveTickColor = p.trackOff,
-                ),
+                colors = expressiveSliderColors(),
             )
             // Below the slider, so its appearance never moves the thumb away from the finger.
             if (shown != valueText(default)) {

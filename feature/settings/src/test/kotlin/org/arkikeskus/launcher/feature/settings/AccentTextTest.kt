@@ -14,7 +14,6 @@ import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
 import org.arkikeskus.launcher.designsystem.theme.basePalette
-import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.junit.Rule
 import org.junit.Test
@@ -52,7 +51,7 @@ class AccentTextTest {
     }
 
     @Test fun theLightAccentIsNotTheBareOrange() {
-        assertThat(light.accent).isNotEqualTo(Accent)
+        assertThat(light.accent).isNotEqualTo(light.fill)
     }
 
     @Test fun aChoiceDialogsChosenOptionAndItsCloseButton() {

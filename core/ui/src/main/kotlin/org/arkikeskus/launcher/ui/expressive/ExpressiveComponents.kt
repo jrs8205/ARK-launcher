@@ -9,7 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SliderColors
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchColors
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -77,3 +84,54 @@ fun ExpressiveActionRow(
         )
     }
 }
+
+/** A switch's colours on the hand-made surfaces: the fill when on, with the fill's own content colour as the thumb
+ *  (white on most colours, dark on a light fill such as yellow); off, it is told by its thumb, not by its track. */
+@Composable
+fun expressiveSwitchColors(palette: ExpressivePalette = LocalExpressivePalette.current): SwitchColors =
+    SwitchDefaults.colors(
+        checkedTrackColor = palette.fill,
+        checkedThumbColor = palette.onFill,
+        checkedBorderColor = palette.fill,
+        uncheckedTrackColor = palette.trackOff,
+        uncheckedThumbColor = palette.thumbOff,
+        uncheckedBorderColor = palette.trackOff,
+    )
+
+/** The one switch of Settings and the drawer's managers. */
+@Composable
+fun ExpressiveSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = expressiveSwitchColors(),
+    )
+}
+
+/** A filled button: the fill with its content colour on it; disabled, both fade. */
+@Composable
+fun expressiveButtonColors(palette: ExpressivePalette = LocalExpressivePalette.current): ButtonColors =
+    ButtonDefaults.buttonColors(
+        containerColor = palette.fill,
+        contentColor = palette.onFill,
+        disabledContainerColor = palette.fill.copy(alpha = 0.5f),
+        disabledContentColor = palette.onFill.copy(alpha = 0.7f),
+    )
+
+/** A slider drawn in the fill. Its step ticks take their track's colour, so they do not show. */
+@Composable
+fun expressiveSliderColors(palette: ExpressivePalette = LocalExpressivePalette.current): SliderColors =
+    SliderDefaults.colors(
+        thumbColor = palette.fill,
+        activeTrackColor = palette.fill,
+        inactiveTrackColor = palette.trackOff,
+        activeTickColor = palette.fill,
+        inactiveTickColor = palette.trackOff,
+    )
