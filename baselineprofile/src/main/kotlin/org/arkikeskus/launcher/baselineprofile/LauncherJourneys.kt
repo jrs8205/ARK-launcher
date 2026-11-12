@@ -104,13 +104,21 @@ internal fun MacrobenchmarkScope.openSettingsAndBack() {
     device.waitForIdle()
     device.swipe(x, top, x, bottom, SWIPE_STEPS)
     device.waitForIdle()
-    // A category row is one node whose text starts with the category's name (its summary follows);
-    // its page has no "Settings" title, and its first row is the grid's column count.
+    // A category row carries the category's name as a text (its summary follows); its page has no
+    // "Settings" title, and its first row is the grid's column count. The flick back up ends in the
+    // stretch at the page's top edge, and a tap that lands while the page is still settling there only
+    // stops it, as a finger's would: the scroll container takes the touch and the row sees no click.
+    // waitForIdle does not wait the stretch out, so the tap is repeated until the page opens.
     val category = By.textStartsWith(appString(packageName, "settings_home"))
     check(device.wait(Until.hasObject(category), WAIT_MS)) { "the Home screen category is not on the main page" }
-    device.findObject(category).click()
     val firstRow = By.text(appString(packageName, "settings_columns"))
-    check(device.wait(Until.hasObject(firstRow), WAIT_MS)) { "the Home screen page did not open" }
+    var opened = false
+    for (attempt in 1..TAP_ATTEMPTS) {
+        device.findObject(category)?.click()
+        opened = device.wait(Until.hasObject(firstRow), TAP_WAIT_MS)
+        if (opened) break
+    }
+    check(opened) { "the Home screen page did not open" }
     device.waitForIdle()
     device.swipe(x, bottom, x, top, SWIPE_STEPS)
     device.waitForIdle()
@@ -158,3 +166,7 @@ internal fun appString(packageName: String, name: String): String {
 
 /** A still press of about 600 ms: past any long-press delay the launcher offers. */
 private const val LONG_PRESS_STEPS = 120
+
+/** A tap on a page that may still be settling: how often it is tried, and how long each try waits. */
+private const val TAP_ATTEMPTS = 4
+private const val TAP_WAIT_MS = 1_000L
