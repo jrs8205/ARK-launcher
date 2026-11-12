@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
+import kotlin.math.abs
 
 /** What a palette is computed from: one hue of the colour circle, or no colour at all. */
 sealed interface PaletteSeed {
@@ -155,3 +156,34 @@ private fun mono(dark: Boolean): BasePalette {
 
 private val DarkError = Color(0xFFFFB4AB)
 private val LightError = Color(0xFFBA1A1A)
+
+/** Below this saturation, or this close to black or white, a colour has no hue worth following. */
+private const val COLOURLESS_SATURATION = 0.12f
+private const val NEARLY_BLACK = 0.08f
+private const val NEARLY_WHITE = 0.95f
+
+/**
+ * The seed the Chameleon choice gives for the wallpaper's main colour [wallpaperArgb]: its hue at
+ * the presets' strength, whatever the wallpaper's own saturation, so the result is as vivid as the
+ * other choices. A wallpaper without colour (grey, nearly black, nearly white, fully transparent)
+ * and a wallpaper that reports none give the monochrome look, never a hue picked from noise.
+ */
+fun chameleonSeed(wallpaperArgb: Int?): PaletteSeed {
+    if (wallpaperArgb == null || (wallpaperArgb ushr 24) == 0) return PaletteSeed.Mono
+    val r = ((wallpaperArgb shr 16) and 0xFF) / 255f
+    val g = ((wallpaperArgb shr 8) and 0xFF) / 255f
+    val b = (wallpaperArgb and 0xFF) / 255f
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val delta = max - min
+    val lightness = (max + min) / 2f
+    if (lightness < NEARLY_BLACK || lightness > NEARLY_WHITE) return PaletteSeed.Mono
+    val saturation = delta / (1f - abs(2f * lightness - 1f))
+    if (saturation < COLOURLESS_SATURATION) return PaletteSeed.Mono
+    val sector = when (max) {
+        r -> (g - b) / delta
+        g -> (b - r) / delta + 2f
+        else -> (r - g) / delta + 4f
+    }
+    return PaletteSeed.Hue(((sector * 60f) + 360f) % 360f)
+}
