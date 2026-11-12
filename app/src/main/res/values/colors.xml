@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="splash_background">#1B53C0</color>
+    <!-- Neutral, not the base colour: the splash is drawn before any code can read the user's choice. -->
+    <color name="splash_background">#FAFAFA</color>
 </resources>

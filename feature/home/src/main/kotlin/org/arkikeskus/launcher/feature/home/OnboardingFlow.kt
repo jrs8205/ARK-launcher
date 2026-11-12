@@ -62,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 import org.arkikeskus.launcher.ui.CoverSystemBars
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -79,6 +80,13 @@ private val AURORA_AMBER = Color(0xFFB5530F)
  * caller flip the contact-search setting on when READ_CONTACTS is granted here, and
  * [onPhoneGranted] lets it restart the telephony callbacks so the signal label appears right away.
  */
+/** The intro is drawn for its own aurora, but its buttons are the launcher's: the base colour's fill with the
+ *  fill's content colour on it (their labels inherit it). */
+@Composable
+private fun introButtonColors() = currentBasePalette().let { palette ->
+    ButtonDefaults.buttonColors(containerColor = palette.fill, contentColor = palette.onFill)
+}
+
 @Composable
 fun OnboardingFlow(
     onFinish: () -> Unit,
@@ -155,12 +163,9 @@ fun OnboardingFlow(
                 Spacer(Modifier.weight(1f))
                 Button(
                     onClick = { if (page < 2) page++ else onFinish() },
-                    colors = ButtonDefaults.buttonColors(containerColor = AURORA_BLUE),
+                    colors = introButtonColors(),
                 ) {
-                    Text(
-                        stringResource(if (page < 2) R.string.onboarding_next else R.string.onboarding_finish),
-                        color = Color.White,
-                    )
+                    Text(stringResource(if (page < 2) R.string.onboarding_next else R.string.onboarding_finish))
                 }
             }
         }
@@ -237,9 +242,9 @@ private fun WelcomePage() {
         } else {
             Button(
                 onClick = { runCatching { setDefault.launch(DefaultLauncher.requestIntent(context)) } },
-                colors = ButtonDefaults.buttonColors(containerColor = AURORA_BLUE),
+                colors = introButtonColors(),
             ) {
-                Text(stringResource(R.string.onboarding_set_default), color = Color.White)
+                Text(stringResource(R.string.onboarding_set_default))
             }
         }
     }
@@ -410,9 +415,9 @@ private fun PermissionsPage(onContactsGranted: () -> Unit, onPhoneGranted: () ->
                     )
                     permissionsLauncher.launch(perms)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = AURORA_BLUE),
+                colors = introButtonColors(),
             ) {
-                Text(stringResource(R.string.onboarding_grant_all), color = Color.White)
+                Text(stringResource(R.string.onboarding_grant_all))
             }
         }
     }

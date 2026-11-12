@@ -131,4 +131,5 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.datastore.preferences)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
 }
