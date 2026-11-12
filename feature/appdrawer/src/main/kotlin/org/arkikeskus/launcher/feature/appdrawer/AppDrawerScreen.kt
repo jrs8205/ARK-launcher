@@ -336,6 +336,8 @@ fun AppDrawerScreen(
             app = app,
             anchor = anchor,
             preferAbove = preferAbove,
+            // The menu is its own window: handed the drawer's palette so it agrees with the drawer around it.
+            palette = LocalExpressivePalette.current,
             actions = listOfNotNull(
                 PopupAction(stringResource(R.string.app_info), LauncherIcons.Info) { AppActions.openAppInfo(context, app) },
                 PopupAction(stringResource(R.string.rename), LauncherIcons.Edit) { renameTarget = app },

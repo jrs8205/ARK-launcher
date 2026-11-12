@@ -144,6 +144,15 @@ internal fun drawerExpressivePalette(
     val toward = onBackground.copy(alpha = CARD_TINT).compositeOver(background)
     val card = if (contrastRatio(base.text.luminance(), toward.luminance()) >= READABLE_TEXT) toward
     else (if (textIsDark) Color.White else Color.Black).copy(alpha = CARD_TINT).compositeOver(background)
+    // The base colour gives only the fills here. One that would sink into the drawer's own colour (an orange fill on
+    // an orange drawer) is moved toward the text until it stands out from the page and from a card as a control;
+    // what is drawn on it follows by contrast.
+    val fill = standingOut(base.fill, listOf(background, card), toward = onBackground)
+    val onFill = when {
+        contrastRatio(base.onFill.luminance(), fill.luminance()) >= READABLE_TEXT -> base.onFill
+        darkReadsBetter(fill.luminance()) -> Color.Black
+        else -> Color.White
+    }
     return base.copy(
         bg = background,
         surfaceHi = card,
@@ -151,8 +160,26 @@ internal fun drawerExpressivePalette(
         faint = base.text.copy(alpha = FAINT_TEXT).compositeOver(card),
         btn = onBackground.copy(alpha = 0.07f),
         // The accent (result text, titles, icon tints) vanished on a red or orange card (1.0:1): pushed toward the text.
-        accent = readableOn(base.fill, card, base.text),
+        accent = readableOn(fill, card, base.text),
+        fill = fill,
+        onFill = onFill,
+        // The fields and the menu items are the drawer's own cards, not the base colour's containers.
+        container = card,
+        onContainer = base.text,
     )
+}
+
+/** What a control needs against what it sits on (WCAG AA for what is not text). */
+private const val STANDS_OUT = 3f
+
+/** [colour], or [colour] blended toward [toward] in twentieths until it stands [STANDS_OUT] from every one of
+ *  [surfaces]; [toward] itself (the text colour, which reads on them) when nothing short of it does. */
+private fun standingOut(colour: Color, surfaces: List<Color>, toward: Color): Color {
+    for (step in 0..20) {
+        val candidate = if (step == 0) colour else toward.copy(alpha = step / 20f).compositeOver(colour)
+        if (surfaces.all { contrastRatio(candidate.luminance(), it.luminance()) >= STANDS_OUT }) return candidate
+    }
+    return toward
 }
 
 /** How much of the text colour (or its opposite) tints the drawer's colour into its cards and fields. */

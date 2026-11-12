@@ -107,6 +107,9 @@ fun AppActionPopup(
     onWidgets: (() -> Unit)? = null,
     hasWidgets: (suspend (AppItem) -> Boolean)? = null,
     held: Boolean = false,
+    /** The palette of the surface the menu opens from when that is not the theme root's (the app drawer with the
+     *  user's own colour); null = the theme root's. */
+    palette: ExpressivePalette? = null,
 ) {
     val context = LocalContext.current
     // Null = still being asked for; the card waits for both (or the wait below) before it shows.
@@ -132,7 +135,9 @@ fun AppActionPopup(
         return
     }
 
-    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held) {
+    AnchoredPopupCard(
+        anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held, palette = palette,
+    ) {
         shortcuts.orEmpty().forEach { shortcut ->
             ShortcutPopupRow(
                 label = shortcut.label,
@@ -181,8 +186,12 @@ fun IconMenuPopup(
     preferAbove: Boolean,
     items: List<IconMenuItem>,
     onDismiss: () -> Unit,
+    /** As in [AppActionPopup]: the opening surface's own palette, null = the theme root's. */
+    palette: ExpressivePalette? = null,
 ) {
-    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, showCaret = false) {
+    AnchoredPopupCard(
+        anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, showCaret = false, palette = palette,
+    ) {
         items.forEach { item ->
             Row(
                 modifier = Modifier
@@ -230,8 +239,8 @@ fun AnchoredPopupCard(
     showCaret: Boolean = true,
     blockTouches: Boolean = false,
     width: Dp = CARD_WIDTH,
-    /** The palette the card and its content take: the caller's own (the drawer's, following the user's colour) --
-     *  the popup is its own window, so the caller's ambient palette does not reach it by itself; null = the system's. */
+    /** The palette the card and its content take: the caller's own (the drawer's, following the user's colour);
+     *  null = the theme root's base colour, which reaches the popup's window by itself. */
     palette: ExpressivePalette? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
