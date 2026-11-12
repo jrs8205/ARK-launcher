@@ -32,6 +32,8 @@ import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.READABLE_TEXT
 import org.arkikeskus.launcher.ui.contrastRatio
+import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
+import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.junit.Rule
@@ -56,14 +58,14 @@ import kotlin.math.abs
 class SettingRowMarkTest {
     @get:Rule val compose = createComposeRule()
 
-    private val light = settingsPalette(dark = false)
+    private val light = settingsPalette(basePalette(DefaultPaletteSeed, dark = false))
     private val res = RuntimeEnvironment.getApplication().resources
 
     private fun near(a: Color, b: Color) =
         abs(a.red - b.red) < 0.02f && abs(a.green - b.green) < 0.02f && abs(a.blue - b.blue) < 0.02f
 
     private fun theMarkLeavesTheCardUnderTheTextAlone(dark: Boolean) {
-        val palette = settingsPalette(dark)
+        val palette = settingsPalette(basePalette(DefaultPaletteSeed, dark))
         val jumps = SettingJumps().apply { target = "G4" }
         compose.mainClock.autoAdvance = false
         compose.setContent {

@@ -51,6 +51,8 @@ class AnchoredPopupCardPaletteTest {
             }
         }
         compose.onNodeWithText("inside").assertIsDisplayed()
-        assertThat(seen).isSameInstanceAs(LightExpressivePalette)
+        // The palette is computed from the base colour now, so it is the same VALUE, not the same object.
+        assertThat(seen).isEqualTo(LightExpressivePalette)
+        assertThat(seen).isNotEqualTo(DarkExpressivePalette)
     }
 }

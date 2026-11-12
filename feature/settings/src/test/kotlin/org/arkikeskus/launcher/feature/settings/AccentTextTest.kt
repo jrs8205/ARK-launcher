@@ -12,6 +12,8 @@ import androidx.compose.ui.text.TextLayoutResult
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
+import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.junit.Rule
@@ -30,7 +32,7 @@ import org.robolectric.annotation.Config
 class AccentTextTest {
     @get:Rule val compose = createComposeRule()
     private val res = RuntimeEnvironment.getApplication().resources
-    private val light = settingsPalette(dark = false)
+    private val light = settingsPalette(basePalette(DefaultPaletteSeed, dark = false))
 
     private fun show(content: @Composable () -> Unit) {
         compose.setContent { CompositionLocalProvider(LocalExpressivePalette provides light) { Column { content() } } }

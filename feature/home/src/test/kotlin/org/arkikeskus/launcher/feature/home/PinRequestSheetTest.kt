@@ -14,7 +14,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import com.google.common.truth.Truth.assertThat
+import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
+import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,7 +39,7 @@ class PinRequestSheetTest {
 
     private fun show(state: PinRequestUiState, darkTheme: Boolean = false) {
         compose.setContent {
-            LauncherTheme(darkTheme = darkTheme) {
+            LauncherTheme(palette = basePalette(DefaultPaletteSeed, darkTheme)) {
                 PinRequestSheet(state = state, onAdd = { added++ }, onCancel = { cancelled++ })
             }
         }

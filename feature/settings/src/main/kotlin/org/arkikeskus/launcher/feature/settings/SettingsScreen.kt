@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -34,6 +33,7 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
+import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
 /** The launcher's Settings: the view model's state handed to [SettingsContent], which is the page. */
@@ -137,7 +137,7 @@ internal fun SettingsContent(
         jumps.target = jumps.resolve(asked)
         pendingJump = null
     }
-    val palette = settingsPalette(isSystemInDarkTheme())
+    val palette = settingsPalette(currentBasePalette())
 
     CompositionLocalProvider(
         LocalExpressivePalette provides palette,

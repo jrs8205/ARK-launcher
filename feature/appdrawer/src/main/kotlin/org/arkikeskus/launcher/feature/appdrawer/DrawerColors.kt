@@ -1,15 +1,16 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
+import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 import org.arkikeskus.launcher.ui.expressive.DarkExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.ExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.LightExpressivePalette
@@ -18,6 +19,7 @@ import org.arkikeskus.launcher.ui.contrastRatio
 import org.arkikeskus.launcher.ui.darkReadsBetter
 import org.arkikeskus.launcher.ui.expressive.Accent
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.toExpressive
 import org.arkikeskus.launcher.ui.readableOn
 import org.arkikeskus.launcher.ui.shownLuminance
 
@@ -129,11 +131,17 @@ internal fun OpaqueDrawerSurface(content: @Composable () -> Unit) {
  * colour decides whatever the drawer's opacity: a yellow pill on a 10 % yellow drawer over a dark wallpaper keeps
  * dark text while the app labels around it are white.
  */
-internal fun drawerExpressivePalette(system: ExpressivePalette, background: Color?): ExpressivePalette {
+internal fun drawerExpressivePalette(
+    system: ExpressivePalette,
+    background: Color?,
+    /** The palette of the user's base colour for a dark or a light screen: the text family is picked by what the
+     *  chosen colour needs, not by the phone's mode. */
+    inMode: (dark: Boolean) -> ExpressivePalette = { if (it) DarkExpressivePalette else LightExpressivePalette },
+): ExpressivePalette {
     if (background == null) return system
     val textIsDark = drawerTextIsDark(background, opacity = 1f, behindLuminance = 0f)
     val onBackground = if (textIsDark) Color.Black else Color.White
-    val base = if (textIsDark) LightExpressivePalette else DarkExpressivePalette
+    val base = inMode(!textIsDark)
     val toward = onBackground.copy(alpha = CARD_TINT).compositeOver(background)
     val card = if (contrastRatio(base.text.luminance(), toward.luminance()) >= READABLE_TEXT) toward
     else (if (textIsDark) Color.White else Color.Black).copy(alpha = CARD_TINT).compositeOver(background)
@@ -160,7 +168,9 @@ private const val FAINT_TEXT = 0.5f
  *  the user's background colour ([drawerExpressivePalette]). */
 @Composable
 internal fun DrawerExpressiveTheme(background: Color?, content: @Composable () -> Unit) {
-    val system = if (isSystemInDarkTheme()) DarkExpressivePalette else LightExpressivePalette
-    val palette = drawerExpressivePalette(system, background)
+    val base = currentBasePalette()
+    val palette = remember(base, background) {
+        drawerExpressivePalette(base.toExpressive(), background) { dark -> base.inMode(dark).toExpressive() }
+    }
     CompositionLocalProvider(LocalExpressivePalette provides palette, content = content)
 }

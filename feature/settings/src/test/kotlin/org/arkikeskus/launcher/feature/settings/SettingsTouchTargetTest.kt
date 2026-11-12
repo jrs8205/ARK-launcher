@@ -20,6 +20,8 @@ import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
+import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.junit.Rule
 import org.junit.Test
@@ -42,7 +44,7 @@ class SettingsTouchTargetTest {
 
     private fun show(content: @Composable () -> Unit) {
         compose.setContent {
-            CompositionLocalProvider(LocalExpressivePalette provides settingsPalette(dark = false)) { Column { content() } }
+            CompositionLocalProvider(LocalExpressivePalette provides settingsPalette(basePalette(DefaultPaletteSeed, dark = false))) { Column { content() } }
         }
         compose.waitForIdle()
     }

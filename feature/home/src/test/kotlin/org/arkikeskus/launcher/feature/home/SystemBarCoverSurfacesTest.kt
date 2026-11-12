@@ -6,7 +6,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.google.common.truth.Truth.assertThat
+import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
+import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.LocalSystemBarCovers
 import org.arkikeskus.launcher.ui.SystemBarCovers
@@ -31,7 +33,7 @@ class SystemBarCoverSurfacesTest {
     private fun showPicker(dark: Boolean) {
         compose.setContent {
             CompositionLocalProvider(LocalSystemBarCovers provides covers) {
-                LauncherTheme(darkTheme = dark) {
+                LauncherTheme(palette = basePalette(DefaultPaletteSeed, dark)) {
                     WidgetPickerScreen(
                         dragController = WidgetDragController(HomeDragController()),
                         columns = 4,
@@ -62,7 +64,7 @@ class SystemBarCoverSurfacesTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             CompositionLocalProvider(LocalSystemBarCovers provides covers) {
-                LauncherTheme(darkTheme = false) {
+                LauncherTheme(palette = basePalette(DefaultPaletteSeed, dark = false)) {
                     OnboardingFlow(onFinish = {}, onContactsGranted = {}, onPhoneGranted = {}, modifier = Modifier.fillMaxSize())
                 }
             }
