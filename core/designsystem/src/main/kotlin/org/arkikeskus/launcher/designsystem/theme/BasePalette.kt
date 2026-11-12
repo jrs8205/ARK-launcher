@@ -22,10 +22,12 @@ sealed interface PaletteSeed {
  * icon chip) with [onFill] on it, and [container] (a search field, a tonal button, a menu item)
  * with [onContainer]. [background] and [card] carry a tint of the same hue; [text] and [dim] are
  * what is read on them, [faint] only decorates. A switch that is off is told by its [offThumb],
- * not by its [track].
+ * not by its [track]. [seed] is what the palette was really made from (the hue wrapped into the
+ * circle, the strength clamped), so the same colour can be had in the other mode ([inMode]).
  */
 @Immutable
 data class BasePalette(
+    val seed: PaletteSeed,
     val dark: Boolean,
     val background: Color,
     val card: Color,
@@ -39,7 +41,15 @@ data class BasePalette(
     val container: Color,
     val onContainer: Color,
     val error: Color,
-)
+) {
+    /** The fill as text or an icon tint anywhere on the page or on a card: itself where it reads on
+     *  both, otherwise blended toward [text] just far enough that it does. */
+    val accentText: Color = readable(fill, text, listOf(background, card))
+
+    /** This colour for a [dark] or a light screen. The app drawer asks: it picks its palette by the
+     *  text its own background needs, which is not always the phone's mode. */
+    fun inMode(dark: Boolean): BasePalette = if (dark == this.dark) this else basePalette(seed, dark)
+}
 
 /** The WCAG contrast ratio of two opaque colours, 1 (the same) to 21 (black on white). */
 fun contrast(a: Color, b: Color): Float {
@@ -114,6 +124,7 @@ private fun tinted(hue: Float, saturation: Float, dark: Boolean): BasePalette {
     }
 
     return BasePalette(
+        seed = PaletteSeed.Hue(hue, saturation),
         dark = dark,
         background = background,
         card = card,
@@ -138,6 +149,7 @@ private fun mono(dark: Boolean): BasePalette {
     val text = grey(if (dark) 0.96f else 0.07f)
     val dim = grey(if (dark) 0.70f else 0.30f)
     return BasePalette(
+        seed = PaletteSeed.Mono,
         dark = dark,
         background = background,
         card = card,
