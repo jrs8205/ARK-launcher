@@ -75,7 +75,7 @@ fun basePalette(seed: PaletteSeed, dark: Boolean): BasePalette =
 fun BasePalette.accentTextOn(surface: Color): Color = readable(fill, text, listOf(surface))
 
 /** [fg], or [fg] blended toward [toward] in twentieths until it reads as text on every one of [surfaces]. */
-private fun readable(fg: Color, toward: Color, surfaces: List<Color>): Color {
+internal fun readable(fg: Color, toward: Color, surfaces: List<Color>): Color {
     for (step in 0..20) {
         val candidate = if (step == 0) fg else toward.copy(alpha = step / 20f).compositeOver(fg)
         if (surfaces.all { contrast(candidate, it) >= TEXT_CONTRAST }) return candidate
