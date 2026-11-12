@@ -121,6 +121,10 @@ class SettingsRepository @Inject constructor(
             fontFamily = (p[Keys.FONT_FAMILY] ?: LauncherSettings.FONT_DEFAULT).let {
                 if (it in LauncherSettings.FONTS) it else LauncherSettings.FONT_DEFAULT
             },
+            baseColour = (p[Keys.BASE_COLOUR] ?: LauncherSettings.BASE_COLOUR_DEFAULT).let {
+                if (it in LauncherSettings.BASE_COLOURS) it else LauncherSettings.BASE_COLOUR_DEFAULT
+            },
+            chameleonLastArgb = p[Keys.CHAMELEON_LAST_ARGB],
             infiniteScroll = p[Keys.INFINITE_SCROLL] ?: true,
             defaultReminderDismissed = p[Keys.DEFAULT_REMINDER_DISMISSED] ?: false,
             showNotificationDots = p[Keys.SHOW_NOTIF_DOTS] ?: true,
@@ -492,6 +496,14 @@ class SettingsRepository @Inject constructor(
 
     /** The launcher's font, one of [LauncherSettings.FONTS]; anything else reads back as the default. */
     suspend fun setFontFamily(font: String) = edit { it[Keys.FONT_FAMILY] = font }
+
+    /** The base colour, one of [LauncherSettings.BASE_COLOURS]; anything else reads back as the default. */
+    suspend fun setBaseColour(colour: String) = edit { it[Keys.BASE_COLOUR] = colour }
+
+    /** The wallpaper colour the Chameleon follows right now, remembered for the next start's first frame. */
+    suspend fun setChameleonLastArgb(argb: Int?) = edit {
+        if (argb == null) it.remove(Keys.CHAMELEON_LAST_ARGB) else it[Keys.CHAMELEON_LAST_ARGB] = argb
+    }
     suspend fun setInfiniteScroll(value: Boolean) = edit { it[Keys.INFINITE_SCROLL] = value }
     suspend fun setShowNotificationDots(value: Boolean) = edit { it[Keys.SHOW_NOTIF_DOTS] = value }
     suspend fun setNotificationDotCount(value: Boolean) = edit { it[Keys.NOTIF_DOT_COUNT] = value }
@@ -732,6 +744,7 @@ class SettingsRepository @Inject constructor(
             // The picked sounds' file permissions belong to this phone (see DEVICE_LOCAL_KEYS).
             val lockSound = prefs[Keys.LOCK_SOUND_URI]
             val unlockSound = prefs[Keys.UNLOCK_SOUND_URI]
+            val chameleonLastArgb = prefs[Keys.CHAMELEON_LAST_ARGB]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             // Gallery images are files on this phone (not in a backup): keep them for the apps, the
@@ -771,6 +784,7 @@ class SettingsRepository @Inject constructor(
             if (heldNotifications != null) prefs[Keys.PEOPLE_HELD] = heldNotifications
             if (lockSound != null) prefs[Keys.LOCK_SOUND_URI] = lockSound
             if (unlockSound != null) prefs[Keys.UNLOCK_SOUND_URI] = unlockSound
+            if (chameleonLastArgb != null) prefs[Keys.CHAMELEON_LAST_ARGB] = chameleonLastArgb
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
             for ((name, images) in localImages) {
                 if (images.isEmpty()) continue
@@ -837,6 +851,8 @@ class SettingsRepository @Inject constructor(
         val HOME_PAGE_MARKER = stringPreferencesKey("home_page_marker")
         val PAGE_SWITCH_SPEED = stringPreferencesKey("page_switch_speed")
         val FONT_FAMILY = stringPreferencesKey("font_family")
+        val BASE_COLOUR = stringPreferencesKey("base_colour")
+        val CHAMELEON_LAST_ARGB = intPreferencesKey("chameleon_last_argb")
         val INFINITE_SCROLL = booleanPreferencesKey("infinite_scroll")
         val FOLDER_SWIPE_FIRST_APP = booleanPreferencesKey("folder_swipe_first_app")
         val HIDE_HOME_APPS_FROM_DRAWER = booleanPreferencesKey("hide_home_apps_from_drawer")
@@ -991,6 +1007,7 @@ class SettingsRepository @Inject constructor(
             "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
             "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps", "weather_icon_style",
+            "base_colour",
         )
 
         /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */
@@ -1067,6 +1084,8 @@ class SettingsRepository @Inject constructor(
             // A picked lock/unlock sound is a content URI this phone holds a read grant for; another
             // phone could not play it.
             "lock_sound_uri", "unlock_sound_uri",
+            // The wallpaper is this phone's; the colour taken from it means nothing on another.
+            "chameleon_last_argb",
         )
     }
 }
