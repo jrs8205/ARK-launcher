@@ -1,0 +1,9 @@
+New
+- Settings open on a short main page of 13 categories, each with a page of its own.
+- A search field finds any setting by its name or description and opens its page at the row.
+- Reopening Settings within five minutes returns to the page that was open.
+
+Improved
+- Accent-coloured text in Settings reads better on the light theme.
+- Small controls in Settings take a full 48 dp touch.
+- The start is profiled again for this release.
