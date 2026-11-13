@@ -34,6 +34,7 @@
     <string name="search_no_results">Keine Ergebnisse gefunden</string>
     <string name="drawer_tab_personal">Privat</string>
     <string name="drawer_tab_work">Geschäftlich</string>
+    <string name="drawer_tab_private">Privat</string>
     <string name="work_apps_pause">Geschäftliche Apps pausieren</string>
     <string name="work_apps_unpause">Fortsetzen</string>
     <string name="work_apps_paused_title">Geschäftliche Apps sind pausiert</string>

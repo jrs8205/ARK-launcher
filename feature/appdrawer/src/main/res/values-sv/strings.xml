@@ -34,6 +34,7 @@
     <string name="search_no_results">Inga resultat hittades</string>
     <string name="drawer_tab_personal">Privat</string>
     <string name="drawer_tab_work">Jobb</string>
+    <string name="drawer_tab_private">Privat</string>
     <string name="work_apps_pause">Pausa jobbappar</string>
     <string name="work_apps_unpause">Återuppta</string>
     <string name="work_apps_paused_title">Jobbappar har pausats</string>

@@ -4,6 +4,7 @@ import android.os.Process
 import android.os.UserHandle
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.data.DrawerFolder
+import org.arkikeskus.launcher.data.PrivateSpace
 import org.arkikeskus.launcher.data.WorkProfile
 import org.arkikeskus.launcher.model.AppItem
 import org.junit.Test
@@ -119,9 +120,29 @@ class DrawerPartitionTest {
         assertThat(workTabVisible(WorkProfile(userSerial = 10, paused = false), listOf(slack))).isTrue()
     }
 
-    @Test fun effectiveTabFallsBackToPersonalWithoutAWorkTab() {
-        assertThat(effectiveTab(DrawerTab.Work, hasWorkTab = false)).isEqualTo(DrawerTab.Personal)
-        assertThat(effectiveTab(DrawerTab.Work, hasWorkTab = true)).isEqualTo(DrawerTab.Work)
-        assertThat(effectiveTab(DrawerTab.Personal, hasWorkTab = true)).isEqualTo(DrawerTab.Personal)
+    @Test fun theTabsAreTheOnesThatExistInTheirFixedOrder() {
+        assertThat(drawerTabs(hasWork = false, hasPrivate = false)).containsExactly(DrawerTab.Personal)
+        assertThat(drawerTabs(hasWork = true, hasPrivate = false)).containsExactly(DrawerTab.Personal, DrawerTab.Work).inOrder()
+        assertThat(drawerTabs(hasWork = false, hasPrivate = true)).containsExactly(DrawerTab.Personal, DrawerTab.Private).inOrder()
+        assertThat(drawerTabs(hasWork = true, hasPrivate = true))
+            .containsExactly(DrawerTab.Personal, DrawerTab.Work, DrawerTab.Private).inOrder()
+    }
+
+    @Test fun thePrivateTabExistsUnlessTheSpaceIsLockedAndHidden() {
+        fun space(locked: Boolean, hidden: Boolean) = PrivateSpace(userSerial = 12, locked = locked, hiddenWhenLocked = hidden)
+        assertThat(privateTabVisible(null)).isFalse()
+        assertThat(privateTabVisible(space(locked = true, hidden = false))).isTrue()
+        assertThat(privateTabVisible(space(locked = false, hidden = false))).isTrue()
+        assertThat(privateTabVisible(space(locked = false, hidden = true))).isTrue()
+        assertThat(privateTabVisible(space(locked = true, hidden = true))).isFalse()
+    }
+
+    @Test fun effectiveTabFallsBackToPersonalWhenItsTabIsNotThere() {
+        val personalAndWork = listOf(DrawerTab.Personal, DrawerTab.Work)
+        assertThat(effectiveTab(DrawerTab.Work, listOf(DrawerTab.Personal))).isEqualTo(DrawerTab.Personal)
+        assertThat(effectiveTab(DrawerTab.Work, personalAndWork)).isEqualTo(DrawerTab.Work)
+        assertThat(effectiveTab(DrawerTab.Personal, personalAndWork)).isEqualTo(DrawerTab.Personal)
+        assertThat(effectiveTab(DrawerTab.Private, personalAndWork)).isEqualTo(DrawerTab.Personal)
+        assertThat(effectiveTab(DrawerTab.Private, listOf(DrawerTab.Personal, DrawerTab.Private))).isEqualTo(DrawerTab.Private)
     }
 }

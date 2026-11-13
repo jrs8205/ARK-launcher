@@ -31,8 +31,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -313,6 +311,7 @@ fun AppDrawerScreen(
         gridState = gridState,
         workApps = uiState.workApps,
         workProfile = uiState.workProfile,
+        tabs = uiState.tabs,
         selectedTab = uiState.selectedTab,
         onSelectTab = viewModel::selectTab,
         onSetWorkPaused = viewModel::setWorkPaused,
@@ -488,6 +487,7 @@ private fun AppDrawerContent(
     gridState: LazyGridState,
     workApps: List<AppItem>,
     workProfile: WorkProfileUi?,
+    tabs: List<DrawerTab>,
     selectedTab: DrawerTab,
     onSelectTab: (DrawerTab) -> Unit,
     onSetWorkPaused: (Boolean) -> Unit,
@@ -732,31 +732,28 @@ private fun AppDrawerContent(
                     }
                 }
             }
-            // The stored tab goes back to Personal whenever the Work tab goes (profile removed, last
-            // work app hidden): the pager must not reopen on Work the next time the tab reappears.
-            val hasWorkTab = workProfile != null
-            LaunchedEffect(hasWorkTab) { if (!hasWorkTab) onSelectTab(DrawerTab.Personal) }
-            when {
-                searching -> DrawerGrid(gridState, 0.dp, searchContent)
-                // No Work tab: the drawer is exactly the 0.9.1 drawer.
-                workProfile == null -> DrawerGrid(gridState, 0.dp, idleContent)
-                else -> {
-                    // The pager owns the tab while it is on screen (PagerTabRow); the ViewModel
-                    // stores the page it rests on, which is where a pager rebuilt after a search
-                    // starts, and what the Work tab going (profile removed, last work app hidden)
-                    // resets to Personal.
-                    val pagerState = rememberPagerState(initialPage = selectedTab.ordinal) { DrawerTab.entries.size }
-                    PagerTabRow(pagerState, onSelectTab)
-                    HorizontalPager(
-                        state = pagerState,
-                        beyondViewportPageCount = 1,
-                        // A lifted icon must never start a page swipe under the finger.
-                        userScrollEnabled = !dragController.isDragging,
-                        modifier = Modifier.fillMaxSize(),
-                    ) { page ->
-                        when (DrawerTab.entries[page]) {
-                            DrawerTab.Personal -> DrawerGrid(gridState, 0.dp, idleContent)
-                            DrawerTab.Work -> WorkPage(
+            // The stored tab goes back to Personal whenever its tab goes (a profile removed, the last
+            // work app hidden), also while a search covers the pages: the pager must not reopen on
+            // that tab the next time it reappears. [selectedTab] is always one of [tabs].
+            LaunchedEffect(tabs) { onSelectTab(selectedTab) }
+            if (searching) {
+                DrawerGrid(gridState, 0.dp, searchContent)
+            } else {
+                // With only the Personal tab this is exactly the 0.9.1 drawer: no tab row, no pager.
+                // Otherwise the pager owns the tab while it is on screen (PagerTabRow); the ViewModel
+                // stores the page it rests on, which is where a pager rebuilt after a search starts.
+                DrawerTabPages(
+                    tabs = tabs,
+                    storedTab = selectedTab,
+                    onSelectTab = onSelectTab,
+                    privateLocked = false,
+                    // A lifted icon must never start a page swipe under the finger.
+                    userScrollEnabled = !dragController.isDragging,
+                ) { tab ->
+                    when (tab) {
+                        DrawerTab.Personal -> DrawerGrid(gridState, 0.dp, idleContent)
+                        DrawerTab.Work -> if (workProfile != null) {
+                            WorkPage(
                                 workProfile = workProfile,
                                 onSetWorkPaused = onSetWorkPaused,
                                 // The page reserves the floating button's measured height under the last row.
@@ -769,6 +766,8 @@ private fun AppDrawerContent(
                                 },
                             )
                         }
+                        // The page itself comes with the private space's own state.
+                        DrawerTab.Private -> Unit
                     }
                 }
             }

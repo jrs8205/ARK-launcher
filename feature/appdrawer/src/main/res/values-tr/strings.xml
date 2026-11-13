@@ -34,6 +34,7 @@
     <string name="search_no_results">Sonuç bulunamadı</string>
     <string name="drawer_tab_personal">Kişisel</string>
     <string name="drawer_tab_work">İş</string>
+    <string name="drawer_tab_private">Özel</string>
     <string name="work_apps_pause">İş uygulamalarını duraklat</string>
     <string name="work_apps_unpause">Devam ettir</string>
     <string name="work_apps_paused_title">İş uygulamaları duraklatıldı</string>

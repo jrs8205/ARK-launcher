@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -28,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -54,14 +58,24 @@ import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.PillShape
 
+/** The lock mark on the Private tab while the space is locked (a test finds it by this tag). */
+internal const val PRIVATE_TAB_LOCK_TAG = "private-tab-lock"
+
 /**
- * Personal / Work as two equal pill segments under the search field: the selected one is filled
- * with the drawer's accent, the other sits on the search pill's surface. Each segment is a tab for
+ * The [tabs] that exist as equal pill segments under the search field: the selected one is filled
+ * with the drawer's accent, the others sit on the search pill's surface. Each segment is a tab for
  * accessibility. The row is 40 dp but grows with its labels: at a large font size on a narrow
- * screen a label wraps to two lines, and a fixed height cut the second line off.
+ * screen a label wraps to two lines, and a fixed height cut the second line off. The Private tab
+ * carries a lock mark while the space is locked ([privateLocked]).
  */
 @Composable
-internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, modifier: Modifier = Modifier) {
+internal fun DrawerTabRow(
+    tabs: List<DrawerTab>,
+    selected: DrawerTab,
+    onSelect: (DrawerTab) -> Unit,
+    privateLocked: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val palette = LocalExpressivePalette.current
     Row(
         modifier = modifier
@@ -73,8 +87,9 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
             .background(palette.surfaceHi)
             .selectableGroup(),
     ) {
-        DrawerTab.entries.forEach { tab ->
+        tabs.forEach { tab ->
             val isSelected = tab == selected
+            val content = if (isSelected) palette.onFill else palette.text
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -85,16 +100,35 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
                     .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = stringResource(
-                        if (tab == DrawerTab.Personal) R.string.drawer_tab_personal else R.string.drawer_tab_work,
-                    ),
-                    color = if (isSelected) palette.onFill else palette.text,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
+                ) {
+                    if (tab == DrawerTab.Private && privateLocked) {
+                        Icon(
+                            painter = painterResource(LauncherIcons.Lock),
+                            contentDescription = null,
+                            tint = content,
+                            modifier = Modifier.size(16.dp).testTag(PRIVATE_TAB_LOCK_TAG),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = stringResource(
+                            when (tab) {
+                                DrawerTab.Personal -> R.string.drawer_tab_personal
+                                DrawerTab.Work -> R.string.drawer_tab_work
+                                DrawerTab.Private -> R.string.drawer_tab_private
+                            },
+                        ),
+                        color = content,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        // The mark keeps its size; the label takes what is left and wraps there.
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
             }
         }
     }
@@ -109,19 +143,66 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
  * rest reported the page it had reached, and the pager went back there over the tap; and a drag that
  * interrupted the animation and settled on the page it started from never reported at all, since
  * the settled page had not changed.
+ *
+ * The pager's pages are [tabs] in their order: page n is `tabs[n]`. A pager belongs to one list of
+ * tabs; when the list changes the caller builds a new one ([DrawerTabPages]).
  */
 @Composable
-internal fun PagerTabRow(pagerState: PagerState, onSelectTab: (DrawerTab) -> Unit, modifier: Modifier = Modifier) {
+internal fun PagerTabRow(
+    pagerState: PagerState,
+    tabs: List<DrawerTab>,
+    onSelectTab: (DrawerTab) -> Unit,
+    privateLocked: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val scope = rememberCoroutineScope()
     DrawerTabRow(
-        selected = DrawerTab.entries[pagerState.targetPage],
-        onSelect = { tab -> scope.launch { pagerState.animateScrollToPage(tab.ordinal) } },
+        tabs = tabs,
+        selected = tabs[pagerState.targetPage.coerceIn(0, tabs.lastIndex)],
+        onSelect = { tab -> scope.launch { pagerState.animateScrollToPage(tabs.indexOf(tab)) } },
+        privateLocked = privateLocked,
         modifier = modifier,
     )
-    LaunchedEffect(pagerState) {
+    LaunchedEffect(pagerState, tabs) {
         snapshotFlow { pagerState.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling) onSelectTab(DrawerTab.entries[pagerState.currentPage])
+            if (!scrolling) onSelectTab(tabs[pagerState.currentPage.coerceIn(0, tabs.lastIndex)])
         }
+    }
+}
+
+/**
+ * The idle drawer's pages for the [tabs] that exist. With only the Personal tab there is no tab row and no
+ * pager: the drawer is exactly the drawer of a phone without profiles. With more, the tab row sits over a
+ * pager whose page n is `tabs[n]`. [storedTab] is where a new pager starts; it is never pushed into a pager
+ * that is on screen ([PagerTabRow]). A stored tab that is not among [tabs] any more goes back to Personal,
+ * so that tab does not reopen by itself when it returns. Emits the row and the pager into the caller's column.
+ */
+@Composable
+internal fun DrawerTabPages(
+    tabs: List<DrawerTab>,
+    storedTab: DrawerTab,
+    onSelectTab: (DrawerTab) -> Unit,
+    privateLocked: Boolean,
+    userScrollEnabled: Boolean,
+    page: @Composable (DrawerTab) -> Unit,
+) {
+    LaunchedEffect(tabs) { if (storedTab !in tabs) onSelectTab(DrawerTab.Personal) }
+    if (tabs.size <= 1) {
+        page(DrawerTab.Personal)
+        return
+    }
+    // A page's number is its place in the list, so a pager that outlived a change of the list would show
+    // another tab under the same number: it is rebuilt, starting on the tab that was on screen (the stored
+    // one, which the pager reports every time it comes to rest), or on Personal when that tab is gone.
+    key(tabs) {
+        val pagerState = rememberPagerState(initialPage = tabs.indexOf(effectiveTab(storedTab, tabs))) { tabs.size }
+        PagerTabRow(pagerState, tabs, onSelectTab, privateLocked)
+        HorizontalPager(
+            state = pagerState,
+            beyondViewportPageCount = 1,
+            userScrollEnabled = userScrollEnabled,
+            modifier = Modifier.fillMaxSize(),
+        ) { index -> page(tabs[index]) }
     }
 }
 

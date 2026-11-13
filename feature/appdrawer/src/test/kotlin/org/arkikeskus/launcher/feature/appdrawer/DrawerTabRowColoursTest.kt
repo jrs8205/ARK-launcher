@@ -41,7 +41,7 @@ class DrawerTabRowColoursTest {
     @Test fun theSelectedTabsLabelIsTheFillsContentColourAndTheOtherIsText() {
         compose.setContent {
             CompositionLocalProvider(LocalExpressivePalette provides yellow) {
-                DrawerTabRow(selected = DrawerTab.Personal, onSelect = {})
+                DrawerTabRow(listOf(DrawerTab.Personal, DrawerTab.Work), selected = DrawerTab.Personal, onSelect = {}, privateLocked = false)
             }
         }
         assertThat(yellow.onFill).isNotEqualTo(Color.White)

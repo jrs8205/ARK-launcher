@@ -34,6 +34,7 @@
     <string name="search_no_results">Ничего не найдено</string>
     <string name="drawer_tab_personal">Личные</string>
     <string name="drawer_tab_work">Рабочие</string>
+    <string name="drawer_tab_private">Частные</string>
     <string name="work_apps_pause">Приостановить рабочие приложения</string>
     <string name="work_apps_unpause">Возобновить</string>
     <string name="work_apps_paused_title">Рабочие приложения приостановлены</string>

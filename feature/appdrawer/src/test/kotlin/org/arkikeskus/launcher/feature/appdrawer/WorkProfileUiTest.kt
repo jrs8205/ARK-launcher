@@ -10,6 +10,9 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.text.font.FontWeight
@@ -33,6 +36,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -54,9 +58,12 @@ class WorkProfileUiTest {
     @get:Rule val compose = createComposeRule()
 
     private fun hasRole(role: Role) = SemanticsMatcher.expectValue(SemanticsProperties.Role, role)
+    private val personalAndWork = listOf(DrawerTab.Personal, DrawerTab.Work)
+    private val allThree = listOf(DrawerTab.Personal, DrawerTab.Work, DrawerTab.Private)
+    private val personalAndPrivate = listOf(DrawerTab.Personal, DrawerTab.Private)
 
     @Test fun tabRowShowsPersonalAndWorkWithTabSemantics() {
-        compose.setContent { ExpressiveTheme { DrawerTabRow(selected = DrawerTab.Personal, onSelect = {}) } }
+        compose.setContent { ExpressiveTheme { DrawerTabRow(personalAndWork, selected = DrawerTab.Personal, onSelect = {}, privateLocked = false) } }
 
         compose.onNodeWithText("Personal").assert(hasRole(Role.Tab)).assertIsSelected()
         compose.onNodeWithText("Work").assert(hasRole(Role.Tab))
@@ -72,7 +79,7 @@ class WorkProfileUiTest {
             CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale = 2f)) {
                 ExpressiveTheme {
                     Column(Modifier.width(320.dp)) {
-                        DrawerTabRow(selected = DrawerTab.Personal, onSelect = {})
+                        DrawerTabRow(personalAndWork, selected = DrawerTab.Personal, onSelect = {}, privateLocked = false)
                         Box(Modifier.width(148.dp).testTag("probe")) {
                             Text("Professionnel", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                         }
@@ -91,7 +98,7 @@ class WorkProfileUiTest {
 
     @Test fun tappingWorkSelectsIt() {
         var selected: DrawerTab? = null
-        compose.setContent { ExpressiveTheme { DrawerTabRow(selected = DrawerTab.Personal, onSelect = { selected = it }) } }
+        compose.setContent { ExpressiveTheme { DrawerTabRow(personalAndWork, selected = DrawerTab.Personal, onSelect = { selected = it }, privateLocked = false) } }
 
         compose.onNodeWithText("Work").performClick()
 
@@ -100,15 +107,15 @@ class WorkProfileUiTest {
 
     private var selected = DrawerTab.Personal
 
-    /** The tab row over a two-page pager, on a paused clock; the stored tab lands in [selected]. */
-    private fun pausedTabPager(): PagerState {
+    /** The tab row over a pager of [tabs], on a paused clock; the stored tab lands in [selected]. */
+    private fun pausedTabPager(tabs: List<DrawerTab> = personalAndWork): PagerState {
         compose.mainClock.autoAdvance = false
         lateinit var pagerState: PagerState
         compose.setContent {
             ExpressiveTheme {
                 Column {
-                    pagerState = rememberPagerState { DrawerTab.entries.size }
-                    PagerTabRow(pagerState, onSelectTab = { selected = it })
+                    pagerState = rememberPagerState { tabs.size }
+                    PagerTabRow(pagerState, tabs, onSelectTab = { selected = it }, privateLocked = false)
                     HorizontalPager(pagerState, Modifier.size(320.dp, 400.dp).testTag("pager")) { Box(Modifier.fillMaxSize()) }
                 }
             }
@@ -117,8 +124,126 @@ class WorkProfileUiTest {
         return pagerState
     }
 
-    private fun tap(tab: DrawerTab) =
-        compose.onNodeWithText(if (tab == DrawerTab.Work) "Work" else "Personal").performClick()
+    private fun label(tab: DrawerTab) = when (tab) {
+        DrawerTab.Personal -> "Personal"
+        DrawerTab.Work -> "Work"
+        DrawerTab.Private -> "Private"
+    }
+
+    private fun tap(tab: DrawerTab) = compose.onNodeWithText(label(tab)).performClick()
+
+    // The tabs are the ones that exist right now, and a page's number is its place among them.
+
+    @Test fun threeTabsArePagedInTheirOrder() {
+        val pagerState = pausedTabPager(allThree)
+
+        tap(DrawerTab.Private)
+        compose.mainClock.advanceTimeBy(5_000)
+        assertThat(pagerState.currentPage).isEqualTo(2)
+        assertThat(selected).isEqualTo(DrawerTab.Private)
+        compose.onNodeWithText("Private").assert(hasRole(Role.Tab)).assertIsSelected()
+
+        tap(DrawerTab.Work)
+        compose.mainClock.advanceTimeBy(5_000)
+        assertThat(pagerState.currentPage).isEqualTo(1)
+        assertThat(selected).isEqualTo(DrawerTab.Work)
+    }
+
+    @Test fun withoutAWorkProfileThePrivateTabIsTheSecondPage() {
+        val pagerState = pausedTabPager(personalAndPrivate)
+        compose.onNodeWithText("Work").assertDoesNotExist()
+
+        tap(DrawerTab.Private)
+        compose.mainClock.advanceTimeBy(5_000)
+
+        assertThat(pagerState.currentPage).isEqualTo(1)
+        assertThat(selected).isEqualTo(DrawerTab.Private)
+    }
+
+    @Test fun thePrivateTabCarriesALockMarkOnlyWhileLocked() {
+        var locked by mutableStateOf(true)
+        compose.setContent {
+            ExpressiveTheme { DrawerTabRow(allThree, selected = DrawerTab.Personal, onSelect = {}, privateLocked = locked) }
+        }
+        compose.onNodeWithTag(PRIVATE_TAB_LOCK_TAG, useUnmergedTree = true).assertExists()
+
+        locked = false
+        compose.onNodeWithTag(PRIVATE_TAB_LOCK_TAG, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    /** The drawer's pages for a list of tabs that changes; each page says which tab it is. */
+    private fun pages(tabs: () -> List<DrawerTab>) {
+        compose.setContent {
+            ExpressiveTheme {
+                Column(Modifier.size(320.dp, 500.dp)) {
+                    DrawerTabPages(
+                        tabs = tabs(),
+                        storedTab = selected,
+                        onSelectTab = { selected = it },
+                        privateLocked = false,
+                        userScrollEnabled = true,
+                    ) { tab -> Box(Modifier.fillMaxSize()) { Text("page of ${label(tab)}") } }
+                }
+            }
+        }
+        compose.waitForIdle()
+    }
+
+    @Test fun withOnlyThePersonalTabThereIsNoTabRowAndNoPager() {
+        pages { listOf(DrawerTab.Personal) }
+
+        compose.onNodeWithText("page of Personal").assertIsDisplayed()
+        compose.onNode(hasRole(Role.Tab)).assertDoesNotExist()
+        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup)).assertDoesNotExist()
+        compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.HorizontalScrollAxisRange)).assertDoesNotExist()
+    }
+
+    @Test fun aTabThatGoesWhileItIsOnScreenLeavesThePersonalPage() {
+        var tabs by mutableStateOf(allThree)
+        pages { tabs }
+        tap(DrawerTab.Private)
+        compose.waitForIdle()
+        compose.onNodeWithText("page of Private").assertIsDisplayed()
+
+        // The private space locks with hiding on: its tab is gone.
+        tabs = personalAndWork
+        compose.waitForIdle()
+
+        compose.onNodeWithText("page of Personal").assertIsDisplayed()
+        compose.onNodeWithText("Personal").assertIsSelected()
+        compose.onNodeWithText("Private").assertDoesNotExist()
+        assertThat(selected).isEqualTo(DrawerTab.Personal)
+    }
+
+    @Test fun aTabThatAppearsToTheLeftLeavesThePageOnScreenAlone() {
+        var tabs by mutableStateOf(personalAndPrivate)
+        pages { tabs }
+        tap(DrawerTab.Private)
+        compose.waitForIdle()
+        compose.onNodeWithText("page of Private").assertIsDisplayed()
+
+        // A work profile appears: Private moves from the second page to the third.
+        tabs = allThree
+        compose.waitForIdle()
+
+        compose.onNodeWithText("page of Private").assertIsDisplayed()
+        compose.onNodeWithText("Private").assertIsSelected()
+        assertThat(selected).isEqualTo(DrawerTab.Private)
+    }
+
+    @Test fun theLastOtherTabGoingLeavesThePlainPersonalPage() {
+        var tabs by mutableStateOf(personalAndWork)
+        pages { tabs }
+        tap(DrawerTab.Work)
+        compose.waitForIdle()
+
+        tabs = listOf(DrawerTab.Personal)
+        compose.waitForIdle()
+
+        compose.onNodeWithText("page of Personal").assertIsDisplayed()
+        compose.onNode(hasRole(Role.Tab)).assertDoesNotExist()
+        assertThat(selected).isEqualTo(DrawerTab.Personal)
+    }
 
     @Test fun aTappedTabIsHighlightedAtOnceAndStoredOnceThePagerArrives() {
         val pagerState = pausedTabPager()

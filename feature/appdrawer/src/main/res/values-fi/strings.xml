@@ -34,6 +34,7 @@
     <string name="search_no_results">Ei hakutuloksia</string>
     <string name="drawer_tab_personal">Omat</string>
     <string name="drawer_tab_work">Työ</string>
+    <string name="drawer_tab_private">Yksityinen</string>
     <string name="work_apps_pause">Keskeytä työsovellukset</string>
     <string name="work_apps_unpause">Jatka</string>
     <string name="work_apps_paused_title">Työsovellukset on keskeytetty</string>

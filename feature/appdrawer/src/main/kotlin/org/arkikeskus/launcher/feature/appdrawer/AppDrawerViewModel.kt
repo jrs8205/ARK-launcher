@@ -62,7 +62,9 @@ data class AppDrawerUiState(
     val folderCandidates: List<AppItem> = emptyList(),
     /** Non-null only when the Work tab has something to show (see [workTabVisible]). */
     val workProfile: WorkProfileUi? = null,
-    /** The tab the pager shows; always Personal while [workProfile] is null. */
+    /** The tabs that exist right now ([drawerTabs]); only Personal on a phone without profiles. */
+    val tabs: List<DrawerTab> = listOf(DrawerTab.Personal),
+    /** The tab a new pager starts on; always one of [tabs]. */
     val selectedTab: DrawerTab = DrawerTab.Personal,
     val query: String = "",
     val columns: Int = 4,
@@ -280,9 +282,10 @@ class AppDrawerViewModel @Inject constructor(
             state.copy(frequentApps = ranked)
         }
     }.combine(selectedTabFlow) { state, tab ->
-        // A Work selection only means something while the Work tab exists: hiding the last work
-        // app, or the profile going, lands the pager on Personal.
-        state.copy(selectedTab = effectiveTab(tab, hasWorkTab = state.workProfile != null))
+        // A stored selection only means something while its tab exists: hiding the last work app,
+        // or the profile going, lands the pager on Personal.
+        val tabs = drawerTabs(hasWork = state.workProfile != null, hasPrivate = false)
+        state.copy(tabs = tabs, selectedTab = effectiveTab(tab, tabs))
     }.combine(drawerWallpaper.current) { state, wallpaper ->
         state.copy(wallpaper = wallpaper)
     }.stateIn(

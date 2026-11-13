@@ -1,11 +1,24 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
 import org.arkikeskus.launcher.data.DrawerFolder
+import org.arkikeskus.launcher.data.PrivateSpace
 import org.arkikeskus.launcher.data.WorkProfile
 import org.arkikeskus.launcher.model.AppItem
 
-/** The two pages of the idle drawer when a work profile has something to show. */
-enum class DrawerTab { Personal, Work }
+/** The pages the idle drawer can have, in their order on the tab row. Which of them exist right now is
+ *  [drawerTabs]: a page's number in the pager is its place in that list, never its place here. */
+enum class DrawerTab { Personal, Work, Private }
+
+/** The tabs that exist: Personal always, then Work and Private, each only when it has a page to show. */
+internal fun drawerTabs(hasWork: Boolean, hasPrivate: Boolean): List<DrawerTab> = buildList {
+    add(DrawerTab.Personal)
+    if (hasWork) add(DrawerTab.Work)
+    if (hasPrivate) add(DrawerTab.Private)
+}
+
+/** The Private tab exists when the device has a private space, unless the space is locked and its entry is
+ *  to stay out of sight while it is (the search row is the way in then). */
+internal fun privateTabVisible(space: PrivateSpace?): Boolean = space != null && !(space.locked && space.hiddenWhenLocked)
 
 /**
  * The idle drawer's lists. [personal] and [work] are the two flat A–Z grids (an app is in exactly
@@ -92,6 +105,6 @@ internal fun drawerEntries(folders: List<DrawerFolderUi>, apps: List<AppItem>, m
 internal fun workTabVisible(profile: WorkProfile?, work: List<AppItem>): Boolean =
     profile != null && (profile.paused || work.isNotEmpty())
 
-/** The tab the pager shows: a Work selection only means something while the Work tab exists. */
-internal fun effectiveTab(selected: DrawerTab, hasWorkTab: Boolean): DrawerTab =
-    if (hasWorkTab) selected else DrawerTab.Personal
+/** The tab the pager shows: a stored selection only means something while its tab exists. */
+internal fun effectiveTab(stored: DrawerTab, tabs: List<DrawerTab>): DrawerTab =
+    if (stored in tabs) stored else DrawerTab.Personal
