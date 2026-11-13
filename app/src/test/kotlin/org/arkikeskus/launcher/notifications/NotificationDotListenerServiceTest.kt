@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,16 +96,21 @@ class NotificationDotListenerServiceTest {
     private val own = ProfileSnapshot(0, ProfileKind.Own, badged = false, paused = false)
     private val repositoryScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
 
+    /** The platform's profiles as a test steers them: [list] is what a snapshot answers, [changed] a broadcast. */
+    private class Profiles(var list: List<ProfileSnapshot>) : ProfileSystem {
+        val changed = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+        override fun snapshot(): List<ProfileSnapshot> = list
+        override fun changes(): Flow<Unit> = changed
+        override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("unused")
+        override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
+        override fun privateInstallSender(serial: Long): android.content.IntentSender? = null
+        override fun privateSettingsTarget(): org.arkikeskus.launcher.data.PrivateSettingsTarget? = null
+    }
+
     /** The private space repository of a device with [profiles] (it reads them once, when it is made). */
-    private fun privateSpace(vararg profiles: ProfileSnapshot): PrivateSpaceRepository {
-        val system = object : ProfileSystem {
-            override fun snapshot(): List<ProfileSnapshot> = profiles.toList()
-            override fun changes(): Flow<Unit> = emptyFlow()
-            override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("unused")
-            override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
-            override fun privateInstallSender(serial: Long): android.content.IntentSender? = null
-            override fun privateSettingsTarget(): org.arkikeskus.launcher.data.PrivateSettingsTarget? = null
-        }
+    private fun privateSpace(vararg profiles: ProfileSnapshot): PrivateSpaceRepository = privateSpace(Profiles(profiles.toList()))
+
+    private fun privateSpace(system: ProfileSystem): PrivateSpaceRepository {
         val labels = AppLabelCache(object : AppLabelStore {
             override suspend fun read(locale: String): Map<String, String> = emptyMap()
             override suspend fun write(locale: String, labels: Map<String, String>) = Unit
@@ -319,6 +325,62 @@ class NotificationDotListenerServiceTest {
         assertThat(service.badgeRepository.badges.value).isEmpty()
         assertThat(service.badgeRepository.icons.value).isEmpty()
         assertThat(service.badgeRepository.people.value).isEmpty()
+    }
+
+    /** The stores and the profile read answer from their own threads: waits, bounded, for [condition]. */
+    private fun await(what: String, condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!condition()) {
+            check(System.currentTimeMillis() < deadline) { "Timed out waiting for $what" }
+            Thread.sleep(20)
+            shadowOf(android.os.Looper.getMainLooper()).idle()
+        }
+    }
+
+    @Config(sdk = [35])
+    @Test fun aNewWorkProfilesNotificationIsReadOnceTheProfileIsKnownForOne() {
+        // A work profile was added a moment ago: Android can deliver its first notification before the launcher
+        // has read what the profile is.
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 10, "Work", 0)
+        val profiles = Profiles(listOf(own))
+        service.privateSpace = privateSpace(profiles)
+        service.onListenerConnected()
+        val fromWork = chatOf(UserHandle.getUserHandleForUid(10 * 100_000))
+
+        post(fromWork)
+        // Not placed yet, so left alone: it might have been a private space.
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.people.value).isEmpty()
+
+        // The launcher has now read the new profile: a work profile.
+        profiles.list = listOf(own, ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+
+        // Nothing new is posted: the notification that waited is read because the profile's kind is known.
+        await("the work notification") { service.badgeRepository.badges.value == mapOf("chat.app/10" to 1) }
+        assertThat(service.badgeRepository.people.value).hasSize(1)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aNewPrivateSpacesNotificationStaysUnreadWhenTheProfileIsKnown() {
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 11, "Private", 0)
+        val profiles = Profiles(listOf(own))
+        service.privateSpace = privateSpace(profiles)
+        service.onListenerConnected()
+        post(chatOf(privateUser))
+        post(chat(true)) // and a personal one, to see the re-read happen
+
+        profiles.list = listOf(own, ProfileSnapshot(11, ProfileKind.Private, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+        await("the private profile known") { service.privateSpace.isPrivate(11) }
+        repeat(10) { Thread.sleep(20); shadowOf(android.os.Looper.getMainLooper()).idle() }
+
+        assertThat(service.badgeRepository.badges.value).containsExactly("chat.app/0", 1)
+        assertThat(service.badgeRepository.people.value).hasSize(1)
     }
 
     @Config(sdk = [35])

@@ -82,6 +82,9 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     /** Lives while the listener is connected; carries the batch settings + pins into [holdForBatch]. */
     private var settingsJob: Job? = null
+
+    /** Lives while the listener is connected; reads the notifications again when a profile's kind becomes known. */
+    private var profilesJob: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Volatile private var batchEnabled = false
@@ -179,6 +182,13 @@ class NotificationDotListenerService : NotificationListenerService() {
             receiverRegistered = true
         }
         mailPackages = queryMailPackages()
+        // A notification of a profile that could not be placed yet is left alone ([isPrivate]: it may be a
+        // private space). A new work profile is such a profile until the launcher has read its kind, and its
+        // first notifications arrive before that: once the kinds change, everything active is read again.
+        profilesJob?.cancel()
+        profilesJob = scope.launch {
+            privateSpace.classificationChanges.collect { if (connected) refreshWithRetries() }
+        }
         settingsJob?.cancel()
         settingsJob = scope.launch {
             if (!heldLoaded) {
@@ -210,6 +220,8 @@ class NotificationDotListenerService : NotificationListenerService() {
         stopPackageRefresh()
         settingsJob?.cancel()
         settingsJob = null
+        profilesJob?.cancel()
+        profilesJob = null
         badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())

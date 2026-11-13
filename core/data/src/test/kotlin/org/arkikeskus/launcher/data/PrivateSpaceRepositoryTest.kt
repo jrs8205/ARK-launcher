@@ -310,6 +310,33 @@ class PrivateSpaceRepositoryTest {
         for (id in listOf(10, 11, 13, 14, 15)) assertThat(repo.mustLeaveNoTrace(user(id), users, sdkInt = 34)).isFalse()
     }
 
+    @Test fun aChangeOfWhatIsKnownOfTheProfilesIsSignalledOnceAndOnlyWhenItIsOne() = runTest {
+        val fake = FakeProfileSystem(listOf(own))
+        val repo = repository(fake)
+        var signals = 0
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { repo.classificationChanges.collect { signals++ } }
+        // What a collector finds when it starts is no change.
+        assertThat(signals).isEqualTo(0)
+
+        // A work profile is added and typed: whoever skipped its things until now looks again.
+        fake.profiles = listOf(own, work)
+        fake.broadcasts.emit(Unit)
+        assertThat(signals).isEqualTo(1)
+
+        // A broadcast that changes no kind (the work profile paused) is no such change.
+        fake.profiles = listOf(own, work.copy(paused = true))
+        fake.broadcasts.emit(Unit)
+        assertThat(signals).isEqualTo(1)
+
+        // A private space appears, then goes.
+        fake.profiles = listOf(own, work, space(locked = true))
+        fake.broadcasts.emit(Unit)
+        assertThat(signals).isEqualTo(2)
+        fake.profiles = listOf(own, work)
+        fake.broadcasts.emit(Unit)
+        assertThat(signals).isEqualTo(3)
+    }
+
     @Test fun aPrivateAppIsStartedThroughTheSource() = runTest {
         val repo = repository(FakeProfileSystem(listOf(own, space(locked = false))))
 

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -176,6 +177,18 @@ class PrivateSpaceRepository internal constructor(
 
     /** What opens the private space's settings, or null when nothing does (no settings button then). */
     fun settingsTarget(): PrivateSettingsTarget? = platform.value.settingsTarget
+
+    /**
+     * One signal each time what the launcher knows of the profiles' kinds has changed: a profile was typed, came
+     * or went. For whoever left something alone because its profile could not be placed yet ([mustLeaveNoTrace]
+     * is true for a profile the last snapshot does not know): that reader looks again now. Nothing is sent for
+     * the state a collector finds when it starts.
+     */
+    val classificationChanges: Flow<Unit> = platform
+        .map { it.privateSerials to it.sharedSerials }
+        .distinctUntilChanged()
+        .drop(1)
+        .map { }
 
     /** Reads Android's hide setting again: it has no broadcast, so the drawer asks when it opens. */
     fun refresh() {
