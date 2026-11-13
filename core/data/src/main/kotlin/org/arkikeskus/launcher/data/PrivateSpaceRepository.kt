@@ -1,7 +1,11 @@
 package org.arkikeskus.launcher.data
 
 import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.os.UserHandle
+import android.os.UserManager
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,9 +84,15 @@ class PrivateSpaceRepository internal constructor(
         transitionTimeoutMs = TRANSITION_TIMEOUT_MS,
     )
 
-    /** The platform's answer: the private profile (null: none), every serial typed private, and Android's own
-     *  hide setting for the profile (null where it cannot be read). */
-    private data class Platform(val profile: ProfileSnapshot?, val privateSerials: Set<Long>, val entryHidden: Boolean?)
+    /** The platform's answer: the private profile (null: none), every serial typed private, every serial
+     *  positively typed as a profile of the shared list (the own user, a work profile, a clone), and Android's
+     *  own hide setting for the private profile (null where it cannot be read). */
+    private data class Platform(
+        val profile: ProfileSnapshot?,
+        val privateSerials: Set<Long>,
+        val sharedSerials: Set<Long>,
+        val entryHidden: Boolean?,
+    )
 
     private fun read(): Platform {
         val profiles = system.snapshot()
@@ -90,6 +100,9 @@ class PrivateSpaceRepository internal constructor(
         return Platform(
             profile = profile,
             privateSerials = profiles.filter { it.kind == ProfileKind.Private }.mapTo(HashSet()) { it.serial },
+            sharedSerials = profiles
+                .filter { it.kind == ProfileKind.Own || it.kind == ProfileKind.Managed || it.kind == ProfileKind.Clone }
+                .mapTo(HashSet()) { it.serial },
             entryHidden = profile?.let { system.privateSpaceEntryHidden(it.serial) },
         )
     }
@@ -131,6 +144,20 @@ class PrivateSpaceRepository internal constructor(
 
     /** Whether [userSerial] is a private profile's: what such a serial names must leave no trace anywhere. */
     fun isPrivate(userSerial: Long): Boolean = userSerial in platform.value.privateSerials
+
+    /**
+     * Whether what belongs to [user] must leave no trace in the launcher: the rule for whoever holds a profile
+     * rather than one of the launcher's own rows (a notification, a pin request). From Android 15 that is every
+     * profile except the own user and one the platform positively typed as a work or clone profile: the private
+     * space, and also a profile of unknown kind, one the last snapshot does not know, and one whose serial
+     * number cannot be read, since any of those may be a private space the launcher was not told of. The same
+     * rule as [listingOf], which lists such a profile's apps nowhere. Below Android 15 there is no private space.
+     */
+    fun mustLeaveNoTrace(user: UserHandle, userManager: UserManager?, sdkInt: Int = Build.VERSION.SDK_INT): Boolean {
+        if (sdkInt < Build.VERSION_CODES.VANILLA_ICE_CREAM || user == Process.myUserHandle()) return false
+        val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull()?.takeIf { it >= 0 }
+        return serial == null || serial !in platform.value.sharedSerials
+    }
 
     /** Reads Android's hide setting again: it has no broadcast, so the drawer asks when it opens. */
     fun refresh() {

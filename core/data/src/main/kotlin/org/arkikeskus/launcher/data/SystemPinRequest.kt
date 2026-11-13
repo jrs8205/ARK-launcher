@@ -19,19 +19,29 @@ import android.os.UserManager
  * intent as a [PinRequest] (a [WidgetPinRequest] for a widget), or null when the intent carries
  * none, the request is of an unknown kind, or its profile or provider can't be resolved. The
  * shortcut's label is the one home will show ([PinItem.Shortcut.label]).
+ *
+ * A request from a profile [isPrivateProfile] names (the private space) is dismissed the same way,
+ * before anything of it is looked up: a pinned shortcut or widget is a home row, written to the
+ * database, and nothing of the private space may be.
  */
-fun systemPinRequest(context: Context, intent: Intent): PinRequest? {
+fun systemPinRequest(context: Context, intent: Intent, isPrivateProfile: (UserHandle) -> Boolean): PinRequest? {
     val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return null
     val request = runCatching { launcherApps.getPinItemRequest(intent) }.getOrNull() ?: return null
     return when (request.requestType) {
-        LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT -> shortcutRequest(context, launcherApps, request)
-        LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> widgetRequest(context, request)
+        LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT -> shortcutRequest(context, launcherApps, request, isPrivateProfile)
+        LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET -> widgetRequest(context, request, isPrivateProfile)
         else -> null
     }
 }
 
-private fun shortcutRequest(context: Context, launcherApps: LauncherApps, request: LauncherApps.PinItemRequest): PinRequest? {
+private fun shortcutRequest(
+    context: Context,
+    launcherApps: LauncherApps,
+    request: LauncherApps.PinItemRequest,
+    isPrivateProfile: (UserHandle) -> Boolean,
+): PinRequest? {
     val requested = runCatching { request.shortcutInfo }.getOrNull() ?: return null
+    if (isPrivateProfile(requested.userHandle)) return null
     // The confirmation is an exported activity, so the request may be one another app made up: a
     // shortcut the system has (published, or pinned already) shows as the system has it. One only the
     // request carries (a browser's page) shows as requested, and is stored only if the system pins it.
@@ -44,13 +54,18 @@ private fun shortcutRequest(context: Context, launcherApps: LauncherApps, reques
     return SystemPinRequest(request, info, PinItem.Shortcut(info.`package`, info.id, serial, label))
 }
 
-private fun widgetRequest(context: Context, request: LauncherApps.PinItemRequest): PinRequest? {
+private fun widgetRequest(
+    context: Context,
+    request: LauncherApps.PinItemRequest,
+    isPrivateProfile: (UserHandle) -> Boolean,
+): PinRequest? {
     val claimed = runCatching { request.getAppWidgetProviderInfo(context) }.getOrNull() ?: return null
     val provider = claimed.provider ?: return null
     // The confirmation is an exported activity, so the request may be one another app made up rather
     // than the system's: the widget is the installed provider it names, as the system describes it
     // (the widget picker's own description), or nothing.
     val profile = runCatching { claimed.profile }.getOrNull() ?: Process.myUserHandle()
+    if (isPrivateProfile(profile)) return null
     val info = runCatching {
         AppWidgetManager.getInstance(context).getInstalledProvidersForPackage(provider.packageName, profile)
     }.getOrNull()?.firstOrNull { it.provider == provider } ?: return null

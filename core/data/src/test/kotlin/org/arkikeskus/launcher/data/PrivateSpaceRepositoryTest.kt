@@ -1,7 +1,9 @@
 package org.arkikeskus.launcher.data
 
 import android.app.Application
+import android.os.Process
 import android.os.UserHandle
+import android.os.UserManager
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,6 +18,8 @@ import org.arkikeskus.launcher.model.AppItem
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -242,6 +246,34 @@ class PrivateSpaceRepositoryTest {
         assertThat(repo.isPrivate(11)).isTrue()
         assertThat(repo.isPrivate(0)).isFalse()
         assertThat(repo.isPrivate(10)).isFalse()
+    }
+
+    @Test fun fromAndroid15OnlyAProfileOfKnownSharedKindMayLeaveATrace() = runTest {
+        val context: Application = RuntimeEnvironment.getApplication()
+        val users = context.getSystemService(UserManager::class.java)
+        shadowOf(users).addUser(0, "Owner", 0)
+        for (id in listOf(10, 11, 12, 13, 14)) shadowOf(users).addProfile(0, id, "Profile $id", 0)
+        fun user(id: Int): UserHandle = UserHandle.getUserHandleForUid(id * 100_000)
+        val repo = repository(
+            FakeProfileSystem(
+                listOf(
+                    own, work, space(locked = false),
+                    ProfileSnapshot(12, ProfileKind.Clone, badged = false, paused = false),
+                    ProfileSnapshot(13, ProfileKind.Unknown, badged = true, paused = false),
+                ),
+            ),
+        )
+
+        assertThat(repo.mustLeaveNoTrace(Process.myUserHandle(), users)).isFalse()
+        assertThat(repo.mustLeaveNoTrace(user(10), users)).isFalse() // a work profile
+        assertThat(repo.mustLeaveNoTrace(user(12), users)).isFalse() // a clone
+        assertThat(repo.mustLeaveNoTrace(user(11), users)).isTrue() // the private space
+        assertThat(repo.mustLeaveNoTrace(user(13), users)).isTrue() // of unknown kind, whatever its badge
+        assertThat(repo.mustLeaveNoTrace(user(14), users)).isTrue() // not in the snapshot: created since
+        assertThat(repo.mustLeaveNoTrace(user(15), users)).isTrue() // no serial to be had
+        assertThat(repo.mustLeaveNoTrace(user(11), userManager = null)).isTrue()
+        // Below Android 15 there is no private space: nothing is kept out.
+        for (id in listOf(10, 11, 13, 14, 15)) assertThat(repo.mustLeaveNoTrace(user(id), users, sdkInt = 34)).isFalse()
     }
 
     @Test fun aPrivateAppIsStartedThroughTheSource() = runTest {
