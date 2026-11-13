@@ -26,6 +26,8 @@ class NoFixedColourOnThemedSurfacesTest {
         "DrawerColors.kt" to "black or white chosen by contrast",
         // The badge is a fixed red with white on it everywhere.
         "NotificationBadge.kt" to "a colour with a meaning",
+        // The check on a chosen colour swatch reads on the swatch, which is no themed surface.
+        "SwatchMark.kt" to "black or white chosen by contrast",
     )
 
     private val fixed = Regex("""Color\.(White|Black)\b""")

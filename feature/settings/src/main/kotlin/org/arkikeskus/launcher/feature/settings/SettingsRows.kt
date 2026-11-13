@@ -260,7 +260,11 @@ internal val COLOR_SWATCHES: List<Int> = listOf(
 /** A test tag per swatch, by its colour. */
 internal fun colorSwatchTag(argb: Int): String = "color-swatch-%06X".format(argb and 0xFFFFFF)
 
-/** One round colour swatch; the chosen one wears a ring of the fill. Disabled ([enabled] false) it fades and takes no taps. */
+/**
+ * One round colour swatch. The chosen one wears a ring of the fill and a check that reads on the swatch itself:
+ * the fill can be the swatch's own colour (the Black look's on the black swatch), and the ring is then no mark
+ * at all. Disabled ([enabled] false) it fades and takes no taps.
+ */
 @Composable
 internal fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
@@ -281,7 +285,17 @@ internal fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, 
             .testTag(colorSwatchTag(argb))
             .semantics { contentDescription = name; this.selected = selected }
             .clickable(interactionSource = interaction, indication = LocalIndication.current, enabled = enabled) { onClick() },
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                painter = painterResource(LauncherIcons.Check),
+                contentDescription = null,
+                tint = swatchMarkColor(Color(argb)).copy(alpha = fade),
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
 }
 
 /** A card's background colour (the open folder's, the clock/weather widget's): a "Theme" chip for the card's own
