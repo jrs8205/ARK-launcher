@@ -11,6 +11,7 @@
     <string name="folder_default_name">Mapp</string>
     <string name="popup_widgets">Widgetar</string>
     <string name="notice_work_apps_need_default">Ange ARK-launcher som startskärmsapp för att kunna pausa jobbappar.</string>
+    <string name="notice_private_space_needs_default">Ange ARK-launcher som startskärmsapp för att kunna låsa eller låsa upp privat utrymme.</string>
     <string name="edit_title">Redigera</string>
     <string name="edit_icon_hint">Tryck på ikonen för att byta den</string>
     <string name="edit_swipe_up">Svep uppåt öppnar</string>

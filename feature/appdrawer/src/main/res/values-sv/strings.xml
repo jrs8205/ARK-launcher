@@ -34,7 +34,12 @@
     <string name="search_no_results">Inga resultat hittades</string>
     <string name="drawer_tab_personal">Privat</string>
     <string name="drawer_tab_work">Jobb</string>
-    <string name="drawer_tab_private">Privat</string>
+    <string name="drawer_tab_private">Privat utrymme</string>
+    <string name="private_space_locked_title">Privat utrymme är låst</string>
+    <string name="private_space_unlock">Lås upp</string>
+    <string name="private_space_lock">Lås</string>
+    <string name="private_space_install">Installera</string>
+    <string name="private_space_settings">Inställningar för privat utrymme</string>
     <string name="work_apps_pause">Pausa jobbappar</string>
     <string name="work_apps_unpause">Återuppta</string>
     <string name="work_apps_paused_title">Jobbappar har pausats</string>

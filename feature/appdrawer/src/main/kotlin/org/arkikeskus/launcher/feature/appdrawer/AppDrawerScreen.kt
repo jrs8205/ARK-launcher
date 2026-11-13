@@ -103,6 +103,8 @@ import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.ui.AnchoredPopupCard
 import org.arkikeskus.launcher.ui.AppActionPopup
+import org.arkikeskus.launcher.ui.IconMenuItem
+import org.arkikeskus.launcher.ui.IconMenuPopup
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DockTarget
@@ -183,12 +185,19 @@ fun AppDrawerScreen(
     // so the next open shows the "most used" row / A–Z start instead of the last scroll position.
     val gridState = rememberLazyGridState()
     val workGridState = rememberLazyGridState()
+    val privateGridState = rememberLazyGridState()
+    // A private app's own one-item menu: the app and where its icon is.
+    var privateMenu by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    // The menu goes with the drawer, and with the space when it locks or leaves.
+    LaunchedEffect(drawerOpen, uiState.privateSpace?.locked) { privateMenu = null }
+    // Android's own "hide when locked" has no broadcast: the view model reads it again at every opening.
+    LaunchedEffect(drawerOpen) { if (drawerOpen) viewModel.onDrawerOpened() }
     LaunchedEffect(drawerOpen, uiState.drawerOpensAtTop) {
         // Check the offset too: a short scroll leaves the first row visible (index still 0) but
         // offset > 0, and skipping the reset then would reopen the drawer slightly scrolled.
-        // Both pages: the Work grid keeps its own scroll position.
+        // Every page: the Work and Private grids keep their own scroll positions.
         if (!drawerOpen && uiState.drawerOpensAtTop) {
-            listOf(gridState, workGridState)
+            listOf(gridState, workGridState, privateGridState)
                 .filter { it.firstVisibleItemIndex > 0 || it.firstVisibleItemScrollOffset > 0 }
                 .forEach { it.scrollToItem(0) }
         }
@@ -217,6 +226,7 @@ fun AppDrawerScreen(
     // hides the soft keyboard) and reset the query, so the drawer reopens fresh.
     LaunchedEffect(homeSignals) {
         homeSignals.collect {
+            privateMenu = null
             menuTarget = null
             renameTarget = null
             folderCard = null
@@ -316,8 +326,34 @@ fun AppDrawerScreen(
         onSelectTab = viewModel::selectTab,
         onSetWorkPaused = viewModel::setWorkPaused,
         workGridState = workGridState,
+        privateSpace = uiState.privateSpace,
+        privateApps = uiState.privateApps,
+        onSetPrivateLocked = viewModel::setPrivateLocked,
+        onPrivateAppClick = { app -> if (viewModel.onPrivateAppClick(app, launchSources?.take(app))) onClose() },
+        onPrivateAppLongClick = { app, bounds -> if (drawerOpen) privateMenu = app to bounds },
+        onPrivateInstall = { viewModel.privateInstallSender()?.let { startSystemSender(context, it) } },
+        onPrivateSettings = { openPrivateSettings(context, viewModel.privateSettingsTarget()) },
+        privateGridState = privateGridState,
         modifier = modifier,
     )
+
+    val privateTarget = privateMenu
+    if (privateTarget != null) {
+        val (app, bounds) = privateTarget
+        val preferAbove = bounds.center.y > windowHeightPx / 2
+        val anchorY = (if (preferAbove) bounds.top else bounds.bottom).roundToInt()
+        // One item: a private app is not renamed, hidden, pinned or put on the home screen from here, and
+        // its shortcuts are not asked for. Uninstalling is done on Android's own page for it.
+        IconMenuPopup(
+            anchor = IntOffset(bounds.center.x.roundToInt(), anchorY),
+            preferAbove = preferAbove,
+            items = listOf(
+                IconMenuItem(LauncherIcons.Info, stringResource(R.string.app_info)) { AppActions.openAppInfo(context, app) },
+            ),
+            onDismiss = { privateMenu = null },
+            palette = LocalExpressivePalette.current,
+        )
+    }
 
     val menu = menuTarget
     if (menu != null) {
@@ -492,6 +528,14 @@ private fun AppDrawerContent(
     onSelectTab: (DrawerTab) -> Unit,
     onSetWorkPaused: (Boolean) -> Unit,
     workGridState: LazyGridState,
+    privateSpace: PrivateSpaceUi?,
+    privateApps: List<AppItem>,
+    onSetPrivateLocked: (Boolean) -> Unit,
+    onPrivateAppClick: (AppItem) -> Unit,
+    onPrivateAppLongClick: (AppItem, Rect) -> Unit,
+    onPrivateInstall: () -> Unit,
+    onPrivateSettings: () -> Unit,
+    privateGridState: LazyGridState,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -746,7 +790,7 @@ private fun AppDrawerContent(
                     tabs = tabs,
                     storedTab = selectedTab,
                     onSelectTab = onSelectTab,
-                    privateLocked = false,
+                    privateLocked = privateSpace?.locked == true,
                     // A lifted icon must never start a page swipe under the finger.
                     userScrollEnabled = !dragController.isDragging,
                 ) { tab ->
@@ -766,8 +810,23 @@ private fun AppDrawerContent(
                                 },
                             )
                         }
-                        // The page itself comes with the private space's own state.
-                        DrawerTab.Private -> Unit
+                        DrawerTab.Private -> if (privateSpace != null) {
+                            PrivatePage(
+                                space = privateSpace,
+                                onSetLocked = onSetPrivateLocked,
+                                onOpenSettings = onPrivateSettings,
+                                grid = { bottomPadding ->
+                                    DrawerGrid(privateGridState, bottomPadding) {
+                                        // The drawer's own grid; no dots (a private notification is not read) and
+                                        // nothing to pick up: a hold opens the one-item menu.
+                                        appCells(privateApps, emptyMap(), badgeShowCount, badgeScale, showLabels, drawerIconSize,
+                                            onPrivateAppClick, onPrivateAppLongClick, dragController, onDragOutStart,
+                                            onDropOnHome, onDropOnDock, haptics, locked, liftable = false)
+                                        if (privateSpace.canInstall) privateInstallTile(drawerIconSize, showLabels, onPrivateInstall)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -1264,10 +1323,12 @@ internal fun LazyGridScope.appCells(
     onDropOnDock: (AppItem, DockTarget) -> Unit,
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
     locked: Boolean,
+    /** False for apps that stay where they are (the private ones): a hold opens the menu and lifts nothing. */
+    liftable: Boolean = true,
 ) {
     items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
         DrawerAppCell(app, badges, badgeShowCount, badgeScale, showLabels, iconSize, onAppClick, onAppLongClick,
-            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
+            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, liftable)
     }
 }
 
@@ -1291,6 +1352,7 @@ private fun DrawerAppCell(
     onDropOnDock: (AppItem, DockTarget) -> Unit,
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
     locked: Boolean,
+    liftable: Boolean = true,
 ) {
     // The gesture below lives as long as the key (a label or icon change does not restart it)
     // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
@@ -1314,7 +1376,7 @@ private fun DrawerAppCell(
             // long-press fires, so a quick drag still scrolls the grid: quick tap
             // launches; a still long-press lifts → drag out to home/dock, or with no
             // movement opens the long-press menu.
-            .pointerInput(app.key, locked) {
+            .pointerInput(app.key, locked, liftable) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val slop = viewConfiguration.touchSlop
@@ -1366,6 +1428,12 @@ private fun DrawerAppCell(
                     }
                     // Desktop locked: long-press does nothing (no menu, no drag-out); tap still launches.
                     if (locked) return@awaitEachGesture
+                    // An app that stays where it is (a private one): the hold only opens its menu.
+                    if (!liftable) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onAppLongClick(currentApp, bounds)
+                        return@awaitEachGesture
+                    }
                     // LONG PRESS → lift into the shared controller (drawer source).
                     // The finger's root position is the icon's [bounds] top-left
                     // (captured while the drawer is open) plus the pointer's local

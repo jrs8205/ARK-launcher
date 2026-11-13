@@ -35,6 +35,11 @@
     <string name="drawer_tab_personal">Osobiste</string>
     <string name="drawer_tab_work">Służbowe</string>
     <string name="drawer_tab_private">Prywatne</string>
+    <string name="private_space_locked_title">Przestrzeń prywatna jest zablokowana</string>
+    <string name="private_space_unlock">Odblokuj</string>
+    <string name="private_space_lock">Zablokuj</string>
+    <string name="private_space_install">Zainstaluj</string>
+    <string name="private_space_settings">Ustawienia przestrzeni prywatnej</string>
     <string name="work_apps_pause">Wstrzymaj aplikacje służbowe</string>
     <string name="work_apps_unpause">Wznów</string>
     <string name="work_apps_paused_title">Aplikacje służbowe są wstrzymane</string>

@@ -47,6 +47,7 @@ class DrawerIconSwipeTest {
         packageName = "com.mail", className = "mail.Main", user = Process.myUserHandle(), userSerial = 0, label = "Mail",
     )
     private var clicks = 0
+    private var liftable = true
     private var longClicks = 0
     private var longPress = 0L
     private lateinit var pager: PagerState
@@ -68,7 +69,7 @@ class DrawerIconSwipeTest {
                             apps = listOf(app), badges = emptyMap(), badgeShowCount = true, badgeScale = 1f,
                             showLabels = true, iconSize = 56.dp, onAppClick = { clicks++ }, onAppLongClick = { _, _ -> longClicks++ },
                             dragController = dragController, onDragOutStart = {}, onDropOnHome = { _, _, _, _ -> },
-                            onDropOnDock = { _, _ -> }, haptics = haptics, locked = false,
+                            onDropOnDock = { _, _ -> }, haptics = haptics, locked = false, liftable = liftable,
                         )
                     }
                 } else {
@@ -92,6 +93,42 @@ class DrawerIconSwipeTest {
         compose.waitForIdle()
         assertThat(longClicks).isEqualTo(1)
         assertThat(clicks).isEqualTo(0)
+    }
+
+    /** A private app stays where it is: the hold opens its menu and nothing is lifted. */
+    @Test fun aHoldOnAnAppThatCannotBeLiftedOpensItsMenuAndStartsNoDrag() {
+        liftable = false
+        compose()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Mail").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(longPress + 50)
+        compose.waitForIdle()
+        assertThat(longClicks).isEqualTo(1)
+        assertThat(dragController.draggedApp).isNull()
+        assertThat(dragController.isDragging).isFalse()
+
+        // Pulling the finger on does not pick the icon up either.
+        compose.onNodeWithText("Mail").performTouchInput {
+            repeat(10) { moveBy(Offset(0f, -12f), delayMillis = 16) }
+            up()
+        }
+        compose.waitForIdle()
+        assertThat(dragController.draggedApp).isNull()
+        assertThat(longClicks).isEqualTo(1)
+        assertThat(clicks).isEqualTo(0)
+    }
+
+    @Test fun aSidewaysFlickFromAnIconThatCannotBeLiftedStillTurnsThePage() {
+        liftable = false
+        compose()
+
+        swipeLeftFromTheIcon(steps = 40, stepPx = 6f, stepMs = 4)
+        compose.waitForIdle()
+
+        assertThat(pager.currentPage).isEqualTo(1)
+        assertThat(clicks).isEqualTo(0)
+        assertThat(longClicks).isEqualTo(0)
     }
 
     @Test fun aCleanTapOnAnIconLaunchesIt() {

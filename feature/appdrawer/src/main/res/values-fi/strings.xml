@@ -35,6 +35,11 @@
     <string name="drawer_tab_personal">Omat</string>
     <string name="drawer_tab_work">Työ</string>
     <string name="drawer_tab_private">Yksityinen</string>
+    <string name="private_space_locked_title">Yksityinen tila on lukittu</string>
+    <string name="private_space_unlock">Avaa lukitus</string>
+    <string name="private_space_lock">Lukitse</string>
+    <string name="private_space_install">Asenna</string>
+    <string name="private_space_settings">Yksityisen tilan asetukset</string>
     <string name="work_apps_pause">Keskeytä työsovellukset</string>
     <string name="work_apps_unpause">Jatka</string>
     <string name="work_apps_paused_title">Työsovellukset on keskeytetty</string>

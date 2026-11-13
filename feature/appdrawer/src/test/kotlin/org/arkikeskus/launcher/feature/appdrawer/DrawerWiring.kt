@@ -52,7 +52,12 @@ import kotlin.jvm.functions.Function0
  * LauncherApps path. Room, DataStore and Coil are implementation details of core/data and not on
  * this module's test compile classpath, so the few calls that name their types go through reflection.
  */
-internal class DrawerWiring(private val context: Application, testScope: TestScope) {
+internal class DrawerWiring(
+    private val context: Application,
+    testScope: TestScope,
+    /** The profiles of the test device as the platform types them; only the own user unless a test says so. */
+    private val profiles: List<ProfileSnapshot> = listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false)),
+) {
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val db: LauncherDatabase = Class.forName("androidx.room.Room")
@@ -76,8 +81,7 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
     /** The app labels persist in the same in-memory database, as in the app. */
     private val labelCache = AppLabelCache(RoomAppLabelStore(LauncherDatabase::class.java.getMethod("appLabelDao").invoke(db) as AppLabelDao))
     private val noProfiles = object : ProfileSystem {
-        override fun snapshot(): List<ProfileSnapshot> =
-            listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false))
+        override fun snapshot(): List<ProfileSnapshot> = profiles
         override fun changes(): Flow<Unit> = emptyFlow()
         override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
         override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
@@ -91,10 +95,8 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
         CoroutineScope(testScope.backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScope.testScheduler))
 
     private val workProfileRepository = WorkProfileRepository(noProfiles, appScope)
-    val appRepository = AppRepository(
-        source, settingsRepository, appUsageRepository, workProfileRepository,
-        PrivateSpaceRepository(noProfiles, workProfileRepository, source, settingsRepository, appScope), appScope,
-    )
+    val privateSpaceRepository = PrivateSpaceRepository(noProfiles, workProfileRepository, source, settingsRepository, appScope)
+    val appRepository = AppRepository(source, settingsRepository, appUsageRepository, workProfileRepository, privateSpaceRepository, appScope)
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
 
     fun viewModel(): AppDrawerViewModel = AppDrawerViewModel(
@@ -106,6 +108,7 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
         SearchAggregator(setOf(AppSearchProvider(appRepository, settingsRepository))),
         appUsageRepository,
         workProfileRepository,
+        privateSpaceRepository,
         CustomIconStore(settingsRepository, CustomIconSource(context, iconPacks)),
         drawerWallpaper,
     )

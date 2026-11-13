@@ -35,6 +35,11 @@
     <string name="drawer_tab_personal">Личные</string>
     <string name="drawer_tab_work">Рабочие</string>
     <string name="drawer_tab_private">Частные</string>
+    <string name="private_space_locked_title">Частное пространство заблокировано</string>
+    <string name="private_space_unlock">Разблокировать</string>
+    <string name="private_space_lock">Заблокировать</string>
+    <string name="private_space_install">Установить</string>
+    <string name="private_space_settings">Настройки частного пространства</string>
     <string name="work_apps_pause">Приостановить рабочие приложения</string>
     <string name="work_apps_unpause">Возобновить</string>
     <string name="work_apps_paused_title">Рабочие приложения приостановлены</string>

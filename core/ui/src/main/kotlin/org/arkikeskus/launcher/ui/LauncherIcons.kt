@@ -46,4 +46,5 @@ object LauncherIcons {
     @DrawableRes val Backup: Int = R.drawable.ic_backup
     @DrawableRes val Search: Int = R.drawable.ic_search
     @DrawableRes val Lock: Int = R.drawable.ic_lock
+    @DrawableRes val Settings: Int = R.drawable.ic_settings
 }

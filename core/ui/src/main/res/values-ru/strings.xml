@@ -11,6 +11,7 @@
     <string name="folder_default_name">Папка</string>
     <string name="popup_widgets">Виджеты</string>
     <string name="notice_work_apps_need_default">Сделайте ARK-launcher лаунчером по умолчанию, чтобы приостановить рабочие приложения.</string>
+    <string name="notice_private_space_needs_default">Сделайте ARK-launcher лаунчером по умолчанию, чтобы блокировать и разблокировать частное пространство.</string>
     <string name="edit_title">Изменить</string>
     <string name="edit_icon_hint">Нажмите на значок, чтобы изменить его</string>
     <string name="edit_swipe_up">Свайп вверх открывает</string>

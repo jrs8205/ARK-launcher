@@ -11,6 +11,7 @@
     <string name="folder_default_name">Carpeta</string>
     <string name="popup_widgets">Widgets</string>
     <string name="notice_work_apps_need_default">Establece ARK-launcher como launcher predeterminado para pausar las aplicaciones de trabajo.</string>
+    <string name="notice_private_space_needs_default">Establece ARK-launcher como launcher predeterminado para bloquear o desbloquear el espacio privado.</string>
     <string name="edit_title">Editar</string>
     <string name="edit_icon_hint">Toca el icono para cambiarlo</string>
     <string name="edit_swipe_up">Deslizar hacia arriba abre</string>

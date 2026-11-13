@@ -35,6 +35,11 @@
     <string name="drawer_tab_personal">Kişisel</string>
     <string name="drawer_tab_work">İş</string>
     <string name="drawer_tab_private">Özel</string>
+    <string name="private_space_locked_title">Özel alan kilitli</string>
+    <string name="private_space_unlock">Kilidi aç</string>
+    <string name="private_space_lock">Kilitle</string>
+    <string name="private_space_install">Yükle</string>
+    <string name="private_space_settings">Özel alan ayarları</string>
     <string name="work_apps_pause">İş uygulamalarını duraklat</string>
     <string name="work_apps_unpause">Devam ettir</string>
     <string name="work_apps_paused_title">İş uygulamaları duraklatıldı</string>

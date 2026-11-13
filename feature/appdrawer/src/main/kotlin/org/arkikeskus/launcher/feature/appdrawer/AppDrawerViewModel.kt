@@ -43,6 +43,9 @@ import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.HomeNotice
+import android.content.IntentSender
+import org.arkikeskus.launcher.data.PrivateSettingsTarget
+import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import javax.inject.Inject
 
 /** A drawer folder resolved to its member [apps] (for rendering), with the [icon] the user picked
@@ -62,6 +65,10 @@ data class AppDrawerUiState(
     val folderCandidates: List<AppItem> = emptyList(),
     /** Non-null only when the Work tab has something to show (see [workTabVisible]). */
     val workProfile: WorkProfileUi? = null,
+    /** Non-null only while the Private tab exists (see [privateTabVisible]). */
+    val privateSpace: PrivateSpaceUi? = null,
+    /** The private apps, A to Z, while the space is unlocked; never part of [apps] or of a search here. */
+    val privateApps: List<AppItem> = emptyList(),
     /** The tabs that exist right now ([drawerTabs]); only Personal on a phone without profiles. */
     val tabs: List<DrawerTab> = listOf(DrawerTab.Personal),
     /** The tab a new pager starts on; always one of [tabs]. */
@@ -136,6 +143,7 @@ class AppDrawerViewModel @Inject constructor(
     private val searchAggregator: SearchAggregator,
     private val appUsageRepository: org.arkikeskus.launcher.data.AppUsageRepository,
     private val workProfileRepository: WorkProfileRepository,
+    private val privateSpace: PrivateSpaceRepository,
     private val customIcons: CustomIconStore,
     private val drawerWallpaper: DrawerWallpaperStore,
 ) : ViewModel() {
@@ -152,6 +160,9 @@ class AppDrawerViewModel @Inject constructor(
 
     private val query = MutableStateFlow("")
     private val selectedTabFlow = MutableStateFlow(DrawerTab.Personal)
+
+    /** The private space with the apps that go with it. */
+    private val privateSpaceFlow = combine(privateSpace.state, privateSpace.apps) { space, apps -> space to apps }
 
     /** The results, tagged with the query they answer: the raw query reaches the state at once, the
      *  results only after the debounce and the search, and the screen must tell the two apart. */
@@ -281,10 +292,25 @@ class AppDrawerViewModel @Inject constructor(
                 .map { it.first }
             state.copy(frequentApps = ranked)
         }
+    }.combine(privateSpaceFlow) { state, (space, apps) ->
+        // The page exists while its tab does: not for a locked space whose entry is to stay hidden.
+        val shown = space?.takeIf { privateTabVisible(it) }
+        state.copy(
+            privateSpace = shown?.let {
+                PrivateSpaceUi(
+                    locked = it.locked,
+                    transitioning = it.transitioning,
+                    canInstall = !it.locked && privateSpace.installSender() != null,
+                    canOpenSettings = !it.locked && privateSpace.settingsTarget() != null,
+                )
+            },
+            // The two flows are read one after the other: a locked space never keeps the list of a moment ago.
+            privateApps = if (shown == null || shown.locked) emptyList() else apps,
+        )
     }.combine(selectedTabFlow) { state, tab ->
         // A stored selection only means something while its tab exists: hiding the last work app,
         // or the profile going, lands the pager on Personal.
-        val tabs = drawerTabs(hasWork = state.workProfile != null, hasPrivate = false)
+        val tabs = drawerTabs(hasWork = state.workProfile != null, hasPrivate = state.privateSpace != null)
         state.copy(tabs = tabs, selectedTab = effectiveTab(tab, tabs))
     }.combine(drawerWallpaper.current) { state, wallpaper ->
         state.copy(wallpaper = wallpaper)
@@ -310,6 +336,31 @@ class AppDrawerViewModel @Inject constructor(
             notify(HomeNotice.WorkAppsNeedDefault)
         }
     }
+
+    /** Locks or unlocks the private space; only the default launcher may, so the other case gets a notice. */
+    fun setPrivateLocked(locked: Boolean) = viewModelScope.launch {
+        if (privateSpace.setLocked(locked) == PauseOutcome.NotDefaultLauncher) {
+            notify(HomeNotice.PrivateSpaceNeedsDefault)
+        }
+    }
+
+    /**
+     * Starts a private app through the private space's own start, which counts nothing. A failure is logged
+     * without the app's key and without the exception's own text (it names the component): only its kind.
+     */
+    fun onPrivateAppClick(appItem: AppItem, from: AppLaunch? = null): Boolean =
+        privateSpace.launch(appItem, from?.sourceBounds, from?.options)
+            .onFailure { Log.w("AppDrawerViewModel", "Failed to launch a private app (${it.javaClass.simpleName})") }
+            .isSuccess
+
+    /** The drawer opened: Android's own hide setting has no broadcast, so it is read again now. */
+    fun onDrawerOpened() = privateSpace.refresh()
+
+    /** What the Install tile opens right now, or null. */
+    fun privateInstallSender(): IntentSender? = privateSpace.installSender()
+
+    /** What the Private tab's settings button opens right now, or null. */
+    fun privateSettingsTarget(): PrivateSettingsTarget? = privateSpace.settingsTarget()
 
     /** Launches [appItem]; returns whether it started, so the drawer only closes on success. */
     /** Launches [appItem], with a zoom from its icon when [from] says where it was tapped. */

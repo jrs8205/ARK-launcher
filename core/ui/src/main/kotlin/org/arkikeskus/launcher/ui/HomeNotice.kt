@@ -13,4 +13,7 @@ enum class HomeNotice(@StringRes val message: Int) {
 
     /** Only the default launcher may pause or unpause work apps (quiet mode): nothing changed. */
     WorkAppsNeedDefault(R.string.notice_work_apps_need_default),
+
+    /** Only the default launcher may lock or unlock the private space: nothing changed. */
+    PrivateSpaceNeedsDefault(R.string.notice_private_space_needs_default),
 }
