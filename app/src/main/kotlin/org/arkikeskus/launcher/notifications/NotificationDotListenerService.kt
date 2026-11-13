@@ -283,6 +283,9 @@ class NotificationDotListenerService : NotificationListenerService() {
         for (sbn in active) {
             if (sbn.key !in leftAlone || isPrivate(sbn)) continue
             leftAlone.remove(sbn.key)
+            // Android showed its heads-up, if it had one, when the notification came: the key counts as alerted,
+            // so an update that alerts only once does not blank the themed status bar as a new heads-up would.
+            alertedKeys.add(sbn.key)
             if (settingsReady) holdForBatch(sbn)
         }
         refreshWithRetries()

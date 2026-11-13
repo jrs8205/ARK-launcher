@@ -392,6 +392,39 @@ class NotificationDotListenerServiceTest {
     }
 
     @Config(sdk = [35])
+    @Test fun aMessageThatWaitedCountsAsAlertedSoItsUpdateDoesNotBlankTheStatusBarAgain() {
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 10, "Work", 0)
+        val profiles = Profiles(listOf(own))
+        service.privateSpace = privateSpace(profiles)
+        service.onListenerConnected()
+        val workUser = UserHandle.getUserHandleForUid(10 * 100_000)
+        val pending = PendingIntent.getActivity(context, 0, Intent("test.open"), PendingIntent.FLAG_IMMUTABLE)
+        // A heads-up that alerts only once, posted while its profile is unplaced: Android showed it, the launcher
+        // left it alone.
+        val call = StatusBarNotification(
+            "chat.app", "chat.app", 9, null, 1_001_000, 0, 0,
+            NotificationCompat.Builder(context, "chat").setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setCategory(Notification.CATEGORY_MESSAGE).setContentTitle("Anna").setContentText("Hello")
+                .setFullScreenIntent(pending, true).setOnlyAlertOnce(true).build(),
+            workUser, System.currentTimeMillis(),
+        )
+        post(call)
+        assertThat(service.badgeRepository.headsUp.value).isEqualTo(0L)
+
+        profiles.list = listOf(own, ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+        await("the work notification") { service.badgeRepository.badges.value.isNotEmpty() }
+
+        // Its app updates it under the same key: Android does not alert again, so the themed status bar must not
+        // be blanked as for a new heads-up.
+        service.onNotificationPosted(call)
+        assertThat(service.badgeRepository.headsUp.value).isEqualTo(0L)
+        assertThat(ReflectionHelpers.getField<Set<String>>(service, "alertedKeys")).contains(call.key)
+    }
+
+    @Config(sdk = [35])
     @Test fun aNotificationThatWasReadAtItsPostIsNotDecidedAgainWhenTheProfilesChange() = runTest {
         // A personal message already delivered (its hold was released): a profile appearing elsewhere must not
         // put it back to waiting.
