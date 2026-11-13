@@ -45,6 +45,8 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.paletteSeed
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 
 internal const val BASE_COLOUR_CARD_TAG = "base-colour-card"
 
@@ -82,9 +84,9 @@ internal fun BaseColourCard(selected: String, onPick: (String) -> Unit) {
     val p = LocalExpressivePalette.current
     val dark = currentBasePalette().dark
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = expressiveCardShape(),
         color = p.surfaceHi,
-        shadowElevation = p.shadow,
+        shadowElevation = expressiveCardShadow(),
         modifier = Modifier.fillMaxWidth().testTag(BASE_COLOUR_CARD_TAG),
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
@@ -198,7 +200,9 @@ private fun BaseColourRowOption(key: String, description: String?, selected: Boo
     }
 }
 
-/** A choice's own colour as a round swatch; the chosen one carries a check on a badge of the current fill. */
+/** A choice's own colour as a round swatch; the chosen one carries a check on a badge. The badge is the colour
+ *  read on a container with the check in the container's own: the chosen swatch IS the current fill, and a badge
+ *  of the fill sank into it. */
 @Composable
 private fun BaseColourSwatch(key: String, selected: Boolean, dark: Boolean) {
     val p = LocalExpressivePalette.current
@@ -207,13 +211,13 @@ private fun BaseColourSwatch(key: String, selected: Boolean, dark: Boolean) {
         Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(colour).border(1.dp, p.faint, CircleShape))
         if (selected) {
             Box(
-                modifier = Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(p.fill),
+                modifier = Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(p.onContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(LauncherIcons.Check),
                     contentDescription = null,
-                    tint = p.onFill,
+                    tint = p.container,
                     modifier = Modifier.size(12.dp),
                 )
             }

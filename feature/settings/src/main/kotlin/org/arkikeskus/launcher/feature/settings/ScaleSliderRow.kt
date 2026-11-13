@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,6 +29,9 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.arkikeskus.launcher.ui.expressive.expressiveSliderColors
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import kotlin.math.roundToInt
+import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 
 /** Slider tick count that lands the thumb on multiples of [step] across [range] (Material counts
  *  only the ticks strictly between the two ends). */
@@ -88,9 +90,9 @@ internal fun ScaleSliderRow(
     }
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

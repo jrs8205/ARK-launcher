@@ -45,12 +45,6 @@ class SettingsPaletteTest {
         }
     }
 
-    @Test fun aCategoryIconReadsOnItsTintedTile() = everyPalette { at, p ->
-        // The main page draws each category's icon in the accent on a tile of the accent at 16 % over the page.
-        val tile = p.accent.copy(alpha = CATEGORY_TILE_ALPHA).compositeOver(p.bg)
-        assertWithMessage(at).that(ratio(p.accent, tile)).isAtLeast(3f)
-    }
-
     @Test fun whatIsDrawnOnAFillReadsAndTheFillStandsOutFromACard() = everyPalette { at, p ->
         assertWithMessage("$at: on the fill").that(ratio(p.onFill, p.fill)).isAtLeast(READABLE_TEXT)
         assertWithMessage("$at: the fill on a card").that(ratio(p.fill, p.surfaceHi)).isAtLeast(3f)

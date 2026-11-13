@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
@@ -37,6 +36,9 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.launcherFontFamily
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 
 /** Settings > Icons: label and icon size, label colour, font, themed icons and the icon pack. */
 @Composable
@@ -172,9 +174,9 @@ private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_label_color))
@@ -209,9 +211,9 @@ internal fun FontRow(selected: String, onPick: (String) -> Unit) {
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_font))

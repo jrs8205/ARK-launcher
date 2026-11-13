@@ -35,9 +35,11 @@ import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
-
-/** How strongly the accent tints the tile behind a category's icon. */
-internal const val CATEGORY_TILE_ALPHA = 0.16f
+import org.arkikeskus.launcher.ui.expressive.ExpressiveGroup
+import org.arkikeskus.launcher.ui.expressive.GroupPosition
+import org.arkikeskus.launcher.ui.expressive.LocalInExpressiveGroup
+import org.arkikeskus.launcher.ui.expressive.expressiveGroupRow
+import org.arkikeskus.launcher.ui.expressive.groupShape
 
 /**
  * The first page of Settings: the title, the search field, the default-launcher row, the categories, each opening a
@@ -60,7 +62,8 @@ internal fun SettingsMainPage(
     val context = LocalContext.current
     // Back clears what was typed before it leaves Settings.
     BackHandler(enabled = query.isNotEmpty()) { onQueryChange("") }
-    Column(
+    // The categories form one grouped list; the default-launcher row above them is a group of its own.
+    ExpressiveGroup(
         modifier = modifier
             .fillMaxSize()
             .safeDrawingPadding()
@@ -71,8 +74,8 @@ internal fun SettingsMainPage(
         Text(
             text = stringResource(R.string.settings_title),
             color = p.text,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 31.sp,
+            fontWeight = FontWeight.ExtraBold,
             letterSpacing = (-0.3).sp,
             modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 6.dp),
         )
@@ -97,7 +100,8 @@ internal fun SettingsMainPage(
             }
 
             // Support the work: a quiet section at the very end (SupportSection.kt), the browser opens the page.
-            SettingRow("E1") { SupportSection(onOpen = { openSupportLink(context, it) }) }
+            // A title and a card: not a row of a group.
+            SettingRow("E1", grouped = false) { SupportSection(onOpen = { openSupportLink(context, it) }) }
 
             VersionLine()
         }
@@ -105,8 +109,9 @@ internal fun SettingsMainPage(
 }
 
 /**
- * One category on the main page: its icon on a tinted tile, its name, a line saying what is on its page, and a
- * chevron. The whole row is one button, at least 48 dp high, read as "name, summary".
+ * One category on the main page, a row of the category list: its icon on a chip of the fill, its name, a line
+ * saying what is on its page, and a chevron. The whole row is one button, at least 48 dp high, read as
+ * "name, summary". Outside a group it is a card on its own.
  */
 @Composable
 internal fun CategoryRow(
@@ -115,26 +120,28 @@ internal fun CategoryRow(
     onClick: () -> Unit,
 ) {
     val p = LocalExpressivePalette.current
+    val inGroup = LocalInExpressiveGroup.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(categoryTag(category.key))
-            .clip(RoundedCornerShape(16.dp))
+            .then(if (inGroup) Modifier.expressiveGroupRow() else Modifier.clip(groupShape(GroupPosition.Only)))
+            .background(p.surfaceHi)
             .clickable(role = Role.Button, onClick = onClick)
             .heightIn(min = 56.dp)
-            .padding(horizontal = 6.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(p.accent.copy(alpha = CATEGORY_TILE_ALPHA), RoundedCornerShape(12.dp)),
+                .background(p.fill, RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painter = painterResource(category.icon),
                 contentDescription = null,
-                tint = p.accent,
+                tint = p.onFill,
                 modifier = Modifier.size(22.dp),
             )
         }

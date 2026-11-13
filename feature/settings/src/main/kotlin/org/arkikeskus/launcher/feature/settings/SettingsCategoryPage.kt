@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.ExpressiveGroup
 
 /** The tag of a page's header (the back arrow and the page's name). */
 internal const val PAGE_HEADER_TAG = "settings-page-header"
@@ -54,7 +55,8 @@ internal fun SettingsCategoryPage(
     val context = LocalContext.current
     Column(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
         SettingsPageHeader(title = stringResource(category.title), onBack = onBack)
-        Column(
+        // The rows that follow one another form a grouped list; a heading or a preview ends it.
+        ExpressiveGroup(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scroll)
@@ -136,8 +138,8 @@ internal fun SettingsPageHeader(title: String, onBack: () -> Unit) {
         Text(
             text = title,
             color = p.text,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.ExtraBold,
             letterSpacing = (-0.2).sp,
             modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() },
         )

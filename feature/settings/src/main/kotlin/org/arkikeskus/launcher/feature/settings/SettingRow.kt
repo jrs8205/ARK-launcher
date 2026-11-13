@@ -26,6 +26,15 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
+import org.arkikeskus.launcher.ui.expressive.LocalExpressiveGroupRow
+import org.arkikeskus.launcher.ui.expressive.LocalInExpressiveGroup
+import org.arkikeskus.launcher.ui.expressive.expressiveGroupRow
 
 /**
  * The rows that are on screen, and the one a search result has just led to. Every [SettingRow] notes itself in
@@ -61,11 +70,14 @@ private val MARK_RING = 3.dp
  * One row of Settings as [SettingsIndex] lists it: [content] under the row's [id], so the page and the list can be
  * held against each other. The frame adds nothing to the look, except for a moment after a search result has led
  * here: the row is scrolled into view, takes the focus (a screen reader follows it) and wears a mark that fades,
- * a ring around its card.
+ * a ring around its card. Inside an ExpressiveGroup the row is one of the group's rows, unless [grouped] is false
+ * (a row that is more than one card).
  */
 @Composable
-internal fun SettingRow(id: String, content: @Composable () -> Unit) {
+internal fun SettingRow(id: String, grouped: Boolean = true, content: @Composable () -> Unit) {
     val jumps = LocalSettingJumps.current
+    // On a page that groups its rows, the group shapes this one by its place among those shown.
+    val inGroup = grouped && LocalInExpressiveGroup.current
     val isTarget = jumps?.target == id
     val bringIntoView = remember { BringIntoViewRequester() }
     val focus = remember { FocusRequester() }
@@ -100,15 +112,29 @@ internal fun SettingRow(id: String, content: @Composable () -> Unit) {
         }
     }
 
+    val ringWidth = MARK_RING
+    // As a group's row the mark follows the outline the group gave the row: the group draws it over the row.
+    val groupMark = remember(markColor) {
+        fun DrawScope.(outline: Outline) {
+            if (mark.value > 0f) {
+                val path = Path().apply { addOutline(outline) }
+                // Twice the width along the outline, cut to the outline: a ring of the width, inside the card.
+                clipPath(path) {
+                    drawPath(path, color = markColor.copy(alpha = mark.value), style = Stroke(width = ringWidth.toPx() * 2))
+                }
+            }
+        }
+    }
     Column(
         modifier = Modifier
             .testTag(settingTag(id))
+            .then(if (inGroup) Modifier.expressiveGroupRow(groupMark) else Modifier)
             .bringIntoViewRequester(bringIntoView)
             // Focusable only while it is the target: afterwards the row is the plain frame it was.
             .then(if (isTarget) Modifier.focusRequester(focus).focusable() else Modifier)
             .drawWithContent {
                 drawContent()
-                if (mark.value > 0f) {
+                if (!inGroup && mark.value > 0f) {
                     // A ring along the edge of the row's card, inside its padding: nothing is drawn over what is
                     // written on the row, so the text reads as it does without the mark. The frame's last 10 dp
                     // are the gap to the next row.
@@ -118,10 +144,10 @@ internal fun SettingRow(id: String, content: @Composable () -> Unit) {
                         color = markColor.copy(alpha = mark.value),
                         topLeft = Offset(ring / 2, ring / 2),
                         size = Size(size.width - ring, (size.height - gap - ring).coerceAtLeast(0f)),
-                        cornerRadius = CornerRadius(20.dp.toPx() - ring / 2),
+                        cornerRadius = CornerRadius(24.dp.toPx() - ring / 2),
                         style = Stroke(width = ring),
                     )
                 }
             },
-    ) { content() }
+    ) { CompositionLocalProvider(LocalExpressiveGroupRow provides inGroup, content = content) }
 }

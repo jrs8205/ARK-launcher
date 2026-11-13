@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.PillShape
 
 /** The tag of the search field on the main page. */
 internal const val SEARCH_FIELD_TAG = "settings-search"
@@ -83,8 +84,8 @@ internal fun SettingsSearchField(query: String, onQueryChange: (String) -> Unit,
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = p.text, fontSize = 16.sp),
-        cursorBrush = SolidColor(p.accent),
+        textStyle = LocalTextStyle.current.copy(color = p.onContainer, fontSize = 16.sp),
+        cursorBrush = SolidColor(p.onContainer),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         modifier = modifier
             .fillMaxWidth()
@@ -95,18 +96,18 @@ internal fun SettingsSearchField(query: String, onQueryChange: (String) -> Unit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
-                    .background(p.surfaceHi, RoundedCornerShape(24.dp))
+                    .background(p.container, PillShape)
                     .padding(start = 14.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     painter = painterResource(LauncherIcons.Search),
                     contentDescription = null,
-                    tint = p.dim,
+                    tint = p.onContainer,
                     modifier = Modifier.size(22.dp),
                 )
                 Box(modifier = Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 12.dp)) {
-                    if (query.isEmpty()) Text(hint, color = p.dim, fontSize = 16.sp)
+                    if (query.isEmpty()) Text(hint, color = p.onContainer, fontSize = 16.sp)
                     field()
                 }
                 if (query.isNotEmpty()) {
@@ -114,7 +115,7 @@ internal fun SettingsSearchField(query: String, onQueryChange: (String) -> Unit,
                         Icon(
                             painter = painterResource(LauncherIcons.Close),
                             contentDescription = stringResource(R.string.settings_search_clear),
-                            tint = p.dim,
+                            tint = p.onContainer,
                             modifier = Modifier.size(22.dp),
                         )
                     }

@@ -45,6 +45,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
+import org.arkikeskus.launcher.ui.expressive.ExpressiveGroup
+import androidx.compose.ui.platform.testTag
 
 /**
  * The mark on a row a search result led to must not cost the row its legibility: it is drawn around the row's card,
@@ -91,6 +93,34 @@ class SettingRowMarkTest {
         val edge = pixels[1, middle]
         assertWithMessage("the card's edge wears the mark (was $edge)").that(near(edge, palette.surfaceHi)).isFalse()
         assertThat(contrastRatio(edge.luminance(), palette.bg.luminance())).isAtLeast(3f)
+    }
+
+    /** On a page that groups its rows the group draws the mark, along the shape it gave the row. */
+    @Test fun aRowOfAGroupWearsTheMarkAlongItsOwnEdgeAndItsNeighboursDoNot() {
+        val jumps = SettingJumps().apply { target = "R2" }
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            CompositionLocalProvider(LocalExpressivePalette provides light, LocalSettingJumps provides jumps) {
+                ExpressiveGroup(Modifier.width(320.dp).testTag("group")) {
+                    for (n in 1..3) SettingRow("R$n") { ExpressiveActionRow(label = "Row $n", description = "None") {} }
+                }
+            }
+        }
+        compose.mainClock.advanceTimeBy(120)
+        assertThat(jumps.target).isEqualTo("R2")
+
+        val group = compose.onNodeWithTag("group").captureToImage().toPixelMap()
+        val root = compose.onNodeWithTag("group").getUnclippedBoundsInRoot().top
+        fun middleOf(id: String): Int = with(compose.density) {
+            val bounds = compose.onNodeWithTag(settingTag(id)).getUnclippedBoundsInRoot()
+            ((bounds.top + bounds.bottom) / 2 - root).roundToPx()
+        }
+        // The marked row: its edge wears the mark, the card under its text does not.
+        assertThat(near(group[1, middleOf("R2")], light.surfaceHi)).isFalse()
+        assertThat(near(group[12, middleOf("R2")], light.surfaceHi)).isTrue()
+        // Its neighbours are plain.
+        assertThat(near(group[1, middleOf("R1")], light.surfaceHi)).isTrue()
+        assertThat(near(group[1, middleOf("R3")], light.surfaceHi)).isTrue()
     }
 
     /** A few rows on the light theme, with [jumps] to steer them, inside [container]. */

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -38,6 +37,7 @@ fun ExpressiveSectionTitle(text: String, color: Color = LocalExpressivePalette.c
     )
 }
 
+/** A card of the hand-made surfaces: on its own, or as a row of an [ExpressiveGroup], which then shapes it. */
 @Composable
 fun ExpressiveCard(
     onClick: (() -> Unit)? = null,
@@ -46,11 +46,11 @@ fun ExpressiveCard(
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 10.dp)
+            .padding(bottom = expressiveCardGap())
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Row(

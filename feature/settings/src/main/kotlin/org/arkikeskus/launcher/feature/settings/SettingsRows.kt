@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -57,6 +56,10 @@ import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.expressive.ExpressiveSwitch
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 /** Single-select picker over string-valued settings (widget count style, people privacy). */
 @Composable
@@ -229,15 +232,15 @@ private fun StepButton(@DrawableRes icon: Int, contentDescription: String, onCli
     Box(
         modifier = Modifier
             .size(36.dp)
-            .clip(CircleShape)
-            .background(p.btn)
+            .clip(RoundedCornerShape(12.dp))
+            .background(p.container)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = p.accent,
+            tint = p.onContainer,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -281,9 +284,9 @@ internal fun CardColorRow(title: String, selected: Int?, onPick: (Int?) -> Unit)
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(title)

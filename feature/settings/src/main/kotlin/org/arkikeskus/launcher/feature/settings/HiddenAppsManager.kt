@@ -42,8 +42,8 @@ internal fun HiddenAppsManager(
             Text(
                 text = stringResource(R.string.settings_hidden_apps),
                 color = p.text,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 23.sp,
+                fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp),
             )
             LazyColumn(modifier = Modifier.fillMaxSize()) {

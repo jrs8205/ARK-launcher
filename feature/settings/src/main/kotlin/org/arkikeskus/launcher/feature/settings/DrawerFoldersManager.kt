@@ -118,8 +118,8 @@ private fun FolderList(
         Text(
             text = stringResource(R.string.settings_drawer_folders),
             color = p.text,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 8.dp),
         )
         if (folders.isEmpty()) {

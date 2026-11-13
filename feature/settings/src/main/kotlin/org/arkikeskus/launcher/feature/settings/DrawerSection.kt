@@ -46,6 +46,9 @@ import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
+import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 
 /** Settings > App drawer; [onOpenHiddenApps] and [onOpenFolders] open the two sub-screens. */
 @Composable
@@ -337,9 +340,9 @@ internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: (Uri) -> Un
     }
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_drawer_wallpaper))
@@ -382,9 +385,9 @@ internal fun DrawerColorRow(selected: Int?, locked: Boolean = false, onPick: (In
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_drawer_color))
@@ -424,9 +427,9 @@ internal fun DrawerLabelColorRow(selected: Int?, onPick: (Int?) -> Unit) {
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
-        shape = RoundedCornerShape(20.dp),
-        shadowElevation = p.shadow,
-        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_label_color))
