@@ -48,6 +48,9 @@
          permission, granted at install. -->
     <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
 
+    <!-- Private space (Android 15+): lets the default launcher see the private profile; nothing about its apps is stored. -->
+    <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
+
     <!-- See which apps expose a launcher activity (for the app drawer). -->
     <queries>
         <intent>

@@ -104,6 +104,7 @@ palvelimelle; pyynnöt tunnistautuvat yleisluontoisella
 | `REQUEST_DELETE_PACKAGES` | Kuvakkeen pitkän painalluksen "poista asennus" -toiminto |
 | `EXPAND_STATUS_BAR` | Ilmoitusten avaus alaspyyhkäisyllä |
 | `HIDE_OVERLAY_WINDOWS` | Muiden sovellusten päällä näkyvien ikkunoiden piilotus, kun toisesta sovelluksesta avatun varmuuskopion palautusikkuna on näkyvissä (Android 12+), jotta mikään peittoikkuna ei voi peittää tai huijata sitä |
+| `ACCESS_HIDDEN_PROFILES` | Yksityisen tilan sovellusten näyttäminen sovellusvalikon Yksityinen-välilehdellä silloin, kun olet avannut tilan lukituksen (Android 15 ja uudemmat). Näistä sovelluksista ei tallenneta eikä varmuuskopioida mitään. |
 
 Kalenteri-, yhteystieto- ja puhelintilatiedot luetaan tarvittaessa yllä
 kuvattuja ominaisuuksia varten, niitä käytetään vain laitteella, eikä niitä

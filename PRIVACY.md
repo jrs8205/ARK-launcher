@@ -95,6 +95,7 @@ to the server; the requests identify themselves with a generic
 | `REQUEST_DELETE_PACKAGES` | The "uninstall" action in an icon's long-press menu |
 | `EXPAND_STATUS_BAR` | The swipe-down-for-notifications gesture |
 | `HIDE_OVERLAY_WINDOWS` | Hiding other apps' overlay windows while the restore dialog for a backup opened from another app is shown (Android 12+), so no overlay can cover or trick it |
+| `ACCESS_HIDDEN_PROFILES` | Showing your private space's apps in the app drawer's Private tab while you have unlocked it (Android 15 and later). Nothing about those apps is stored or backed up. |
 
 Calendar, contacts and phone-state data are read on demand for the features
 above, used on the device only, and never stored beyond in-memory caches or
