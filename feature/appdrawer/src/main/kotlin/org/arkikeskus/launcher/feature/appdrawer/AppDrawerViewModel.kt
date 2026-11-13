@@ -178,7 +178,10 @@ class AppDrawerViewModel @Inject constructor(
     private val searchResults: Flow<Pair<String, SearchResults>> = combine(
         query.debounce { if (it.isBlank()) 0L else 200L }, // contacts hit ContentResolver; avoid per-keystroke
         appRepository.apps,                                 // install/uninstall/rename re-runs a live query
-    ) { q, _ -> q }
+        // The private space locking, unlocking or changing its apps answers the query on screen again: its
+        // apps, and for a hidden space its own row, must not outlive the lock in results nobody retyped.
+        privateSpaceFlow,
+    ) { q, _, _ -> q }
         .mapLatest { it to searchAggregator.search(it) }    // mapLatest cancels the previous run
 
     val uiState: StateFlow<AppDrawerUiState> = combine(
@@ -316,6 +319,8 @@ class AppDrawerViewModel @Inject constructor(
             },
             // The two flows are read one after the other: a locked space never keeps the list of a moment ago.
             privateApps = if (shown == null || shown.locked) emptyList() else apps,
+            // Nor do the results on screen: the search above answers again, but this is at once.
+            privateResults = if (shown == null || shown.locked) emptyList() else state.privateResults,
         )
     }.combine(selectedTabFlow.combine(wantsPrivateTab) { tab, wanted -> tab to wanted }) { state, (stored, wantsPrivate) ->
         // A stored selection only means something while its tab exists: hiding the last work app,

@@ -129,6 +129,35 @@ class PrivateTabStateTest {
         assertThat(locked.apps.map { it.packageName }).doesNotContain("com.vault")
     }
 
+    @Test fun resultsOnScreenLoseThePrivateAppsTheMomentTheSpaceLocks() {
+        aPrivateApp()
+        drawer(own, space(locked = false))
+        await("the private app") { it.privateApps.isNotEmpty() }
+        assertThat(search("vault").privateResults.map { it.packageName }).containsExactly("com.vault")
+
+        // The space locks while the results are on screen; nothing is typed.
+        viewModel.setPrivateLocked(true)
+
+        val state = await("the results without the private app") { it.privateSpace?.locked == true && it.privateResults.isEmpty() }
+        assertThat(state.query).isEqualTo("vault")
+        // And they come back when it is unlocked again, the query still standing.
+        viewModel.setPrivateLocked(false)
+        await("the private app found again") { it.privateResults.isNotEmpty() }
+    }
+
+    @Test fun theSpacesRowOnScreenGoesWhenAHiddenSpaceLocks() {
+        drawer(own, space(locked = false)) { it.settingsRepository.setHidePrivateSpaceWhenLocked(true) }
+        await("the Private tab") { DrawerTab.Private in it.tabs }
+        // Unlocked, the first letters of the name are enough.
+        assertThat(search("private sp").privateSpaceEntry).isTrue()
+
+        viewModel.setPrivateLocked(true)
+
+        // Locked and hidden, they are not: the row leaves the results that are on screen.
+        val state = await("the row gone") { DrawerTab.Private !in it.tabs && !it.privateSpaceEntry }
+        assertThat(state.query).isEqualTo("private sp")
+    }
+
     @Test fun theSpacesOwnRowShowsItsTab() {
         drawer(own, space(locked = false))
         await("the Private tab") { DrawerTab.Private in it.tabs }
