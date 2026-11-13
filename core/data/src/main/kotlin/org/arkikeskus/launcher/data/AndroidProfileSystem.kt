@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.LauncherApps
+import android.content.pm.LauncherUserInfo
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Process
@@ -119,6 +120,18 @@ class AndroidProfileSystem @Inject constructor(@ApplicationContext private val c
         return um.requestQuietModeEnabled(enabled, user)
     }
 
+    override fun privateSpaceEntryHidden(serial: Long): Boolean? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return null
+        return runCatching { entryHidden(serial) }.getOrNull()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    private fun entryHidden(serial: Long): Boolean? {
+        val user = userManager?.getUserForSerialNumber(serial) ?: return null
+        val config = launcherApps?.getLauncherUserInfo(user)?.userConfig ?: return null
+        val key = LauncherUserInfo.PRIVATE_SPACE_ENTRYPOINT_HIDDEN
+        return if (config.containsKey(key)) config.getBoolean(key) else null
+    }
 }
 
 /**

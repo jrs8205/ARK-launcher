@@ -59,6 +59,9 @@ data class LauncherSettings(
     /** The system wallpaper moves with the home pages (Settings > Home). Off leaves it where the
      *  system puts it. */
     val wallpaperScroll: Boolean = true,
+    /** The entry to the private space does not show while the space is locked. The launcher's own switch,
+     *  used where Android's setting of the same name cannot be read (Android 15). */
+    val hidePrivateSpaceWhenLocked: Boolean = false,
     /** "Not now" on the set-as-default card: it stays hidden on this device (Settings still offers
      *  the default-launcher row). Device-local, never in a backup. */
     val defaultReminderDismissed: Boolean = false,

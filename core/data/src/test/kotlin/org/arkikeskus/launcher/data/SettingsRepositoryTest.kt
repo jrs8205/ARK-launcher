@@ -738,6 +738,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `hidePrivateSpaceWhenLocked defaults to off and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().hidePrivateSpaceWhenLocked).isFalse()
+
+        repo.setHidePrivateSpaceWhenLocked(true)
+        assertThat(repo.settings.first().hidePrivateSpaceWhenLocked).isTrue()
+
+        repo.setHidePrivateSpaceWhenLocked(false)
+        assertThat(repo.settings.first().hidePrivateSpaceWhenLocked).isFalse()
+    }
+
+    @Test
+    fun `hidePrivateSpaceWhenLocked survives a backup round-trip and rejects a wrong type`() = runTest {
+        val repo = newRepository()
+        repo.setHidePrivateSpaceWhenLocked(true)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("hide_private_space_locked", true)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().hidePrivateSpaceWhenLocked).isTrue()
+
+        restored.importRaw(mapOf("hide_private_space_locked" to "yes"))
+        assertThat(restored.settings.first().hidePrivateSpaceWhenLocked).isFalse() // must not throw ClassCastException
+    }
+
+    @Test
     fun `wallpaperScroll survives a backup round-trip and rejects a wrong type`() = runTest {
         val repo = newRepository()
         repo.setWallpaperScroll(false)

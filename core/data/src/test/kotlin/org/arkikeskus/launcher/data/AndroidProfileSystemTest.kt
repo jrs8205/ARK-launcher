@@ -33,6 +33,10 @@ private fun workHandle(): UserHandle = UserHandle.getUserHandleForUid(10 * 100_0
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)
 class AndroidProfileSystemTest {
+    @Test fun androidsOwnHideSettingCannotBeReadBelowAndroid16() {
+        assertThat(AndroidProfileSystem(RuntimeEnvironment.getApplication()).privateSpaceEntryHidden(10)).isNull()
+    }
+
     private val context: Application = RuntimeEnvironment.getApplication()
     private val userManager = shadowOf(context.getSystemService(UserManager::class.java))
     private val system = AndroidProfileSystem(context)

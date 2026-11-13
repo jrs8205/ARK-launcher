@@ -34,6 +34,7 @@ import org.arkikeskus.launcher.data.local.AppLabelDao
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.ProfileKind
 import org.arkikeskus.launcher.data.ProfileSnapshot
+import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.data.ProfileSystem
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.WorkProfileRepository
@@ -84,6 +85,7 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
             listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false))
         override fun changes(): Flow<Unit> = emptyFlow()
         override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
+        override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
     }
     private val source = LauncherAppsSource::class.java.constructors.single()
         .newInstance(context, IconPackRepository(context), Provider<Any?> { error("unused") }, labelCache, noProfiles) as LauncherAppsSource
@@ -94,7 +96,10 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         CoroutineScope(testScope.backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScope.testScheduler))
 
     val workProfileRepository = WorkProfileRepository(noProfiles, appScope)
-    val appRepository = AppRepository(source, settingsRepository, appUsageRepository, workProfileRepository, appScope)
+    val appRepository = AppRepository(
+        source, settingsRepository, appUsageRepository, workProfileRepository,
+        PrivateSpaceRepository(noProfiles, workProfileRepository, source, settingsRepository, appScope), appScope,
+    )
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
 
     suspend fun pinOnHome(shortcutId: String): Long = dao.insert(

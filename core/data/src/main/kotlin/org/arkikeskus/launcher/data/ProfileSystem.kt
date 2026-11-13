@@ -43,6 +43,10 @@ interface ProfileSystem {
     /** `UserManager.requestQuietModeEnabled` for the profile with [serial]; throws what the platform
      *  throws (a `SecurityException` when the app is not the default launcher). */
     fun requestQuietMode(serial: Long, enabled: Boolean): Boolean
+
+    /** Android's own "hide private space when locked" for the profile with [serial]; null where it cannot be
+     *  read (below Android 16) or the lookup fails. Never throws. */
+    fun privateSpaceEntryHidden(serial: Long): Boolean?
 }
 
 /**
@@ -53,4 +57,12 @@ interface ProfileSystem {
  */
 fun workProfileOf(profiles: List<ProfileSnapshot>): ProfileSnapshot? = profiles
     .filter { it.kind == ProfileKind.Managed || (it.kind == ProfileKind.Unknown && it.badged) }
+    .minByOrNull { it.serial }
+
+/**
+ * The private space among [profiles], or null: only a profile the platform typed [ProfileKind.Private] (so
+ * never below Android 15, and never by a badge). Android allows one; the lowest serial wins.
+ */
+fun privateProfileOf(profiles: List<ProfileSnapshot>): ProfileSnapshot? = profiles
+    .filter { it.kind == ProfileKind.Private }
     .minByOrNull { it.serial }

@@ -22,6 +22,7 @@ class AppRepository @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val appUsageRepository: AppUsageRepository,
     profiles: WorkProfileRepository,
+    private val privateSpace: PrivateSpaceRepository,
     @ApplicationScope private val scope: CoroutineScope,
 ) {
     /**
@@ -82,10 +83,14 @@ class AppRepository @Inject constructor(
     fun launchClassName(packageName: String, user: UserHandle): String? = source.launchClassName(packageName, user)
 
     /** Launches [appItem] (from [sourceBounds] with [options], see [LauncherAppsSource.launch]); on
-     *  success, records the launch for the "most used" ranking (fire-and-forget). */
+     *  success, records the launch for the "most used" ranking (fire-and-forget). An app of the private
+     *  space is never recorded, whoever starts it here: the ranking is written to the disk under the
+     *  app's key (the drawer starts such apps through [PrivateSpaceRepository.launch], which counts nothing). */
     fun launch(appItem: AppItem, sourceBounds: Rect? = null, options: Bundle? = null): Result<Unit> {
         val result = source.launch(appItem, sourceBounds, options)
-        if (result.isSuccess) scope.launch { appUsageRepository.recordLaunch(appItem.key) }
+        if (result.isSuccess && !privateSpace.isPrivate(appItem.userSerial)) {
+            scope.launch { appUsageRepository.recordLaunch(appItem.key) }
+        }
         return result
     }
 }
