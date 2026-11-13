@@ -88,9 +88,10 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     /**
      * The keys of the notifications left alone at their post ([isPrivate]): the private space's, and those of a
-     * profile that could not be placed yet. Memory only, and gone with the notification. A profile that turns out
-     * to be a work profile gets, for the notifications it has here, the decisions their post skipped
-     * ([profilesPlaced]). Touched only from the main thread.
+     * profile that could not be placed yet. Memory only. A key leaves when its notification is removed, when it
+     * is posted again and read, when it is decided ([decideThoseLeftAlone]) and when the listener disconnects;
+     * never because a fetch of the active notifications came back without it (a fetch can fail, or come back
+     * empty). While a key is here its notification is not shown. Touched only from the main thread.
      */
     private val leftAlone = HashSet<String>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -269,26 +270,35 @@ class NotificationDotListenerService : NotificationListenerService() {
         if (until != previous) persistHeld()
     }
 
-    /**
-     * What is known of the profiles' kinds has changed. A notification that was left alone at its post and whose
-     * profile is a shared one now (a work profile that was new when its first message came) missed more than
-     * being shown: its post also decides whether it waits for batch delivery. It gets that decision here, exactly
-     * as a post gives it, and only it: a notification that was read at its post is not decided again (one that
-     * was delivered would go back to waiting). Then everything active is read again.
-     */
+    /** What is known of the profiles' kinds has changed: everything active is read again ([refresh] gives the
+     *  notifications that waited for it what their post skipped, see [decideThoseLeftAlone]). */
     private fun profilesPlaced() {
-        if (!connected) return
-        val active = runCatching { activeNotifications }.getOrNull().orEmpty().filterNotNull()
-        leftAlone.retainAll(active.mapTo(HashSet()) { it.key })
+        if (connected) refreshWithRetries()
+    }
+
+    /**
+     * A notification that was left alone at its post and whose profile is a shared one now (a work profile that
+     * was new when its first message came) missed more than being shown: its post also enters it in the
+     * alert-once bookkeeping and decides whether it waits for batch delivery. It gets both here, exactly as a
+     * post gives them, and only it: a notification that was read at its post is not decided again (one that was
+     * delivered would go back to waiting).
+     *
+     * Called by [refresh] with the notifications it has just fetched, before it shows anything of them. So the
+     * decisions are made by whichever fetch succeeds: a fetch that failed, or came back empty although the
+     * notification is there, decides nothing and loses nothing, and the retry does the work. Without the stored
+     * settings the batch decision cannot be made: the keys wait, and [refresh] does not show their notifications
+     * until a later refresh (the settings arriving make one) has decided them.
+     */
+    private fun decideThoseLeftAlone(active: Array<StatusBarNotification?>) {
+        if (leftAlone.isEmpty() || !settingsReady) return
         for (sbn in active) {
-            if (sbn.key !in leftAlone || isPrivate(sbn)) continue
+            if (sbn == null || sbn.key !in leftAlone || isPrivate(sbn)) continue
             leftAlone.remove(sbn.key)
             // Android showed its heads-up, if it had one, when the notification came: the key counts as alerted,
             // so an update that alerts only once does not blank the themed status bar as a new heads-up would.
             alertedKeys.add(sbn.key)
-            if (settingsReady) holdForBatch(sbn)
+            holdForBatch(sbn)
         }
-        refreshWithRetries()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
@@ -328,6 +338,8 @@ class NotificationDotListenerService : NotificationListenerService() {
             }
             return
         }
+        // Before anything is shown: the notifications that waited for their profile get what their post skipped.
+        decideThoseLeftAlone(active)
         val ranking = runCatching { currentRanking }.getOrNull()
         val tmp = Ranking()
         val counts = HashMap<String, Int>()
@@ -352,7 +364,8 @@ class NotificationDotListenerService : NotificationListenerService() {
             persistHeld()
         }
         for (sbn in active) {
-            if (sbn == null || isPrivate(sbn)) continue
+            // Also not one that still waits for its decisions (left alone at its post, the settings not read yet).
+            if (sbn == null || isPrivate(sbn) || sbn.key in leftAlone) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
             // People tiles: conversation-like notifications reduced to sender + text + actions; any

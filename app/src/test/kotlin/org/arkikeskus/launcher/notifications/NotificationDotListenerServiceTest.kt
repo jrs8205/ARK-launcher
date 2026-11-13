@@ -424,6 +424,75 @@ class NotificationDotListenerServiceTest {
         assertThat(ReflectionHelpers.getField<Set<String>>(service, "alertedKeys")).contains(call.key)
     }
 
+    /** A work profile the user manager knows and the launcher's snapshot does not yet; the listener is connected. */
+    private fun aWorkProfileNotPlacedYet(): Profiles {
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 10, "Work", 0)
+        val profiles = Profiles(listOf(own))
+        service.privateSpace = privateSpace(profiles)
+        service.onListenerConnected()
+        return profiles
+    }
+
+    private val workUser: UserHandle = UserHandle.getUserHandleForUid(10 * 100_000)
+
+    private fun placeAsWork(profiles: Profiles) {
+        profiles.list = listOf(own, ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+        await("the work profile known") {
+            !service.privateSpace.mustLeaveNoTrace(workUser, context.getSystemService(UserManager::class.java))
+        }
+        repeat(10) { Thread.sleep(20); shadowOf(android.os.Looper.getMainLooper()).idle() }
+    }
+
+    @Config(sdk = [35])
+    @Test fun aFetchThatComesBackEmptyWhenTheProfileIsPlacedLosesNoWaitingMessage() = runTest {
+        val profiles = aWorkProfileNotPlacedYet()
+        enableBatch()
+        val fromWork = chatOf(workUser)
+        post(fromWork)
+        val listener = Shadow.extract<ShadowNotificationListenerService>(service)
+        // The fetch that follows the profile's placing fails: Android hands back nothing (an empty array on a
+        // Binder error), although the notification is still there.
+        service.cancelNotification(fromWork.key)
+
+        placeAsWork(profiles)
+
+        // The next fetch works. The message that waited still gets the decisions its post skipped, before it is
+        // shown: it waits for the delivery time, and it counts as alerted.
+        listener.addActiveNotification(fromWork)
+        ReflectionHelpers.callInstanceMethod<Unit>(service, "refresh")
+
+        assertThat(service.badgeRepository.people.value.single().held).isTrue()
+        assertThat(held().keys).containsExactly(fromWork.key)
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+        assertThat(ReflectionHelpers.getField<Set<String>>(service, "alertedKeys")).contains(fromWork.key)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aMessageThatWaitedIsNotShownBeforeTheSettingsCanDecideIt() = runTest {
+        val profiles = aWorkProfileNotPlacedYet()
+        // The stored settings are not read yet (the first moments after the listener connects).
+        ReflectionHelpers.setField(service, "settingsReady", false)
+        val fromWork = chatOf(workUser)
+        post(fromWork)
+
+        placeAsWork(profiles)
+
+        // Placed, but whether batch delivery holds it is not known yet: it is not shown undecided.
+        assertThat(service.badgeRepository.people.value).isEmpty()
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+
+        // The settings arrive, with batch delivery on: now it is decided, and waits.
+        enableBatch()
+        ReflectionHelpers.callInstanceMethod<Unit>(service, "refresh")
+        assertThat(service.badgeRepository.people.value.single().held).isTrue()
+        assertThat(held().keys).containsExactly(fromWork.key)
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+    }
+
     @Config(sdk = [35])
     @Test fun aNotificationThatWasReadAtItsPostIsNotDecidedAgainWhenTheProfilesChange() = runTest {
         // A personal message already delivered (its hold was released): a profile appearing elsewhere must not
