@@ -249,7 +249,9 @@ class NotificationDotListenerService : NotificationListenerService() {
             leftAlone += sbn.key
             return
         }
-        if (sbn != null) leftAlone.remove(sbn.key) // posted again, and read this time
+        // Posted again, and read this time. Android showed its heads-up, if it had one, at the post that was left
+        // alone: the key counts as alerted, so an update that alerts only once is not taken for a first heads-up.
+        if (sbn != null && leftAlone.remove(sbn.key)) alertedKeys.add(sbn.key)
         // A heads-up post makes the system transiently show ITS status bar over our content; tell the
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).

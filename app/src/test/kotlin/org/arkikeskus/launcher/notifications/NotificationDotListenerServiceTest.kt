@@ -494,6 +494,33 @@ class NotificationDotListenerServiceTest {
     }
 
     @Config(sdk = [35])
+    @Test fun anUpdateOfAMessageThatStillWaitsForItsDecisionsIsNotAFirstHeadsUp() {
+        val profiles = aWorkProfileNotPlacedYet()
+        // The stored settings are not read yet, so the refresh that follows the placing decides nothing.
+        ReflectionHelpers.setField(service, "settingsReady", false)
+        val pending = PendingIntent.getActivity(context, 0, Intent("test.open"), PendingIntent.FLAG_IMMUTABLE)
+        // A heads-up that alerts only once, posted while its profile is unplaced: Android showed it, the launcher
+        // left it alone.
+        val call = StatusBarNotification(
+            "chat.app", "chat.app", 9, null, 1_001_000, 0, 0,
+            NotificationCompat.Builder(context, "chat").setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setCategory(Notification.CATEGORY_MESSAGE).setContentTitle("Anna").setContentText("Hello")
+                .setFullScreenIntent(pending, true).setOnlyAlertOnce(true).build(),
+            workUser, System.currentTimeMillis(),
+        )
+        post(call)
+        assertThat(service.badgeRepository.headsUp.value).isEqualTo(0L)
+
+        placeAsWork(profiles)
+
+        // Its app updates it under the same key before any refresh has decided it: this post reads it, and
+        // Android does not alert again, so the themed status bar must not be blanked as for a new heads-up.
+        service.onNotificationPosted(call)
+        assertThat(service.badgeRepository.headsUp.value).isEqualTo(0L)
+        assertThat(ReflectionHelpers.getField<Set<String>>(service, "alertedKeys")).contains(call.key)
+    }
+
+    @Config(sdk = [35])
     @Test fun aNotificationThatWasReadAtItsPostIsNotDecidedAgainWhenTheProfilesChange() = runTest {
         // A personal message already delivered (its hold was released): a profile appearing elsewhere must not
         // put it back to waiting.
