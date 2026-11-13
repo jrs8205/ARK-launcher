@@ -25,6 +25,15 @@ import javax.inject.Singleton
  * that, and one `BroadcastReceiver` per collector of [changes] for the profile broadcasts —
  * `LauncherApps.Callback` never reports a profile coming, going or pausing.
  */
+/**
+ * Whether a profile's badge may tell what it is: only for an untyped one, and only where the platform does not type
+ * profiles itself (below Android 15). From Android 15 a managed profile comes typed, so an untyped profile there
+ * is one the launcher may not see (a private space without the access to it): its badge must not make it a work
+ * profile, or it would show as a paused Work tab.
+ */
+internal fun badgeCounts(kind: ProfileKind, sdkInt: Int): Boolean =
+    kind == ProfileKind.Unknown && sdkInt < Build.VERSION_CODES.VANILLA_ICE_CREAM
+
 @Singleton
 class AndroidProfileSystem @Inject constructor(@ApplicationContext private val context: Context) : ProfileSystem {
     private val userManager = context.getSystemService(UserManager::class.java)
@@ -44,7 +53,7 @@ class AndroidProfileSystem @Inject constructor(@ApplicationContext private val c
             ProfileSnapshot(
                 serial = serial,
                 kind = kind,
-                badged = kind == ProfileKind.Unknown && isBadged(user),
+                badged = badgeCounts(kind, Build.VERSION.SDK_INT) && isBadged(user),
                 paused = runCatching { userManager.isQuietModeEnabled(user) }.getOrDefault(false),
             )
         }

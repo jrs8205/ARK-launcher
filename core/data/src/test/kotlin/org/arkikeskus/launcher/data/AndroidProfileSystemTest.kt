@@ -145,4 +145,27 @@ class AndroidProfileSystemApi35Test {
 
         assertThat(snapshot.map { it.serial }).containsExactly(0L, 10L)
     }
+
+    /** Android 15 types a managed profile itself. One it does not type (a private space the launcher may not see)
+     *  must not pass for a work profile because it wears a badge: it would show as a paused Work tab. */
+    @Test fun anUntypedProfileIsNeverBadgedOnAndroid15SoItIsNotAWorkProfile() {
+        val userManager = shadowOf(context.getSystemService(UserManager::class.java))
+        userManager.addUser(0, "Owner", 0)
+        userManager.addProfile(0, 10, "Private", FLAG_MANAGED_PROFILE)
+
+        val snapshot = AndroidProfileSystem(context).snapshot()
+
+        val profile = snapshot.single { it.serial == 10L }
+        assertThat(profile.kind).isEqualTo(ProfileKind.Unknown) // no shadow types it
+        assertThat(profile.badged).isFalse()
+        assertThat(workProfileOf(snapshot)).isNull()
+    }
+
+    @Test fun aBadgeCountsOnlyWhereThePlatformDoesNotTypeProfiles() {
+        assertThat(badgeCounts(ProfileKind.Unknown, sdkInt = 34)).isTrue()
+        assertThat(badgeCounts(ProfileKind.Unknown, sdkInt = 30)).isTrue()
+        assertThat(badgeCounts(ProfileKind.Unknown, sdkInt = 35)).isFalse()
+        assertThat(badgeCounts(ProfileKind.Unknown, sdkInt = 36)).isFalse()
+        for (kind in ProfileKind.entries - ProfileKind.Unknown) assertThat(badgeCounts(kind, sdkInt = 34)).isFalse()
+    }
 }
