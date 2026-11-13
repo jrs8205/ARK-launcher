@@ -11,6 +11,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.os.Process
+import android.os.UserHandle
+import android.os.UserManager
 import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.NotificationListenerService.RankingMap
 import android.service.notification.StatusBarNotification
@@ -19,7 +21,14 @@ import androidx.core.app.Person
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import coil3.ImageLoader
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,9 +37,18 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.arkikeskus.launcher.data.AppLabelCache
+import org.arkikeskus.launcher.data.AppLabelStore
+import org.arkikeskus.launcher.data.IconPackRepository
+import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PersonEntry
+import org.arkikeskus.launcher.data.PrivateSpaceRepository
+import org.arkikeskus.launcher.data.ProfileKind
+import org.arkikeskus.launcher.data.ProfileSnapshot
+import org.arkikeskus.launcher.data.ProfileSystem
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.junit.Before
 import org.junit.After
 import org.junit.Test
@@ -43,6 +61,7 @@ import org.robolectric.shadows.ShadowNotificationListenerService
 import org.robolectric.annotation.Config
 import org.robolectric.util.ReflectionHelpers
 import org.robolectric.util.ReflectionHelpers.ClassParameter.from
+import javax.inject.Provider
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30, 35], application = Application::class)
@@ -64,11 +83,32 @@ class NotificationDotListenerServiceTest {
             override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
                 transform(data.value).also { data.value = it }
         })
+        service.privateSpace = privateSpace(own)
     }
 
     @After fun tearDown() {
         service.onDestroy()
+        repositoryScope.cancel()
         Dispatchers.resetMain()
+    }
+
+    private val own = ProfileSnapshot(0, ProfileKind.Own, badged = false, paused = false)
+    private val repositoryScope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
+
+    /** The private space repository of a device with [profiles] (it reads them once, when it is made). */
+    private fun privateSpace(vararg profiles: ProfileSnapshot): PrivateSpaceRepository {
+        val system = object : ProfileSystem {
+            override fun snapshot(): List<ProfileSnapshot> = profiles.toList()
+            override fun changes(): Flow<Unit> = emptyFlow()
+            override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("unused")
+            override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
+        }
+        val labels = AppLabelCache(object : AppLabelStore {
+            override suspend fun read(locale: String): Map<String, String> = emptyMap()
+            override suspend fun write(locale: String, labels: Map<String, String>) = Unit
+        })
+        val source = LauncherAppsSource(context, IconPackRepository(context), Provider<ImageLoader> { error("unused") }, labels, system)
+        return PrivateSpaceRepository(system, WorkProfileRepository(system, repositoryScope), source, service.settingsRepository, repositoryScope)
     }
 
     private fun enableBatch() {
@@ -171,6 +211,109 @@ class NotificationDotListenerServiceTest {
         assertThat(service.badgeRepository.people.value.single().held).isFalse()
         assertThat(service.badgeRepository.icons.value).hasSize(1)
         assertThat(held).isEmpty()
+    }
+
+    // The private space. Its notifications are not read at all: no dot, no status icon, no row in the
+    // notifications widget, no people tile, and above all no key in the batch delivery's stored map.
+
+    private val privateUser: UserHandle = UserHandle.getUserHandleForUid(11 * 100_000)
+
+    private fun aDeviceWithAPrivateSpace() {
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 11, "Private", 0)
+        service.privateSpace = privateSpace(own, ProfileSnapshot(11, ProfileKind.Private, badged = false, paused = false))
+        ReflectionHelpers.setField(service, "connected", true)
+        ReflectionHelpers.setField(service, "heldLoaded", true)
+        ReflectionHelpers.setField(service, "settingsReady", true)
+    }
+
+    /** An incoming message of chat.app, the app of the personal [chat], posted in the profile of [user]. */
+    private fun chatOf(user: UserHandle): StatusBarNotification {
+        val style = NotificationCompat.MessagingStyle(me).addMessage("A private word", 1L, anna)
+        val notification = NotificationCompat.Builder(context, "chat").setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setCategory(Notification.CATEGORY_MESSAGE).setContentTitle("Anna").setContentText("A private word")
+            .setStyle(style).build()
+        return StatusBarNotification(
+            "chat.app", "chat.app", 7, null, user.hashCode() * 100_000 + 1000, 0, 0, notification, user, System.currentTimeMillis(),
+        )
+    }
+
+    private fun held(): Map<String, Long> = ReflectionHelpers.getField(service, "heldUntil")
+
+    @Config(sdk = [35])
+    @Test fun aPrivateSpacesNotificationIsNotRead() {
+        aDeviceWithAPrivateSpace()
+        val private = chatOf(privateUser)
+
+        post(private)
+
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+        assertThat(service.badgeRepository.people.value).isEmpty()
+
+        service.onNotificationRemoved(private, null, 0)
+        assertThat(service.badgeRepository.people.value).isEmpty()
+    }
+
+    @Config(sdk = [35])
+    @Test fun thePersonalTwinOfAPrivateAppIsReadAsBefore() {
+        aDeviceWithAPrivateSpace()
+
+        post(chatOf(privateUser))
+        post(chat(true))
+
+        assertThat(service.badgeRepository.badges.value).containsExactly("chat.app/0", 1)
+        assertThat(service.badgeRepository.icons.value.map { it.userSerial }).containsExactly(0L)
+        assertThat(service.badgeRepository.people.value).hasSize(1)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aPrivateNotificationIsNeverHeldForBatchDeliveryOrStored() = runTest {
+        aDeviceWithAPrivateSpace()
+        enableBatch()
+
+        post(chatOf(privateUser))
+
+        assertThat(held()).isEmpty()
+        assertThat(service.settingsRepository.heldNotifications.first()).isEmpty()
+
+        // The same message of the personal app waits and is stored, as before.
+        val personal = chat(true)
+        post(personal)
+        assertThat(held().keys).containsExactly(personal.key)
+        assertThat(service.settingsRepository.heldNotifications.first().keys).containsExactly(personal.key)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aPrivateKeyAnOlderVersionStoredIsForgottenAtOnce() = runTest {
+        aDeviceWithAPrivateSpace()
+        enableBatch()
+        // Before this version a private message was held like any other, and its key written to the settings.
+        val private = chatOf(privateUser)
+        val later = System.currentTimeMillis() + 3_600_000
+        service.settingsRepository.setHeldNotifications(mapOf(private.key to later))
+        ReflectionHelpers.getField<MutableMap<String, Long>>(service, "heldUntil")[private.key] = later
+        Shadow.extract<ShadowNotificationListenerService>(service).addActiveNotification(private)
+
+        ReflectionHelpers.callInstanceMethod<Unit>(service, "refresh")
+
+        assertThat(held()).isEmpty()
+        assertThat(service.settingsRepository.heldNotifications.first()).isEmpty()
+        assertThat(service.badgeRepository.people.value).isEmpty()
+    }
+
+    @Config(sdk = [35])
+    @Test fun aProfileWhoseSerialCannotBeReadCountsAsPrivate() {
+        aDeviceWithAPrivateSpace()
+        // A profile the user manager does not answer for: it may be a private space the launcher was not told of.
+        val unknown = UserHandle.getUserHandleForUid(12 * 100_000)
+
+        post(chatOf(unknown))
+
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+        assertThat(service.badgeRepository.people.value).isEmpty()
     }
 
     /** The shape a community post takes on Android 16+: a big picture offloaded to a content URI,

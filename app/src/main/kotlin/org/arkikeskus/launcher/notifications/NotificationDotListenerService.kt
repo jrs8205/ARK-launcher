@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.os.UserManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -40,6 +41,7 @@ import org.arkikeskus.launcher.data.PeopleGrouping
 import org.arkikeskus.launcher.data.PersonEntry
 import org.arkikeskus.launcher.data.PersonEventKind
 import org.arkikeskus.launcher.data.ReplyAction
+import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.StatusNotification
 import javax.inject.Inject
@@ -76,6 +78,9 @@ class NotificationDotListenerService : NotificationListenerService() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    @Inject
+    lateinit var privateSpace: PrivateSpaceRepository
+
     /** Lives while the listener is connected; carries the batch settings + pins into [holdForBatch]. */
     private var settingsJob: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -101,6 +106,21 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     private val userManager by lazy { getSystemService(UserManager::class.java) }
+
+    /**
+     * Whether [sbn] is a notification of the private space. Such a notification is not read at all: it gets
+     * no dot, no status icon, no row in the notifications widget and no people tile, and it is never held for
+     * batch delivery, whose keys are written to the settings. From Android 15 a profile that is not the own
+     * user and whose serial number cannot be read counts as private too: it may be a private space the
+     * launcher was not told of. Below Android 15 there is no private space.
+     */
+    private fun isPrivate(sbn: StatusBarNotification): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return false
+        val user = sbn.user
+        if (user == Process.myUserHandle()) return false
+        val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull()?.takeIf { it >= 0 }
+        return serial == null || privateSpace.isPrivate(serial)
+    }
 
     /** Keys that have already fired a heads-up, so a FLAG_ONLY_ALERT_ONCE re-post doesn't re-trigger.
      *  Touched only from NLS callbacks (main thread), so it needs no synchronisation. */
@@ -209,6 +229,7 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        if (sbn != null && isPrivate(sbn)) return
         // A heads-up post makes the system transiently show ITS status bar over our content; tell the
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).
@@ -230,6 +251,7 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+        if (sbn != null && isPrivate(sbn)) return
         if (sbn != null) alertedKeys.remove(sbn.key)
         // A user snoozing an already-held notification leaves its deadline intact. Only a real
         // removal (dismissed or cancelled by the app) forgets it.
@@ -267,6 +289,10 @@ class NotificationDotListenerService : NotificationListenerService() {
         val openable = HashMap<String, StatusNotification>()
         val people = ArrayList<PersonEntry>()
         val now = System.currentTimeMillis()
+        // A version before the private space was known held its messages like any other and wrote their keys
+        // to the settings: such a key is forgotten here, at once, whatever its deadline.
+        val privateKeys = if (heldUntil.isEmpty()) emptySet() else active.filterNotNull().filter(::isPrivate).mapTo(HashSet()) { it.key }
+        if (heldUntil.keys.removeAll(privateKeys)) persistHeld()
         val activeKeys = active.filterNotNull().map { it.key }.toSet()
         val released = heldUntil.filter { (key, until) ->
             settingsReady && key in activeKeys && (!batchEnabled || now >= until)
@@ -276,7 +302,7 @@ class NotificationDotListenerService : NotificationListenerService() {
             persistHeld()
         }
         for (sbn in active) {
-            if (sbn == null) continue
+            if (sbn == null || isPrivate(sbn)) continue
             val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
             val key = "${sbn.packageName}/$serial"
             // People tiles: conversation-like notifications reduced to sender + text + actions; any
@@ -340,7 +366,7 @@ class NotificationDotListenerService : NotificationListenerService() {
             val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty().filterNotNull()
             val snoozedKeys = snoozed.map { it.key }.toSet()
             for (sbn in snoozed) {
-                if (sbn.key in activeKeys) continue
+                if (sbn.key in activeKeys || isPrivate(sbn)) continue
                 val until = heldUntil[sbn.key] ?: continue
                 val serial = runCatching { userManager?.getSerialNumberForUser(sbn.user) }.getOrNull() ?: 0L
                 val entry = runCatching { personEntry(sbn, serial, ranking, tmp) }.getOrNull() ?: continue
