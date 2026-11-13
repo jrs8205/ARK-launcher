@@ -66,6 +66,8 @@ import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 import org.arkikeskus.launcher.ui.CoverSystemBars
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.LauncherIcons
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import org.arkikeskus.launcher.ui.expressive.pressSpring
 
 /** The Arkikeskus brand colors the aurora blobs drift in (fixed — independent of the theme). */
 private val AURORA_BASE = Color(0xFF111318)
@@ -161,9 +163,12 @@ fun OnboardingFlow(
                     }
                 }
                 Spacer(Modifier.weight(1f))
+                val introPress = remember { MutableInteractionSource() }
                 Button(
                     onClick = { if (page < 2) page++ else onFinish() },
                     colors = introButtonColors(),
+                    interactionSource = introPress,
+                    modifier = Modifier.pressSpring(introPress),
                 ) {
                     Text(stringResource(if (page < 2) R.string.onboarding_next else R.string.onboarding_finish))
                 }
@@ -240,9 +245,12 @@ private fun WelcomePage() {
                 style = MaterialTheme.typography.titleMedium,
             )
         } else {
+            val introPress = remember { MutableInteractionSource() }
             Button(
                 onClick = { runCatching { setDefault.launch(DefaultLauncher.requestIntent(context)) } },
                 colors = introButtonColors(),
+                interactionSource = introPress,
+                modifier = Modifier.pressSpring(introPress),
             ) {
                 Text(stringResource(R.string.onboarding_set_default))
             }
@@ -404,6 +412,7 @@ private fun PermissionsPage(onContactsGranted: () -> Unit, onPhoneGranted: () ->
         )
         Spacer(Modifier.height(20.dp))
         if (!(calendar && contacts && phone && location && notifAccess)) {
+            val introPress = remember { MutableInteractionSource() }
             Button(
                 onClick = {
                     openNotifAfterChain = true
@@ -416,6 +425,8 @@ private fun PermissionsPage(onContactsGranted: () -> Unit, onPhoneGranted: () ->
                     permissionsLauncher.launch(perms)
                 },
                 colors = introButtonColors(),
+                interactionSource = introPress,
+                modifier = Modifier.pressSpring(introPress),
             ) {
                 Text(stringResource(R.string.onboarding_grant_all))
             }

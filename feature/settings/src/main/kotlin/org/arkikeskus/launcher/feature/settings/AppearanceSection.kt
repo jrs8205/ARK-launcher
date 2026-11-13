@@ -47,6 +47,9 @@ import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.paletteSeed
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.LocalIndication
+import org.arkikeskus.launcher.ui.expressive.pressSpring
 
 internal const val BASE_COLOUR_CARD_TAG = "base-colour-card"
 
@@ -146,12 +149,20 @@ private val OPTION_SIDE_PADDING = 4.dp
 @Composable
 private fun BaseColourOption(key: String, selected: Boolean, dark: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
+    val interaction = remember { MutableInteractionSource() }
     Column(
         modifier = modifier
             .testTag(baseColourTag(key))
+            .pressSpring(interaction)
             .clip(RoundedCornerShape(16.dp))
             .background(if (selected) p.container else Color.Transparent)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(
+                selected = selected,
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
             .heightIn(min = 48.dp)
             .padding(horizontal = OPTION_SIDE_PADDING, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -173,14 +184,22 @@ private fun BaseColourOption(key: String, selected: Boolean, dark: Boolean, modi
 @Composable
 private fun BaseColourRowOption(key: String, description: String?, selected: Boolean, dark: Boolean, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp)
             .testTag(baseColourTag(key))
+            .pressSpring(interaction)
             .clip(RoundedCornerShape(16.dp))
             .background(if (selected) p.container else Color.Transparent)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(
+                selected = selected,
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
             .heightIn(min = 56.dp)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

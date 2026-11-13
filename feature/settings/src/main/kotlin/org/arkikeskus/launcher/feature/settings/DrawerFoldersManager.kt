@@ -42,6 +42,8 @@ import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.expressive.ExpressiveSwitch
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import org.arkikeskus.launcher.ui.expressive.pressSpring
 
 internal const val FOLDER_MANAGER_FOLDER_ROW_TAG = "folder-manager-folder"
 internal const val FOLDER_MANAGER_APP_ROW_TAG = "folder-manager-app"
@@ -153,7 +155,12 @@ private fun FolderList(
                 }
             }
         }
-        Button(onClick = onCreate, modifier = Modifier.padding(20.dp)) {
+        val createInteraction = remember { MutableInteractionSource() }
+        Button(
+            onClick = onCreate,
+            interactionSource = createInteraction,
+            modifier = Modifier.padding(20.dp).pressSpring(createInteraction),
+        ) {
             Text(stringResource(R.string.settings_new_drawer_folder))
         }
     }

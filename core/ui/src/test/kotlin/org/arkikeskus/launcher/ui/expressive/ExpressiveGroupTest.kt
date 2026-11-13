@@ -120,6 +120,22 @@ class ExpressiveGroupTest {
         assertThat(group[3, 62 + 60 - 4] != card).isTrue()
     }
 
+    @Test fun aRowsScaleShrinksItTogetherWithItsShape() {
+        compose.setContent {
+            Box(Modifier.background(page)) {
+                ExpressiveGroup(Modifier.width(300.dp).testTag("group")) {
+                    Box(Modifier.expressiveGroupRow(scale = { 0.5f }).fillMaxWidth().height(60.dp).background(card))
+                }
+            }
+        }
+        compose.waitForIdle()
+        val group = pixels("group")
+        // Scaled about its centre: the middle is still the card, where the row's edge was is the page.
+        assertThat(group[150, 30]).isEqualTo(card)
+        assertThat(group[20, 30].green).isLessThan(0.1f)
+        assertThat(group[150, 5].green).isLessThan(0.1f)
+    }
+
     @Test fun aCardKnowsWhetherItIsARowOfAGroup() {
         var inRow: Triple<Boolean, Boolean, Boolean>? = null
         var alone: Triple<Boolean, Boolean, Boolean>? = null

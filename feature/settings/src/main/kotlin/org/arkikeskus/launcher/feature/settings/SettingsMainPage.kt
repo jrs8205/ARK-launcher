@@ -40,6 +40,11 @@ import org.arkikeskus.launcher.ui.expressive.GroupPosition
 import org.arkikeskus.launcher.ui.expressive.LocalInExpressiveGroup
 import org.arkikeskus.launcher.ui.expressive.expressiveGroupRow
 import org.arkikeskus.launcher.ui.expressive.groupShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.ui.graphics.graphicsLayer
+import org.arkikeskus.launcher.ui.expressive.rememberPressScale
 
 /**
  * The first page of Settings: the title, the search field, the default-launcher row, the categories, each opening a
@@ -121,13 +126,25 @@ internal fun CategoryRow(
 ) {
     val p = LocalExpressivePalette.current
     val inGroup = LocalInExpressiveGroup.current
+    val interaction = remember { MutableInteractionSource() }
+    val press = rememberPressScale(interaction)
+    val pressScale = remember(press) { { press.value } }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(categoryTag(category.key))
-            .then(if (inGroup) Modifier.expressiveGroupRow() else Modifier.clip(groupShape(GroupPosition.Only)))
+            .then(
+                // A row of a group is shaped, and shrunk under a press, by the group; on its own it does both itself.
+                if (inGroup) {
+                    Modifier.expressiveGroupRow(scale = pressScale)
+                } else {
+                    Modifier
+                        .graphicsLayer { scaleX = press.value; scaleY = press.value }
+                        .clip(groupShape(GroupPosition.Only))
+                },
+            )
             .background(p.surfaceHi)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = LocalIndication.current, role = Role.Button, onClick = onClick)
             .heightIn(min = 56.dp)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

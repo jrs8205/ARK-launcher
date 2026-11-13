@@ -35,6 +35,14 @@ import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import org.arkikeskus.launcher.ui.expressive.systemAnimationsOn
 
 /** The launcher's Settings: the view model's state handed to [SettingsContent], which is the page. */
 @Composable
@@ -92,9 +100,21 @@ internal class SettingsLists(
 /** The main page, as a screen of [SettingsContent]. */
 private const val SCREEN_MAIN = ""
 
+/** How far a page slides as it comes in, and the spring it comes in on. */
+private val PAGE_SLIDE = 24.dp
+private val PageSlideSpec = spring<IntOffset>(dampingRatio = 0.8f, stiffness = 380f)
+private val PageFadeSpec = spring<Float>(dampingRatio = 0.8f, stiffness = 380f)
+
 /** The two sub-screens of the App drawer page; the prefix keeps them apart from the category keys. */
 private const val SCREEN_HIDDEN_APPS = "sub:hidden"
 private const val SCREEN_DRAWER_FOLDERS = "sub:folders"
+
+/** How deep a screen is: the main page, a category's page, a sub-screen opened from a page. */
+internal fun screenDepth(screen: String): Int = when {
+    screen == SCREEN_MAIN -> 0
+    screen == SCREEN_HIDDEN_APPS || screen == SCREEN_DRAWER_FOLDERS -> 2
+    else -> 1
+}
 
 /**
  * Settings itself, free of the view model: it shows [s] and [lists] and asks for every change through [actions], so
@@ -169,9 +189,19 @@ internal fun SettingsContent(
     ) {
         Surface(modifier = modifier.fillMaxSize(), color = palette.bg) {
             val screen = subScreen ?: SettingsCategory.fromKey(pageKey)?.key ?: SCREEN_MAIN
+            val animate = systemAnimationsOn()
+            val slide = with(LocalDensity.current) { PAGE_SLIDE.roundToPx() }
             AnimatedContent(
                 targetState = screen,
-                transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
+                transitionSpec = {
+                    if (!animate) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        // A page that opens comes in from the end, one that is returned to from the start.
+                        val from = if (screenDepth(targetState) > screenDepth(initialState)) slide else -slide
+                        (slideInHorizontally(PageSlideSpec) { from } + fadeIn(PageFadeSpec)) togetherWith fadeOut(tween(100))
+                    }
+                },
                 label = "settings screen",
             ) { shown ->
                 when (shown) {

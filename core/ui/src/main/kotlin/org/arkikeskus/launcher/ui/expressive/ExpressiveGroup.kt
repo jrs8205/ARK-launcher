@@ -80,20 +80,27 @@ fun expressiveCardGap(): Dp = if (LocalExpressiveGroupRow.current) 0.dp else END
 @ReadOnlyComposable
 fun expressiveCardShadow(): Dp = if (LocalExpressiveGroupRow.current) 0.dp else LocalExpressivePalette.current.shadow
 
-private class GroupRowData(val overlay: (DrawScope.(outline: Outline) -> Unit)?) : ParentDataModifier {
+private class GroupRowData(
+    val overlay: (DrawScope.(outline: Outline) -> Unit)?,
+    val scale: (() -> Float)?,
+) : ParentDataModifier {
     override fun Density.modifyParentData(parentData: Any?): Any = this@GroupRowData
 
-    // The same overlay is the same row data: a row that recomposes does not make its group lay itself out again.
-    override fun equals(other: Any?): Boolean = other is GroupRowData && other.overlay === overlay
-    override fun hashCode(): Int = System.identityHashCode(overlay)
+    // The same lambdas are the same row data: a row that recomposes does not make its group lay itself out again.
+    override fun equals(other: Any?): Boolean =
+        other is GroupRowData && other.overlay === overlay && other.scale === scale
+    override fun hashCode(): Int = 31 * System.identityHashCode(overlay) + System.identityHashCode(scale)
 }
 
 /**
  * Marks a direct child of an [ExpressiveGroup] as one of its rows. [overlay] is drawn over the row, in the row's own
- * coordinates, with the outline the group gave it (a mark around the row's card).
+ * coordinates, with the outline the group gave it (a mark around the row's card). [scale] is the row's size as it is
+ * drawn (a springy press): the group applies it together with the row's shape, so the shape shrinks with the row.
  */
-fun Modifier.expressiveGroupRow(overlay: (DrawScope.(outline: Outline) -> Unit)? = null): Modifier =
-    then(GroupRowData(overlay))
+fun Modifier.expressiveGroupRow(
+    overlay: (DrawScope.(outline: Outline) -> Unit)? = null,
+    scale: (() -> Float)? = null,
+): Modifier = then(GroupRowData(overlay, scale))
 
 /** A row with an overlay as the group last placed it. */
 private class PlacedRow(
@@ -174,10 +181,16 @@ fun ExpressiveGroup(modifier: Modifier = Modifier, content: @Composable () -> Un
                     placeable.place(0, tops[index])
                 } else {
                     val shape = groupShape(position)
+                    val scale = rows[index]?.scale
                     placeable.placeWithLayer(0, tops[index]) {
                         this.shape = shape
                         clip = true
                         shadowElevation = shadowPx
+                        // Read here, so a press redraws the row's layer and nothing else.
+                        if (scale != null) {
+                            scaleX = scale()
+                            scaleY = scale()
+                        }
                     }
                     rows[index]?.overlay?.let { overlays += PlacedRow(tops[index], placeable.width, placeable.height, shape, it) }
                 }

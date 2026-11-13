@@ -60,6 +60,9 @@ import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.LocalIndication
+import org.arkikeskus.launcher.ui.expressive.pressSpring
 
 /** Single-select picker over string-valued settings (widget count style, people privacy). */
 @Composable
@@ -229,12 +232,14 @@ internal fun StepperRow(label: String, value: Int, min: Int, max: Int, onValueCh
 @Composable
 private fun StepButton(@DrawableRes icon: Int, contentDescription: String, onClick: () -> Unit) {
     val p = LocalExpressivePalette.current
+    val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(36.dp)
+            .pressSpring(interaction)
             .clip(RoundedCornerShape(12.dp))
             .background(p.container)
-            .clickable(onClick = onClick),
+            .clickable(interactionSource = interaction, indication = LocalIndication.current, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -261,9 +266,11 @@ internal fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, 
     val p = LocalExpressivePalette.current
     val name = "#%06X".format(argb and 0xFFFFFF)
     val fade = if (enabled) 1f else 0.4f
+    val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(32.dp)
+            .pressSpring(interaction)
             .clip(CircleShape)
             .background(Color(argb).copy(alpha = fade))
             .border(
@@ -273,7 +280,7 @@ internal fun ColorSwatch(argb: Int, selected: Boolean, enabled: Boolean = true, 
             )
             .testTag(colorSwatchTag(argb))
             .semantics { contentDescription = name; this.selected = selected }
-            .clickable(enabled = enabled) { onClick() },
+            .clickable(interactionSource = interaction, indication = LocalIndication.current, enabled = enabled) { onClick() },
     )
 }
 
