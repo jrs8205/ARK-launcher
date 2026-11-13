@@ -14,13 +14,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.junit.Rule
@@ -62,6 +68,11 @@ class WallpaperScrollEffectTest {
     private var copyAtTail by mutableStateOf(false)
     private var enabled by mutableStateOf<Boolean?>(true)
 
+    /** One laid-out frame: the pager position it shows, and what the wallpaper had last been told by then. */
+    private class Frame(val position: Float, val told: Float?)
+
+    private val frames = mutableListOf<Frame>()
+
     private fun show(offsets: Recorded, initialPage: Int = 0) {
         owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         compose.setContent {
@@ -69,11 +80,102 @@ class WallpaperScrollEffectTest {
                 val state = rememberPagerState(initialPage = initialPage) { pages + 1 }
                 pager = state
                 scope = rememberCoroutineScope()
-                HorizontalPager(state, Modifier.size(300.dp, 500.dp)) { Box(Modifier.fillMaxSize()) }
+                HorizontalPager(state, Modifier.size(300.dp, 500.dp).testTag("pager")) { Box(Modifier.fillMaxSize()) }
+                // Laid out again in every frame that moves the pager (the position is read in the layout phase).
+                Box(
+                    Modifier.layout { measurable, constraints ->
+                        frames += Frame(state.currentPage + state.currentPageOffsetFraction, offsets.values.lastOrNull())
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    },
+                )
                 WallpaperScrollEffect(state, pages, copyAtTail, enabled, offsets)
             }
         }
         compose.waitForIdle()
+    }
+
+    /** The frames that moved the pager, each with what the wallpaper had been told when it was laid out. */
+    private fun movingFrames(): List<Frame> = frames.zipWithNext().filter { (a, b) -> b.position != a.position }.map { it.second }
+
+    private fun expected(frame: Frame) = wallpaperOffsetX(frame.position, pages, copyAtTail, liveWallpaper = false)
+
+    // The system moves the picture once per display frame, in its own time. A value that leaves only after the
+    // frame's own work (its layout and drawing) leaves at a moment that changes from frame to frame, so the system
+    // gets none in one of its frames and two in the next: the picture stands and then jumps while the page glides.
+    // So each frame's value is sent at the frame's start, before the frame is laid out, and it is that frame's own.
+
+    @Test fun whileAPageSettlesEachFramesOwnValueIsSentBeforeTheFrameIsLaidOut() {
+        val offsets = Recorded()
+        show(offsets)
+        compose.mainClock.autoAdvance = false
+        frames.clear()
+
+        compose.runOnIdle { scope.launch { pager.animateScrollToPage(1) } }
+        repeat(90) { compose.mainClock.advanceTimeByFrame() }
+
+        assertThat(pager.currentPage).isEqualTo(1)
+        val moved = movingFrames()
+        assertThat(moved.size).isGreaterThan(5)
+        for (frame in moved) {
+            assertWithMessage("at position ${frame.position}").that(frame.told).isWithin(1e-4f).of(expected(frame))
+        }
+    }
+
+    @Test fun underAFingerEachFramesOwnValueIsSentBeforeTheFrameIsLaidOutToo() {
+        val offsets = Recorded()
+        show(offsets)
+        compose.mainClock.autoAdvance = false
+        frames.clear()
+
+        compose.onNodeWithTag("pager").performTouchInput {
+            down(center)
+            repeat(12) {
+                moveBy(Offset(-12f, 0f))
+                advanceEventTime(16)
+            }
+        }
+        repeat(3) { compose.mainClock.advanceTimeByFrame() }
+
+        // The first frames of a drag are the gesture finding out that it is one: from the fourth on.
+        val moved = movingFrames().drop(3)
+        assertThat(moved.size).isGreaterThan(4)
+        for (frame in moved) {
+            assertWithMessage("at position ${frame.position}").that(frame.told).isWithin(1e-4f).of(expected(frame))
+        }
+        compose.onNodeWithTag("pager").performTouchInput { up() }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+    }
+
+    @Test fun atRestNoFrameIsAskedForAndNothingIsSent() {
+        val offsets = Recorded()
+        show(offsets)
+        turnTo(1)
+        val sent = offsets.values.size
+
+        // A loop that asked for every frame would never let the screen come to rest (and would never let this
+        // wait end): the wallpaper is told again only when something moves.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+
+        assertThat(offsets.values.size).isEqualTo(sent)
+    }
+
+    @Test fun oneValueIsSentPerFrameThatMoves() {
+        val offsets = Recorded()
+        show(offsets)
+        compose.mainClock.autoAdvance = false
+        frames.clear()
+        val before = offsets.values.size
+
+        compose.runOnIdle { scope.launch { pager.animateScrollToPage(1) } }
+        repeat(90) { compose.mainClock.advanceTimeByFrame() }
+
+        val sent = offsets.values.drop(before)
+        // Never the same value twice in a row, and no more values than frames that moved (one more for the rest).
+        assertThat(sent.zipWithNext().none { (a, b) -> a == b }).isTrue()
+        assertThat(sent.size).isAtMost(movingFrames().size + 1)
     }
 
     private fun turnTo(page: Int) {

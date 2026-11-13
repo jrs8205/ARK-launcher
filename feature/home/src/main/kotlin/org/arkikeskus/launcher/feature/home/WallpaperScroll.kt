@@ -13,9 +13,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
 /*
  * The system wallpaper scrolls with the home pager (Settings > Home > Wallpaper scrolling). Where it stands
@@ -128,11 +131,19 @@ private class LastSent {
  * Keeps the system wallpaper where [wallpaperOffsetX] says for [pagerState], frame by frame, while [enabled] is
  * true. False returns it to the system's own place once; null (the stored choice is not read yet) leaves it alone.
  *
- * The value is read in a snapshotFlow, so a page turn recomposes nothing. A scroll moves the picture directly. A
+ * The value is read outside composition, so a page turn recomposes nothing. A scroll moves the picture directly. A
  * change that is not a scroll (the page count, a live wallpaper replacing a picture, the tail turning from the copy
  * of page 0 into the empty new page mid-swipe) would make it step: the difference to the value last sent is carried
  * in a correction that runs to zero in [SETTLE_MS] instead. Each return to the front asks again whether the
  * wallpaper is a live one and sends the current value again: another window may have moved it meanwhile.
+ *
+ * WHEN a value is sent matters as much as the value. The system moves the picture once per display frame, in its
+ * own time. A value that left only after the frame's own work (what a snapshotFlow's collector does once a page
+ * settles by itself: it runs after the frame is laid out and drawn) left at a moment that changed from frame to
+ * frame, and on a 120 Hz phone about every fifth of the system's frames then got no value, or two: the picture
+ * stood still and jumped while the page glided (measured on a Pixel 8a). So while anything moves, each frame's
+ * value is sent in the frame's own callback, before the frame is composed, laid out and drawn, one value a frame.
+ * At rest nothing asks for frames; a change that comes without a scroll is still seen, by its state.
  */
 @Composable
 internal fun WallpaperScrollEffect(
@@ -173,9 +184,28 @@ internal fun WallpaperScrollEffect(
         val step = 1f / wallpaperSpan(pageCount, live)
         correction.snapTo(sent.x?.let { it - target() } ?: 0f)
         launch { correction.animateTo(0f, tween(SETTLE_MS)) }
-        snapshotFlow { (target() + correction.value).coerceIn(0f, 1f) }.collect { x ->
+        fun value(): Float = (target() + correction.value).coerceIn(0f, 1f)
+        // The first value of this run always goes out (the return to the front, see above); after it only a new one.
+        var first = true
+        fun send(x: Float) {
+            if (!first && x == sent.x) return
+            first = false
             offsets.set(x, step)
             sent.x = x
+        }
+        snapshotFlow { pagerState.isScrollInProgress || correction.isRunning }.collectLatest { moving ->
+            if (moving) {
+                while (true) {
+                    // Behind whatever moves the pager in this frame (a settling page is an animation with a frame
+                    // callback of its own, and callbacks run in the order they were asked for): the value read is
+                    // then this frame's, not the one before.
+                    yield()
+                    withFrameNanos { send(value()) }
+                }
+            } else {
+                // At rest: the resting value, and any change that comes without a scroll.
+                snapshotFlow { value() }.collect { send(it) }
+            }
         }
     }
 }
