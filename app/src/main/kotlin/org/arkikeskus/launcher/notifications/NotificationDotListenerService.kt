@@ -85,6 +85,14 @@ class NotificationDotListenerService : NotificationListenerService() {
 
     /** Lives while the listener is connected; reads the notifications again when a profile's kind becomes known. */
     private var profilesJob: Job? = null
+
+    /**
+     * The keys of the notifications left alone at their post ([isPrivate]): the private space's, and those of a
+     * profile that could not be placed yet. Memory only, and gone with the notification. A profile that turns out
+     * to be a work profile gets, for the notifications it has here, the decisions their post skipped
+     * ([profilesPlaced]). Touched only from the main thread.
+     */
+    private val leftAlone = HashSet<String>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Volatile private var batchEnabled = false
@@ -184,10 +192,11 @@ class NotificationDotListenerService : NotificationListenerService() {
         mailPackages = queryMailPackages()
         // A notification of a profile that could not be placed yet is left alone ([isPrivate]: it may be a
         // private space). A new work profile is such a profile until the launcher has read its kind, and its
-        // first notifications arrive before that: once the kinds change, everything active is read again.
+        // first notifications arrive before that: once the kinds change, those that waited get what their post
+        // skipped and everything active is read again ([profilesPlaced]).
         profilesJob?.cancel()
         profilesJob = scope.launch {
-            privateSpace.classificationChanges.collect { if (connected) refreshWithRetries() }
+            privateSpace.classificationChanges.collect { profilesPlaced() }
         }
         settingsJob?.cancel()
         settingsJob = scope.launch {
@@ -222,6 +231,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         settingsJob = null
         profilesJob?.cancel()
         profilesJob = null
+        leftAlone.clear()
         badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
@@ -234,7 +244,11 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        if (sbn != null && isPrivate(sbn)) return
+        if (sbn != null && isPrivate(sbn)) {
+            leftAlone += sbn.key
+            return
+        }
+        if (sbn != null) leftAlone.remove(sbn.key) // posted again, and read this time
         // A heads-up post makes the system transiently show ITS status bar over our content; tell the
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).
@@ -255,7 +269,27 @@ class NotificationDotListenerService : NotificationListenerService() {
         if (until != previous) persistHeld()
     }
 
+    /**
+     * What is known of the profiles' kinds has changed. A notification that was left alone at its post and whose
+     * profile is a shared one now (a work profile that was new when its first message came) missed more than
+     * being shown: its post also decides whether it waits for batch delivery. It gets that decision here, exactly
+     * as a post gives it, and only it: a notification that was read at its post is not decided again (one that
+     * was delivered would go back to waiting). Then everything active is read again.
+     */
+    private fun profilesPlaced() {
+        if (!connected) return
+        val active = runCatching { activeNotifications }.getOrNull().orEmpty().filterNotNull()
+        leftAlone.retainAll(active.mapTo(HashSet()) { it.key })
+        for (sbn in active) {
+            if (sbn.key !in leftAlone || isPrivate(sbn)) continue
+            leftAlone.remove(sbn.key)
+            if (settingsReady) holdForBatch(sbn)
+        }
+        refreshWithRetries()
+    }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+        if (sbn != null) leftAlone.remove(sbn.key)
         if (sbn != null && isPrivate(sbn)) {
             // Nothing of it is read. A key a version before 1.1.0 stored for it goes with it: once the
             // notification is gone, no refresh would find it to forget the key.

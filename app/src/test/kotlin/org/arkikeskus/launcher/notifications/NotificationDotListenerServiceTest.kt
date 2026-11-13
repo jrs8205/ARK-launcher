@@ -364,6 +364,61 @@ class NotificationDotListenerServiceTest {
     }
 
     @Config(sdk = [35])
+    @Test fun aNewWorkProfilesMessageThatWaitedIsHeldForBatchDeliveryLikeAnyOther() = runTest {
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 10, "Work", 0)
+        val profiles = Profiles(listOf(own))
+        service.privateSpace = privateSpace(profiles)
+        service.onListenerConnected()
+        enableBatch()
+        val fromWork = chatOf(UserHandle.getUserHandleForUid(10 * 100_000))
+
+        // Posted while the profile is unplaced: left alone, so the batch decision of a post is not made either.
+        post(fromWork)
+        assertThat(held()).isEmpty()
+
+        profiles.list = listOf(own, ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+
+        // Known for a work profile: the message gets the decision it missed, and waits for the delivery time. It
+        // must not show at once in the dots, the status bar and the widgets only because its profile was new.
+        await("the work message as a waiting tile") { service.badgeRepository.people.value.size == 1 }
+        assertThat(service.badgeRepository.people.value.single().held).isTrue()
+        assertThat(held().keys).containsExactly(fromWork.key)
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+        assertThat(service.settingsRepository.heldNotifications.first().keys).containsExactly(fromWork.key)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aNotificationThatWasReadAtItsPostIsNotDecidedAgainWhenTheProfilesChange() = runTest {
+        // A personal message already delivered (its hold was released): a profile appearing elsewhere must not
+        // put it back to waiting.
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 10, "Work", 0)
+        val profiles = Profiles(listOf(own))
+        service.privateSpace = privateSpace(profiles)
+        service.onListenerConnected()
+        enableBatch()
+        val personal = chat(true)
+        post(personal)
+        assertThat(held().keys).containsExactly(personal.key)
+        ReflectionHelpers.getField<MutableMap<String, Long>>(service, "heldUntil").remove(personal.key) // delivered
+        ReflectionHelpers.callInstanceMethod<Unit>(service, "refresh")
+        assertThat(service.badgeRepository.badges.value).containsExactly("chat.app/0", 1)
+
+        profiles.list = listOf(own, ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+        await("the work profile known") { !service.privateSpace.mustLeaveNoTrace(UserHandle.getUserHandleForUid(10 * 100_000), context.getSystemService(UserManager::class.java)) }
+        repeat(10) { Thread.sleep(20); shadowOf(android.os.Looper.getMainLooper()).idle() }
+
+        assertThat(held()).isEmpty()
+        assertThat(service.badgeRepository.badges.value).containsExactly("chat.app/0", 1)
+    }
+
+    @Config(sdk = [35])
     @Test fun aNewPrivateSpacesNotificationStaysUnreadWhenTheProfileIsKnown() {
         val users = shadowOf(context.getSystemService(UserManager::class.java))
         users.addUser(0, "Owner", 0)
