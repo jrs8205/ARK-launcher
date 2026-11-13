@@ -218,11 +218,15 @@ class NotificationDotListenerServiceTest {
 
     private val privateUser: UserHandle = UserHandle.getUserHandleForUid(11 * 100_000)
 
-    private fun aDeviceWithAPrivateSpace() {
+    private fun aDeviceWithAPrivateSpace() =
+        aDeviceWith(ProfileSnapshot(11, ProfileKind.Private, badged = false, paused = false))
+
+    /** The own user and [others], each a profile the user manager answers for, as the platform types them. */
+    private fun aDeviceWith(vararg others: ProfileSnapshot) {
         val users = shadowOf(context.getSystemService(UserManager::class.java))
         users.addUser(0, "Owner", 0)
-        users.addProfile(0, 11, "Private", 0)
-        service.privateSpace = privateSpace(own, ProfileSnapshot(11, ProfileKind.Private, badged = false, paused = false))
+        others.forEach { users.addProfile(0, it.serial.toInt(), "Profile ${it.serial}", 0) }
+        service.privateSpace = privateSpace(own, *others)
         ReflectionHelpers.setField(service, "connected", true)
         ReflectionHelpers.setField(service, "heldLoaded", true)
         ReflectionHelpers.setField(service, "settingsReady", true)
@@ -301,6 +305,44 @@ class NotificationDotListenerServiceTest {
         assertThat(held()).isEmpty()
         assertThat(service.settingsRepository.heldNotifications.first()).isEmpty()
         assertThat(service.badgeRepository.people.value).isEmpty()
+    }
+
+    @Config(sdk = [35])
+    @Test fun aNotificationOfAProfileOfUnknownKindIsNotReadEither() {
+        // Its serial reads fine, but the platform does not say what it is: it may be a private space.
+        aDeviceWith(ProfileSnapshot(12, ProfileKind.Unknown, badged = true, paused = false))
+
+        post(chatOf(UserHandle.getUserHandleForUid(12 * 100_000)))
+
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+        assertThat(service.badgeRepository.people.value).isEmpty()
+    }
+
+    @Config(sdk = [35])
+    @Test fun aWorkProfilesNotificationIsReadAsBefore() {
+        aDeviceWith(ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+
+        post(chatOf(UserHandle.getUserHandleForUid(10 * 100_000)))
+
+        assertThat(service.badgeRepository.badges.value).containsExactly("chat.app/10", 1)
+        assertThat(service.badgeRepository.people.value).hasSize(1)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aRemovedPrivateNotificationTakesAKeyAnOlderVersionStoredAlong() = runTest {
+        aDeviceWithAPrivateSpace()
+        enableBatch()
+        val private = chatOf(privateUser)
+        val later = System.currentTimeMillis() + 3_600_000
+        service.settingsRepository.setHeldNotifications(mapOf(private.key to later))
+        ReflectionHelpers.getField<MutableMap<String, Long>>(service, "heldUntil")[private.key] = later
+
+        // Dismissed before any refresh saw it: it is not active any more, so only its removal can forget the key.
+        service.onNotificationRemoved(private, null, 0)
+
+        assertThat(held()).isEmpty()
+        assertThat(service.settingsRepository.heldNotifications.first()).isEmpty()
     }
 
     @Config(sdk = [35])

@@ -13,7 +13,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.Process
 import android.os.UserManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -108,19 +107,13 @@ class NotificationDotListenerService : NotificationListenerService() {
     private val userManager by lazy { getSystemService(UserManager::class.java) }
 
     /**
-     * Whether [sbn] is a notification of the private space. Such a notification is not read at all: it gets
-     * no dot, no status icon, no row in the notifications widget and no people tile, and it is never held for
-     * batch delivery, whose keys are written to the settings. From Android 15 a profile that is not the own
-     * user and whose serial number cannot be read counts as private too: it may be a private space the
-     * launcher was not told of. Below Android 15 there is no private space.
+     * Whether [sbn] is a notification of the private space, or of a profile that may be one. Such a
+     * notification is not read at all: it gets no dot, no status icon, no row in the notifications widget and
+     * no people tile, and it is never held for batch delivery, whose keys are written to the settings. Which
+     * profiles those are is [PrivateSpaceRepository.mustLeaveNoTrace]: from Android 15 every profile but the
+     * own user and one the platform typed as a work or clone profile.
      */
-    private fun isPrivate(sbn: StatusBarNotification): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return false
-        val user = sbn.user
-        if (user == Process.myUserHandle()) return false
-        val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull()?.takeIf { it >= 0 }
-        return serial == null || privateSpace.isPrivate(serial)
-    }
+    private fun isPrivate(sbn: StatusBarNotification): Boolean = privateSpace.mustLeaveNoTrace(sbn.user, userManager)
 
     /** Keys that have already fired a heads-up, so a FLAG_ONLY_ALERT_ONCE re-post doesn't re-trigger.
      *  Touched only from NLS callbacks (main thread), so it needs no synchronisation. */
@@ -251,7 +244,12 @@ class NotificationDotListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
-        if (sbn != null && isPrivate(sbn)) return
+        if (sbn != null && isPrivate(sbn)) {
+            // Nothing of it is read. A key a version before 1.1.0 stored for it goes with it: once the
+            // notification is gone, no refresh would find it to forget the key.
+            if (heldUntil.remove(sbn.key) != null) persistHeld()
+            return
+        }
         if (sbn != null) alertedKeys.remove(sbn.key)
         // A user snoozing an already-held notification leaves its deadline intact. Only a real
         // removal (dismissed or cancelled by the app) forgets it.
@@ -289,9 +287,12 @@ class NotificationDotListenerService : NotificationListenerService() {
         val openable = HashMap<String, StatusNotification>()
         val people = ArrayList<PersonEntry>()
         val now = System.currentTimeMillis()
+        // Asked for only while something is held (the legacy snoozes of the migration below).
+        val snoozed = if (heldUntil.isEmpty()) emptyList() else runCatching { snoozedNotifications }.getOrNull().orEmpty().filterNotNull()
         // A version before the private space was known held its messages like any other and wrote their keys
-        // to the settings: such a key is forgotten here, at once, whatever its deadline.
-        val privateKeys = if (heldUntil.isEmpty()) emptySet() else active.filterNotNull().filter(::isPrivate).mapTo(HashSet()) { it.key }
+        // to the settings: such a key is forgotten here, at once, whatever its deadline, whether its
+        // notification is active or snoozed.
+        val privateKeys = if (heldUntil.isEmpty()) emptySet() else (active.filterNotNull() + snoozed).filter(::isPrivate).mapTo(HashSet()) { it.key }
         if (heldUntil.keys.removeAll(privateKeys)) persistHeld()
         val activeKeys = active.filterNotNull().map { it.key }.toSet()
         val released = heldUntil.filter { (key, until) ->
@@ -363,7 +364,6 @@ class NotificationDotListenerService : NotificationListenerService() {
         // Migration: earlier betas snoozed in Android. Those existing snoozes cannot be released
         // through the public listener API; keep showing them until Android delivers them.
         if (heldUntil.isNotEmpty()) {
-            val snoozed = runCatching { snoozedNotifications }.getOrNull().orEmpty().filterNotNull()
             val snoozedKeys = snoozed.map { it.key }.toSet()
             for (sbn in snoozed) {
                 if (sbn.key in activeKeys || isPrivate(sbn)) continue
