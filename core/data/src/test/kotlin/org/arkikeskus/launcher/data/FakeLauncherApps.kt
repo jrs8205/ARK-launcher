@@ -12,13 +12,12 @@ import org.robolectric.util.ReflectionHelpers
 import org.robolectric.util.ReflectionHelpers.ClassParameter.from
 
 /**
- * Lists an app ([packageName], [label]) in the test device's LauncherApps, installed and enabled, so
- * the app list queries it. The two hidden constructors are the API 33+ shape
+ * Lists an app ([packageName], [label]) of [user] in the test device's LauncherApps, installed and
+ * enabled, so the app list queries it. The two hidden constructors are the API 33+ shape
  * (`LauncherActivityInfoInternal(ActivityInfo, IncrementalStatesInfo, UserHandle)`); the label is
  * non-localized so no resource lookup runs.
  */
-internal fun installFakeApp(context: Context, packageName: String, label: String) {
-    val user: UserHandle = Process.myUserHandle()
+internal fun installFakeApp(context: Context, packageName: String, label: String, user: UserHandle = Process.myUserHandle()) {
     val applicationInfo = ApplicationInfo().apply {
         this.packageName = packageName
         flags = ApplicationInfo.FLAG_INSTALLED

@@ -47,7 +47,7 @@ class LauncherAppsSourceLabelCacheTest {
     }
 
     private fun TestScope.collectApps() {
-        source = LauncherAppsSource(context, IconPackRepository(context), Provider<ImageLoader> { error("unused") }, AppLabelCache(store))
+        source = LauncherAppsSource(context, IconPackRepository(context), Provider<ImageLoader> { error("unused") }, AppLabelCache(store), FakeProfileSystem(emptyList()))
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             source.appsFlow().collect { apps -> emissions.update { it + listOf(apps) } }
         }

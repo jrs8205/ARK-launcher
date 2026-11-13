@@ -3,9 +3,6 @@ package org.arkikeskus.launcher.data
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -22,16 +19,6 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkProfileRepositoryTest {
-    private open class FakeProfileSystem(var profiles: List<ProfileSnapshot>) : ProfileSystem {
-        val broadcasts = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
-        var collectors = 0
-        var request: (Long, Boolean) -> Boolean = { _, _ -> true }
-        override fun snapshot(): List<ProfileSnapshot> = profiles
-        // The contract: one re-read request as soon as the receiver listens, then the broadcasts.
-        override fun changes(): Flow<Unit> = broadcasts.onStart { collectors++; emit(Unit) }
-        override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = request(serial, enabled)
-    }
-
     private val own = ProfileSnapshot(0, ProfileKind.Own, badged = false, paused = false)
     private fun work(paused: Boolean = false) = ProfileSnapshot(10, ProfileKind.Managed, badged = true, paused = paused)
 

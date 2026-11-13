@@ -78,14 +78,6 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
     /** The image loader is only used for icons; its type (Coil) is what keeps this reflective. */
     /** The app labels persist in the same in-memory database, as in the app. */
     private val labelCache = AppLabelCache(RoomAppLabelStore(LauncherDatabase::class.java.getMethod("appLabelDao").invoke(db) as AppLabelDao))
-    private val source = LauncherAppsSource::class.java.constructors.single()
-        .newInstance(context, IconPackRepository(context), Provider<Any?> { error("unused") }, labelCache) as LauncherAppsSource
-
-    /** Eagerly shared, like the application scope in the app: the LauncherApps callback registers
-     *  right here, so a shortcut published after this is reported whether or not anyone collects. */
-    private val appScope =
-        CoroutineScope(testScope.backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScope.testScheduler))
-
     /** No work profile on the test device, and no profile broadcasts. */
     private val noProfiles = object : ProfileSystem {
         override fun snapshot(): List<ProfileSnapshot> =
@@ -93,6 +85,14 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         override fun changes(): Flow<Unit> = emptyFlow()
         override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
     }
+    private val source = LauncherAppsSource::class.java.constructors.single()
+        .newInstance(context, IconPackRepository(context), Provider<Any?> { error("unused") }, labelCache, noProfiles) as LauncherAppsSource
+
+    /** Eagerly shared, like the application scope in the app: the LauncherApps callback registers
+     *  right here, so a shortcut published after this is reported whether or not anyone collects. */
+    private val appScope =
+        CoroutineScope(testScope.backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScope.testScheduler))
+
     val workProfileRepository = WorkProfileRepository(noProfiles, appScope)
     val appRepository = AppRepository(source, settingsRepository, appUsageRepository, workProfileRepository, appScope)
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)

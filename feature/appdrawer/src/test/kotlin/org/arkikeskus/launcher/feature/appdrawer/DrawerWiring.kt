@@ -74,18 +74,18 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
     private val iconPacks = IconPackRepository(context)
     /** The app labels persist in the same in-memory database, as in the app. */
     private val labelCache = AppLabelCache(RoomAppLabelStore(LauncherDatabase::class.java.getMethod("appLabelDao").invoke(db) as AppLabelDao))
-    private val source = LauncherAppsSource::class.java.constructors.single()
-        .newInstance(context, iconPacks, Provider<Any?> { error("unused") }, labelCache) as LauncherAppsSource
-
-    private val appScope =
-        CoroutineScope(testScope.backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScope.testScheduler))
-
     private val noProfiles = object : ProfileSystem {
         override fun snapshot(): List<ProfileSnapshot> =
             listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false))
         override fun changes(): Flow<Unit> = emptyFlow()
         override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
     }
+    private val source = LauncherAppsSource::class.java.constructors.single()
+        .newInstance(context, iconPacks, Provider<Any?> { error("unused") }, labelCache, noProfiles) as LauncherAppsSource
+
+    private val appScope =
+        CoroutineScope(testScope.backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScope.testScheduler))
+
     private val workProfileRepository = WorkProfileRepository(noProfiles, appScope)
     val appRepository = AppRepository(source, settingsRepository, appUsageRepository, workProfileRepository, appScope)
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)

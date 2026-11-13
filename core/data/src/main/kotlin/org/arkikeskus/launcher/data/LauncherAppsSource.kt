@@ -58,9 +58,19 @@ class LauncherAppsSource @Inject constructor(
     // Provider breaks the instantiation cycle: the ImageLoader itself is built with this source.
     private val imageLoader: Provider<ImageLoader>,
     private val labelCache: AppLabelCache,
+    private val profiles: ProfileSystem,
 ) : AppRowResolver {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
+
+    private val _privateApps = MutableStateFlow<List<AppItem>>(emptyList())
+
+    /**
+     * The unlocked private space's apps, A to Z; empty while the space is locked or the device has none. Kept in
+     * memory only and apart from [appsFlow]: nothing that reads the shared list, and nothing that is written
+     * to the disk (the label cache), ever holds a private app. Refreshed by every scan of [appsFlow].
+     */
+    val privateApps: StateFlow<List<AppItem>> = _privateApps
 
     /** Package names from LauncherApps callbacks, in batches for ONE collector ([EventPool]) — lets
      *  feature-layer caches (e.g. resolved pinned shortcuts) invalidate per package instead of
@@ -301,7 +311,9 @@ class LauncherAppsSource @Inject constructor(
     }
 
     /**
-     * One scan of every profile's launchable apps, [send]ing the list once with the labels the
+     * One scan of every profile's launchable apps. The private space's go to [privateApps] and are left out of
+     * everything below; a profile of unknown kind is not listed at all on Android 15 and later ([listingOf]).
+     * The rest is the shared list, [send]ed once with the labels the
      * [labelCache] hands out — the persisted ones at once, the rest read now — and, when the cache
      * still has persisted labels to check (the first scan of a process), once more if any of them
      * turned out to have changed. See [AppLabelCache] for why: reading a label opens the package's
@@ -312,11 +324,38 @@ class LauncherAppsSource @Inject constructor(
         // BEFORE the listing: the activities listed are snapshots, so a package event after this point
         // makes any label read from them suspect (AppLabelCache.Reading).
         val generations = labelCache.generations()
-        val profiles = runCatching { userManager?.userProfiles }.getOrNull() ?: listOf(Process.myUserHandle())
-        val scanned = profiles.flatMap { user ->
-            val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
+        val own = Process.myUserHandle()
+        // ONE snapshot for the whole scan: where each profile's apps go ([listingOf]), and whether the private
+        // space is unlocked. Decided before a profile's apps are asked for, so nothing of a profile that is not
+        // listed is ever read.
+        val snapshot = profiles.snapshot()
+        val kinds = snapshot.associate { it.serial to it.kind }
+        fun list(user: UserHandle, serial: Long): List<Scanned> =
             runCatching { launcherApps.getActivityList(null, user) }.getOrElse { emptyList() }.map { Scanned(it, user, serial) }
+        val scanned = ArrayList<Scanned>()
+        val private = ArrayList<Scanned>()
+        for (user in runCatching { userManager?.userProfiles }.getOrNull() ?: listOf(own)) {
+            val reported = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull()
+            val serial = reported?.takeIf { it >= 0 }
+            when (listingOf(user == own, serial, kinds, Build.VERSION.SDK_INT)) {
+                Listing.General -> scanned += list(user, reported ?: 0L)
+                // A locked space lists nothing: its apps are not even asked for.
+                Listing.Private -> if (serial != null && snapshot.any { it.serial == serial && !it.paused }) {
+                    private += list(user, serial)
+                }
+                Listing.Nowhere -> Unit
+            }
         }
+        // Read fresh on every scan and never through the label cache, which is written to the disk.
+        _privateApps.value = private.map { s ->
+            AppItem(
+                packageName = s.packageName,
+                className = s.info.componentName.className,
+                user = s.user,
+                userSerial = s.serial,
+                label = readLabel(s.info),
+            )
+        }.sortedBy { it.label.lowercase() }
         fun toItems(labelOf: (Scanned) -> String) = scanned.map { s ->
             AppItem(
                 packageName = s.info.componentName.packageName,
