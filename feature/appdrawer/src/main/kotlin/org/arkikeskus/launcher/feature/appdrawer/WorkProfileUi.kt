@@ -52,6 +52,7 @@ import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.expressiveButtonColors
 import org.arkikeskus.launcher.ui.expressive.ExpressiveCard
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
+import org.arkikeskus.launcher.ui.expressive.PillShape
 
 /**
  * Personal / Work as two equal pill segments under the search field: the selected one is filled
@@ -68,7 +69,7 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
             .padding(horizontal = 12.dp)
             .padding(bottom = 8.dp)
             .height(IntrinsicSize.Max)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(PillShape)
             .background(palette.surfaceHi)
             .selectableGroup(),
     ) {
@@ -79,7 +80,7 @@ internal fun DrawerTabRow(selected: DrawerTab, onSelect: (DrawerTab) -> Unit, mo
                     .weight(1f)
                     .fillMaxHeight()
                     .heightIn(min = 40.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(PillShape)
                     .background(if (isSelected) palette.fill else Color.Transparent)
                     .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
                 contentAlignment = Alignment.Center,

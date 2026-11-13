@@ -102,6 +102,17 @@ fun Modifier.expressiveGroupRow(
     scale: (() -> Float)? = null,
 ): Modifier = then(GroupRowData(overlay, scale))
 
+/** Parent data of [ExpressiveGroupBreak]. */
+private object GroupBreakData : ParentDataModifier {
+    override fun Density.modifyParentData(parentData: Any?): Any = this@GroupBreakData
+}
+
+/** Ends the group of rows before it without taking room: the rows after it start a group of their own. */
+@Composable
+fun ExpressiveGroupBreak() {
+    Layout(content = {}, modifier = GroupBreakData) { _, _ -> layout(0, 0) {} }
+}
+
 /** A row with an overlay as the group last placed it. */
 private class PlacedRow(
     val top: Int,
@@ -116,11 +127,17 @@ private class PlacedRow(
  * are one group: 2 dp apart, each cut to its place in the group ([groupShape]), with the palette's shadow along
  * that shape, and the room a card has under it after the last. Any other child that takes room (a heading, a
  * preview) is placed as a plain column would place it and ends the group before it. A child that takes no room
- * (a row whose content is not shown) counts for nothing.
+ * (a row whose content is not shown) counts for nothing, except an [ExpressiveGroupBreak], which ends the group.
+ * [trailingGap] false leaves out the room after a last row (a menu, whose caret sits against it); [shadow] is the
+ * rows' shadow where the palette's own is not enough (a menu floating over the home screen).
  */
 @Composable
-fun ExpressiveGroup(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val shadow = LocalExpressivePalette.current.shadow
+fun ExpressiveGroup(
+    modifier: Modifier = Modifier,
+    trailingGap: Boolean = true,
+    shadow: Dp = LocalExpressivePalette.current.shadow,
+    content: @Composable () -> Unit,
+) {
     val overlays = remember { mutableListOf<PlacedRow>() }
     Layout(
         content = { CompositionLocalProvider(LocalInExpressiveGroup provides true, content = content) },
@@ -143,6 +160,7 @@ fun ExpressiveGroup(modifier: Modifier = Modifier, content: @Composable () -> Un
             run.clear()
         }
         placeables.forEachIndexed { index, placeable ->
+            if (measurables[index].parentData === GroupBreakData) endRun()
             if (placeable.height == 0) return@forEachIndexed
             if (rows[index] != null) run += index else endRun()
         }
@@ -169,7 +187,7 @@ fun ExpressiveGroup(modifier: Modifier = Modifier, content: @Composable () -> Un
             tops[index] = y
             y += placeable.height
         }
-        if (any && previous != null) y += endGap
+        if (trailingGap && any && previous != null) y += endGap
 
         val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeables.maxOfOrNull { it.width } ?: 0
         val shadowPx = shadow.toPx()

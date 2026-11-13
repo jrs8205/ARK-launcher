@@ -120,6 +120,27 @@ class ExpressiveGroupTest {
         assertThat(group[3, 62 + 60 - 4] != card).isTrue()
     }
 
+    @Test fun aBreakEndsAGroupWithoutTakingRoomAndTheTrailingGapCanBeLeftOut() {
+        compose.setContent {
+            Box(Modifier.background(page)) {
+                ExpressiveGroup(Modifier.width(300.dp).testTag("group"), trailingGap = false) {
+                    Box(row("a"))
+                    ExpressiveGroupBreak()
+                    Box(row("b"))
+                }
+            }
+        }
+        compose.waitForIdle()
+        assertThat(top("b")).isEqualTo(70.dp) // 60 + the 10 dp after a group, nothing for the break itself
+        assertThat(compose.onNodeWithTag("group").getUnclippedBoundsInRoot().bottom).isEqualTo(130.dp)
+        val group = pixels("group")
+        // Each is a group of one: wide corners at both ends.
+        assertThat(group[3, 3] != card).isTrue()
+        assertThat(group[3, 60 - 4] != card).isTrue()
+        assertThat(group[3, 70 + 3] != card).isTrue()
+        assertThat(group[3, 70 + 60 - 4] != card).isTrue()
+    }
+
     @Test fun aRowsScaleShrinksItTogetherWithItsShape() {
         compose.setContent {
             Box(Modifier.background(page)) {

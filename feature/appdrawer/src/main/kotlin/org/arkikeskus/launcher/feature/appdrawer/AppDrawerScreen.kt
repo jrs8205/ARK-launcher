@@ -136,6 +136,7 @@ import org.arkikeskus.launcher.ui.expressive.ExpressiveSectionTitle
 import org.arkikeskus.launcher.ui.expressive.ExpressiveTheme
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.rememberHomeDragController
+import org.arkikeskus.launcher.ui.expressive.PillShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -560,7 +561,7 @@ private fun AppDrawerContent(
             DragHandle()
             if (showSearch) {
                 val searchPalette = LocalExpressivePalette.current
-                // Version C: rounded pill, surfaceHi background, Accent cursor, no underline.
+                // A pill in the container colour with what is read on a container; no underline.
                 TextField(
                     value = query,
                     onValueChange = onQueryChange,
@@ -572,24 +573,24 @@ private fun AppDrawerContent(
                                 Icon(
                                     painter = painterResource(LauncherIcons.Close),
                                     contentDescription = stringResource(R.string.search_clear),
-                                    tint = searchPalette.accent,
+                                    tint = searchPalette.onContainer,
                                 )
                             }
                         }
                     },
-                    shape = RoundedCornerShape(20.dp),
+                    shape = PillShape,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = searchPalette.surfaceHi,
-                        unfocusedContainerColor = searchPalette.surfaceHi,
+                        focusedContainerColor = searchPalette.container,
+                        unfocusedContainerColor = searchPalette.container,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = searchPalette.accent,
-                        focusedTextColor = searchPalette.text,
-                        unfocusedTextColor = searchPalette.text,
+                        cursorColor = searchPalette.onContainer,
+                        focusedTextColor = searchPalette.onContainer,
+                        unfocusedTextColor = searchPalette.onContainer,
                         // The hint follows the pill's own palette, not the drawer's text (a yellow pill on a
                         // see-through drawer over a dark wallpaper keeps dark text while the labels are white).
-                        focusedPlaceholderColor = searchPalette.dim,
-                        unfocusedPlaceholderColor = searchPalette.dim,
+                        focusedPlaceholderColor = searchPalette.onContainer,
+                        unfocusedPlaceholderColor = searchPalette.onContainer,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()

@@ -51,7 +51,7 @@ class PopupMenuPaletteTest {
                 IconMenuPopup(anchor, preferAbove = false, items = listOf(IconMenuItem(LauncherIcons.Info, "Wallpaper") {}), onDismiss = {})
             }
         }
-        assertThat(colourOf("Wallpaper")).isEqualTo(tealBase.text)
+        assertThat(colourOf("Wallpaper")).isEqualTo(tealBase.onContainer)
     }
 
     @Test fun anIconMenuHandedAPaletteShowsThatOne() {
@@ -63,8 +63,8 @@ class PopupMenuPaletteTest {
                 )
             }
         }
-        assertThat(colourOf("Wallpaper")).isEqualTo(violet.text)
-        assertThat(violet.text).isNotEqualTo(tealBase.text)
+        assertThat(colourOf("Wallpaper")).isEqualTo(violet.onContainer)
+        assertThat(violet.onContainer).isNotEqualTo(tealBase.onContainer)
     }
 
     @Test fun anAppMenuOnTheHomeScreenShowsTheThemeRootsColour() {
@@ -73,7 +73,7 @@ class PopupMenuPaletteTest {
                 AppActionPopup(app, anchor, preferAbove = false, actions = listOf(PopupAction("App info") {}), onDismiss = {})
             }
         }
-        assertThat(colourOf("App info")).isEqualTo(tealBase.text)
+        assertThat(colourOf("App info")).isEqualTo(tealBase.onContainer)
     }
 
     @Test fun anAppMenuHandedAPaletteShowsThatOne() {
@@ -85,6 +85,6 @@ class PopupMenuPaletteTest {
                 )
             }
         }
-        assertThat(colourOf("App info")).isEqualTo(violet.text)
+        assertThat(colourOf("App info")).isEqualTo(violet.onContainer)
     }
 }
