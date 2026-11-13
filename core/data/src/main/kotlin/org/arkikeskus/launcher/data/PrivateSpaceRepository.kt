@@ -30,6 +30,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.di.ApplicationScope
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.IconEpochs
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -63,6 +64,8 @@ class PrivateSpaceRepository internal constructor(
     private val scope: CoroutineScope,
     private val io: CoroutineDispatcher,
     private val transitionTimeoutMs: Long,
+    /** Re-fetch tokens for the private apps' icons ([LauncherAppsSource.privateIconEpochs]). */
+    val iconEpochs: StateFlow<IconEpochs> = MutableStateFlow(IconEpochs()),
 ) {
     /** Listens through [WorkProfileRepository.changes], the one profile receiver of the process. */
     @Inject constructor(
@@ -73,7 +76,9 @@ class PrivateSpaceRepository internal constructor(
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         system = system,
-        changes = work.changes,
+        // The profile broadcasts, and Android 16's own word that a profile's settings changed: its "hide when
+        // locked" has no broadcast, and the drawer may stay open behind Android's settings while it is changed.
+        changes = merge(work.changes, source.userConfigChanges),
         scannedApps = source.privateApps,
         start = source::launch,
         // Null until the stored settings are read.
@@ -83,6 +88,7 @@ class PrivateSpaceRepository internal constructor(
         scope = scope,
         io = Dispatchers.IO,
         transitionTimeoutMs = TRANSITION_TIMEOUT_MS,
+        iconEpochs = source.privateIconEpochs,
     )
 
     /** The platform's answer: the private profile (null: none), every serial typed private, every serial

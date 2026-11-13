@@ -48,6 +48,40 @@ class PrivateIconsForgottenTest {
         withTimeout(10_000) { while (!condition()) delay(10) }
     }
 
+    @Test fun anUpdatedPrivateAppsCachedIconsGoWhileItStaysOnTheList() = runTest {
+        val users = shadowOf(context.getSystemService(UserManager::class.java))
+        users.addUser(0, "Owner", 0)
+        users.addProfile(0, 10, "Second", 0)
+        installFakeApp(context, "com.mail", "Mail")
+        installFakeApp(context, "com.secret.bank", "Secret Bank", second)
+        val loader = ImageLoader.Builder(context).memoryCache { MemoryCache.Builder().maxSizeBytes(1_000_000).build() }.build()
+        val memory = loader.memoryCache!!
+        val profiles = FakeProfileSystem(listOf(own, space(locked = false)))
+        val shared = MutableStateFlow<List<AppItem>>(emptyList())
+        val source = LauncherAppsSource(context, IconPackRepository(context), Provider { loader }, AppLabelCache(InMemoryAppLabelStore()), profiles)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { source.appsFlow().collect { shared.value = it } }
+        await { source.privateApps.value.isNotEmpty() && shared.value.isNotEmpty() }
+        val bank = source.privateApps.value.single()
+        val mail = shared.value.single()
+        val keyer = AppIconKeyer()
+        val options = Options(context)
+        fun key(request: IconRequest) = MemoryCache.Key(keyer.key(request, options))
+        val icon = MemoryCache.Value(Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImage())
+        val bankKeys = listOf(key(IconRequest(bank)), key(IconRequest(bank, themed = true, dark = true)))
+        val mailKey = key(IconRequest(mail))
+        (bankKeys + mailKey).forEach { memory[it] = icon }
+
+        // The private app is updated (a new icon, the same name and activity): it stays on the list.
+        val registered: List<android.util.Pair<android.content.pm.LauncherApps.Callback, android.os.Handler>> =
+            org.robolectric.util.ReflectionHelpers.getStaticField(org.robolectric.shadows.ShadowLauncherApps::class.java, "callbacks")
+        registered.forEach { entry -> entry.second.post { entry.first.onPackageChanged("com.secret.bank", second) } }
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        assertThat(bankKeys.map { memory[it] }).containsExactly(null, null)
+        assertThat(memory[mailKey]).isNotNull()
+        assertThat(source.privateApps.value.map { it.packageName }).containsExactly("com.secret.bank")
+    }
+
     @Test fun aLockedSpacesIconsLeaveTheImageLoadersMemory() = runTest {
         val users = shadowOf(context.getSystemService(UserManager::class.java))
         users.addUser(0, "Owner", 0)

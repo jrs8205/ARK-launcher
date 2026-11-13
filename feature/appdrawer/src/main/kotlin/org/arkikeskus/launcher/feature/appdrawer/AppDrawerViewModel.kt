@@ -43,6 +43,8 @@ import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.HomeNotice
+import org.arkikeskus.launcher.model.IconEpochs
+import org.arkikeskus.launcher.data.search.privateSpaceEntryOffered
 import android.content.IntentSender
 import org.arkikeskus.launcher.data.PrivateSettingsTarget
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
@@ -69,6 +71,8 @@ data class AppDrawerUiState(
     val privateSpace: PrivateSpaceUi? = null,
     /** The private apps, A to Z, while the space is unlocked; never part of [apps] or of a search here. */
     val privateApps: List<AppItem> = emptyList(),
+    /** The private apps' own icon re-fetch tokens (an updated private app moves its token here, not the shared one). */
+    val privateIconEpochs: IconEpochs = IconEpochs(),
     /** The private space's matches of a search (only while it is unlocked); never part of [apps]. */
     val privateResults: List<AppItem> = emptyList(),
     /** A search offers the private space's own row, which unlocks it if needed and shows its tab. */
@@ -170,7 +174,8 @@ class AppDrawerViewModel @Inject constructor(
     private val wantsPrivateTab = MutableStateFlow(false)
 
     /** The private space with the apps that go with it. */
-    private val privateSpaceFlow = combine(privateSpace.state, privateSpace.apps) { space, apps -> space to apps }
+    private val privateSpaceFlow =
+        combine(privateSpace.state, privateSpace.apps, privateSpace.iconEpochs) { space, apps, epochs -> Triple(space, apps, epochs) }
 
     /** The results, tagged with the query they answer: the raw query reaches the state at once, the
      *  results only after the debounce and the search, and the screen must tell the two apart. */
@@ -305,7 +310,7 @@ class AppDrawerViewModel @Inject constructor(
                 .map { it.first }
             state.copy(frequentApps = ranked)
         }
-    }.combine(privateSpaceFlow) { state, (space, apps) ->
+    }.combine(privateSpaceFlow) { state, (space, apps, iconEpochs) ->
         // The page exists while its tab does: not for a locked space whose entry is to stay hidden.
         val shown = space?.takeIf { privateTabVisible(it) }
         state.copy(
@@ -321,6 +326,11 @@ class AppDrawerViewModel @Inject constructor(
             privateApps = if (shown == null || shown.locked) emptyList() else apps,
             // Nor do the results on screen: the search above answers again, but this is at once.
             privateResults = if (shown == null || shown.locked) emptyList() else state.privateResults,
+            // The space's own row too is held against the space as it stands NOW, not as it stood when the
+            // search answered: a hidden space that locks must not stay named by the first letters of its name
+            // until every search source (the contacts, say) has answered again.
+            privateSpaceEntry = state.privateSpaceEntry && privateSpaceEntryOffered(context, state.query, space),
+            privateIconEpochs = iconEpochs,
         )
     }.combine(selectedTabFlow.combine(wantsPrivateTab) { tab, wanted -> tab to wanted }) { state, (stored, wantsPrivate) ->
         // A stored selection only means something while its tab exists: hiding the last work app,

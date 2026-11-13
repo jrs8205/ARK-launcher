@@ -5,6 +5,7 @@ import android.os.Looper
 import android.os.UserHandle
 import android.os.UserManager
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -156,6 +157,23 @@ class PrivateTabStateTest {
         // Locked and hidden, they are not: the row leaves the results that are on screen.
         val state = await("the row gone") { DrawerTab.Private !in it.tabs && !it.privateSpaceEntry }
         assertThat(state.query).isEqualTo("private sp")
+    }
+
+    @Test fun theSpacesRowLeavesAtOnceWhenAHiddenSpaceLocksWhateverTheSearchStillWaitsFor() {
+        drawer(own, space(locked = false)) { it.settingsRepository.setHidePrivateSpaceWhenLocked(true) }
+        await("the Private tab") { DrawerTab.Private in it.tabs }
+        assertThat(search("private sp").privateSpaceEntry).isTrue()
+        // From here on a slow source (contacts, say) holds every new answer back.
+        val gate = CompletableDeferred<Unit>()
+        wiring.searchGate = gate
+
+        viewModel.setPrivateLocked(true)
+
+        // The row is held against the space as it stands NOW: no search has to answer first.
+        val state = await("the row gone") { DrawerTab.Private !in it.tabs && !it.privateSpaceEntry }
+        assertThat(gate.isCompleted).isFalse()
+        assertThat(state.query).isEqualTo("private sp")
+        gate.complete(Unit)
     }
 
     @Test fun theSpacesOwnRowShowsItsTab() {

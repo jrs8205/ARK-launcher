@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.data.search
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.arkikeskus.launcher.data.PrivateSpace
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.data.R
 import org.arkikeskus.launcher.model.SearchResult
@@ -32,9 +33,7 @@ class PrivateSpaceSearchProvider internal constructor(
             .filter { it.label.contains(q, ignoreCase = true) }
             .map { SearchResult.App(it, privateProfile = true) }
         // A locked space whose entry is to stay out of sight is not given away by a casual search.
-        val names = privateSpaceNames(localizedNames())
-        val offered = privateSpaceEntryMatches(q, names, wholeNameOnly = space.locked && space.hiddenWhenLocked)
-        return if (offered) apps + SearchResult.PrivateSpaceEntry else apps
+        return if (privateSpaceEntryOffered(q, space, localizedNames())) apps + SearchResult.PrivateSpaceEntry else apps
     }
 }
 
@@ -43,6 +42,20 @@ private const val ENGLISH_NAME = "private space"
 /** The private space's names: the phone's language's ([localized], several separated by a bar) and the English one. */
 internal fun privateSpaceNames(localized: String): List<String> =
     (localized.split('|') + ENGLISH_NAME).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+/**
+ * Whether the private space's own row may be offered for [query] with the space as it is: never without a space;
+ * for the first letters of one of its names; only for a whole name while it is locked with its entry hidden.
+ * [localizedNames] is the text of the string resource (the names in the phone's language, bar-separated).
+ */
+fun privateSpaceEntryOffered(query: String, space: PrivateSpace?, localizedNames: String): Boolean {
+    if (space == null) return false
+    return privateSpaceEntryMatches(query, privateSpaceNames(localizedNames), wholeNameOnly = space.locked && space.hiddenWhenLocked)
+}
+
+/** [privateSpaceEntryOffered] with the names read in the language [context] shows. */
+fun privateSpaceEntryOffered(context: Context, query: String, space: PrivateSpace?): Boolean =
+    privateSpaceEntryOffered(query, space, context.getString(R.string.private_space_search_phrases))
 
 /** The fewest letters that offer the private space's row: fewer are the beginning of any word. */
 private const val MIN_NAME_PREFIX = 3

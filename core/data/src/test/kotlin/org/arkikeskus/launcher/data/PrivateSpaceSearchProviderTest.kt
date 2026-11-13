@@ -13,6 +13,7 @@ import org.arkikeskus.launcher.data.search.PrivateSpaceSearchProvider
 import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.arkikeskus.launcher.data.search.SearchProvider
 import org.arkikeskus.launcher.data.search.privateSpaceEntryMatches
+import org.arkikeskus.launcher.data.search.privateSpaceEntryOffered
 import org.arkikeskus.launcher.data.search.privateSpaceNames
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.SearchResult
@@ -117,6 +118,20 @@ class PrivateSpaceSearchProviderTest {
         assertThat(provider.query("yksityinen tila")).containsExactly(entry)
         assertThat(provider.query("yks")).containsExactly(entry)
         assertThat(provider.query("private space")).containsExactly(entry)
+    }
+
+    /** The rule the screen holds a row against at once when the space changes, before any search has answered. */
+    @Test fun theRowIsOfferedOnlyAsTheSpaceStandsNow() {
+        fun space(locked: Boolean, hidden: Boolean) = PrivateSpace(userSerial = 11, locked = locked, hiddenWhenLocked = hidden)
+        val names = "yksityinen tila"
+        assertThat(privateSpaceEntryOffered("private sp", null, names)).isFalse()
+        assertThat(privateSpaceEntryOffered("private sp", space(locked = false, hidden = true), names)).isTrue()
+        // It locks with hiding on: the same letters no longer earn the row, the whole name still does.
+        assertThat(privateSpaceEntryOffered("private sp", space(locked = true, hidden = true), names)).isFalse()
+        assertThat(privateSpaceEntryOffered("private space", space(locked = true, hidden = true), names)).isTrue()
+        assertThat(privateSpaceEntryOffered("yksityinen tila", space(locked = true, hidden = true), names)).isTrue()
+        assertThat(privateSpaceEntryOffered("private sp", space(locked = true, hidden = false), names)).isTrue()
+        assertThat(privateSpaceEntryOffered("mail", space(locked = false, hidden = false), names)).isFalse()
     }
 
     @Test fun theNamesAreTheLanguagesOwnAndTheEnglishOne() {

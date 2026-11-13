@@ -40,6 +40,9 @@ import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.data.search.AppSearchProvider
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.arkikeskus.launcher.data.search.PrivateSpaceSearchProvider
+import org.arkikeskus.launcher.data.search.SearchProvider
+import org.arkikeskus.launcher.model.SearchResult
+import kotlinx.coroutines.CompletableDeferred
 import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.util.ReflectionHelpers
@@ -68,6 +71,15 @@ internal class DrawerWiring(
     val quietModeRequests = mutableListOf<Pair<Long, Boolean>>()
     /** A request is taken but nothing changes, as when the user cancels Android's own prompt. */
     var refuseQuietMode = false
+    /** While set and not completed, every search waits on it: a slow source (contacts) that holds the answer back. */
+    @Volatile var searchGate: CompletableDeferred<Unit>? = null
+    private val slowSource = object : SearchProvider {
+        override suspend fun isEnabled(): Boolean = true
+        override suspend fun query(query: String): List<SearchResult> {
+            searchGate?.await()
+            return emptyList()
+        }
+    }
 
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -124,7 +136,7 @@ internal class DrawerWiring(
         homeLayoutRepository,
         NotificationBadgeRepository(),
         SearchAggregator(
-            setOf(AppSearchProvider(appRepository, settingsRepository), PrivateSpaceSearchProvider(context, privateSpaceRepository)),
+            setOf(AppSearchProvider(appRepository, settingsRepository), PrivateSpaceSearchProvider(context, privateSpaceRepository), slowSource),
         ),
         appUsageRepository,
         workProfileRepository,

@@ -98,6 +98,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.IconEpochs
+import org.arkikeskus.launcher.ui.component.LocalIconEpochs
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.drawerSurface
@@ -190,8 +192,9 @@ fun AppDrawerScreen(
     var privateMenu by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
     // The menu goes with the drawer, and with the space when it locks or leaves.
     LaunchedEffect(drawerOpen, uiState.privateSpace?.locked) { privateMenu = null }
-    // Android's own "hide when locked" has no broadcast: the view model reads it again at every opening.
-    LaunchedEffect(drawerOpen) { if (drawerOpen) viewModel.onDrawerOpened() }
+    // Android's own "hide when locked" has no broadcast: the view model reads it again at every opening, and
+    // at every return to an open drawer (it stays open behind Android's settings, where the setting is).
+    DrawerOpenedEffect(drawerOpen, viewModel::onDrawerOpened)
     LaunchedEffect(drawerOpen, uiState.drawerOpensAtTop) {
         // Check the offset too: a short scroll leaves the first row visible (index still 0) but
         // offset > 0, and skipping the reset then would reopen the drawer slightly scrolled.
@@ -337,6 +340,7 @@ fun AppDrawerScreen(
         privateGridState = privateGridState,
         privateResults = uiState.privateResults,
         privateSpaceEntry = uiState.privateSpaceEntry,
+        privateIconEpochs = uiState.privateIconEpochs,
         onOpenPrivateSpace = {
             focusManager.clearFocus()
             viewModel.openPrivateSpace()
@@ -546,6 +550,7 @@ private fun AppDrawerContent(
     privateResults: List<AppItem>,
     privateSpaceEntry: Boolean,
     onOpenPrivateSpace: () -> Unit,
+    privateIconEpochs: IconEpochs,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -751,7 +756,8 @@ private fun AppDrawerContent(
                         // private space's own start and stays where it is (a hold opens the one-item menu).
                         appCells(privateResults, emptyMap(), badgeShowCount, badgeScale, showLabels, drawerIconSize,
                             onPrivateAppClick, onPrivateAppLongClick, dragController, onDragOutStart, onDropOnHome,
-                            onDropOnDock, haptics, locked, liftable = false, privateMark = true)
+                            onDropOnDock, haptics, locked, liftable = false, privateMark = true,
+                            iconEpochs = privateIconEpochs)
                     }
                     if (settingResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
@@ -843,7 +849,8 @@ private fun AppDrawerContent(
                                         // nothing to pick up: a hold opens the one-item menu.
                                         appCells(privateApps, emptyMap(), badgeShowCount, badgeScale, showLabels, drawerIconSize,
                                             onPrivateAppClick, onPrivateAppLongClick, dragController, onDragOutStart,
-                                            onDropOnHome, onDropOnDock, haptics, locked, liftable = false)
+                                            onDropOnHome, onDropOnDock, haptics, locked, liftable = false,
+                                            iconEpochs = privateIconEpochs)
                                         if (privateSpace.canInstall) privateInstallTile(drawerIconSize, showLabels, onPrivateInstall)
                                     }
                                 },
@@ -1349,10 +1356,23 @@ internal fun LazyGridScope.appCells(
     liftable: Boolean = true,
     /** A small lock on each icon: private matches among a search's results. */
     privateMark: Boolean = false,
+    /** The private apps' own icon tokens; null = the shared ones every other icon reads. */
+    iconEpochs: IconEpochs? = null,
 ) {
     items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
-        DrawerAppCell(app, badges, badgeShowCount, badgeScale, showLabels, iconSize, onAppClick, onAppLongClick,
-            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, liftable, privateMark)
+        if (iconEpochs == null) {
+            DrawerAppCell(app, badges, badgeShowCount, badgeScale, showLabels, iconSize, onAppClick, onAppLongClick,
+                dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, liftable, privateMark)
+        } else {
+            // A private app's icon is asked for under its own token: its update moves that one, never the shared
+            // token of its package (which is the personal twin's). The icon pack's generation still applies.
+            val shared = LocalIconEpochs.current
+            val own = remember(shared.global, iconEpochs) { iconEpochs.copy(global = shared.global + iconEpochs.global) }
+            CompositionLocalProvider(LocalIconEpochs provides own) {
+                DrawerAppCell(app, badges, badgeShowCount, badgeScale, showLabels, iconSize, onAppClick, onAppLongClick,
+                    dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, liftable, privateMark)
+            }
+        }
     }
 }
 

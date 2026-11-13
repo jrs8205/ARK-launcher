@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
+import android.content.pm.LauncherUserInfo
 import android.content.pm.PackageManager
 import android.content.pm.ShortcutInfo
 import android.content.res.Configuration
@@ -23,9 +24,11 @@ import androidx.annotation.RequiresApi
 import coil3.ImageLoader
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
@@ -62,6 +65,23 @@ class LauncherAppsSource @Inject constructor(
 ) : AppRowResolver {
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val userManager = context.getSystemService(UserManager::class.java)
+
+    private val _privateIconEpochs = MutableStateFlow(IconEpochs())
+
+    /**
+     * Re-fetch tokens for the private apps' icons, apart from [iconEpochs]: a private app that was updated moves
+     * its own token here, so its icon on the Private tab is asked for again, and nothing shared hears of it.
+     */
+    val privateIconEpochs: StateFlow<IconEpochs> = _privateIconEpochs
+
+    private val _userConfigChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /**
+     * One signal each time Android says a profile's own configuration changed (Android 16 and later,
+     * `LauncherApps.Callback.onUserConfigChanged`): the private space's "hide when locked" among it, which has
+     * no broadcast. No package event and no rescan follow from it.
+     */
+    val userConfigChanges: Flow<Unit> = _userConfigChanges
 
     private val _privateApps = MutableStateFlow<List<AppItem>>(emptyList())
 
@@ -270,10 +290,14 @@ class LauncherAppsSource @Inject constructor(
         }
 
         /** A package event of [user]: [shared] for a profile of the shared list; for the private space only
-         *  the rescan that reads its own list again; nothing for a profile of unknown kind. */
-        fun route(user: UserHandle, shared: () -> Unit) = when (listing(user)) {
+         *  the rescan that reads its own list again, after its own icon tokens moved for [privateIcons] (the
+         *  packages whose icons may be others now); nothing for a profile of unknown kind. */
+        fun route(user: UserHandle, privateIcons: List<String> = emptyList(), shared: () -> Unit) = when (listing(user)) {
             Listing.General -> shared()
-            Listing.Private -> reload()
+            Listing.Private -> {
+                if (privateIcons.isNotEmpty()) privateIconsChanged(privateIcons)
+                reload()
+            }
             Listing.Nowhere -> Unit
         }
 
@@ -285,9 +309,16 @@ class LauncherAppsSource @Inject constructor(
                 packageEvent(packageName)
             }
             override fun onPackageChanged(packageName: String, user: UserHandle) =
-                route(user) { packageEvent(packageName, iconsMayHaveChanged = true) }
+                route(user, privateIcons = listOf(packageName)) { packageEvent(packageName, iconsMayHaveChanged = true) }
             override fun onPackagesAvailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
-                route(user) { packageEvent(*names, iconsMayHaveChanged = replacing) }
+                route(user, privateIcons = if (replacing) names.toList() else emptyList()) {
+                    packageEvent(*names, iconsMayHaveChanged = replacing)
+                }
+
+            // Android 16 and later; never called below (the method is simply one more of this class there).
+            override fun onUserConfigChanged(launcherUserInfo: LauncherUserInfo) {
+                _userConfigChanges.tryEmit(Unit)
+            }
             override fun onPackagesUnavailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
                 route(user) { packageEvent(*names) }
 
@@ -412,6 +443,18 @@ class LauncherAppsSource @Inject constructor(
             if (labelCache.verify(fresh)) send(toItems { s -> labelCache.label(s.key) ?: shown[s.key].orEmpty() })
         }
         labelCache.persist()
+    }
+
+    /**
+     * The icons of the private packages [packageNames] may be others now (the app was updated or replaced).
+     * Their own tokens move on, so an icon on the Private tab or among a search's results is asked for again
+     * under a new key, and what the image loader's memory holds under the old keys goes. The shared tokens
+     * ([iconEpochs]) are keyed by package alone and stay as they are: the personal twin of such a package did
+     * not change, and nothing shared is to hear of a private package's event.
+     */
+    private fun privateIconsChanged(packageNames: List<String>) {
+        _privateIconEpochs.update { it.bump(packageNames) }
+        forgetIcons(_privateApps.value.filter { it.packageName in packageNames })
     }
 
     /**

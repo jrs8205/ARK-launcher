@@ -198,6 +198,62 @@ class LauncherAppsSourcePackageEventsTest {
         assertThat(labels.generations()).doesNotContainKey("com.secret.notes")
     }
 
+    /** Android 16's own callback, called the way the system does on a phone that has it (the test device has not). */
+    private fun userConfigChanged() {
+        val registered: List<android.util.Pair<LauncherApps.Callback, Handler>> =
+            ReflectionHelpers.getStaticField(ShadowLauncherApps::class.java, "callbacks")
+        val infoClass = Class.forName("android.content.pm.LauncherUserInfo")
+        val info = ReflectionHelpers.callConstructor(
+            Class.forName("android.content.pm.LauncherUserInfo\$Builder"),
+            ReflectionHelpers.ClassParameter.from(String::class.java, "android.os.usertype.profile.PRIVATE"),
+            ReflectionHelpers.ClassParameter.from(Int::class.javaPrimitiveType!!, 10),
+        ).let { builder -> builder.javaClass.getMethod("build").invoke(builder) }
+        for (entry in registered) {
+            entry.second.post { entry.first.javaClass.getMethod("onUserConfigChanged", infoClass).invoke(entry.first, info) }
+        }
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
+    @Test fun aChangeOfAProfilesOwnSettingsIsSignalledAndIsNoPackageEvent() = runTest {
+        aSecondProfileWithATwin(ProfileKind.Private)
+        val heard = listen()
+        var signals = 0
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { source.userConfigChanges.collect { signals++ } }
+
+        // The user turned "hide private space when locked" on in Android's settings: no broadcast says so.
+        userConfigChanged()
+        advanceUntilIdle()
+
+        assertThat(signals).isEqualTo(1)
+        assertThat(heard.events).isEmpty()
+        assertThat(heard.removals).isEmpty()
+        assertThat(heard.shortcuts).isEmpty()
+    }
+
+    @Test fun aPrivateAppsUpdateMovesItsOwnIconTokenAndNoSharedOne() = runTest {
+        aSecondProfileWithATwin(ProfileKind.Private)
+        val shared = source.iconEpochs.value
+        assertThat(source.privateIconEpochs.value.of("com.bank")).isEqualTo(0)
+        val registered: List<android.util.Pair<LauncherApps.Callback, Handler>> =
+            ReflectionHelpers.getStaticField(ShadowLauncherApps::class.java, "callbacks")
+
+        // The private copy was updated: its icon may be another one now.
+        registered.forEach { entry -> entry.second.post { entry.first.onPackageChanged("com.bank", second) } }
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertThat(source.privateIconEpochs.value.of("com.bank")).isEqualTo(1)
+        // The personal twin's token, which is the shared one for the package, stays: nothing shared hears of it.
+        assertThat(source.iconEpochs.value).isEqualTo(shared)
+
+        // A replaced package counts too; one that only became available again does not.
+        registered.forEach { entry -> entry.second.post { entry.first.onPackagesAvailable(arrayOf("com.bank"), second, true) } }
+        shadowOf(Looper.getMainLooper()).idle()
+        assertThat(source.privateIconEpochs.value.of("com.bank")).isEqualTo(2)
+        registered.forEach { entry -> entry.second.post { entry.first.onPackagesAvailable(arrayOf("com.bank"), second, false) } }
+        shadowOf(Looper.getMainLooper()).idle()
+        assertThat(source.privateIconEpochs.value.of("com.bank")).isEqualTo(2)
+    }
+
     @Test fun aWorkProfilesEventsAreHeardAsBefore() = runTest {
         aSecondProfileWithATwin(ProfileKind.Managed)
         val heard = listen()
