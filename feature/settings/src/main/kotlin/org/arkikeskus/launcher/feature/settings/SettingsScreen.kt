@@ -46,7 +46,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
     val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
-    SettingsContent(
+    SettingsWhenRead(
         s = s,
         lists = SettingsLists(
             apps = allApps,
@@ -58,6 +58,25 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         actions = viewModel,
         modifier = modifier,
     )
+}
+
+/**
+ * [SettingsContent] once the stored settings are read ([s] is null until then). Meanwhile only the page's own
+ * colour shows: a page drawn from the defaults would name the default base colour, and show every value at its
+ * default, for the first frames of a cold start.
+ */
+@Composable
+internal fun SettingsWhenRead(
+    s: LauncherSettings?,
+    lists: SettingsLists,
+    actions: SettingsActions,
+    modifier: Modifier = Modifier,
+) {
+    if (s == null) {
+        Surface(modifier = modifier.fillMaxSize(), color = settingsPalette(currentBasePalette()).bg) {}
+        return
+    }
+    SettingsContent(s = s, lists = lists, actions = actions, modifier = modifier)
 }
 
 /** What the page shows besides the settings themselves: the apps, what is hidden, the drawer's folders (null while

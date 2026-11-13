@@ -44,10 +44,11 @@ internal class SettingsViewModel @Inject constructor(
 
     override fun clearDrawerWallpaper() = update { drawerWallpaper.clear() }
 
-    val settings: StateFlow<LauncherSettings> = repository.settings.stateIn(
+    /** Null until the stored settings are read: the page shows no value before that (see SettingsWhenRead). */
+    val settings: StateFlow<LauncherSettings?> = repository.settings.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = LauncherSettings(),
+        initialValue = null,
     )
 
     /** Installed icon packs (queried off-main once), for the picker. */
