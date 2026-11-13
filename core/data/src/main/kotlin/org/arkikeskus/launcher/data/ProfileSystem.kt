@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.data
 
+import android.content.Intent
+import android.content.IntentSender
 import kotlinx.coroutines.flow.Flow
 
 /** How the platform types a user profile, as far as the public API tells a launcher. */
@@ -47,6 +49,23 @@ interface ProfileSystem {
     /** Android's own "hide private space when locked" for the profile with [serial]; null where it cannot be
      *  read (below Android 16) or the lookup fails. Never throws. */
     fun privateSpaceEntryHidden(serial: Long): Boolean?
+
+    /** What opens an app store inside the private profile with [serial] (`LauncherApps.getAppMarketActivityIntent`,
+     *  Android 15); null when there is none to open right now. Never throws. */
+    fun privateInstallSender(serial: Long): IntentSender?
+
+    /** What opens the private space's settings: Android's own page on Android 16 and later, its Security page
+     *  on Android 15 (Private space is one tap away there); null when neither can be opened. Never throws. */
+    fun privateSettingsTarget(): PrivateSettingsTarget?
+}
+
+/** Where the Private tab's settings button leads: the two kinds are started differently. */
+sealed interface PrivateSettingsTarget {
+    /** The system's own sender for the private space's settings (Android 16 and later). */
+    data class Sender(val sender: IntentSender) : PrivateSettingsTarget
+
+    /** A plain settings page, started like any activity. */
+    data class Plain(val intent: Intent) : PrivateSettingsTarget
 }
 
 /**

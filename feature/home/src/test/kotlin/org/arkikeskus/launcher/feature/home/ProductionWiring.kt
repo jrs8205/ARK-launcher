@@ -86,6 +86,8 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         override fun changes(): Flow<Unit> = emptyFlow()
         override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
         override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
+        override fun privateInstallSender(serial: Long): android.content.IntentSender? = null
+        override fun privateSettingsTarget(): org.arkikeskus.launcher.data.PrivateSettingsTarget? = null
     }
     private val source = LauncherAppsSource::class.java.constructors.single()
         .newInstance(context, IconPackRepository(context), Provider<Any?> { error("unused") }, labelCache, noProfiles) as LauncherAppsSource

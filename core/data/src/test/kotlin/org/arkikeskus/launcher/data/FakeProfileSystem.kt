@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import android.content.IntentSender
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.onStart
@@ -14,10 +15,14 @@ internal open class FakeProfileSystem(var profiles: List<ProfileSnapshot>) : Pro
     var collectors = 0
     var request: (Long, Boolean) -> Boolean = { _, _ -> true }
     var entryHidden: (Long) -> Boolean? = { null }
+    var installSender: (Long) -> IntentSender? = { null }
+    var settingsTarget: PrivateSettingsTarget? = null
     override fun snapshot(): List<ProfileSnapshot> = profiles
 
     // The contract: one re-read request as soon as the receiver listens, then the broadcasts.
     override fun changes(): Flow<Unit> = broadcasts.onStart { collectors++; emit(Unit) }
     override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = request(serial, enabled)
     override fun privateSpaceEntryHidden(serial: Long): Boolean? = entryHidden(serial)
+    override fun privateInstallSender(serial: Long): IntentSender? = installSender(serial)
+    override fun privateSettingsTarget(): PrivateSettingsTarget? = settingsTarget
 }

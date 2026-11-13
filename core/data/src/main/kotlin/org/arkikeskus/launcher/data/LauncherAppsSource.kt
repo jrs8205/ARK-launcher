@@ -370,7 +370,7 @@ class LauncherAppsSource @Inject constructor(
             }
         }
         // Read fresh on every scan and never through the label cache, which is written to the disk.
-        _privateApps.value = private.map { s ->
+        val listedPrivate = private.map { s ->
             AppItem(
                 packageName = s.packageName,
                 className = s.info.componentName.className,
@@ -379,6 +379,11 @@ class LauncherAppsSource @Inject constructor(
                 label = readLabel(s.info),
             )
         }.sortedBy { it.label.lowercase() }
+        val before = _privateApps.value
+        _privateApps.value = listedPrivate
+        // An icon outlives its app's place on the list nowhere: not even in the image loader's memory.
+        val listedKeys = listedPrivate.mapTo(HashSet()) { it.key }
+        forgetIcons(before.filterNot { it.key in listedKeys })
         fun toItems(labelOf: (Scanned) -> String) = scanned.map { s ->
             AppItem(
                 packageName = s.info.componentName.packageName,
@@ -407,6 +412,20 @@ class LauncherAppsSource @Inject constructor(
             if (labelCache.verify(fresh)) send(toItems { s -> labelCache.label(s.key) ?: shown[s.key].orEmpty() })
         }
         labelCache.persist()
+    }
+
+    /**
+     * Drops what the image loader's memory holds for [apps], in every look their icons were asked in. Used
+     * for the private apps that left their list (the space locked, an app was removed): their icons are
+     * never on the disk (an icon request's result is memory only), so this is all there is of them.
+     */
+    private fun forgetIcons(apps: List<AppItem>) {
+        if (apps.isEmpty()) return
+        runCatching {
+            val memory = imageLoader.get().memoryCache ?: return
+            val prefixes = apps.map { appIconKeyPrefix(it.key) }
+            memory.keys.filter { key -> prefixes.any { key.key.startsWith(it) } }.forEach { memory.remove(it) }
+        }
     }
 
     /** The app's own label, read from its resources (the costly call this cache exists for). */

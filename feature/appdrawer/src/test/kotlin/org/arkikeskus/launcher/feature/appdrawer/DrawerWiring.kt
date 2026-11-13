@@ -81,6 +81,8 @@ internal class DrawerWiring(private val context: Application, testScope: TestSco
         override fun changes(): Flow<Unit> = emptyFlow()
         override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
         override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
+        override fun privateInstallSender(serial: Long): android.content.IntentSender? = null
+        override fun privateSettingsTarget(): org.arkikeskus.launcher.data.PrivateSettingsTarget? = null
     }
     private val source = LauncherAppsSource::class.java.constructors.single()
         .newInstance(context, iconPacks, Provider<Any?> { error("unused") }, labelCache, noProfiles) as LauncherAppsSource

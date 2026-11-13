@@ -1,6 +1,10 @@
 package org.arkikeskus.launcher.data
 
 import android.app.Application
+import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
+import android.content.pm.ResolveInfo
+import android.provider.Settings
 import android.content.Intent
 import android.os.Looper
 import android.os.UserHandle
@@ -33,6 +37,33 @@ private fun workHandle(): UserHandle = UserHandle.getUserHandleForUid(10 * 100_0
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)
 class AndroidProfileSystemTest {
+    @Test fun belowAndroid15ThereIsNoStoreAndNoSettingsPageForAPrivateSpace() {
+        val system = AndroidProfileSystem(RuntimeEnvironment.getApplication())
+        assertThat(system.privateInstallSender(10)).isNull()
+        assertThat(system.privateSettingsTarget()).isNull()
+    }
+
+    @Config(sdk = [35])
+    @Test fun onAndroid15TheSettingsButtonLeadsToTheSecurityPageWhenThereIsOne() {
+        val app: Application = RuntimeEnvironment.getApplication()
+        val system = AndroidProfileSystem(app)
+        // Nothing answers the security settings intent on this device: no button.
+        assertThat(system.privateSettingsTarget()).isNull()
+
+        val page = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                packageName = "com.android.settings"
+                name = "SecurityDashboard"
+                applicationInfo = ApplicationInfo().apply { packageName = "com.android.settings" }
+            }
+        }
+        shadowOf(app.packageManager).addResolveInfoForIntent(Intent(Settings.ACTION_SECURITY_SETTINGS), page)
+
+        val target = system.privateSettingsTarget() as PrivateSettingsTarget.Plain
+        assertThat(target.intent.action).isEqualTo(Settings.ACTION_SECURITY_SETTINGS)
+        assertThat(target.intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0)
+    }
+
     @Test fun androidsOwnHideSettingCannotBeReadBelowAndroid16() {
         assertThat(AndroidProfileSystem(RuntimeEnvironment.getApplication()).privateSpaceEntryHidden(10)).isNull()
     }

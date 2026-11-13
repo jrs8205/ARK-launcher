@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import android.content.IntentSender
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
@@ -92,6 +93,8 @@ class PrivateSpaceRepository internal constructor(
         val privateSerials: Set<Long>,
         val sharedSerials: Set<Long>,
         val entryHidden: Boolean?,
+        val installSender: IntentSender?,
+        val settingsTarget: PrivateSettingsTarget?,
     )
 
     private fun read(): Platform {
@@ -104,6 +107,9 @@ class PrivateSpaceRepository internal constructor(
                 .filter { it.kind == ProfileKind.Own || it.kind == ProfileKind.Managed || it.kind == ProfileKind.Clone }
                 .mapTo(HashSet()) { it.serial },
             entryHidden = profile?.let { system.privateSpaceEntryHidden(it.serial) },
+            // Asked for only when there is a private space; a button without a target is not shown.
+            installSender = profile?.let { system.privateInstallSender(it.serial) },
+            settingsTarget = profile?.let { system.privateSettingsTarget() },
         )
     }
 
@@ -158,6 +164,12 @@ class PrivateSpaceRepository internal constructor(
         val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull()?.takeIf { it >= 0 }
         return serial == null || serial !in platform.value.sharedSerials
     }
+
+    /** What opens an app store inside the private space, or null when there is none (no Install tile then). */
+    fun installSender(): IntentSender? = platform.value.installSender
+
+    /** What opens the private space's settings, or null when nothing does (no settings button then). */
+    fun settingsTarget(): PrivateSettingsTarget? = platform.value.settingsTarget
 
     /** Reads Android's hide setting again: it has no broadcast, so the drawer asks when it opens. */
     fun refresh() {

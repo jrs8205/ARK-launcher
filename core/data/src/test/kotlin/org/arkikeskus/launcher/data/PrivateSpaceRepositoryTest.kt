@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher.data
 
 import android.app.Application
+import android.app.PendingIntent
+import android.content.Intent
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
@@ -238,6 +240,38 @@ class PrivateSpaceRepositoryTest {
         repo.refresh()
 
         assertThat(repo.state.value?.hiddenWhenLocked).isTrue()
+    }
+
+    @Test fun theInstallAndSettingsTargetsAreTheSystemsAndFollowItsChanges() = runTest {
+        val context: Application = RuntimeEnvironment.getApplication()
+        val store = PendingIntent.getActivity(context, 0, Intent("test.store"), PendingIntent.FLAG_IMMUTABLE).intentSender
+        val settings = PrivateSettingsTarget.Plain(Intent("test.settings"))
+        val fake = FakeProfileSystem(listOf(own, space(locked = true)))
+        val repo = repository(fake)
+        // A locked space has no store to open, and this Android no settings page: the buttons are not shown.
+        assertThat(repo.installSender()).isNull()
+        assertThat(repo.settingsTarget()).isNull()
+
+        val asked = mutableListOf<Long>()
+        fake.installSender = { serial -> asked += serial; store }
+        fake.settingsTarget = settings
+        fake.profiles = listOf(own, space(locked = false))
+        fake.broadcasts.emit(Unit)
+
+        assertThat(repo.installSender()).isSameInstanceAs(store)
+        assertThat(repo.settingsTarget()).isEqualTo(settings)
+        assertThat(asked).contains(11L)
+    }
+
+    @Test fun withoutAPrivateSpaceTheSystemIsNotAskedForItsTargets() = runTest {
+        val fake = FakeProfileSystem(listOf(own, work))
+        fake.installSender = { error("no private space to install into") }
+        fake.settingsTarget = PrivateSettingsTarget.Plain(Intent("test.settings"))
+
+        val repo = repository(fake)
+
+        assertThat(repo.installSender()).isNull()
+        assertThat(repo.settingsTarget()).isNull()
     }
 
     @Test fun onlyThePrivateProfilesSerialIsPrivate() = runTest {

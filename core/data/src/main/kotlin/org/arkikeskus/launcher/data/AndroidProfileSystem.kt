@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.IntentSender
 import android.content.pm.LauncherApps
 import android.content.pm.LauncherUserInfo
 import android.graphics.drawable.ColorDrawable
@@ -11,6 +12,7 @@ import android.os.Build
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import android.provider.Settings
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -124,6 +126,32 @@ class AndroidProfileSystem @Inject constructor(@ApplicationContext private val c
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return null
         return runCatching { entryHidden(serial) }.getOrNull()
     }
+
+    override fun privateInstallSender(serial: Long): IntentSender? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return null
+        return runCatching { marketSender(serial) }.getOrNull()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    private fun marketSender(serial: Long): IntentSender? {
+        val user = userManager?.getUserForSerialNumber(serial) ?: return null
+        return launcherApps?.getAppMarketActivityIntent(null, user)
+    }
+
+    override fun privateSettingsTarget(): PrivateSettingsTarget? = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA ->
+            runCatching { settingsSender() }.getOrNull()?.let { PrivateSettingsTarget.Sender(it) }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM -> {
+            // Android 15 has no private space page a launcher may open: the Security page is one tap from it.
+            val intent = Intent(Settings.ACTION_SECURITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val resolves = runCatching { context.packageManager.resolveActivity(intent, 0) }.getOrNull() != null
+            if (resolves) PrivateSettingsTarget.Plain(intent) else null
+        }
+        else -> null
+    }
+
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    private fun settingsSender(): IntentSender? = launcherApps?.privateSpaceSettingsIntent
 
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     private fun entryHidden(serial: Long): Boolean? {

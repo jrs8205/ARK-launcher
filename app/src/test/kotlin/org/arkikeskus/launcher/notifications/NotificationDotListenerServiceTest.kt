@@ -102,6 +102,8 @@ class NotificationDotListenerServiceTest {
             override fun changes(): Flow<Unit> = emptyFlow()
             override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("unused")
             override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
+            override fun privateInstallSender(serial: Long): android.content.IntentSender? = null
+            override fun privateSettingsTarget(): org.arkikeskus.launcher.data.PrivateSettingsTarget? = null
         }
         val labels = AppLabelCache(object : AppLabelStore {
             override suspend fun read(locale: String): Map<String, String> = emptyMap()
