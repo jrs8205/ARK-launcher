@@ -19,15 +19,23 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.After
 import org.junit.Test
+import java.io.IOException
 
 /** What the theme root is told: nothing until the stored settings are read, then the stored choice. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ThemeViewModelTest {
     private class MemoryStore : DataStore<Preferences> {
         private val state = MutableStateFlow(emptyPreferences())
+
+        /** A full disk: a write fails the way DataStore reports it. Like DataStore, an update that changes
+         *  nothing writes nothing, so it does not fail. */
+        var refusesWrites = false
         override val data: Flow<Preferences> = state.asStateFlow()
-        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-            transform(state.value).also { state.value = it }
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+            val next = transform(state.value)
+            if (refusesWrites && next != state.value) throw IOException("No space left on device")
+            return next.also { state.value = it }
+        }
     }
 
     @After fun tearDown() = Dispatchers.resetMain()
@@ -63,5 +71,21 @@ class ThemeViewModelTest {
         advanceUntilIdle()
         assertThat(next.theme.value!!.chameleonLastArgb).isEqualTo(0xFF1F8EF1.toInt())
         nextCollector.cancel()
+    }
+
+    @Test fun aChameleonColourTheStorageRefusesIsDroppedAndTheThemeGoesOn() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val store = MemoryStore().apply { refusesWrites = true }
+        val viewModel = ThemeViewModel(SettingsRepository(store))
+        val collector = launch { viewModel.theme.collect {} }
+
+        // Nobody asked for this write: the theme root makes it when the wallpaper's colour is new. A failure
+        // that left the view model's scope would end the home process, and the next start would try again.
+        viewModel.rememberChameleon(0xFF1F8EF1.toInt())
+        advanceUntilIdle()
+
+        assertThat(viewModel.theme.value)
+            .isEqualTo(ThemeChoice(LauncherSettings.FONT_DEFAULT, LauncherSettings.BASE_COLOUR_DEFAULT, null))
+        collector.cancel()
     }
 }

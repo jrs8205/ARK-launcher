@@ -21,6 +21,7 @@ import org.arkikeskus.launcher.designsystem.theme.LauncherTheme
 import org.arkikeskus.launcher.designsystem.theme.basePalette
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.expressive.paletteSeed
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -38,9 +39,19 @@ class ThemeViewModel @Inject constructor(private val settingsRepository: Setting
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    /** Keeps the wallpaper colour the Chameleon follows now, for the next start's first frame. */
+    /**
+     * Keeps the wallpaper colour the Chameleon follows now, for the next start's first frame. A write the
+     * storage refuses (a full disk) is dropped: nobody asked for this write and the palette on screen does
+     * not need it, while an exception leaving this scope would end the home process, again on every start.
+     */
     fun rememberChameleon(argb: Int?) {
-        viewModelScope.launch { settingsRepository.setChameleonLastArgb(argb) }
+        viewModelScope.launch {
+            try {
+                settingsRepository.setChameleonLastArgb(argb)
+            } catch (e: IOException) {
+                // Dropped: the next start begins from the colour stored before and follows the wallpaper again.
+            }
+        }
     }
 }
 
