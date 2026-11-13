@@ -161,6 +161,10 @@ internal fun Workspace(
     /** Swiping on from the last page continues to the first, and back from the first to the last
      *  (see WorkspaceWrap.kt). Off: the last page bounces back from the empty drop page. */
     infiniteScroll: Boolean = false,
+    /** The system wallpaper moves with the pages (WallpaperScroll.kt): true or false once the stored choice is
+     *  read, null before that. [wallpaperOffsets] is where the offsets go; null = the home window's wallpaper. */
+    wallpaperScroll: Boolean? = null,
+    wallpaperOffsets: WallpaperOffsets? = null,
     /** The left-edge app takes a right-drag on page 0 (HomeScreen's root detector), so page 0 never
      *  wraps back to the last page while it is set. */
     leftEdgeActionEnabled: Boolean = false,
@@ -788,6 +792,7 @@ internal fun Workspace(
         }.collect { copyOnScreen = it }
     }
     PageZeroCopySwap(pagerState, pageCount, tailCopy, onBeforeSwap = { copyOnScreen = false })
+    WallpaperScrollEffect(pagerState, pageCount, tailCopy, wallpaperScroll, wallpaperOffsets ?: rememberWallpaperOffsets())
 
     // "Show the new item": rows other apps' pin requests added while home was away ([newItems]).
     // Taken when home comes to the foreground at rest — otherwise they wait for the next time, so

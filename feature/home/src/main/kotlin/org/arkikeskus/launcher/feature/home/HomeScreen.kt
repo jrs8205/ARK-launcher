@@ -707,6 +707,7 @@ fun HomeScreen(
                 widgetEdgesAlignWithIcons = settings.widgetEdgesAlignWithIcons,
                 homePageMarker = settings.homePageMarker,
                 infiniteScroll = settings.infiniteScroll,
+                wallpaperScroll = if (uiState.loaded) settings.wallpaperScroll else null,
                 // Same condition as pixelHomeSwipe's left-edge gesture above: while it owns the
                 // right-drag on page 0, page 0 must not wrap back.
                 leftEdgeActionEnabled = leftSwipeAvailable && !showOnboarding,
