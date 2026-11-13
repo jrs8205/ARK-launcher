@@ -256,23 +256,46 @@ class LauncherAppsSource @Inject constructor(
             reload()
         }
 
+        // Whose event it is decides what may learn of it, exactly as [listingOf] decides where the profile's
+        // apps are listed. Everything [packageEvent] feeds is keyed by package alone, and a private app can be
+        // the twin of a personal one: heard as a package event, its removal would clear the twin's home rows
+        // and its update would drop the twin's label from the cache that is written to the disk. The own user
+        // and every profile below Android 15 are answered without asking the system anything.
+        fun listing(user: UserHandle): Listing {
+            if (user == Process.myUserHandle() || Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                return Listing.General
+            }
+            val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull()?.takeIf { it >= 0 }
+            return listingOf(false, serial, profiles.snapshot().associate { it.serial to it.kind }, Build.VERSION.SDK_INT)
+        }
+
+        /** A package event of [user]: [shared] for a profile of the shared list; for the private space only
+         *  the rescan that reads its own list again; nothing for a profile of unknown kind. */
+        fun route(user: UserHandle, shared: () -> Unit) = when (listing(user)) {
+            Listing.General -> shared()
+            Listing.Private -> reload()
+            Listing.Nowhere -> Unit
+        }
+
         val callback = object : LauncherApps.Callback() {
-            override fun onPackageAdded(packageName: String, user: UserHandle) = packageEvent(packageName)
-            override fun onPackageRemoved(packageName: String, user: UserHandle) {
+            override fun onPackageAdded(packageName: String, user: UserHandle) = route(user) { packageEvent(packageName) }
+            override fun onPackageRemoved(packageName: String, user: UserHandle) = route(user) {
                 val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
                 packageRemovalPool.add(packageName to serial)
                 packageEvent(packageName)
             }
             override fun onPackageChanged(packageName: String, user: UserHandle) =
-                packageEvent(packageName, iconsMayHaveChanged = true)
+                route(user) { packageEvent(packageName, iconsMayHaveChanged = true) }
             override fun onPackagesAvailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
-                packageEvent(*names, iconsMayHaveChanged = replacing)
+                route(user) { packageEvent(*names, iconsMayHaveChanged = replacing) }
             override fun onPackagesUnavailable(names: Array<out String>, user: UserHandle, replacing: Boolean) =
-                packageEvent(*names)
+                route(user) { packageEvent(*names) }
 
             // Only the default home app receives it. Not a package event: chat apps re-publish their
-            // shortcuts on every message, and those must not rescan the app list.
+            // shortcuts on every message, and those must not rescan the app list. So a private app's
+            // change is not heard at all: no shortcut of the private space is kept anywhere.
             override fun onShortcutsChanged(packageName: String, shortcuts: MutableList<ShortcutInfo>, user: UserHandle) {
+                if (listing(user) != Listing.General) return
                 val serial = runCatching { userManager?.getSerialNumberForUser(user) }.getOrNull() ?: 0L
                 shortcutChangePool.add(packageName to serial)
             }
