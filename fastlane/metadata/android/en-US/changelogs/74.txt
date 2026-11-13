@@ -1,0 +1,7 @@
+New
+- A new look: softer shapes, grouped lists, and one base colour for the whole launcher. Pick one of eight colours, Black, or Chameleon, which follows the wallpaper (Settings > Appearance).
+- The wallpaper scrolls with the home pages (can be turned off in Settings > Home screen).
+- Private space (Android 15+): a Private tab in the app drawer to unlock, use and lock it; search finds it; it can hide while locked.
+
+Improved
+- The start is profiled again for this release.

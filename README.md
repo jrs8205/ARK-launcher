@@ -116,6 +116,17 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder
   columns**, page indicator, and more. App drawer folders can lead the list or sit among the apps
   A–Z.
+- **One base colour for the whole launcher** — eight colours, **Black** for a look without colour, or
+  **Chameleon**, which follows the wallpaper (Settings ▸ Appearance). Everything is coloured from it, in
+  the light and the dark theme, with softer shapes, grouped lists and pill-shaped controls throughout.
+- **Wallpaper scrolling** — the wallpaper moves with the home pages (Settings ▸ Home screen; on by
+  default, can be turned off).
+- **Private space** (Android 15 and later, as the default launcher) — a **Private** tab in the app drawer,
+  right under the search field: unlock the space, start its apps, lock it again, with an Install tile and
+  a shortcut to Android's settings for it. While it is unlocked the search finds its apps too (marked with
+  a lock), and typing "private space" leads to the tab. With **hide when locked** (Android's own setting on
+  Android 16, the launcher's on Android 15) a locked space has no tab and is opened through the search.
+  Nothing about private apps is stored or backed up.
 - **Settings that are easy to find** — a short main page of categories, each with a page of its own, and a
   search field that finds any setting by its name or description and opens its page at the row.
 - **Glass layer over the wallpaper** — an optional frosted sheet behind the icons and the bars, from
