@@ -32,4 +32,5 @@
     <string name="setting_about_aliases">about,version,model,android</string>
     <string name="setting_systemupdate">Software updates</string>
     <string name="setting_systemupdate_aliases">software update,system update,update,updates</string>
+    <string name="private_space_search_phrases">private space</string>
 </resources>

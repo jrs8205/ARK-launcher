@@ -33,4 +33,5 @@
     <string name="setting_about_aliases">hakkında,hakkinda,sürüm,surum,versiyon,model,android</string>
     <string name="setting_systemupdate">Yazılım güncellemeleri</string>
     <string name="setting_systemupdate_aliases">yazılım güncellemesi,yazilim guncellemesi,sistem güncellemesi,sistem guncellemesi,güncelleme,guncelleme,güncellemeler,guncellemeler</string>
+    <string name="private_space_search_phrases">özel alan</string>
 </resources>

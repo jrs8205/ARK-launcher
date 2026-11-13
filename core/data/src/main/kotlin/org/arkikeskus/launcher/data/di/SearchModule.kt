@@ -12,6 +12,7 @@ import org.arkikeskus.launcher.data.search.ContactDataSource
 import org.arkikeskus.launcher.data.search.ContactSearchProvider
 import org.arkikeskus.launcher.data.search.ContentResolverContactDataSource
 import org.arkikeskus.launcher.data.search.PermissionChecker
+import org.arkikeskus.launcher.data.search.PrivateSpaceSearchProvider
 import org.arkikeskus.launcher.data.search.SearchProvider
 import org.arkikeskus.launcher.data.search.SettingsSearchProvider
 
@@ -22,6 +23,7 @@ abstract class SearchModule {
     @Binds @IntoSet abstract fun settingsProvider(p: SettingsSearchProvider): SearchProvider
     @Binds @IntoSet abstract fun contactProvider(p: ContactSearchProvider): SearchProvider
     @Binds @IntoSet abstract fun calcProvider(p: CalculatorSearchProvider): SearchProvider
+    @Binds @IntoSet abstract fun privateSpaceProvider(p: PrivateSpaceSearchProvider): SearchProvider
 
     @Binds abstract fun contactDataSource(impl: ContentResolverContactDataSource): ContactDataSource
     @Binds abstract fun permissionChecker(impl: AndroidPermissionChecker): PermissionChecker

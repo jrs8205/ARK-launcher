@@ -40,6 +40,7 @@
     <string name="private_space_lock">Заблокировать</string>
     <string name="private_space_install">Установить</string>
     <string name="private_space_settings">Настройки частного пространства</string>
+    <string name="private_space_entry">Частное пространство</string>
     <string name="work_apps_pause">Приостановить рабочие приложения</string>
     <string name="work_apps_unpause">Возобновить</string>
     <string name="work_apps_paused_title">Рабочие приложения приостановлены</string>

@@ -40,6 +40,7 @@
     <string name="private_space_lock">Lukitse</string>
     <string name="private_space_install">Asenna</string>
     <string name="private_space_settings">Yksityisen tilan asetukset</string>
+    <string name="private_space_entry">Yksityinen tila</string>
     <string name="work_apps_pause">Keskeytä työsovellukset</string>
     <string name="work_apps_unpause">Jatka</string>
     <string name="work_apps_paused_title">Työsovellukset on keskeytetty</string>

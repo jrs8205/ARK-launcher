@@ -40,6 +40,7 @@
     <string name="private_space_lock">Kilitle</string>
     <string name="private_space_install">Yükle</string>
     <string name="private_space_settings">Özel alan ayarları</string>
+    <string name="private_space_entry">Özel alan</string>
     <string name="work_apps_pause">İş uygulamalarını duraklat</string>
     <string name="work_apps_unpause">Devam ettir</string>
     <string name="work_apps_paused_title">İş uygulamaları duraklatıldı</string>

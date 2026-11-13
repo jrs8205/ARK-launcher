@@ -69,6 +69,10 @@ data class AppDrawerUiState(
     val privateSpace: PrivateSpaceUi? = null,
     /** The private apps, A to Z, while the space is unlocked; never part of [apps] or of a search here. */
     val privateApps: List<AppItem> = emptyList(),
+    /** The private space's matches of a search (only while it is unlocked); never part of [apps]. */
+    val privateResults: List<AppItem> = emptyList(),
+    /** A search offers the private space's own row, which unlocks it if needed and shows its tab. */
+    val privateSpaceEntry: Boolean = false,
     /** The tabs that exist right now ([drawerTabs]); only Personal on a phone without profiles. */
     val tabs: List<DrawerTab> = listOf(DrawerTab.Personal),
     /** The tab a new pager starts on; always one of [tabs]. */
@@ -160,6 +164,10 @@ class AppDrawerViewModel @Inject constructor(
 
     private val query = MutableStateFlow("")
     private val selectedTabFlow = MutableStateFlow(DrawerTab.Personal)
+
+    /** The private space's search row was tapped: its tab is to be shown as soon as it exists (a hidden
+     *  space's exists once Android has unlocked it). Given up when the drawer closes. */
+    private val wantsPrivateTab = MutableStateFlow(false)
 
     /** The private space with the apps that go with it. */
     private val privateSpaceFlow = combine(privateSpace.state, privateSpace.apps) { space, apps -> space to apps }
@@ -270,6 +278,8 @@ class AppDrawerViewModel @Inject constructor(
                 calc = results.calc,
                 settingResults = results.settings,
                 contactResults = results.contacts,
+                privateResults = results.privateApps,
+                privateSpaceEntry = results.privateSpaceEntry,
                 searchPending = answered != state.query,
             )
         }
@@ -307,10 +317,12 @@ class AppDrawerViewModel @Inject constructor(
             // The two flows are read one after the other: a locked space never keeps the list of a moment ago.
             privateApps = if (shown == null || shown.locked) emptyList() else apps,
         )
-    }.combine(selectedTabFlow) { state, tab ->
+    }.combine(selectedTabFlow.combine(wantsPrivateTab) { tab, wanted -> tab to wanted }) { state, (stored, wantsPrivate) ->
         // A stored selection only means something while its tab exists: hiding the last work app,
         // or the profile going, lands the pager on Personal.
         val tabs = drawerTabs(hasWork = state.workProfile != null, hasPrivate = state.privateSpace != null)
+        // Decided with the list itself, so a pager built for this list starts on the tab that was asked for.
+        val tab = if (wantsPrivate && DrawerTab.Private in tabs) DrawerTab.Private else stored
         state.copy(tabs = tabs, selectedTab = effectiveTab(tab, tabs))
     }.combine(drawerWallpaper.current) { state, wallpaper ->
         state.copy(wallpaper = wallpaper)
@@ -328,6 +340,23 @@ class AppDrawerViewModel @Inject constructor(
 
     fun selectTab(tab: DrawerTab) {
         selectedTabFlow.value = tab
+        // The wish for the Private tab is met once the pager rests on it.
+        if (tab == DrawerTab.Private) wantsPrivateTab.value = false
+    }
+
+    /**
+     * The private space's own search row: the search ends, the space is unlocked if it is locked (Android
+     * shows its prompt), and its tab is the one shown, at once or as soon as the unlock has given it one.
+     */
+    fun openPrivateSpace() {
+        wantsPrivateTab.value = true
+        if (privateSpace.state.value?.locked == true) setPrivateLocked(false)
+        query.value = ""
+    }
+
+    /** The drawer closed: a wish for the Private tab that was not met (the unlock was cancelled) is given up. */
+    fun onDrawerClosed() {
+        wantsPrivateTab.value = false
     }
 
     /** Pauses or unpauses the work profile; only the default launcher may, so the other case gets a notice. */

@@ -33,4 +33,5 @@
     <string name="setting_about_aliases">información,informacion,acerca de,versión,version,modelo,android</string>
     <string name="setting_systemupdate">Actualizaciones de software</string>
     <string name="setting_systemupdate_aliases">actualizaciones,actualización de software,actualizacion de software,actualización del sistema,actualizacion del sistema,actualizar,system update</string>
+    <string name="private_space_search_phrases">espacio privado</string>
 </resources>

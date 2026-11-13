@@ -7,8 +7,14 @@ package org.arkikeskus.launcher.model
 sealed interface SearchResult {
     val id: String
 
-    data class App(val app: AppItem) : SearchResult {
+    /** [privateProfile]: the app is one of the private space's (found only while the space is unlocked). */
+    data class App(val app: AppItem, val privateProfile: Boolean = false) : SearchResult {
         override val id: String get() = "app:${app.key}"
+    }
+
+    /** The private space itself: the row that unlocks it if needed and shows its tab. */
+    data object PrivateSpaceEntry : SearchResult {
+        override val id: String get() = "private-space"
     }
 
     /** A system settings page. [action] is a `Settings.ACTION_*` (or equivalent) intent action. */
@@ -31,10 +37,16 @@ sealed interface SearchResult {
     }
 }
 
-/** Search results grouped into the sections the drawer renders (top→bottom: calc, apps, settings, contacts). */
+/**
+ * Search results grouped into the sections the drawer renders (top→bottom: calc, apps, settings, contacts).
+ * [privateApps] are the private space's matches, kept apart from [apps] (they are started and drawn their own
+ * way); [privateSpaceEntry] says the private space's own row is offered.
+ */
 data class SearchResults(
     val calc: SearchResult.Calculation? = null,
     val apps: List<AppItem> = emptyList(),
     val settings: List<SearchResult.Setting> = emptyList(),
     val contacts: List<SearchResult.Contact> = emptyList(),
+    val privateApps: List<AppItem> = emptyList(),
+    val privateSpaceEntry: Boolean = false,
 )

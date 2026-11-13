@@ -33,4 +33,5 @@
     <string name="setting_about_aliases">om,version,modell,android</string>
     <string name="setting_systemupdate">Programuppdateringar</string>
     <string name="setting_systemupdate_aliases">programuppdatering,systemuppdatering,uppdatering,uppdateringar,uppdatera,system update</string>
+    <string name="private_space_search_phrases">privat utrymme|privat område</string>
 </resources>

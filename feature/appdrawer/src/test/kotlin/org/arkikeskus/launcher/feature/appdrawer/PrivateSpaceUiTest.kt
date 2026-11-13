@@ -1,22 +1,27 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
 import android.app.Application
+import android.os.Process
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -27,6 +32,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import com.google.common.truth.Truth.assertThat
+import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.component.PRIVATE_APP_MARK_TAG
 import org.arkikeskus.launcher.ui.expressive.ExpressiveTheme
 import org.junit.Rule
 import org.junit.Test
@@ -157,6 +165,34 @@ class PrivateSpaceUiTest {
         compose.onNodeWithText("Install").assertIsDisplayed().performClick()
 
         assertThat(installs).isEqualTo(1)
+    }
+
+    @Test fun aPrivateSearchResultCarriesTheLockMarkAndTheOthersDoNot() {
+        val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0, "Mail")
+        val vault = AppItem("com.vault", "com.vault.Main", Process.myUserHandle(), 12, "Vault")
+        compose.setContent {
+            ExpressiveTheme {
+                val haptics = LocalHapticFeedback.current
+                val drag = remember { HomeDragController() }
+                LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.size(320.dp, 300.dp)) {
+                    appCells(listOf(mail), emptyMap(), true, 1f, true, 56.dp, {}, { _, _ -> }, drag, {}, { _, _, _, _ -> }, { _, _ -> }, haptics, false)
+                    appCells(listOf(vault), emptyMap(), true, 1f, true, 56.dp, {}, { _, _ -> }, drag, {}, { _, _, _, _ -> }, { _, _ -> }, haptics, false,
+                        liftable = false, privateMark = true)
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        compose.onAllNodesWithTag(PRIVATE_APP_MARK_TAG, useUnmergedTree = true).assertCountEquals(1)
+    }
+
+    @Test fun thePrivateSpacesSearchRowSaysItsNameAndTakesATap() {
+        var opened = 0
+        compose.setContent { ExpressiveTheme { PrivateSpaceEntryRow(onOpen = { opened++ }) } }
+
+        compose.onNodeWithText("Private space").assertIsDisplayed().performClick()
+
+        assertThat(opened).isEqualTo(1)
     }
 
     @Test fun withTheLabelsOffTheInstallTileStillSaysWhatItIs() {

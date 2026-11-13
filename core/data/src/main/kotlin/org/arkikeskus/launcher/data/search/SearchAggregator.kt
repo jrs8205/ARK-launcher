@@ -29,9 +29,11 @@ class SearchAggregator @Inject constructor(
         }
         return SearchResults(
             calc = all.filterIsInstance<SearchResult.Calculation>().firstOrNull(),
-            apps = all.filterIsInstance<SearchResult.App>().map { it.app },
+            apps = all.filterIsInstance<SearchResult.App>().filterNot { it.privateProfile }.map { it.app },
             settings = all.filterIsInstance<SearchResult.Setting>(),
             contacts = all.filterIsInstance<SearchResult.Contact>(),
+            privateApps = all.filterIsInstance<SearchResult.App>().filter { it.privateProfile }.map { it.app },
+            privateSpaceEntry = all.any { it is SearchResult.PrivateSpaceEntry },
         )
     }
 }

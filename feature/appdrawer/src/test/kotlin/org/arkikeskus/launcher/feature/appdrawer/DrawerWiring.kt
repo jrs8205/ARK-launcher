@@ -38,6 +38,8 @@ import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.data.search.AppSearchProvider
+import kotlinx.coroutines.flow.MutableSharedFlow
+import org.arkikeskus.launcher.data.search.PrivateSpaceSearchProvider
 import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.util.ReflectionHelpers
@@ -56,8 +58,17 @@ internal class DrawerWiring(
     private val context: Application,
     testScope: TestScope,
     /** The profiles of the test device as the platform types them; only the own user unless a test says so. */
-    private val profiles: List<ProfileSnapshot> = listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false)),
+    initialProfiles: List<ProfileSnapshot> = listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false)),
 ) {
+    /** The device's profiles now. A lock or unlock request is granted at once and reported, as Android does. */
+    var profiles: List<ProfileSnapshot> = initialProfiles
+        private set
+    private val profileChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+    /** The quiet-mode requests the launcher made: the profile's serial and what was asked. */
+    val quietModeRequests = mutableListOf<Pair<Long, Boolean>>()
+    /** A request is taken but nothing changes, as when the user cancels Android's own prompt. */
+    var refuseQuietMode = false
+
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val db: LauncherDatabase = Class.forName("androidx.room.Room")
@@ -82,8 +93,15 @@ internal class DrawerWiring(
     private val labelCache = AppLabelCache(RoomAppLabelStore(LauncherDatabase::class.java.getMethod("appLabelDao").invoke(db) as AppLabelDao))
     private val noProfiles = object : ProfileSystem {
         override fun snapshot(): List<ProfileSnapshot> = profiles
-        override fun changes(): Flow<Unit> = emptyFlow()
-        override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean = error("no work profile")
+        override fun changes(): Flow<Unit> = profileChanges
+        override fun requestQuietMode(serial: Long, enabled: Boolean): Boolean {
+            check(profiles.any { it.serial == serial }) { "no profile $serial" }
+            quietModeRequests += serial to enabled
+            if (refuseQuietMode) return false
+            profiles = profiles.map { if (it.serial == serial) it.copy(paused = enabled) else it }
+            profileChanges.tryEmit(Unit)
+            return true
+        }
         override fun privateSpaceEntryHidden(serial: Long): Boolean? = null
         override fun privateInstallSender(serial: Long): android.content.IntentSender? = null
         override fun privateSettingsTarget(): org.arkikeskus.launcher.data.PrivateSettingsTarget? = null
@@ -105,7 +123,9 @@ internal class DrawerWiring(
         settingsRepository,
         homeLayoutRepository,
         NotificationBadgeRepository(),
-        SearchAggregator(setOf(AppSearchProvider(appRepository, settingsRepository))),
+        SearchAggregator(
+            setOf(AppSearchProvider(appRepository, settingsRepository), PrivateSpaceSearchProvider(context, privateSpaceRepository)),
+        ),
         appUsageRepository,
         workProfileRepository,
         privateSpaceRepository,
@@ -134,8 +154,7 @@ internal class DrawerWiring(
  * shape (`LauncherActivityInfoInternal(ActivityInfo, IncrementalStatesInfo, UserHandle)`); the
  * label is non-localized so no resource lookup runs.
  */
-internal fun installFakeApp(context: Context, packageName: String, label: String) {
-    val user: UserHandle = Process.myUserHandle()
+internal fun installFakeApp(context: Context, packageName: String, label: String, user: UserHandle = Process.myUserHandle()) {
     val applicationInfo = ApplicationInfo().apply {
         this.packageName = packageName
         flags = ApplicationInfo.FLAG_INSTALLED

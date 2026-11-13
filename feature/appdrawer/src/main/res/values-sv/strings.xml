@@ -40,6 +40,7 @@
     <string name="private_space_lock">Lås</string>
     <string name="private_space_install">Installera</string>
     <string name="private_space_settings">Inställningar för privat utrymme</string>
+    <string name="private_space_entry">Privat utrymme</string>
     <string name="work_apps_pause">Pausa jobbappar</string>
     <string name="work_apps_unpause">Återuppta</string>
     <string name="work_apps_paused_title">Jobbappar har pausats</string>

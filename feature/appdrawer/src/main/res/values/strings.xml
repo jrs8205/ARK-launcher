@@ -40,6 +40,7 @@
     <string name="private_space_lock">Lock</string>
     <string name="private_space_install">Install</string>
     <string name="private_space_settings">Private space settings</string>
+    <string name="private_space_entry">Private space</string>
     <string name="work_apps_pause">Pause work apps</string>
     <string name="work_apps_unpause">Unpause</string>
     <string name="work_apps_paused_title">Work apps are paused</string>

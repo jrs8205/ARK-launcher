@@ -40,6 +40,7 @@
     <string name="private_space_lock">Sperren</string>
     <string name="private_space_install">Installieren</string>
     <string name="private_space_settings">Einstellungen für das vertrauliche Profil</string>
+    <string name="private_space_entry">Vertrauliches Profil</string>
     <string name="work_apps_pause">Geschäftliche Apps pausieren</string>
     <string name="work_apps_unpause">Fortsetzen</string>
     <string name="work_apps_paused_title">Geschäftliche Apps sind pausiert</string>

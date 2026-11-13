@@ -33,4 +33,5 @@
     <string name="setting_about_aliases">о телефоне,сведения,версия,модель,android</string>
     <string name="setting_systemupdate">Обновление ПО</string>
     <string name="setting_systemupdate_aliases">обновление системы,обновление,обновления,прошивка,system update</string>
+    <string name="private_space_search_phrases">частное пространство|личное пространство</string>
 </resources>

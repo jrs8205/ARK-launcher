@@ -211,6 +211,7 @@ fun AppDrawerScreen(
     // ends) would otherwise leave the window standing over the home screen.
     LaunchedEffect(drawerOpen) {
         if (!drawerOpen) {
+            viewModel.onDrawerClosed()
             focusManager.clearFocus()
             viewModel.onQueryChange("")
             menuTarget = null
@@ -334,6 +335,12 @@ fun AppDrawerScreen(
         onPrivateInstall = { viewModel.privateInstallSender()?.let { startSystemSender(context, it) } },
         onPrivateSettings = { openPrivateSettings(context, viewModel.privateSettingsTarget()) },
         privateGridState = privateGridState,
+        privateResults = uiState.privateResults,
+        privateSpaceEntry = uiState.privateSpaceEntry,
+        onOpenPrivateSpace = {
+            focusManager.clearFocus()
+            viewModel.openPrivateSpace()
+        },
         modifier = modifier,
     )
 
@@ -536,6 +543,9 @@ private fun AppDrawerContent(
     onPrivateInstall: () -> Unit,
     onPrivateSettings: () -> Unit,
     privateGridState: LazyGridState,
+    privateResults: List<AppItem>,
+    privateSpaceEntry: Boolean,
+    onOpenPrivateSpace: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
@@ -726,12 +736,22 @@ private fun AppDrawerContent(
                             }
                         }
                     }
-                    if (apps.isNotEmpty()) {
+                    if (privateSpaceEntry) {
+                        item(key = "private-space-entry", span = { GridItemSpan(maxLineSpan) }, contentType = { "private-space" }) {
+                            PrivateSpaceEntryRow(onOpen = onOpenPrivateSpace)
+                        }
+                    }
+                    if (apps.isNotEmpty() || privateResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
                             ExpressiveSectionTitle(stringResource(R.string.search_section_apps), color = MaterialTheme.colorScheme.onSurface)
                         }
                         appCells(apps, badges, badgeShowCount, badgeScale, showLabels, drawerIconSize, onAppClick,
                             onAppLongClick, dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked)
+                        // The private space's matches, after the others: each wears a lock, starts through the
+                        // private space's own start and stays where it is (a hold opens the one-item menu).
+                        appCells(privateResults, emptyMap(), badgeShowCount, badgeScale, showLabels, drawerIconSize,
+                            onPrivateAppClick, onPrivateAppLongClick, dragController, onDragOutStart, onDropOnHome,
+                            onDropOnDock, haptics, locked, liftable = false, privateMark = true)
                     }
                     if (settingResults.isNotEmpty()) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "header" }) {
@@ -762,7 +782,9 @@ private fun AppDrawerContent(
                     // under the search box was indistinguishable from a stuck drawer. Not while the
                     // results are still the previous query's: that flashed "No results" on the first
                     // letter of every search.
-                    if (!searchPending && calc == null && apps.isEmpty() && settingResults.isEmpty() && contactResults.isEmpty()) {
+                    if (!searchPending && calc == null && apps.isEmpty() && settingResults.isEmpty() && contactResults.isEmpty() &&
+                        privateResults.isEmpty() && !privateSpaceEntry
+                    ) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "empty" }) {
                             Text(
                                 text = stringResource(R.string.search_no_results),
@@ -1325,10 +1347,12 @@ internal fun LazyGridScope.appCells(
     locked: Boolean,
     /** False for apps that stay where they are (the private ones): a hold opens the menu and lifts nothing. */
     liftable: Boolean = true,
+    /** A small lock on each icon: private matches among a search's results. */
+    privateMark: Boolean = false,
 ) {
     items(items = apps, key = { it.key }, contentType = { "app" }) { app ->
         DrawerAppCell(app, badges, badgeShowCount, badgeScale, showLabels, iconSize, onAppClick, onAppLongClick,
-            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, liftable)
+            dragController, onDragOutStart, onDropOnHome, onDropOnDock, haptics, locked, liftable, privateMark)
     }
 }
 
@@ -1353,6 +1377,7 @@ private fun DrawerAppCell(
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
     locked: Boolean,
     liftable: Boolean = true,
+    privateMark: Boolean = false,
 ) {
     // The gesture below lives as long as the key (a label or icon change does not restart it)
     // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
@@ -1370,6 +1395,7 @@ private fun DrawerAppCell(
         badgeCount = badges[app.badgeKey] ?: 0,
         badgeShowCount = badgeShowCount,
         badgeScale = badgeScale,
+        privateMark = privateMark,
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
             // One unified gesture (like Workspace/Dock) but non-consuming until the

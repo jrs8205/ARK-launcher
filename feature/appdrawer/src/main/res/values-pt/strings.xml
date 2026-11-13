@@ -40,6 +40,7 @@
     <string name="private_space_lock">Bloquear</string>
     <string name="private_space_install">Instalar</string>
     <string name="private_space_settings">Configurações do espaço privado</string>
+    <string name="private_space_entry">Espaço privado</string>
     <string name="work_apps_pause">Pausar apps de trabalho</string>
     <string name="work_apps_unpause">Reativar</string>
     <string name="work_apps_paused_title">Os apps de trabalho estão pausados</string>

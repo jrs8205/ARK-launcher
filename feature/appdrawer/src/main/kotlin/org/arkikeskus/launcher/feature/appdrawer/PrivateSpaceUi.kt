@@ -240,6 +240,30 @@ private fun PrivateInstallTile(iconSize: Dp, showLabel: Boolean, onInstall: () -
     }
 }
 
+/**
+ * The private space's own row among the search results: its name behind a lock mark. A tap unlocks the space
+ * if needed and shows its tab; for a hidden, locked space this row is the only way in.
+ */
+@Composable
+internal fun PrivateSpaceEntryRow(onOpen: () -> Unit) {
+    val palette = LocalExpressivePalette.current
+    ExpressiveCard(onClick = onOpen) {
+        Icon(
+            painter = painterResource(LauncherIcons.Lock),
+            contentDescription = null,
+            tint = palette.accent,
+            modifier = Modifier.size(24.dp),
+        )
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = stringResource(R.string.private_space_entry),
+            color = palette.text,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
 /** Starts one of the system's own senders (the private space's store or settings), as the system asks a sender
  *  to from Android 14: with the leave to start an activity. A sender that cannot be started does nothing. */
 internal fun startSystemSender(context: Context, sender: IntentSender) {

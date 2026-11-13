@@ -40,6 +40,7 @@
     <string name="private_space_lock">Verrouiller</string>
     <string name="private_space_install">Installer</string>
     <string name="private_space_settings">Paramètres de l\'espace privé</string>
+    <string name="private_space_entry">Espace privé</string>
     <string name="work_apps_pause">Mettre en pause les applis pro</string>
     <string name="work_apps_unpause">Réactiver</string>
     <string name="work_apps_paused_title">Les applis professionnelles sont en pause</string>

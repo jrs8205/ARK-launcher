@@ -1,21 +1,27 @@
 package org.arkikeskus.launcher.ui.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -26,6 +32,8 @@ import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.model.IconRequest
 import org.arkikeskus.launcher.ui.AppLaunchOrigin
 import org.arkikeskus.launcher.ui.AppLaunchSources
+import org.arkikeskus.launcher.ui.LauncherIcons
+import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.appLaunchTouch
 import org.arkikeskus.launcher.ui.rememberAppLaunchOrigin
 
@@ -104,6 +112,8 @@ fun AppIcon(
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
     launchOrigin: AppLaunchOrigin? = null,
+    /** A small lock on the icon: the app is one of the private space's (in a search it tells a private twin apart). */
+    privateMark: Boolean = false,
 ) {
     val ownOrigin = rememberAppLaunchOrigin()
     val origin = launchOrigin ?: ownOrigin
@@ -126,8 +136,28 @@ fun AppIcon(
                 modifier = Modifier.size(iconSize).onGloballyPositioned { origin?.icon = it },
             )
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
+            if (privateMark) PrivateAppMark(Modifier.align(Alignment.BottomEnd))
         }
         if (showLabel) AppLabel(appItem.label, labelColor, maxLabelLines, reserveLabelLines)
+    }
+}
+
+/** The lock mark of [AppIcon]'s `privateMark` (a test finds it by this tag). */
+const val PRIVATE_APP_MARK_TAG = "private-app-mark"
+
+@Composable
+private fun PrivateAppMark(modifier: Modifier) {
+    val palette = LocalExpressivePalette.current
+    Box(
+        modifier = modifier.size(18.dp).clip(CircleShape).background(palette.container).testTag(PRIVATE_APP_MARK_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(LauncherIcons.Lock),
+            contentDescription = null,
+            tint = palette.onContainer,
+            modifier = Modifier.size(12.dp),
+        )
     }
 }
 

@@ -33,4 +33,5 @@
     <string name="setting_about_aliases">informacje,informacje o telefonie,o telefonie,wersja,model,android</string>
     <string name="setting_systemupdate">Aktualizacje oprogramowania</string>
     <string name="setting_systemupdate_aliases">aktualizacja oprogramowania,aktualizacja systemu,aktualizacja,aktualizacje,aktualizuj,update,system update</string>
+    <string name="private_space_search_phrases">przestrzeń prywatna</string>
 </resources>
