@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Ev simgesi</string>
     <string name="settings_infinite_scroll">Sonsuz kaydırma</string>
     <string name="settings_infinite_scroll_desc">Son sayfadan sonra yeniden ilk sayfa gelir</string>
+    <string name="settings_wallpaper_scroll">Duvar kağıdı kaydırma</string>
+    <string name="settings_wallpaper_scroll_desc">Sayfa değiştirdikçe duvar kağıdı hareket eder</string>
+    <string name="settings_wallpaper_scroll_keywords">paralaks arka plan wallpaper parallax</string>
     <string name="settings_notifications">Bildirimler</string>
     <string name="settings_notif_dots">Bildirim noktaları</string>
     <string name="settings_notif_count">Sayıyı göster</string>

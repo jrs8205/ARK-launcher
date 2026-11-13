@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Talo-ikoni</string>
     <string name="settings_infinite_scroll">Loputon selaus</string>
     <string name="settings_infinite_scroll_desc">Viimeisen sivun jälkeen tulee taas ensimmäinen</string>
+    <string name="settings_wallpaper_scroll">Taustakuvan vieritys</string>
+    <string name="settings_wallpaper_scroll_desc">Taustakuva liikkuu, kun vaihdat sivua</string>
+    <string name="settings_wallpaper_scroll_keywords">parallaksi tausta wallpaper parallax</string>
     <string name="settings_notifications">Ilmoitukset</string>
     <string name="settings_notif_dots">Ilmoituspisteet</string>
     <string name="settings_notif_count">Näytä lukumäärä</string>

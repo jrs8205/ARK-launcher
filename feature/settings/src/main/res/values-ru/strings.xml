@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Значок дома</string>
     <string name="settings_infinite_scroll">Бесконечная прокрутка</string>
     <string name="settings_infinite_scroll_desc">После последней страницы снова идёт первая</string>
+    <string name="settings_wallpaper_scroll">Прокрутка обоев</string>
+    <string name="settings_wallpaper_scroll_desc">Обои двигаются при смене страницы</string>
+    <string name="settings_wallpaper_scroll_keywords">параллакс фон wallpaper parallax</string>
     <string name="settings_notifications">Уведомления</string>
     <string name="settings_notif_dots">Значки уведомлений</string>
     <string name="settings_notif_count">Показывать количество</string>

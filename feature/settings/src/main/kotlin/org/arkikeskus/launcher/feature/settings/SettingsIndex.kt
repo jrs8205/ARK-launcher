@@ -101,6 +101,10 @@ internal object SettingsIndex {
             row("H10", c, R.string.settings_home_page_marker, fallback = "H9")
             row("H11", c, R.string.settings_page_switch_speed)
             row("H12", c, R.string.settings_infinite_scroll, R.string.settings_infinite_scroll_desc)
+            row(
+                "H28", c, R.string.settings_wallpaper_scroll, R.string.settings_wallpaper_scroll_desc,
+                keywords = listOf(R.string.settings_wallpaper_scroll_keywords),
+            )
             row("H13", c, R.string.settings_lock_desktop)
         }
         SettingsCategory.DOCK.let { c ->

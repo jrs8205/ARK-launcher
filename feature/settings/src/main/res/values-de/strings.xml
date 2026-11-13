@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Haus-Symbol</string>
     <string name="settings_infinite_scroll">Endloses Blättern</string>
     <string name="settings_infinite_scroll_desc">Nach der letzten Seite folgt wieder die erste</string>
+    <string name="settings_wallpaper_scroll">Hintergrundbild mitscrollen</string>
+    <string name="settings_wallpaper_scroll_desc">Das Hintergrundbild bewegt sich beim Seitenwechsel</string>
+    <string name="settings_wallpaper_scroll_keywords">Parallaxe Hintergrund wallpaper parallax</string>
     <string name="settings_notifications">Benachrichtigungen</string>
     <string name="settings_notif_dots">Benachrichtigungspunkte</string>
     <string name="settings_notif_count">Anzahl anzeigen</string>

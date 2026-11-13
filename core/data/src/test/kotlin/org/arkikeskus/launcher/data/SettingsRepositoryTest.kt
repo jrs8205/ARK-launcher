@@ -726,6 +726,33 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `wallpaperScroll defaults to on and round-trips`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().wallpaperScroll).isTrue()
+
+        repo.setWallpaperScroll(false)
+        assertThat(repo.settings.first().wallpaperScroll).isFalse()
+
+        repo.setWallpaperScroll(true)
+        assertThat(repo.settings.first().wallpaperScroll).isTrue()
+    }
+
+    @Test
+    fun `wallpaperScroll survives a backup round-trip and rejects a wrong type`() = runTest {
+        val repo = newRepository()
+        repo.setWallpaperScroll(false)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("wallpaper_scroll", false)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().wallpaperScroll).isFalse()
+
+        restored.importRaw(mapOf("wallpaper_scroll" to "no"))
+        assertThat(restored.settings.first().wallpaperScroll).isTrue() // must not throw ClassCastException
+    }
+
+    @Test
     fun `icon scale clamps on write and read, survives a backup round-trip and rejects a wrong type`() = runTest {
         val repo = newRepository()
         repo.setIconScale(2f)

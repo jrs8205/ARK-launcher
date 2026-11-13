@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Icône de maison</string>
     <string name="settings_infinite_scroll">Défilement infini</string>
     <string name="settings_infinite_scroll_desc">Après la dernière page revient la première</string>
+    <string name="settings_wallpaper_scroll">Défilement du fond d\'écran</string>
+    <string name="settings_wallpaper_scroll_desc">Le fond d\'écran bouge quand vous changez de page</string>
+    <string name="settings_wallpaper_scroll_keywords">parallaxe arrière-plan wallpaper parallax</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notif_dots">Pastilles de notification</string>
     <string name="settings_notif_count">Afficher le nombre</string>

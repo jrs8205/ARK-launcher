@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Ícone de casa</string>
     <string name="settings_infinite_scroll">Rolagem infinita</string>
     <string name="settings_infinite_scroll_desc">Depois da última página vem a primeira de novo</string>
+    <string name="settings_wallpaper_scroll">Rolagem do papel de parede</string>
+    <string name="settings_wallpaper_scroll_desc">O papel de parede se move ao mudar de página</string>
+    <string name="settings_wallpaper_scroll_keywords">paralaxe fundo wallpaper parallax</string>
     <string name="settings_notifications">Notificações</string>
     <string name="settings_notif_dots">Pontos de notificação</string>
     <string name="settings_notif_count">Mostrar contagem</string>

@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">House icon</string>
     <string name="settings_infinite_scroll">Infinite scrolling</string>
     <string name="settings_infinite_scroll_desc">After the last page comes the first again</string>
+    <string name="settings_wallpaper_scroll">Wallpaper scrolling</string>
+    <string name="settings_wallpaper_scroll_desc">The wallpaper moves as you change pages</string>
+    <string name="settings_wallpaper_scroll_keywords">parallax background scroll</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_notif_dots">Notification dots</string>
     <string name="settings_notif_count">Show count</string>

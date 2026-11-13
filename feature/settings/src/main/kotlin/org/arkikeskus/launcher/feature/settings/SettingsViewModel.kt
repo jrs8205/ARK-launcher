@@ -132,6 +132,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setShowPageIndicator(value: Boolean) = update { repository.setShowPageIndicator(value) }
     override fun setHomePageMarker(value: String) = update { repository.setHomePageMarker(value) }
     override fun setInfiniteScroll(value: Boolean) = update { repository.setInfiniteScroll(value) }
+    override fun setWallpaperScroll(value: Boolean) = update { repository.setWallpaperScroll(value) }
     override fun setShowNotificationDots(value: Boolean) = update { repository.setShowNotificationDots(value) }
     override fun setNotificationDotCount(value: Boolean) = update { repository.setNotificationDotCount(value) }
     override fun setNotificationDotScale(value: Float) = update { repository.setNotificationDotScale(value) }

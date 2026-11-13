@@ -119,6 +119,16 @@ class SettingsSearchUiTest {
         }
     }
 
+    @Test fun wallpaperScrollingIsFoundByItsNameAndByOtherWordsForIt() {
+        show()
+        for (words in listOf("wallpaper scrolling", "parallax", "background")) {
+            type(words)
+            assertWithMessage(words).that(tags("search-hit-")).contains(searchHitTag("H28"))
+            compose.onNodeWithTag(SEARCH_FIELD_TAG).performTextClearance()
+            compose.waitForIdle()
+        }
+    }
+
     @Test fun nothingFoundSaysSoPolitely() {
         show()
         type("zzzzqq")

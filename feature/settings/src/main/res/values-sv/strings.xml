@@ -76,6 +76,9 @@
     <string name="settings_home_page_marker_house">Husikon</string>
     <string name="settings_infinite_scroll">Oändlig rullning</string>
     <string name="settings_infinite_scroll_desc">Efter sista sidan kommer den första igen</string>
+    <string name="settings_wallpaper_scroll">Rullande bakgrundsbild</string>
+    <string name="settings_wallpaper_scroll_desc">Bakgrundsbilden rör sig när du byter sida</string>
+    <string name="settings_wallpaper_scroll_keywords">parallax bakgrund wallpaper</string>
     <string name="settings_notifications">Aviseringar</string>
     <string name="settings_notif_dots">Aviseringsprickar</string>
     <string name="settings_notif_count">Visa antal</string>

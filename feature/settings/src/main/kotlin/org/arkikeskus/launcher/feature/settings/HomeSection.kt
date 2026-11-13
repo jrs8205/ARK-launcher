@@ -105,6 +105,14 @@ internal fun HomeGridRows(s: LauncherSettings, actions: SettingsActions) {
             actions::setInfiniteScroll,
         )
     }
+    SettingRow("H28") {
+        SwitchRow(
+            stringResource(R.string.settings_wallpaper_scroll),
+            stringResource(R.string.settings_wallpaper_scroll_desc),
+            s.wallpaperScroll,
+            actions::setWallpaperScroll,
+        )
+    }
     SettingRow("H13") {
         SwitchRow(stringResource(R.string.settings_lock_desktop), s.desktopLocked, actions::setDesktopLocked)
     }
