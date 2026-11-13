@@ -54,6 +54,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
     val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
+    val privateSpaceSeen by viewModel.privateSpaceSeen.collectAsStateWithLifecycle()
     SettingsWhenRead(
         s = s,
         lists = SettingsLists(
@@ -62,6 +63,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
             drawerFolders = drawerFolders,
             iconPacks = iconPacks,
             drawerWallpaper = drawerWallpaper,
+            privateSpaceSeen = privateSpaceSeen,
         ),
         actions = viewModel,
         modifier = modifier,
@@ -88,13 +90,15 @@ internal fun SettingsWhenRead(
 }
 
 /** What the page shows besides the settings themselves: the apps, what is hidden, the drawer's folders (null while
- *  they load), the installed icon packs and the user's own picture behind the drawer. */
+ *  they load), the installed icon packs, the user's own picture behind the drawer, and whether the launcher sees
+ *  a private space on this phone (some rows exist only then). */
 internal class SettingsLists(
     val apps: List<AppItem> = emptyList(),
     val hiddenKeys: Set<String> = emptySet(),
     val drawerFolders: List<DrawerFolder>? = emptyList(),
     val iconPacks: List<IconPackInfo> = emptyList(),
     val drawerWallpaper: DrawerWallpaper? = null,
+    val privateSpaceSeen: Boolean = false,
 )
 
 /** The main page, as a screen of [SettingsContent]. */
@@ -164,7 +168,7 @@ internal fun SettingsContent(
     // What is typed in the main page's search field. Kept while a page opened from it is visited, so Back returns
     // to what was found; not kept over a fresh open of Settings.
     var query by rememberSaveable { mutableStateOf("") }
-    val searchable = rememberSearchableSettings()
+    val searchable = rememberSearchableSettings(lists.privateSpaceSeen)
     val hits = remember(query, searchable) { searchSettings(query, searchable) }
     // The row a search result asked for. Once its page is composed and its rows have noted themselves, the jump is
     // decided by what is really on screen: that row, or the one it depends on when it is not shown.

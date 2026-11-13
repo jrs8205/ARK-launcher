@@ -107,6 +107,10 @@
     <string name="settings_permission_phone">Telefon durumu</string>
     <string name="settings_permission_location">Konum</string>
     <string name="settings_drawer_search">Arama çubuğunu göster</string>
+    <string name="settings_hide_private_space">Kilitliyken özel alanı gizle</string>
+    <string name="settings_hide_private_space_desc">Kilitliyken Özel sekmesi gösterilmez. Açmak için uygulama çekmecesinin aramasına «özel alan» yazın.</string>
+    <string name="settings_hide_private_space_needs_search">Uygulama çekmecesinin araması gerekir: gizli özel alan onun üzerinden açılır.</string>
+    <string name="settings_drawer_search_private_note">Gizli özel alan bu arama üzerinden açılır.</string>
     <string name="settings_hidden_apps">Uygulamaları gizle</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d gizli</item>

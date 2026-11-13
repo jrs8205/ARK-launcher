@@ -51,11 +51,16 @@ internal const val SEARCH_FIELD_TAG = "settings-search"
 internal fun searchHitTag(id: String): String = "search-hit-$id"
 
 /**
- * Every row of [SettingsIndex] this Android version can have, with its texts in the language of [resources]: what
- * the search field looks through. [sdkInt] is the device's version (a parameter for tests).
+ * Every row of [SettingsIndex] this phone can have ([SettingEntry.available]), with its texts in the language of
+ * [resources]: what the search field looks through. [sdkInt] is the device's version (a parameter for tests);
+ * [privateSpaceSeen] says whether the launcher sees a private space.
  */
-internal fun searchableSettings(resources: Resources, sdkInt: Int = Build.VERSION.SDK_INT): List<SearchableSetting> =
-    SettingsIndex.entries.filter { it.minSdk <= sdkInt }.map { entry ->
+internal fun searchableSettings(
+    resources: Resources,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+    privateSpaceSeen: Boolean = false,
+): List<SearchableSetting> =
+    SettingsIndex.entries.filter { it.available(sdkInt, privateSpaceSeen) }.map { entry ->
         SearchableSetting(
             id = entry.id,
             category = entry.category,
@@ -65,11 +70,11 @@ internal fun searchableSettings(resources: Resources, sdkInt: Int = Build.VERSIO
         )
     }
 
-/** [searchableSettings] for the current language, kept until the language changes. */
+/** [searchableSettings] for the current language, kept until the language or what the phone has changes. */
 @Composable
-internal fun rememberSearchableSettings(): List<SearchableSetting> {
+internal fun rememberSearchableSettings(privateSpaceSeen: Boolean): List<SearchableSetting> {
     val resources = LocalResources.current
-    return remember(resources) { searchableSettings(resources) }
+    return remember(resources, privateSpaceSeen) { searchableSettings(resources, privateSpaceSeen = privateSpaceSeen) }
 }
 
 /**

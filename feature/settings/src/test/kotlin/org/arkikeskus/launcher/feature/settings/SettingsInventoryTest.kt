@@ -68,11 +68,11 @@ class SettingsInventoryTest {
 
     private val picture = DrawerWallpaper(File.createTempFile("wallpaper", ".jpg").apply { deleteOnExit() }, luminance = 0.3f)
 
-    private fun show(settings: LauncherSettings, wallpaper: DrawerWallpaper? = null) {
+    private fun show(settings: LauncherSettings, wallpaper: DrawerWallpaper? = null, privateSpace: Boolean = false) {
         compose.setContent {
             SettingsContent(
                 s = settings,
-                lists = SettingsLists(drawerWallpaper = wallpaper),
+                lists = SettingsLists(drawerWallpaper = wallpaper, privateSpaceSeen = privateSpace),
                 actions = RecordedActions().actions,
                 blurAvailability = BlurAvailability.AVAILABLE,
             )
@@ -92,7 +92,7 @@ class SettingsInventoryTest {
     private val allIds = SettingsIndex.entries.map { it.id }
     private val unconditionalIds = SettingsIndex.entries.filter { it.fallback == null }.map { it.id }
 
-    @Test fun theRegistryIsThe107Inventory() {
+    @Test fun theRegistryIsThe108Inventory() {
         val expected = listOf(
             "T2" to "settings_set_default",
             "AP1" to "settings_base_colour",
@@ -105,6 +105,7 @@ class SettingsInventoryTest {
             "D4" to "settings_dock_bg", "D5" to "settings_dock_bottom_space",
             "A1" to "settings_columns", "A2" to "settings_show_labels", "A3" to "settings_two_line_labels",
             "A4" to "settings_label_color", "A5" to "settings_show_folder_names", "A6" to "settings_drawer_search",
+            "A22" to "settings_hide_private_space",
             "Q1" to "settings_search_contacts", "A7" to "settings_frequent_apps", "A8" to "settings_hide_home_apps",
             "A9" to "settings_drawer_open_top", "A10" to "settings_drawer_color", "A11" to "settings_drawer_bg",
             "A12" to "settings_drawer_wallpaper", "A13" to "settings_drawer_picture_dim",
@@ -184,12 +185,20 @@ class SettingsInventoryTest {
     }
 
     @Test fun withEverythingOnEachPageShowsAllItsRowsButThePictureDim() {
-        show(everythingOn)
+        show(everythingOn, privateSpace = true)
         assertEveryPageShowsExactlyItsRows(allIds - "A13" - "B1", eachRow = ::assertRowNamesItsTitle)
     }
 
+    /** The launcher's own hide switch is a row only on a phone where the launcher sees a private space. */
+    @Test fun withoutAPrivateSpaceItsRowIsNotOnThePage() {
+        show(everythingOn, privateSpace = false)
+        compose.onNodeWithTag(categoryTag(SettingsCategory.DRAWER.key)).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertThat(shownIds()).containsExactlyElementsIn(rowsOf(SettingsCategory.DRAWER, allIds - "A13" - "A22")).inOrder()
+    }
+
     @Test fun withAPictureBehindTheDrawerItsDimShowsInPlaceOfTheColourOpacity() {
-        show(everythingOn, wallpaper = picture)
+        show(everythingOn, wallpaper = picture, privateSpace = true)
         compose.onNodeWithTag(categoryTag(SettingsCategory.DRAWER.key)).performScrollTo().performClick()
         compose.waitForIdle()
         assertThat(shownIds()).containsExactlyElementsIn(rowsOf(SettingsCategory.DRAWER, allIds - "A11")).inOrder()

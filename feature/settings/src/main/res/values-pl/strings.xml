@@ -107,6 +107,10 @@
     <string name="settings_permission_phone">Stan telefonu</string>
     <string name="settings_permission_location">Lokalizacja</string>
     <string name="settings_drawer_search">Pokaż wyszukiwanie</string>
+    <string name="settings_hide_private_space">Ukryj przestrzeń prywatną, gdy jest zablokowana</string>
+    <string name="settings_hide_private_space_desc">Gdy jest zablokowana, karta Prywatne nie jest wyświetlana. Wpisz „przestrzeń prywatna” w wyszukiwarce szuflady aplikacji, aby ją otworzyć.</string>
+    <string name="settings_hide_private_space_needs_search">Wymaga wyszukiwarki w szufladzie aplikacji: ukrytą przestrzeń prywatną otwiera się przez nią.</string>
+    <string name="settings_drawer_search_private_note">Ukrytą przestrzeń prywatną otwiera się przez to wyszukiwanie.</string>
     <string name="settings_hidden_apps">Ukryj aplikacje</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d ukryta aplikacja</item>

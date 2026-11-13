@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.settings
 
+import android.os.Build
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
@@ -79,8 +80,31 @@ internal fun DrawerRows(
     SettingRow("A5") {
         SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, actions::setShowDrawerFolderNames)
     }
+    // The launcher's own "hide the private space when locked": a row only where it does something (Android 15,
+    // and the launcher sees a private space). A hidden, locked space is opened through the drawer's search.
+    val hasHideRow = SettingsIndex.entry("A22").available(Build.VERSION.SDK_INT, lists.privateSpaceSeen)
     SettingRow("A6") {
-        SwitchRow(stringResource(R.string.settings_drawer_search), s.showDrawerSearch, actions::setShowDrawerSearch)
+        SwitchRow(
+            stringResource(R.string.settings_drawer_search),
+            // While hiding is on, this row says what depends on the field.
+            if (hasHideRow && s.hidePrivateSpaceWhenLocked) stringResource(R.string.settings_drawer_search_private_note) else null,
+            s.showDrawerSearch,
+            actions::setShowDrawerSearch,
+        )
+    }
+    if (hasHideRow) {
+        SettingRow("A22") {
+            SwitchRow(
+                stringResource(R.string.settings_hide_private_space),
+                // With the search field off there is no way into a hidden space: the switch waits, and says why.
+                stringResource(
+                    if (s.showDrawerSearch) R.string.settings_hide_private_space_desc else R.string.settings_hide_private_space_needs_search,
+                ),
+                s.hidePrivateSpaceWhenLocked,
+                actions::setHidePrivateSpaceWhenLocked,
+                enabled = s.showDrawerSearch,
+            )
+        }
     }
     ContactsSearchRow(s, actions)
     SettingRow("A7") {

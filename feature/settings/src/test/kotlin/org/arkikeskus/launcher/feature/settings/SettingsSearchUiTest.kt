@@ -188,7 +188,26 @@ class SettingsSearchUiTest {
         val android13 = searchableSettings(res, sdkInt = 33).map { it.id }
         assertThat(android12).containsNoneOf("I5", "I6")
         assertThat(android13).containsAtLeast("I5", "I6")
-        assertThat(android13).hasSize(SettingsIndex.entries.size)
+        // Every row but the one that needs a private space, which this phone does not have.
+        assertThat(android13).hasSize(SettingsIndex.entries.size - 1)
+        assertThat(android13).doesNotContain("A22")
+    }
+
+    /** The launcher's own hide switch exists on Android 15 alone, and only where the launcher sees a private space. */
+    @Test fun aRowWithAnUpperBoundOrThatNeedsAPrivateSpaceIsOfferedOnlyWhereItExists() {
+        fun ids(sdkInt: Int, privateSpaceSeen: Boolean) = searchableSettings(res, sdkInt, privateSpaceSeen).map { it.id }
+        assertThat(ids(35, privateSpaceSeen = true)).contains("A22")
+        assertThat(ids(35, privateSpaceSeen = true)).hasSize(SettingsIndex.entries.size)
+        assertThat(ids(35, privateSpaceSeen = false)).doesNotContain("A22")
+        // Android 16 and later follow Android's own setting: no switch of the launcher's.
+        assertThat(ids(36, privateSpaceSeen = true)).doesNotContain("A22")
+        assertThat(ids(34, privateSpaceSeen = true)).doesNotContain("A22")
+
+        val row = SettingsIndex.entry("A22")
+        assertThat(row.available(sdkInt = 35, privateSpaceSeen = true)).isTrue()
+        assertThat(row.available(sdkInt = 36, privateSpaceSeen = true)).isFalse()
+        assertThat(row.available(sdkInt = 35, privateSpaceSeen = false)).isFalse()
+        assertThat(row.fallback).isEqualTo("A6")
     }
 
     @Test fun whatIsSearchedIsTheTextOfTheCurrentLanguage() {

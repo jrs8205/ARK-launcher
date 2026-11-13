@@ -107,6 +107,10 @@
     <string name="settings_permission_phone">Telefonstatus</string>
     <string name="settings_permission_location">Plats</string>
     <string name="settings_drawer_search">Visa sökfält</string>
+    <string name="settings_hide_private_space">Dölj privat utrymme när det är låst</string>
+    <string name="settings_hide_private_space_desc">När det är låst visas inte fliken Privat utrymme. Skriv ”privat utrymme” i applådans sökfält för att öppna det.</string>
+    <string name="settings_hide_private_space_needs_search">Kräver applådans sökfält: ett dolt privat utrymme öppnas via det.</string>
+    <string name="settings_drawer_search_private_note">Ett dolt privat utrymme öppnas via den här sökningen.</string>
     <string name="settings_hidden_apps">Dölj appar</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d dold</item>

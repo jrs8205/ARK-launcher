@@ -48,7 +48,8 @@ internal fun categoryTag(key: String): String = "category-$key"
  * One row of Settings: its [id] (also the row's tag on the page, see [settingTag]), its [title] and static
  * [description], and the page it is on ([category]; null = the main page). A row that only shows while something
  * else is on names in [fallback] the row that is always there and controls it. [minSdk] is the Android version the
- * row needs; [keywords] are further words to find it by.
+ * row needs and [maxSdk] the last one that has it; [needsPrivateSpace] says the row exists only where the launcher
+ * sees a private space; [keywords] are further words to find it by.
  */
 internal class SettingEntry(
     val id: String,
@@ -58,7 +59,14 @@ internal class SettingEntry(
     val fallback: String? = null,
     val minSdk: Int = 0,
     val keywords: List<Int> = emptyList(),
-)
+    val maxSdk: Int = Int.MAX_VALUE,
+    val needsPrivateSpace: Boolean = false,
+) {
+    /** Whether a phone on Android [sdkInt] has this row at all, given whether the launcher sees a private space
+     *  there: the one rule for the page and for the search. */
+    fun available(sdkInt: Int, privateSpaceSeen: Boolean): Boolean =
+        sdkInt in minSdk..maxSdk && (!needsPrivateSpace || privateSpaceSeen)
+}
 
 /** The tag a row carries on the page. */
 internal fun settingTag(id: String): String = "setting-$id"
@@ -77,7 +85,9 @@ internal object SettingsIndex {
             fallback: String? = null,
             minSdk: Int = 0,
             keywords: List<Int> = emptyList(),
-        ) = add(SettingEntry(id, title, description, category, fallback, minSdk, keywords))
+            maxSdk: Int = Int.MAX_VALUE,
+            needsPrivateSpace: Boolean = false,
+        ) = add(SettingEntry(id, title, description, category, fallback, minSdk, keywords, maxSdk, needsPrivateSpace))
 
         row("T2", null, R.string.settings_set_default)
 
@@ -121,6 +131,12 @@ internal object SettingsIndex {
             row("A4", c, R.string.settings_label_color)
             row("A5", c, R.string.settings_show_folder_names)
             row("A6", c, R.string.settings_drawer_search)
+            // Android 15 alone: from Android 16 the launcher follows Android's own setting of this name. And
+            // only where the launcher sees a private space (it is the default launcher and the phone has one).
+            row(
+                "A22", c, R.string.settings_hide_private_space, R.string.settings_hide_private_space_desc,
+                fallback = "A6", minSdk = 35, maxSdk = 35, needsPrivateSpace = true,
+            )
             row("Q1", c, R.string.settings_search_contacts)
             row("A7", c, R.string.settings_frequent_apps)
             row("A8", c, R.string.settings_hide_home_apps, R.string.settings_hide_home_apps_desc)

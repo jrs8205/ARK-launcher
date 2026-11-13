@@ -24,6 +24,7 @@ internal interface SettingsActions {
     fun setDockColumns(value: Int)
     fun setDrawerColumns(value: Int)
     fun setShowDrawerSearch(value: Boolean)
+    fun setHidePrivateSpaceWhenLocked(value: Boolean)
     fun setShowFrequentApps(value: Boolean)
     fun setDrawerOpensAtTop(value: Boolean)
     fun setSortDrawerFolders(value: Boolean)

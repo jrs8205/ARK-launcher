@@ -22,6 +22,7 @@ import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
@@ -34,7 +35,15 @@ internal class SettingsViewModel @Inject constructor(
     private val customIcons: CustomIconStore,
     appRepository: AppRepository,
     private val drawerWallpaper: DrawerWallpaperStore,
+    privateSpace: PrivateSpaceRepository,
 ) : ViewModel(), SettingsActions {
+
+    /** Whether the launcher sees a private space on this phone: the rows that are about one exist only then. */
+    val privateSpaceSeen: StateFlow<Boolean> = privateSpace.state.map { it != null }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = privateSpace.state.value != null,
+    )
 
     /** The user's own picture behind the app drawer, or null (a Telegram request after 0.9.9). */
     val drawerWallpaperPicture: StateFlow<DrawerWallpaper?> = drawerWallpaper.current
@@ -94,6 +103,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setDockColumns(value: Int) = update { repository.setDockColumns(value) }
     override fun setDrawerColumns(value: Int) = update { repository.setDrawerColumns(value) }
     override fun setShowDrawerSearch(value: Boolean) = update { repository.setShowDrawerSearch(value) }
+    override fun setHidePrivateSpaceWhenLocked(value: Boolean) = update { repository.setHidePrivateSpaceWhenLocked(value) }
     override fun setShowFrequentApps(value: Boolean) = update { repository.setShowFrequentApps(value) }
     override fun setDrawerOpensAtTop(value: Boolean) = update { repository.setDrawerOpensAtTop(value) }
     override fun setSortDrawerFolders(value: Boolean) = update { repository.setSortDrawerFolders(value) }
