@@ -1,6 +1,19 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
 import android.app.Application
+import android.os.Process
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.component.LocalProfileMarks
+import org.arkikeskus.launcher.ui.component.profileMarks
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,6 +80,31 @@ class WorkProfileUiTest {
 
         compose.onNodeWithText("Personal").assert(hasRole(Role.Tab)).assertIsSelected()
         compose.onNodeWithText("Work").assert(hasRole(Role.Tab))
+    }
+
+    @Test fun aWorkTwinAmongTheSearchResultsSaysItsProfileToAScreenReader() {
+        // A search lists both profiles' apps under one heading; on screen only the work badge tells the twins apart.
+        val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0, "Mail")
+        val work = mail.copy(userSerial = 12)
+        compose.setContent {
+            ExpressiveTheme {
+                CompositionLocalProvider(LocalProfileMarks provides profileMarks(12, stringResource(R.string.drawer_tab_work))) {
+                    val haptics = LocalHapticFeedback.current
+                    val drag = remember { HomeDragController() }
+                    LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.size(320.dp, 300.dp)) {
+                        appCells(listOf(mail, work), emptyMap(), true, 1f, true, 56.dp, {}, { _, _ -> }, drag, {},
+                            { _, _, _, _ -> }, { _, _ -> }, haptics, false)
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        // The picture and the label of each say the name: the work one's with its profile, the other's bare.
+        compose.onAllNodesWithContentDescription("Mail, Work").assertCountEquals(1)
+        compose.onAllNodesWithText("Mail, Work").assertCountEquals(1)
+        compose.onAllNodesWithContentDescription("Mail").assertCountEquals(1)
+        compose.onAllNodesWithText("Mail").assertCountEquals(1)
     }
 
     @Test

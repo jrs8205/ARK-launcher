@@ -22,8 +22,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -66,6 +69,18 @@ val LocalIconPack = compositionLocalOf { "" }
  * when it is already composed (dock, open home page), where only a model change re-launches the load.
  */
 val LocalIconEpochs = compositionLocalOf { IconEpochs() }
+
+/**
+ * What an app of a profile says after its name to a screen reader, by the profile's serial ("Mail, Work").
+ * A work app's picture carries Android's badge, and a badge tells nothing to someone who cannot see it: beside
+ * its personal twin (a search, the home screen, a folder) both would say the one name. Provided once at the
+ * shell root ([profileMarks]); an app whose profile is not in it says its bare name.
+ */
+val LocalProfileMarks = compositionLocalOf<Map<Long, String>> { emptyMap() }
+
+/** [LocalProfileMarks] of a launcher whose work profile has [workSerial] (null = none) and is called [workName]. */
+fun profileMarks(workSerial: Long?, workName: String): Map<Long, String> =
+    if (workSerial == null) emptyMap() else mapOf(workSerial to workName)
 
 /**
  * Size multiplier for [AppIcon] labels under this subtree (1.0 = the default 11sp). Provided per
@@ -123,6 +138,11 @@ fun AppIcon(
 ) {
     val ownOrigin = rememberAppLaunchOrigin()
     val origin = launchOrigin ?: ownOrigin
+    // An app of a marked profile (a work app) says its name with the profile wherever the name is said here,
+    // the picture and the label alike: nothing is added to or taken from what a screen reader stops at, so it
+    // holds inside a row or a tile that is one stop of its own too.
+    val profile = LocalProfileMarks.current[appItem.userSerial]
+    val spoken = if (profile == null) appItem.label else "${appItem.label}, $profile"
     // A marked icon is one stop for a screen reader, the name and the profile together ("Mail, Private space"):
     // neither the picture nor the label under it is left saying the bare name, which is the personal twin's.
     val marked = if (privateMark == null) {
@@ -147,13 +167,16 @@ fun AppIcon(
                     themeAll = LocalThemeAllIcons.current,
                 ),
                 // A marked icon's name is said once, with its profile, by the whole tile (above).
-                contentDescription = if (privateMark == null) appItem.label else null,
+                contentDescription = if (privateMark == null) spoken else null,
                 modifier = Modifier.size(iconSize).onGloballyPositioned { origin?.icon = it },
             )
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
             if (privateMark != null) PrivateAppMark(Modifier.align(Alignment.BottomEnd))
         }
-        if (showLabel) AppLabel(appItem.label, labelColor, maxLabelLines, reserveLabelLines)
+        if (showLabel) {
+            AppLabel(appItem.label, labelColor, maxLabelLines, reserveLabelLines,
+                spoken = spoken.takeIf { profile != null && privateMark == null })
+        }
     }
 }
 
@@ -242,6 +265,8 @@ fun AppLabel(
     color: Color,
     maxLines: Int = LocalAppLabelLines.current,
     reserveLines: Boolean = false,
+    /** What the label says to a screen reader in place of [text]; null = the text itself. */
+    spoken: String? = null,
 ) {
     val scale = LocalAppLabelScale.current
     val density = LocalDensity.current
@@ -257,5 +282,6 @@ fun AppLabel(
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
+        modifier = if (spoken == null) Modifier else Modifier.clearAndSetSemantics { this.text = AnnotatedString(spoken) },
     )
 }
