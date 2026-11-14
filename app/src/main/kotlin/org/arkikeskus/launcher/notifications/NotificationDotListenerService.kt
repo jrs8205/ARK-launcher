@@ -89,9 +89,10 @@ class NotificationDotListenerService : NotificationListenerService() {
     /**
      * The keys of the notifications left alone at their post ([isPrivate]): the private space's, and those of a
      * profile that could not be placed yet. Memory only. A key leaves when its notification is removed, when it
-     * is posted again and read, when it is decided ([decideThoseLeftAlone]) and when the listener disconnects;
-     * never because a fetch of the active notifications came back without it (a fetch can fail, or come back
-     * empty). While a key is here its notification is not shown. Touched only from the main thread.
+     * is posted again and that post can decide it (read, with the stored settings known), when it is decided
+     * ([decideThoseLeftAlone]) and when the listener disconnects; never because a fetch of the active
+     * notifications came back without it (a fetch can fail, or come back empty), and never before its batch
+     * decision can be made. While a key is here its notification is not shown. Touched only from the main thread.
      */
     private val leftAlone = HashSet<String>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -251,7 +252,12 @@ class NotificationDotListenerService : NotificationListenerService() {
         }
         // Posted again, and read this time. Android showed its heads-up, if it had one, at the post that was left
         // alone: the key counts as alerted, so an update that alerts only once is not taken for a first heads-up.
-        if (sbn != null && leftAlone.remove(sbn.key)) alertedKeys.add(sbn.key)
+        if (sbn != null && sbn.key in leftAlone) {
+            alertedKeys.add(sbn.key)
+            // This post makes the batch decision below, which needs the stored settings. Until they are read the
+            // key keeps waiting: [refresh] does not show the notification and decides it once they arrive.
+            if (settingsReady) leftAlone.remove(sbn.key)
+        }
         // A heads-up post makes the system transiently show ITS status bar over our content; tell the
         // repo so the home screen can blank the themed bar for that window (the reveal isn't dispatched
         // as an inset, so this is the only app-observable signal — see the audit note in StatusBar).

@@ -513,11 +513,38 @@ class NotificationDotListenerServiceTest {
 
         placeAsWork(profiles)
 
-        // Its app updates it under the same key before any refresh has decided it: this post reads it, and
-        // Android does not alert again, so the themed status bar must not be blanked as for a new heads-up.
+        // Its app updates it under the same key before any refresh has decided it: Android does not alert again,
+        // so the themed status bar must not be blanked as for a new heads-up.
         service.onNotificationPosted(call)
         assertThat(service.badgeRepository.headsUp.value).isEqualTo(0L)
         assertThat(ReflectionHelpers.getField<Set<String>>(service, "alertedKeys")).contains(call.key)
+    }
+
+    @Config(sdk = [35])
+    @Test fun anUpdateOfAMessageThatStillWaitsForItsDecisionsLeavesItWaitingForThem() = runTest {
+        val profiles = aWorkProfileNotPlacedYet()
+        // The stored settings are not read yet, so the refresh that follows the placing decides nothing.
+        ReflectionHelpers.setField(service, "settingsReady", false)
+        val fromWork = chatOf(workUser)
+        post(fromWork)
+
+        placeAsWork(profiles)
+
+        // Its app updates it under the same key. Its profile is known now, but whether batch delivery holds it
+        // still cannot be decided: the update does not show it undecided either.
+        post(fromWork)
+        assertThat(service.badgeRepository.people.value).isEmpty()
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+
+        // The settings arrive, with batch delivery on: now it is decided, and waits like any other message.
+        enableBatch()
+        ReflectionHelpers.callInstanceMethod<Unit>(service, "refresh")
+        assertThat(service.badgeRepository.people.value.single().held).isTrue()
+        assertThat(held().keys).containsExactly(fromWork.key)
+        assertThat(service.badgeRepository.badges.value).isEmpty()
+        assertThat(service.badgeRepository.icons.value).isEmpty()
+        assertThat(ReflectionHelpers.getField<Set<String>>(service, "alertedKeys")).contains(fromWork.key)
     }
 
     @Config(sdk = [35])
