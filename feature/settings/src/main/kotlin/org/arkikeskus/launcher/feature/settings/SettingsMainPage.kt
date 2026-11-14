@@ -6,12 +6,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -21,10 +24,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -65,8 +72,7 @@ internal fun SettingsMainPage(
 ) {
     val p = LocalExpressivePalette.current
     val context = LocalContext.current
-    // Back clears what was typed before it leaves Settings.
-    BackHandler(enabled = query.isNotEmpty()) { onQueryChange("") }
+    SearchBack(query = query, onClear = { onQueryChange("") })
     // The categories form one grouped list; the default-launcher row above them is a group of its own.
     ExpressiveGroup(
         modifier = modifier
@@ -109,6 +115,32 @@ internal fun SettingsMainPage(
             SettingRow("E1", grouped = false) { SupportSection(onOpen = { openSupportLink(context, it) }) }
 
             VersionLine()
+        }
+    }
+}
+
+/**
+ * Back while something is typed in the search field: it puts the keyboard away first, then clears what was typed,
+ * and only then leaves Settings.
+ *
+ * From Android 16 the system asks the back handler registered last. This one turns on at the first letter, with the
+ * keyboard already up, so it is asked before the keyboard is: it puts the keyboard away itself. (A handler that was
+ * on before the keyboard came is asked after it, and never sees that press.)
+ *
+ * The keyboard is asked once for each time it comes up: one that stays must not hold Back for good.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SearchBack(query: String, onClear: () -> Unit) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val keyboardUp = WindowInsets.isImeVisible
+    var asked by remember(keyboardUp) { mutableStateOf(false) }
+    BackHandler(enabled = query.isNotEmpty()) {
+        if (keyboardUp && keyboard != null && !asked) {
+            asked = true
+            keyboard.hide()
+        } else {
+            onClear()
         }
     }
 }

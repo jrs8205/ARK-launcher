@@ -1,7 +1,13 @@
 package org.arkikeskus.launcher.feature.settings
 
 import android.app.Application
+import android.graphics.Insets
+import android.view.ViewGroup
+import android.view.WindowInsets
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -40,15 +46,40 @@ class SettingsSearchUiTest {
 
     private val res = RuntimeEnvironment.getApplication().resources
 
+    /** What the page asked of the keyboard. */
+    private class RecordedKeyboard : SoftwareKeyboardController {
+        var hidden = 0
+        override fun show() = Unit
+        override fun hide() {
+            hidden++
+        }
+    }
+
+    private val keyboard = RecordedKeyboard()
+
     private fun show() {
         compose.setContent {
-            SettingsContent(
-                s = LauncherSettings(),
-                lists = SettingsLists(),
-                actions = RecordedActions().actions,
-                blurAvailability = BlurAvailability.AVAILABLE,
-                backupScreen = {},
-            )
+            CompositionLocalProvider(LocalSoftwareKeyboardController provides keyboard) {
+                SettingsContent(
+                    s = LauncherSettings(),
+                    lists = SettingsLists(),
+                    actions = RecordedActions().actions,
+                    blurAvailability = BlurAvailability.AVAILABLE,
+                    backupScreen = {},
+                )
+            }
+        }
+        compose.waitForIdle()
+    }
+
+    /** The system says the keyboard is on screen, or gone, the way it does: through the window's insets. */
+    private fun keyboardOnScreen(shown: Boolean) {
+        compose.activityRule.scenario.onActivity { activity ->
+            val insets = WindowInsets.Builder()
+                .setInsets(WindowInsets.Type.ime(), Insets.of(0, 0, 0, if (shown) 900 else 0))
+                .setVisible(WindowInsets.Type.ime(), shown)
+                .build()
+            activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0).dispatchApplyWindowInsets(insets)
         }
         compose.waitForIdle()
     }
@@ -162,6 +193,43 @@ class SettingsSearchUiTest {
         assertThat(compose.activity.isFinishing).isFalse()
         systemBack()
         assertThat(compose.activity.isFinishing).isTrue()
+    }
+
+    @Test fun backWithTheKeyboardUpPutsTheKeyboardAwayAndKeepsWhatWasTyped() {
+        // From Android 16 a handler that turns on at the first letter, with the keyboard already up, is asked
+        // before the keyboard is: the page itself puts the keyboard away then.
+        show()
+        type("dock")
+        keyboardOnScreen(true)
+        systemBack()
+        assertThat(keyboard.hidden).isEqualTo(1)
+        assertThat(tags("search-hit-")).isNotEmpty()
+        assertThat(tags("category-")).isEmpty()
+        assertThat(compose.activity.isFinishing).isFalse()
+    }
+
+    @Test fun onceTheKeyboardIsAwayTheNextBackClearsTheSearch() {
+        show()
+        type("dock")
+        keyboardOnScreen(true)
+        systemBack()
+        keyboardOnScreen(false)
+        systemBack()
+        assertThat(keyboard.hidden).isEqualTo(1)
+        assertThat(tags("category-")).hasSize(SettingsCategory.entries.size)
+        assertThat(compose.activity.isFinishing).isFalse()
+    }
+
+    @Test fun aKeyboardThatDoesNotGoAwayDoesNotHoldBack() {
+        // Asked once for each time the keyboard comes up: if it stays, the next Back clears the search all the same.
+        show()
+        type("dock")
+        keyboardOnScreen(true)
+        systemBack()
+        systemBack()
+        assertThat(keyboard.hidden).isEqualTo(1)
+        assertThat(tags("category-")).hasSize(SettingsCategory.entries.size)
+        assertThat(compose.activity.isFinishing).isFalse()
     }
 
     @Test fun aRowFoundOpensItsPageAndBackReturnsToWhatWasFound() {
