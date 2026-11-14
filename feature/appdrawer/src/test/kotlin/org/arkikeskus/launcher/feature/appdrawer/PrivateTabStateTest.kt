@@ -9,6 +9,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
@@ -199,11 +200,15 @@ class PrivateTabStateTest {
 
         viewModel.openPrivateSpace()
 
-        // Android is asked to unlock; once it has, the tab exists and is the one shown.
-        val state = await("the Private tab") { DrawerTab.Private in it.tabs && it.selectedTab == DrawerTab.Private }
+        // Android is asked to unlock; once it has, the tab exists and is the one shown, and the search has ended.
+        // (The tab is read from the space as it stands, so it can be there a moment before the emptied query
+        // has gone through the rest of the state: the two are waited for together.)
+        val state = await("the Private tab") {
+            it.query.isEmpty() && DrawerTab.Private in it.tabs && it.selectedTab == DrawerTab.Private
+        }
         assertThat(wiring.quietModeRequests).containsExactly(12L to false)
         assertThat(state.privateSpace?.locked).isFalse()
-        assertThat(state.query).isEmpty()
+        assertThat(state.privateSpaceEntry).isFalse()
     }
 
     @Test fun aWishForThePrivateTabIsGivenUpWhenTheDrawerCloses() {
@@ -224,6 +229,109 @@ class PrivateTabStateTest {
         idle(rounds = 10)
         assertThat(viewModel.uiState.value.selectedTab).isEqualTo(DrawerTab.Personal)
         assertThat(state.privateSpace?.locked).isFalse()
+    }
+
+    // The launcher leaves the screen and comes back.
+
+    /** Nothing reads the state any more (the screen went dark, another app came up); five seconds later the
+     *  state follows nothing and stands as it last was. */
+    private fun leaveTheScreen() {
+        collector.coroutineContext.cancelChildren()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(6))
+    }
+
+    /** The space locks with nobody watching, as Android locks it when the screen goes dark. */
+    private fun lockWhileAway() {
+        viewModel.setPrivateLocked(true)
+        val deadline = System.currentTimeMillis() + 10_000
+        while (wiring.privateSpaceRepository.state.value?.locked != true) {
+            check(System.currentTimeMillis() < deadline) { "The space did not lock" }
+            idle()
+        }
+    }
+
+    /** Back on screen: every state the screen is handed from here on, the first one included. */
+    private fun returnToTheScreen(): List<AppDrawerUiState> {
+        val seen = mutableListOf<AppDrawerUiState>()
+        collector.launch { viewModel.uiState.collect { seen += it } }
+        return seen
+    }
+
+    @Test fun resultsLeftOnScreenShowNothingOfASpaceThatLockedWhileTheLauncherWasAway() {
+        aPrivateApp()
+        drawer(own, space(locked = false))
+        await("the private app") { it.privateApps.isNotEmpty() }
+        assertThat(search("vault").privateResults.map { it.packageName }).containsExactly("com.vault")
+
+        leaveTheScreen()
+        lockWhileAway()
+        // When the search answers again it has a slow source to wait for (the contacts, say).
+        val gate = CompletableDeferred<Unit>()
+        wiring.searchGate = gate
+
+        // What is kept from before is what a returning screen is handed first: with nothing of the space in it.
+        assertThat(viewModel.uiState.value.privateResults).isEmpty()
+        assertThat(viewModel.uiState.value.privateApps).isEmpty()
+        val seen = returnToTheScreen()
+        idle(rounds = 10)
+
+        assertThat(seen).isNotEmpty()
+        assertThat(seen.flatMap { it.privateResults }).isEmpty()
+        assertThat(seen.flatMap { it.privateApps }).isEmpty()
+        assertThat(seen.map { it.privateSpace?.locked }.distinct()).containsExactly(true)
+        // The rest is as it was left, and no search had to answer for this.
+        assertThat(seen.first().query).isEqualTo("vault")
+        assertThat(gate.isCompleted).isFalse()
+        gate.complete(Unit)
+    }
+
+    @Test fun aHiddenSpaceThatLockedWhileTheLauncherWasAwayHasNoTabAndNoRowWhenItReturns() {
+        drawer(own, space(locked = false)) { it.settingsRepository.setHidePrivateSpaceWhenLocked(true) }
+        await("the Private tab") { DrawerTab.Private in it.tabs }
+        viewModel.selectTab(DrawerTab.Private)
+        assertThat(search("private sp").privateSpaceEntry).isTrue()
+
+        leaveTheScreen()
+        lockWhileAway()
+        val gate = CompletableDeferred<Unit>()
+        wiring.searchGate = gate
+
+        val seen = returnToTheScreen()
+        idle(rounds = 10)
+
+        assertThat(seen).isNotEmpty()
+        assertThat(seen.flatMap { it.tabs }).doesNotContain(DrawerTab.Private)
+        assertThat(seen.map { it.selectedTab }.distinct()).containsExactly(DrawerTab.Personal)
+        assertThat(seen.mapNotNull { it.privateSpace }).isEmpty()
+        assertThat(seen.any { it.privateSpaceEntry }).isFalse()
+        assertThat(gate.isCompleted).isFalse()
+        gate.complete(Unit)
+    }
+
+    @Test fun aSpaceThatLocksJustAfterTheReturnTakesItsAppsOffWhateverTheSearchStillWaitsFor() {
+        aPrivateApp()
+        drawer(own, space(locked = false))
+        await("the private app") { it.privateApps.isNotEmpty() }
+        assertThat(search("vault").privateResults.map { it.packageName }).containsExactly("com.vault")
+
+        leaveTheScreen()
+        val gate = CompletableDeferred<Unit>()
+        wiring.searchGate = gate
+        val seen = returnToTheScreen()
+        idle(rounds = 10)
+        // Still unlocked: the results that were kept stand while the search answers again.
+        assertThat(seen.last().privateResults.map { it.packageName }).containsExactly("com.vault")
+
+        // It locks before the search has answered: nothing in the kept state has moved yet.
+        viewModel.setPrivateLocked(true)
+
+        val state = await("the results without the private app") { it.privateSpace?.locked == true && it.privateResults.isEmpty() }
+        assertThat(state.privateApps).isEmpty()
+        idle(rounds = 5)
+        assertThat(seen.last().privateResults).isEmpty()
+        assertThat(seen.last().privateApps).isEmpty()
+        assertThat(gate.isCompleted).isFalse()
+        gate.complete(Unit)
     }
 
     @Test fun anUnlockedSpaceHasItsTabEvenWithHidingOn() {

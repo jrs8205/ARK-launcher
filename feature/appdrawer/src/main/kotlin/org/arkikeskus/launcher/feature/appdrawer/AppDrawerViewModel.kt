@@ -7,17 +7,25 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
@@ -47,6 +55,7 @@ import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.data.search.privateSpaceEntryOffered
 import android.content.IntentSender
 import org.arkikeskus.launcher.data.PrivateSettingsTarget
+import org.arkikeskus.launcher.data.PrivateSpace
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import javax.inject.Inject
 
@@ -189,7 +198,13 @@ class AppDrawerViewModel @Inject constructor(
     ) { q, _, _ -> q }
         .mapLatest { it to searchAggregator.search(it) }    // mapLatest cancels the previous run
 
-    val uiState: StateFlow<AppDrawerUiState> = combine(
+    /**
+     * The drawer's state without the private space's part and without the tabs: followed while the screen
+     * reads it and for five seconds after, and from then on kept as it last was, so a returning screen has its
+     * lists at once. Of the private space it holds only what a search answered ([AppDrawerUiState.privateResults]
+     * and the space's own row), as the search left it. Only [uiState] reads it.
+     */
+    private val kept: StateFlow<AppDrawerUiState> = combine(
         appRepository.apps,
         query,
         settingsRepository.settings,
@@ -310,41 +325,78 @@ class AppDrawerViewModel @Inject constructor(
                 .map { it.first }
             state.copy(frequentApps = ranked)
         }
-    }.combine(privateSpaceFlow) { state, (space, apps, iconEpochs) ->
-        // The page exists while its tab does: not for a locked space whose entry is to stay hidden.
-        val shown = space?.takeIf { privateTabVisible(it) }
-        state.copy(
-            privateSpace = shown?.let {
-                PrivateSpaceUi(
-                    locked = it.locked,
-                    transitioning = it.transitioning,
-                    canInstall = !it.locked && privateSpace.installSender() != null,
-                    canOpenSettings = !it.locked && privateSpace.settingsTarget() != null,
-                )
-            },
-            // The two flows are read one after the other: a locked space never keeps the list of a moment ago.
-            privateApps = if (shown == null || shown.locked) emptyList() else apps,
-            // Nor do the results on screen: the search above answers again, but this is at once.
-            privateResults = if (shown == null || shown.locked) emptyList() else state.privateResults,
-            // The space's own row too is held against the space as it stands NOW, not as it stood when the
-            // search answered: a hidden space that locks must not stay named by the first letters of its name
-            // until every search source (the contacts, say) has answered again.
-            privateSpaceEntry = state.privateSpaceEntry && privateSpaceEntryOffered(context, state.query, space),
-            privateIconEpochs = iconEpochs,
-        )
-    }.combine(selectedTabFlow.combine(wantsPrivateTab) { tab, wanted -> tab to wanted }) { state, (stored, wantsPrivate) ->
-        // A stored selection only means something while its tab exists: hiding the last work app,
-        // or the profile going, lands the pager on Personal.
-        val tabs = drawerTabs(hasWork = state.workProfile != null, hasPrivate = state.privateSpace != null)
-        // Decided with the list itself, so a pager built for this list starts on the tab that was asked for.
-        val tab = if (wantsPrivate && DrawerTab.Private in tabs) DrawerTab.Private else stored
-        state.copy(tabs = tabs, selectedTab = effectiveTab(tab, tabs))
     }.combine(drawerWallpaper.current) { state, wallpaper ->
         state.copy(wallpaper = wallpaper)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = AppDrawerUiState(),
+    )
+
+    /**
+     * [kept] with the private space and the tabs as the arguments say they stand. Everything of the private
+     * space the screen shows is decided here and nowhere else.
+     */
+    private fun AppDrawerUiState.withPrivateSpace(
+        space: PrivateSpace?,
+        apps: List<AppItem>,
+        iconEpochs: IconEpochs,
+        stored: DrawerTab,
+        wantsPrivate: Boolean,
+    ): AppDrawerUiState {
+        // The page exists while its tab does: not for a locked space whose entry is to stay hidden.
+        val shown = space?.takeIf { privateTabVisible(it) }
+        val open = shown != null && !shown.locked
+        // (The state has a field of the repository's name: the repository is named in full here.)
+        val repository = this@AppDrawerViewModel.privateSpace
+        val page = shown?.let {
+            PrivateSpaceUi(
+                locked = it.locked,
+                transitioning = it.transitioning,
+                canInstall = !it.locked && repository.installSender() != null,
+                canOpenSettings = !it.locked && repository.settingsTarget() != null,
+            )
+        }
+        // A stored selection only means something while its tab exists: hiding the last work app,
+        // or the profile going, lands the pager on Personal.
+        val tabs = drawerTabs(hasWork = workProfile != null, hasPrivate = page != null)
+        // Decided with the list itself, so a pager built for this list starts on the tab that was asked for.
+        val tab = if (wantsPrivate && DrawerTab.Private in tabs) DrawerTab.Private else stored
+        return copy(
+            privateSpace = page,
+            // A locked space never keeps the list of a moment ago.
+            privateApps = if (open) apps else emptyList(),
+            // Nor do the results a search left: the search answers again, but this is at once.
+            privateResults = if (open) privateResults else emptyList(),
+            // The space's own row too is held against the space as it stands NOW, not as it stood when the
+            // search answered: a hidden space that locks must not stay named by the first letters of its name
+            // until every search source (the contacts, say) has answered again.
+            privateSpaceEntry = privateSpaceEntry && privateSpaceEntryOffered(context, query, space),
+            privateIconEpochs = iconEpochs,
+            tabs = tabs,
+            selectedTab = effectiveTab(tab, tabs),
+        )
+    }
+
+    /**
+     * What the screen shows: [kept], with the private space and the tabs as they stand at the moment the value
+     * is read or handed to a collector. That part is never taken from what was kept. The screen stops reading
+     * while the launcher is off the screen, [kept] then stops following anything after five seconds, and what
+     * a returning screen is handed first is that old state (the search has to answer again before a new one
+     * exists). A space that locked meanwhile must show nothing of itself in it, not for one frame: so its part
+     * is read from [PrivateSpaceRepository], which follows the system whoever reads it, each time anew.
+     */
+    val uiState: StateFlow<AppDrawerUiState> = ReadNowStateFlow(
+        changes = merge<Any?>(kept, privateSpaceFlow, selectedTabFlow, wantsPrivateTab),
+        read = {
+            kept.value.withPrivateSpace(
+                space = privateSpace.state.value,
+                apps = privateSpace.apps.value,
+                iconEpochs = privateSpace.iconEpochs.value,
+                stored = selectedTabFlow.value,
+                wantsPrivate = wantsPrivateTab.value,
+            )
+        },
     )
 
     fun onQueryChange(value: String) {
@@ -522,4 +574,20 @@ class AppDrawerViewModel @Inject constructor(
     /** Moves a drawer folder one place earlier ([by] = -1) or later (+1) among the folders. */
     fun moveDrawerFolder(id: Long, by: Int) =
         viewModelScope.launch { settingsRepository.moveDrawerFolder(id, by) }
+}
+
+/**
+ * A [StateFlow] that keeps no value: [read] computes it at the moment it is asked for. A collector is handed
+ * that value at once, before anything else runs, and a new one after every one of [changes]; however late a
+ * reader comes, it is never handed a value older than what [read] reads right then.
+ */
+@OptIn(ExperimentalForInheritanceCoroutinesApi::class)
+private class ReadNowStateFlow<T>(private val changes: Flow<*>, private val read: () -> T) : StateFlow<T> {
+    override val value: T get() = read()
+    override val replayCache: List<T> get() = listOf(read())
+    override suspend fun collect(collector: FlowCollector<T>): Nothing {
+        // Several changes waiting at once are one reading: the value is read when it is handed on.
+        changes.conflate().map { read() }.onStart { emit(read()) }.distinctUntilChanged().collect(collector)
+        awaitCancellation()
+    }
 }
