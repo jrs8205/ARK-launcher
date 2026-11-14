@@ -1415,7 +1415,8 @@ private fun DrawerAppCell(
         badgeCount = badges[app.badgeKey] ?: 0,
         badgeShowCount = badgeShowCount,
         badgeScale = badgeScale,
-        privateMark = privateMark,
+        // The lock, and what it says to a screen reader: the space's name, as its search row has it.
+        privateMark = if (privateMark) stringResource(R.string.private_space_entry) else null,
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
             // One unified gesture (like Workspace/Dock) but non-consuming until the

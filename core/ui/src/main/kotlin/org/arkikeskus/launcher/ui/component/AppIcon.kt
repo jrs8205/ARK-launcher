@@ -22,6 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
@@ -112,14 +114,26 @@ fun AppIcon(
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
     launchOrigin: AppLaunchOrigin? = null,
-    /** A small lock on the icon: the app is one of the private space's (in a search it tells a private twin apart). */
-    privateMark: Boolean = false,
+    /**
+     * A small lock on the icon: the app is one of the private space's (in a search it tells a private twin
+     * apart). The text is what the lock says to a screen reader, the profile's name; null = no mark. There is
+     * no mark without it: a twin told apart only by a picture is not told apart for someone who cannot see it.
+     */
+    privateMark: String? = null,
 ) {
     val ownOrigin = rememberAppLaunchOrigin()
     val origin = launchOrigin ?: ownOrigin
+    // A marked icon is one stop for a screen reader, the name and the profile together ("Mail, Private space"):
+    // neither the picture nor the label under it is left saying the bare name, which is the personal twin's.
+    val marked = if (privateMark == null) {
+        Modifier
+    } else {
+        val description = "${appItem.label}, $privateMark"
+        Modifier.semantics(mergeDescendants = true) { contentDescription = description }
+    }
     Column(
         // Outermost, so the icon's whole area — padding a caller adds included — counts as its tap.
-        modifier = (if (launchOrigin == null) Modifier.appLaunchTouch(appItem, ownOrigin) else Modifier).then(modifier),
+        modifier = (if (launchOrigin == null) Modifier.appLaunchTouch(appItem, ownOrigin) else Modifier).then(modifier).then(marked),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(contentAlignment = Alignment.TopEnd) {
@@ -132,11 +146,12 @@ fun AppIcon(
                     epoch = LocalIconEpochs.current.of(appItem.packageName),
                     themeAll = LocalThemeAllIcons.current,
                 ),
-                contentDescription = appItem.label,
+                // A marked icon's name is said once, with its profile, by the whole tile (above).
+                contentDescription = if (privateMark == null) appItem.label else null,
                 modifier = Modifier.size(iconSize).onGloballyPositioned { origin?.icon = it },
             )
             NotificationBadge(count = badgeCount, showCount = badgeShowCount, scale = badgeScale)
-            if (privateMark) PrivateAppMark(Modifier.align(Alignment.BottomEnd))
+            if (privateMark != null) PrivateAppMark(Modifier.align(Alignment.BottomEnd))
         }
         if (showLabel) AppLabel(appItem.label, labelColor, maxLabelLines, reserveLabelLines)
     }

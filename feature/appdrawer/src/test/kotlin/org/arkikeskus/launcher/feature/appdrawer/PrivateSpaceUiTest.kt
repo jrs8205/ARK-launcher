@@ -15,8 +15,12 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
@@ -184,6 +188,48 @@ class PrivateSpaceUiTest {
         compose.waitForIdle()
 
         compose.onAllNodesWithTag(PRIVATE_APP_MARK_TAG, useUnmergedTree = true).assertCountEquals(1)
+    }
+
+    @Test fun aPrivateTwinAmongTheResultsSaysItsProfileToAScreenReader() {
+        // The same app in both profiles: one name under one heading, and on screen only the lock tells them apart.
+        val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0, "Mail")
+        val twin = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 12, "Mail")
+        compose.setContent {
+            ExpressiveTheme {
+                val haptics = LocalHapticFeedback.current
+                val drag = remember { HomeDragController() }
+                LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.size(320.dp, 300.dp)) {
+                    appCells(listOf(mail), emptyMap(), true, 1f, true, 56.dp, {}, { _, _ -> }, drag, {}, { _, _, _, _ -> }, { _, _ -> }, haptics, false)
+                    appCells(listOf(twin), emptyMap(), true, 1f, true, 56.dp, {}, { _, _ -> }, drag, {}, { _, _, _, _ -> }, { _, _ -> }, haptics, false,
+                        liftable = false, privateMark = true)
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        // The private one is one stop that names the app and its profile; nothing of it says the bare name alone.
+        compose.onNodeWithContentDescription("Mail, Private space").assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Mail").assertCountEquals(1)
+        compose.onAllNodesWithText("Mail").assertCountEquals(2)
+        compose.onNodeWithContentDescription("Mail, Private space").assert(hasText("Mail"))
+    }
+
+    @Test fun withTheLabelsOffAPrivateTwinStillSaysItsProfile() {
+        val twin = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 12, "Mail")
+        compose.setContent {
+            ExpressiveTheme {
+                val haptics = LocalHapticFeedback.current
+                val drag = remember { HomeDragController() }
+                LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.size(320.dp, 300.dp)) {
+                    appCells(listOf(twin), emptyMap(), true, 1f, false, 56.dp, {}, { _, _ -> }, drag, {}, { _, _, _, _ -> }, { _, _ -> }, haptics, false,
+                        liftable = false, privateMark = true)
+                }
+            }
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithContentDescription("Mail, Private space").assertIsDisplayed()
+        compose.onAllNodesWithContentDescription("Mail").assertCountEquals(0)
     }
 
     @Test fun thePrivateSpacesSearchRowSaysItsNameAndTakesATap() {
