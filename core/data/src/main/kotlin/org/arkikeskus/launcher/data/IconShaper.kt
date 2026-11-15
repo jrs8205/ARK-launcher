@@ -35,8 +35,9 @@ internal fun ownIconInShape(icon: Drawable, shape: IconShape, resources: Resourc
 /**
  * [icon] drawn into a bitmap of [sizePx] and cut to [shape], which is never the system's here.
  *
- * An adaptive icon is drawn from its two layers, so the launcher's outline takes the place of the
- * phone's mask: a layer is 108 dp for the 72 dp that shows, half as large again as the icon. Any other
+ * An adaptive icon is drawn from its two layers, on black as Android draws it, so the launcher's outline
+ * takes the place of the phone's mask and nothing else about the icon changes: a layer is 108 dp for the
+ * 72 dp that shows, half as large again as the icon. Any other
  * icon is a finished picture with a form of its own; it is drawn smaller on a white plate of the shape,
  * so a row of icons has one outline.
  */
@@ -45,6 +46,10 @@ internal fun shapedIcon(icon: Drawable, shape: IconShape, sizePx: Int = ICON_PX)
     val whole = createBitmap(sizePx, sizePx)
     val canvas = Canvas(whole)
     if (icon is AdaptiveIconDrawable) {
+        // Android's own drawing lays the layers on black (AdaptiveIconDrawable.draw fills its canvas first).
+        // Without it a background that is see-through, or missing, would let the wallpaper show through
+        // the icon, and a half see-through one would change colour, only because a shape was picked.
+        canvas.drawColor(Color.BLACK)
         val extra = (sizePx * AdaptiveIconDrawable.getExtraInsetFraction()).roundToInt()
         for (layer in listOfNotNull(icon.background, icon.foreground)) {
             val own = layer.copyBounds()

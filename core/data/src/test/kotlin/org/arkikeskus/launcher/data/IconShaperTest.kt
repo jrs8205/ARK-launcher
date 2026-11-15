@@ -102,6 +102,55 @@ class IconShaperTest {
         assertThat(icon.foreground.copyBounds()).isEqualTo(before)
     }
 
+    // --- Under the layers: black, as Android itself draws an adaptive icon ------------------------------
+
+    @Test
+    fun `a see-through background shows black, not the wallpaper`() {
+        // AdaptiveIconDrawable fills its layers' canvas with black before it draws them.
+        val icon = AdaptiveIconDrawable(ColorDrawable(Color.TRANSPARENT), MiddleThird(Color.GREEN))
+
+        val shaped = shapedIcon(icon, IconShape.SQUARE, size)
+
+        assertThat(shaped.getPixel(20, 72)).isEqualTo(Color.BLACK)
+        assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.GREEN)
+    }
+
+    @Test
+    fun `a half see-through background is laid over black and comes out opaque`() {
+        val icon = AdaptiveIconDrawable(ColorDrawable(Color.argb(128, 255, 0, 0)), null)
+
+        val pixel = shapedIcon(icon, IconShape.SQUARE, size).getPixel(72, 72)
+
+        assertThat(Color.alpha(pixel)).isEqualTo(255)
+        assertThat(Color.red(pixel)).isIn(126..130)
+        assertThat(Color.green(pixel)).isEqualTo(0)
+        assertThat(Color.blue(pixel)).isEqualTo(0)
+    }
+
+    @Test
+    fun `an icon with no background layer at all stands on black too`() {
+        val shaped = shapedIcon(AdaptiveIconDrawable(null, MiddleThird(Color.GREEN)), IconShape.CIRCLE, size)
+
+        assertThat(shaped.getPixel(72, 12)).isEqualTo(Color.BLACK)
+        // The black is the icon's own floor: outside the shape there is still nothing.
+        assertThat(shaped.clear(4, 4)).isTrue()
+    }
+
+    @Test
+    fun `a shaped icon has the colours Android gives the same icon`() {
+        // The same layers, once through the launcher's square and once through Android's own drawing:
+        // in the middle, where every mask is open, the two must agree.
+        val layers = { AdaptiveIconDrawable(ColorDrawable(Color.argb(96, 0, 0, 255)), MiddleThird(Color.argb(160, 255, 255, 0))) }
+        val own = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        layers().apply { setBounds(0, 0, size, size) }.draw(Canvas(own))
+
+        val shaped = shapedIcon(layers(), IconShape.SQUARE, size)
+
+        for ((x, y) in listOf(72 to 72, 72 to 30, 30 to 72)) {
+            assertThat(shaped.getPixel(x, y)).isEqualTo(own.getPixel(x, y))
+        }
+    }
+
     // --- An icon that is not adaptive: smaller, on a white plate of the shape -------------------------
 
     @Test
