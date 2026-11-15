@@ -35,6 +35,9 @@ private const val LEGACY_SOLID_ALPHA = 128
 /** A pixel at least this opaque has the icon's own colour (an anti-aliased rim pixel has a mix). */
 private const val LEGACY_FULL_ALPHA = 250
 
+/** A pixel at least this opaque can be seen at all: an icon that is faint all over is still an icon. */
+private const val LEGACY_VISIBLE_ALPHA = 8
+
 /**
  * [icon] drawn into a bitmap of [sizePx] and cut to [shape], which is never the system's here.
  *
@@ -99,7 +102,11 @@ private class IconBody(val left: Int, val top: Int, val right: Int, val bottom: 
     val height get() = bottom - top
 }
 
-/** Draws [icon] once over a box of [sizePx] and looks at it; null when nothing of it is solid. */
+/**
+ * Draws [icon] once over a box of [sizePx] and looks at it; null when nothing of it can be seen. An icon
+ * with no solid pixel at all but something to see (one that is faint all over) has no body to judge: it is
+ * taken as a free-form picture, the box of what shows of it, and drawn on the plate as it is.
+ */
 private fun bodyOf(icon: Drawable, sizePx: Int): IconBody? {
     val seen = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
     icon.setBounds(0, 0, sizePx, sizePx)
@@ -113,18 +120,31 @@ private fun bodyOf(icon: Drawable, sizePx: Int): IconBody? {
     var right = -1
     var bottom = -1
     var solid = 0
+    var seenLeft = sizePx
+    var seenTop = sizePx
+    var seenRight = -1
+    var seenBottom = -1
     for (y in 0 until sizePx) {
         for (x in 0 until sizePx) {
-            if (Color.alpha(pixels[y * sizePx + x]) >= LEGACY_SOLID_ALPHA) {
+            val alpha = Color.alpha(pixels[y * sizePx + x])
+            if (alpha >= LEGACY_SOLID_ALPHA) {
                 solid++
                 if (x < left) left = x
                 if (x > right) right = x
                 if (y < top) top = y
                 if (y > bottom) bottom = y
+            } else if (alpha >= LEGACY_VISIBLE_ALPHA) {
+                if (x < seenLeft) seenLeft = x
+                if (x > seenRight) seenRight = x
+                if (y < seenTop) seenTop = y
+                if (y > seenBottom) seenBottom = y
             }
         }
     }
-    if (solid == 0) return null
+    if (solid == 0) {
+        if (seenRight < 0) return null
+        return IconBody(seenLeft, seenTop, seenRight + 1, seenBottom + 1, isTile = false, edgeColour = LEGACY_PLATE)
+    }
     right++
     bottom++
     val width = right - left
@@ -157,14 +177,23 @@ private fun bodyOf(icon: Drawable, sizePx: Int): IconBody? {
  * Draws the icon so that its [body], found in a drawing over [sizePx], is centred in the square box that
  * begins at [boxStart] (both ways) and has the side [boxSide], as large as fits: the longer side of the
  * body takes the whole side of the box.
+ *
+ * The icon keeps the bounds it was measured in and the canvas is what is scaled. Giving the icon larger
+ * bounds instead does not enlarge it as a whole: a drawable with fixed insets (an InsetDrawable, a layer
+ * with its own offsets) keeps them at their old size, and the body lands elsewhere than it was measured.
  */
 private fun Drawable.drawWithBodyIn(canvas: Canvas, body: IconBody, sizePx: Int, boxStart: Float, boxSide: Float) {
     val scale = boxSide / maxOf(body.width, body.height)
     val boxMiddle = boxStart + boxSide / 2f
-    val left = boxMiddle - (body.left + body.width / 2f) * scale
-    val top = boxMiddle - (body.top + body.height / 2f) * scale
-    setBounds(left.roundToInt(), top.roundToInt(), (left + sizePx * scale).roundToInt(), (top + sizePx * scale).roundToInt())
+    canvas.save()
+    canvas.translate(
+        boxMiddle - (body.left + body.width / 2f) * scale,
+        boxMiddle - (body.top + body.height / 2f) * scale,
+    )
+    canvas.scale(scale, scale)
+    setBounds(0, 0, sizePx, sizePx)
     draw(canvas)
+    canvas.restore()
 }
 
 /** [picture] scaled to fill a box of [sizePx] and cut to [outline]: a gallery picture picked as an icon. */

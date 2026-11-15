@@ -276,6 +276,61 @@ class IconShaperTest {
         assertThat(shaped.getPixel(40, 40)).isEqualTo(Color.WHITE)
     }
 
+    // --- Whatever the icon is made of, it is enlarged as a whole ---------------------------------------
+
+    @Test
+    fun `an icon with fixed insets is enlarged with its insets, not cut by them`() {
+        // A tile with a red rim, inset by a fixed 36 px on every side (an InsetDrawable does not scale its
+        // insets with its bounds): drawn over 144 px its tile is the middle 72 px.
+        val rimmed = Painted { p ->
+            p.color = Color.RED
+            drawRect(0f, 0f, 100f, 100f, p)
+            p.color = Color.GREEN
+            drawRect(10f, 10f, 90f, 90f, p)
+        }
+        val inset = android.graphics.drawable.InsetDrawable(rimmed, 36)
+
+        val shaped = shapedIcon(inset, IconShape.SQUARE, size)
+
+        // The whole tile fills the shape: the rim is still its outermost part, the green inside it.
+        assertThat(shaped.getPixel(72, 4)).isEqualTo(Color.RED)
+        assertThat(shaped.getPixel(4, 72)).isEqualTo(Color.RED)
+        assertThat(shaped.getPixel(139, 72)).isEqualTo(Color.RED)
+        assertThat(shaped.getPixel(72, 139)).isEqualTo(Color.RED)
+        assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(72, 24)).isEqualTo(Color.GREEN)
+    }
+
+    @Test
+    fun `a free-form logo with fixed insets is sized with its insets too`() {
+        val inset = android.graphics.drawable.InsetDrawable(cross(Color.GREEN), 36)
+
+        val shaped = shapedIcon(inset, IconShape.SQUARE, size)
+
+        // The cross spans the plate's inner box (26 to 118) whole: both ends of its arm are there.
+        assertThat(shaped.getPixel(30, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(114, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(72, 30)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(40, 40)).isEqualTo(Color.WHITE)
+    }
+
+    // --- An icon that is see-through all over is still an icon -----------------------------------------
+
+    @Test
+    fun `an icon that is faint all over is still drawn, on its plate`() {
+        // Every pixel under the limit that counts as solid: it has no body to measure, but it shows.
+        val faint = solid(Color.argb(96, 0, 255, 0))
+
+        val shaped = shapedIcon(faint, IconShape.SQUARE, size)
+
+        val middle = shaped.getPixel(72, 72)
+        assertThat(middle).isNotEqualTo(Color.WHITE)
+        assertThat(Color.green(middle)).isEqualTo(255)
+        assertThat(Color.red(middle)).isLessThan(200)
+        // On the plate, at the plate's size for an icon: white around it.
+        assertThat(shaped.getPixel(10, 10)).isEqualTo(Color.WHITE)
+    }
+
     @Test
     fun `an icon with nothing to show leaves an empty plate`() {
         val shaped = shapedIcon(Painted { }, IconShape.SQUARE, size)
