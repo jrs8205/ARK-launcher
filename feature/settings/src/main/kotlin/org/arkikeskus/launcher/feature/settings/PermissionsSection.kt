@@ -70,6 +70,16 @@ internal fun PermissionsRows() {
             permission = android.Manifest.permission.ACCESS_COARSE_LOCATION,
         )
     }
+    // Before Android 13 sending notifications was no permission. The launcher sends one notification, the
+    // screensaver's battery-full one, and only with its switch on.
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        SettingRow("P6") {
+            PermissionRow(
+                label = stringResource(R.string.settings_permission_notifications),
+                permission = android.Manifest.permission.POST_NOTIFICATIONS,
+            )
+        }
+    }
 }
 
 /** One runtime permission's live status; tap requests it. When Android suppresses the dialog

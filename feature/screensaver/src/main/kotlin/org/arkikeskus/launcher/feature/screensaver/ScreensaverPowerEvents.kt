@@ -12,12 +12,14 @@ import javax.inject.Singleton
  * Hears the charger being connected and taken away, for as long as the launcher's process lives.
  * Android does not deliver these two broadcasts to a receiver named in the manifest, so the
  * receiver is registered here, once, when the process starts. What each event leads to is decided
- * when it arrives: with the start on charge switched off, a connected charger changes nothing.
+ * when it arrives: with the start on charge switched off, a connected charger changes nothing. A charger
+ * taken away ends a full charge for the battery-full notification.
  */
 @Singleton
 class ScreensaverPowerEvents @Inject constructor(
     @ApplicationContext private val context: Context,
     private val chargeStart: ChargeStart,
+    private val batteryFull: BatteryFullNotifier,
 ) {
     private var started = false
 
@@ -25,6 +27,7 @@ class ScreensaverPowerEvents @Inject constructor(
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_POWER_CONNECTED -> chargeStart.onPowerConnected()
+                Intent.ACTION_POWER_DISCONNECTED -> batteryFull.onPowerDisconnected()
             }
         }
     }

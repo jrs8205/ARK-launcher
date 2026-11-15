@@ -55,6 +55,11 @@
          screen when the charger is connected, so the lock screen times out into the screensaver. A normal
          permission, granted at install; used nowhere else. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- The screensaver's "Battery full notification" (off by default): the one notification the launcher
+         sends. Asked for only when the user turns that switch on, or taps the permission's own row on the
+         Permissions page; never at first run. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- See which apps expose a launcher activity (for the app drawer). -->
     <queries>
         <intent>

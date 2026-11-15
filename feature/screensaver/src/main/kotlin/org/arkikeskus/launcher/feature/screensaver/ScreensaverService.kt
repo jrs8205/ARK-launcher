@@ -19,6 +19,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.screensaver.DreamPreferences
 import org.arkikeskus.launcher.data.screensaver.screensaverPreferences
+import org.arkikeskus.launcher.feature.screensaver.dream.DreamChargeState
 import org.arkikeskus.launcher.feature.screensaver.dream.DreamHost
 import org.arkikeskus.launcher.feature.screensaver.dream.DreamStyle
 import org.arkikeskus.launcher.feature.screensaver.dream.LocalDreamWideGamut
@@ -41,6 +42,10 @@ class ScreensaverService : DreamService(), LifecycleOwner, ViewModelStoreOwner, 
     /** The listener's list of what is in the shade; empty until the listener has connected. */
     @Inject
     lateinit var notifications: NotificationBadgeRepository
+
+    /** Hears the battery become full while the screensaver is up. */
+    @Inject
+    lateinit var batteryFull: BatteryFullNotifier
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val lifecycleDriver = DreamLifecycleDriver(lifecycleRegistry)
@@ -110,7 +115,7 @@ class ScreensaverService : DreamService(), LifecycleOwner, ViewModelStoreOwner, 
                             prefs = dreamPrefs,
                             options = options,
                             notifications = notifications.active,
-                            onChargeState = {},
+                            onChargeState = { state -> batteryFull.onChargeState(full = state == DreamChargeState.FULL) },
                         )
                     }
                 }

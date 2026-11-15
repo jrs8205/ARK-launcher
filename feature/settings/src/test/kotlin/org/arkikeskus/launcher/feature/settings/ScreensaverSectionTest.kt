@@ -1,15 +1,23 @@
 package org.arkikeskus.launcher.feature.settings
 
+import android.Manifest
 import android.app.Application
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.LocalActivityResultRegistryOwner
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.core.app.ActivityOptionsCompat
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasAnyAncestor
@@ -56,17 +64,37 @@ class ScreensaverSectionTest {
     @Before fun nothingStored() {
         SettingsScrollMemory.clear()
         prefs.edit().clear().commit()
+        shadowOf(context).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    /** What Android answers to a permission request: [permissionAnswer], granting it for real when it says yes. */
+    private var permissionAnswer = false
+    private var permissionRequests = 0
+    private val registry = object : ActivityResultRegistry() {
+        override fun <I, O> onLaunch(
+            requestCode: Int, contract: ActivityResultContract<I, O>, input: I, options: ActivityOptionsCompat?,
+        ) {
+            permissionRequests++
+            if (permissionAnswer) shadowOf(context).grantPermissions(input as String)
+            @Suppress("UNCHECKED_CAST")
+            dispatchResult(requestCode, permissionAnswer as O)
+        }
+    }
+    private val registryOwner = object : ActivityResultRegistryOwner {
+        override val activityResultRegistry: ActivityResultRegistry get() = registry
     }
 
     private fun show() {
         compose.setContent {
-            SettingsContent(
-                s = LauncherSettings(),
-                lists = SettingsLists(),
-                actions = RecordedActions().actions,
-                blurAvailability = BlurAvailability.AVAILABLE,
-                openPage = SETTINGS_PAGE_SCREENSAVER,
-            )
+            CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
+                SettingsContent(
+                    s = LauncherSettings(),
+                    lists = SettingsLists(),
+                    actions = RecordedActions().actions,
+                    blurAvailability = BlurAvailability.AVAILABLE,
+                    openPage = SETTINGS_PAGE_SCREENSAVER,
+                )
+            }
         }
         compose.waitForIdle()
     }
@@ -267,6 +295,88 @@ class ScreensaverSectionTest {
         toggle("SS3")
 
         assertThat(prefs.getBoolean(DreamPreferences.KEY_START_ON_CHARGE, false)).isTrue()
+    }
+
+    // The battery-full notification: the one thing the launcher asks the notification permission for.
+
+    private val batteryFullStored get() = prefs.getBoolean(DreamPreferences.KEY_BATTERY_FULL_NOTIFICATION, false)
+
+    @Test fun theBatteryFullSwitchIsOffUntilTheUserTurnsItOnAndAsksForNothingBefore() {
+        show()
+        row("SS4").performScrollTo()
+        switchOf("SS4").assertIsOff()
+        assertThat(permissionRequests).isEqualTo(0)
+    }
+
+    @Test fun turningTheBatteryFullSwitchOnAsksForThePermissionAndAGrantTurnsItOn() {
+        permissionAnswer = true
+        show()
+
+        toggle("SS4")
+
+        assertThat(permissionRequests).isEqualTo(1)
+        assertThat(batteryFullStored).isTrue()
+        switchOf("SS4").assertIsOn()
+    }
+
+    @Test fun withThePermissionAlreadyHeldTheSwitchTurnsOnWithoutAsking() {
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        show()
+
+        toggle("SS4")
+
+        assertThat(permissionRequests).isEqualTo(0)
+        assertThat(batteryFullStored).isTrue()
+    }
+
+    @Test fun aRefusedPermissionLeavesTheSwitchOffAndTheRowSaysWhy() {
+        permissionAnswer = false
+        show()
+
+        toggle("SS4")
+
+        assertThat(batteryFullStored).isFalse()
+        switchOf("SS4").assertIsOff()
+        rowSays("SS4", res.getString(R.string.settings_screensaver_battery_full_denied)).assertExists()
+    }
+
+    @Test fun refusedForGoodTheSwitchLeadsToTheAppsNotificationSettings() {
+        permissionAnswer = false
+        show()
+
+        // The first "no" may be a dialog the user backed out of; the second, with no dialog shown, is the lasting one.
+        toggle("SS4")
+        toggle("SS4")
+
+        val started = shadowOf(compose.activity).nextStartedActivity
+        assertThat(started.action).isEqualTo(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        assertThat(started.getStringExtra(Settings.EXTRA_APP_PACKAGE)).isEqualTo(context.packageName)
+        assertThat(batteryFullStored).isFalse()
+    }
+
+    @Test fun aSwitchThatWasOnShowsOffOnceThePermissionWasTakenAway() {
+        // Turned on earlier; the permission was then taken away on Android's own page.
+        prefs.edit().putBoolean(DreamPreferences.KEY_BATTERY_FULL_NOTIFICATION, true).commit()
+        shadowOf(context).denyPermissions(Manifest.permission.POST_NOTIFICATIONS)
+
+        show()
+
+        row("SS4").performScrollTo()
+        switchOf("SS4").assertIsOff()
+        assertThat(batteryFullStored).isFalse()
+    }
+
+    @Test fun turningTheBatteryFullSwitchOffNeedsNoPermission() {
+        shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        prefs.edit().putBoolean(DreamPreferences.KEY_BATTERY_FULL_NOTIFICATION, true).commit()
+        show()
+        row("SS4").performScrollTo()
+        switchOf("SS4").assertIsOn()
+
+        toggle("SS4")
+
+        assertThat(batteryFullStored).isFalse()
+        assertThat(permissionRequests).isEqualTo(0)
     }
 
     @Test fun theStartRowOpensAndroidsScreensaverSettings() {

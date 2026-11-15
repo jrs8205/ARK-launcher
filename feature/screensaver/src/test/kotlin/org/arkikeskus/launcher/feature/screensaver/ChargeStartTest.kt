@@ -102,7 +102,7 @@ class ChargeStartTest {
 
     @Test
     fun `power connected reaches the charge start`() {
-        ScreensaverPowerEvents(context, ChargeStart(context)).start()
+        ScreensaverPowerEvents(context, ChargeStart(context), BatteryFullNotifier(context)).start()
 
         context.sendBroadcast(Intent(Intent.ACTION_POWER_CONNECTED))
         shadowOf(android.os.Looper.getMainLooper()).idle()
@@ -112,7 +112,7 @@ class ChargeStartTest {
 
     @Test
     fun `starting twice registers one receiver`() {
-        val events = ScreensaverPowerEvents(context, ChargeStart(context))
+        val events = ScreensaverPowerEvents(context, ChargeStart(context), BatteryFullNotifier(context))
 
         events.start()
         events.start()
@@ -122,7 +122,7 @@ class ChargeStartTest {
 
     @Test
     fun `the receiver also hears the charger being taken away`() {
-        ScreensaverPowerEvents(context, ChargeStart(context)).start()
+        ScreensaverPowerEvents(context, ChargeStart(context), BatteryFullNotifier(context)).start()
 
         val filter = shadowOf(context).registeredReceivers.single {
             it.intentFilter.hasAction(Intent.ACTION_POWER_CONNECTED)

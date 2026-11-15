@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import android.view.Window
 import android.view.WindowManager
@@ -115,6 +116,7 @@ internal fun ScreensaverRows() {
     val showCalendarTitles = rememberDreamSwitch(prefs, DreamPreferences.KEY_SHOW_CALENDAR_TITLES, true)
     val ownBrightness = rememberDreamSwitch(prefs, DreamPreferences.KEY_OWN_BRIGHTNESS, false)
     val startOnCharge = rememberDreamSwitch(prefs, DreamPreferences.KEY_START_ON_CHARGE, false)
+    val batteryFull = rememberDreamSwitch(prefs, DreamPreferences.KEY_BATTERY_FULL_NOTIFICATION, false)
 
     val stored = remember(prefs) { readDreamOptions(prefs) }
     var style by remember { mutableStateOf(stored.style) }
@@ -134,10 +136,31 @@ internal fun ScreensaverRows() {
     // Both are granted and taken away on Android's own pages too, so they are read again on every return.
     var notificationAccess by remember { mutableStateOf(isNotificationAccessGranted(context)) }
     var calendarGranted by remember { mutableStateOf(context.holds(Manifest.permission.READ_CALENDAR)) }
+    // Whether the launcher may send notifications at all: what the battery-full switch stands on.
+    var maySend by remember { mutableStateOf(context.maySendNotifications()) }
     LifecycleResumeEffect(Unit) {
         notificationAccess = isNotificationAccessGranted(context)
         calendarGranted = context.holds(Manifest.permission.READ_CALENDAR)
+        maySend = context.maySendNotifications()
+        // A switch that was on while the permission was taken away is off: it could send nothing.
+        if (!maySend && batteryFull.checked) batteryFull.set(false)
         onPauseOrDispose { }
+    }
+    // The request was answered "no" here: the row then says what is missing. A second "no" with no dialog
+    // shown is the lasting one, and only the app's own notification settings can change it.
+    var sendingRefused by rememberSaveable { mutableStateOf(false) }
+    val sendingRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        maySend = granted
+        batteryFull.set(granted)
+        if (!granted) {
+            val activity = context.findActivity()
+            if (sendingRefused && activity != null &&
+                !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+            ) {
+                openAppNotificationSettings(context)
+            }
+            sendingRefused = true
+        }
     }
     // Whether the calendar's dialog was already answered once here: a second dialog-less "no" is the lasting one.
     var calendarAsked by rememberSaveable { mutableStateOf(false) }
@@ -194,6 +217,30 @@ internal fun ScreensaverRows() {
             description = stringResource(ScreensaverR.string.dream_start_on_charge_description),
             checked = startOnCharge.checked,
             onCheckedChange = startOnCharge::set,
+        )
+    }
+    SettingRow("SS4") {
+        SwitchRow(
+            label = stringResource(R.string.settings_screensaver_battery_full),
+            description = stringResource(
+                if (sendingRefused && !maySend) {
+                    R.string.settings_screensaver_battery_full_denied
+                } else {
+                    R.string.settings_screensaver_battery_full_desc
+                },
+            ),
+            checked = batteryFull.checked && maySend,
+            onCheckedChange = { on ->
+                when {
+                    !on -> batteryFull.set(false)
+                    context.maySendNotifications() -> {
+                        maySend = true
+                        batteryFull.set(true)
+                    }
+                    // The one place the launcher asks for this permission; the switch turns on with the grant.
+                    else -> sendingRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
         )
     }
 
@@ -573,6 +620,22 @@ private fun Window.showBrightness(brightness: Float) {
 
 private fun Context.holds(permission: String): Boolean =
     ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
+/** Before Android 13 sending notifications was no permission. */
+private fun Context.maySendNotifications(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || holds(Manifest.permission.POST_NOTIFICATIONS)
+
+/** The app's notification page in Android's settings: where a lasting "no" is turned back. */
+private fun openAppNotificationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        context.startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        openAppDetailsSettings(context)
+    }
+}
 
 /** A stored whole number; a value of another type (a restored file) counts as [default]. */
 private fun SharedPreferences.minutes(key: String, default: Int): Int =

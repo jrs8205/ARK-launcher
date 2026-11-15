@@ -271,4 +271,8 @@
     <string name="settings_screensaver_night_times">Night dim times</string>
     <string name="settings_screensaver_brightness_level">Brightness</string>
     <string name="settings_screensaver_keywords">screen saver clock charging dock daydream bedside burn-in</string>
+    <string name="settings_screensaver_battery_full">Battery full notification</string>
+    <string name="settings_screensaver_battery_full_desc">A notification when the battery becomes full while the screensaver is showing. Turning this on asks for permission to send notifications.</string>
+    <string name="settings_screensaver_battery_full_denied">Notifications are not allowed for ARK-Launcher, so none can be sent. Allow them in the app\'s notification settings.</string>
+    <string name="settings_permission_notifications">Sending notifications</string>
 </resources>

@@ -74,4 +74,8 @@
     <string name="night_dim_end_label">Ends %1$s</string>
     <string name="open_screensaver_settings">Open screensaver settings</string>
     <string name="screensaver_charging_hint">The screensaver is turned on from Android\'s system settings, and it appears when the screen turns off while the device is charging. On some phones (e.g. Samsung) it only starts while charging, and you may need to turn off Always On Display if it shows instead.</string>
+    <string name="battery_full_channel_name">Battery full</string>
+    <string name="battery_full_channel_description">A notification when the battery becomes full while the screensaver is showing.</string>
+    <string name="battery_full_notification_title">Battery fully charged</string>
+    <string name="battery_full_notification_text">The battery reached 100 % while the screensaver was showing.</string>
 </resources>

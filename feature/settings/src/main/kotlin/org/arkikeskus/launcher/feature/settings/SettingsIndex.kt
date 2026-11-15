@@ -228,6 +228,7 @@ internal object SettingsIndex {
             row(
                 "SS3", c, ScreensaverR.string.dream_start_on_charge_title, ScreensaverR.string.dream_start_on_charge_description,
             )
+            row("SS4", c, R.string.settings_screensaver_battery_full, R.string.settings_screensaver_battery_full_desc)
             row("SS5", c, ScreensaverR.string.dream_device_name_title, ScreensaverR.string.dream_device_name_description)
             row("SS6", c, ScreensaverR.string.dream_show_seconds)
             row("SS7", c, ScreensaverR.string.dream_show_date)
@@ -258,6 +259,8 @@ internal object SettingsIndex {
             row("P3", c, R.string.settings_permission_contacts)
             row("P4", c, R.string.settings_permission_phone)
             row("P5", c, R.string.settings_permission_location)
+            // Android 13 made sending notifications a permission.
+            row("P6", c, R.string.settings_permission_notifications, minSdk = Build.VERSION_CODES.TIRAMISU)
         }
         row("B1", SettingsCategory.BACKUP, R.string.settings_backup)
         SettingsCategory.ABOUT.let { c ->

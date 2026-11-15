@@ -271,4 +271,8 @@
     <string name="settings_screensaver_night_times">Yöhimmennyksen ajat</string>
     <string name="settings_screensaver_brightness_level">Kirkkaus</string>
     <string name="settings_screensaver_keywords">näytönsäästäjä kello lataus telakka yöpöytä kiinnipalaminen</string>
+    <string name="settings_screensaver_battery_full">Akku täynnä -ilmoitus</string>
+    <string name="settings_screensaver_battery_full_desc">Ilmoitus, kun akku tulee täyteen näytönsäästäjän ollessa näkyvissä. Päälle kääntäminen kysyy luvan lähettää ilmoituksia.</string>
+    <string name="settings_screensaver_battery_full_denied">ARK-Launcherin ilmoituksia ei ole sallittu, joten niitä ei voi lähettää. Salli ne sovelluksen ilmoitusasetuksista.</string>
+    <string name="settings_permission_notifications">Ilmoitusten lähettäminen</string>
 </resources>
