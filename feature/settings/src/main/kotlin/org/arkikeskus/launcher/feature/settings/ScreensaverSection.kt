@@ -114,6 +114,7 @@ internal fun ScreensaverRows() {
     val showCalendar = rememberDreamSwitch(prefs, DreamPreferences.KEY_SHOW_CALENDAR, false)
     val showCalendarTitles = rememberDreamSwitch(prefs, DreamPreferences.KEY_SHOW_CALENDAR_TITLES, true)
     val ownBrightness = rememberDreamSwitch(prefs, DreamPreferences.KEY_OWN_BRIGHTNESS, false)
+    val startOnCharge = rememberDreamSwitch(prefs, DreamPreferences.KEY_START_ON_CHARGE, false)
 
     val stored = remember(prefs) { readDreamOptions(prefs) }
     var style by remember { mutableStateOf(stored.style) }
@@ -185,6 +186,14 @@ internal fun ScreensaverRows() {
             description = stringResource(ScreensaverR.string.screensaver_charging_hint),
             trailingIcon = LauncherIcons.OpenInNew,
             onClick = { openDreamSettings(context) },
+        )
+    }
+    SettingRow("SS3") {
+        SwitchRow(
+            label = stringResource(ScreensaverR.string.dream_start_on_charge_title),
+            description = stringResource(ScreensaverR.string.dream_start_on_charge_description),
+            checked = startOnCharge.checked,
+            onCheckedChange = startOnCharge::set,
         )
     }
 

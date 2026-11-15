@@ -150,7 +150,7 @@ class SettingsInventoryTest {
             "N1" to "settings_notif_dots", "N2" to "settings_notif_count", "N3" to "settings_notif_size",
             "S1" to "settings_lock_sounds", "S2" to "settings_lock_sound", "S3" to "settings_unlock_sound",
             "S4" to "settings_phone_sound_settings",
-            "SS1" to "dream_style_title", "SS2" to "open_screensaver_settings", "SS5" to "dream_device_name_title",
+            "SS1" to "dream_style_title", "SS2" to "open_screensaver_settings", "SS3" to "dream_start_on_charge_title", "SS5" to "dream_device_name_title",
             "SS6" to "dream_show_seconds", "SS7" to "dream_show_date", "SS8" to "dream_show_alarm",
             "SS9" to "dream_notifications_title", "SS10" to "dream_show_battery_details", "SS11" to "dream_show_estimate",
             "SS12" to "dream_accent_title", "SS13" to "dream_calendar_title", "SS14" to "dream_calendar_titles_title",

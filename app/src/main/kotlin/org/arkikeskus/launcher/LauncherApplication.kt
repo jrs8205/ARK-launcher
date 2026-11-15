@@ -12,6 +12,7 @@ import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.PendingWidgetIds
 import org.arkikeskus.launcher.data.SharedPreferencesPendingIdStorage
 import org.arkikeskus.launcher.data.di.ApplicationScope
+import org.arkikeskus.launcher.feature.screensaver.ScreensaverPowerEvents
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -29,6 +30,10 @@ class LauncherApplication : Application(), SingletonImageLoader.Factory {
     @Inject
     lateinit var customIcons: CustomIconStore
 
+    /** The charger's coming and going, for the screensaver's start on charge. */
+    @Inject
+    lateinit var screensaverPowerEvents: ScreensaverPowerEvents
+
     @Inject
     @ApplicationScope
     lateinit var scope: CoroutineScope
@@ -40,6 +45,7 @@ class LauncherApplication : Application(), SingletonImageLoader.Factory {
         // app's request held when a previous process died with the system's bind dialog open.
         PendingWidgetIds.shared.persistIn(SharedPreferencesPendingIdStorage(this))
         lockSounds.start()
+        screensaverPowerEvents.start()
         // Gallery pictures an earlier run left unused (see CustomIconStore.deleteUnusedPictures).
         scope.launch(Dispatchers.IO) { runCatching { customIcons.deleteUnusedPictures(savedBefore = startedAt) } }
     }

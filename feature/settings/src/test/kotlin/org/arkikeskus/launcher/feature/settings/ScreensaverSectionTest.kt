@@ -259,6 +259,16 @@ class ScreensaverSectionTest {
         assertThat(prefs.contains(DreamPreferences.KEY_BRIGHTNESS_PERCENT)).isFalse()
     }
 
+    @Test fun startingAsSoonAsChargingBeginsIsOffUntilSwitchedOn() {
+        show()
+        row("SS3").performScrollTo()
+        assertThat(prefs.getBoolean(DreamPreferences.KEY_START_ON_CHARGE, false)).isFalse()
+
+        toggle("SS3")
+
+        assertThat(prefs.getBoolean(DreamPreferences.KEY_START_ON_CHARGE, false)).isTrue()
+    }
+
     @Test fun theStartRowOpensAndroidsScreensaverSettings() {
         show()
         row("SS2").performScrollTo()

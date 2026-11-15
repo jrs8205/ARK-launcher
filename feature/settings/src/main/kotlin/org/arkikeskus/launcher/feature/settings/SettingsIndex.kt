@@ -225,6 +225,9 @@ internal object SettingsIndex {
         SettingsCategory.SCREENSAVER.let { c ->
             row("SS1", c, ScreensaverR.string.dream_style_title, keywords = listOf(R.string.settings_screensaver_keywords))
             row("SS2", c, ScreensaverR.string.open_screensaver_settings, ScreensaverR.string.screensaver_charging_hint)
+            row(
+                "SS3", c, ScreensaverR.string.dream_start_on_charge_title, ScreensaverR.string.dream_start_on_charge_description,
+            )
             row("SS5", c, ScreensaverR.string.dream_device_name_title, ScreensaverR.string.dream_device_name_description)
             row("SS6", c, ScreensaverR.string.dream_show_seconds)
             row("SS7", c, ScreensaverR.string.dream_show_date)
