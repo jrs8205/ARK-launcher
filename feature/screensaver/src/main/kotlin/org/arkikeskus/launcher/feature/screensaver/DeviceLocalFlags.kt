@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.feature.screensaver
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 
 /**
@@ -14,9 +15,14 @@ internal object DeviceLocalFlags {
     /** This phone reports the battery current in µA (see [batteryCurrentUnitIsMicroamps]); a fact about the hardware. */
     const val KEY_BATTERY_CURRENT_MICROAMPS = "battery_current_microamps"
 
+    /** The full charge the battery is in was already told with a notification (see [FullChargeMark]); a fact about this phone's battery now. */
+    const val KEY_BATTERY_FULL_TOLD = "battery_full_told"
+
+    fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
     /** Whether the unit is known to be µA, learning it from [currentRaw] when a reading settles it. */
     fun batteryCurrentMicroamps(context: Context, currentRaw: Int): Boolean {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val prefs = prefs(context)
         if (prefs.getBoolean(KEY_BATTERY_CURRENT_MICROAMPS, false)) return true
         if (!batteryCurrentUnitIsMicroamps(currentRaw)) return false
         prefs.edit { putBoolean(KEY_BATTERY_CURRENT_MICROAMPS, true) }
