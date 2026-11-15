@@ -47,13 +47,14 @@ class SettingsNavigationTest {
     private val res = RuntimeEnvironment.getApplication().resources
     private val recorded = RecordedActions()
 
-    private fun show(settings: LauncherSettings = LauncherSettings()) {
+    private fun show(settings: LauncherSettings = LauncherSettings(), openPage: String? = null) {
         compose.setContent {
             SettingsContent(
                 s = settings,
                 lists = SettingsLists(),
                 actions = recorded.actions,
                 blurAvailability = BlurAvailability.AVAILABLE,
+                openPage = openPage,
                 backupScreen = { onBack ->
                     BackHandler(onBack = onBack)
                     Box(Modifier.testTag("backup-screen"))
@@ -121,6 +122,35 @@ class SettingsNavigationTest {
             .assertIsDisplayed()
         assertThat(tags("category-")).isEmpty()
         assertThat(tags("setting-")).containsExactlyElementsIn(listOf("D1", "D2", "D3", "D4", "D5").map(::settingTag)).inOrder()
+    }
+
+    private fun assertOnPageNamed(title: Int) {
+        compose.onNode(hasText(res.getString(title)) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assertIsDisplayed()
+        assertThat(tags("category-")).isEmpty()
+    }
+
+    // Android's screensaver choice opens Settings straight on the screensaver's page (its gear).
+
+    @Test fun openedOnAPageSettingsShowsItAndBackLeavesForTheMainPage() {
+        show(openPage = "sounds")
+        assertOnPageNamed(R.string.settings_sounds)
+
+        systemBack()
+
+        assertOnMainPage()
+        assertThat(compose.activity.isFinishing).isFalse()
+    }
+
+    @Test fun anUnknownPageToOpenCountsAsTheMainPage() {
+        show(openPage = "no-such-page")
+        assertOnMainPage()
+    }
+
+    @Test fun thePageToOpenWinsOverThePlaceSettingsWasLeftAt() {
+        SettingsScrollMemory.remember("dock", 0, android.os.SystemClock.elapsedRealtime())
+        show(openPage = "sounds")
+        assertOnPageNamed(R.string.settings_sounds)
     }
 
     @Test fun systemBackReturnsFromAPageToTheMainPage() {

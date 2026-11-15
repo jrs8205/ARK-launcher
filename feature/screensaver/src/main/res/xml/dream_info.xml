@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The settings activity is named by its class alone: Android puts the screensaver's own package in
+     front of it, so the gear of the debug build (another package) opens that build's Settings. -->
+<dream xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="org.arkikeskus.launcher.ScreensaverSettingsAlias"
+    android:previewImage="@drawable/dream_preview" />

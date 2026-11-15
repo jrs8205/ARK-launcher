@@ -112,6 +112,7 @@ dependencies {
     implementation(project(":feature:appdrawer"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:backup"))
+    implementation(project(":feature:screensaver"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

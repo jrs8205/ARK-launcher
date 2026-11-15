@@ -44,9 +44,16 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import org.arkikeskus.launcher.ui.expressive.systemAnimationsOn
 
-/** The launcher's Settings: the view model's state handed to [SettingsContent], which is the page. */
+/** The key of the Screensaver page, for [SettingsScreen]'s openPage. */
+const val SETTINGS_PAGE_SCREENSAVER = "screensaver"
+
+/**
+ * The launcher's Settings: the view model's state handed to [SettingsContent], which is the page.
+ * [openPage] is the key of the page to open on, for a start that asks for one; null opens where
+ * Settings was left a moment ago, or on the main page.
+ */
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
+fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val s by viewModel.settings.collectAsStateWithLifecycle()
     val drawerWallpaper by viewModel.drawerWallpaperPicture.collectAsStateWithLifecycle()
@@ -67,6 +74,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         ),
         actions = viewModel,
         modifier = modifier,
+        openPage = openPage,
     )
 }
 
@@ -81,12 +89,13 @@ internal fun SettingsWhenRead(
     lists: SettingsLists,
     actions: SettingsActions,
     modifier: Modifier = Modifier,
+    openPage: String? = null,
 ) {
     if (s == null) {
         Surface(modifier = modifier.fillMaxSize(), color = settingsPalette(currentBasePalette()).bg) {}
         return
     }
-    SettingsContent(s = s, lists = lists, actions = actions, modifier = modifier)
+    SettingsContent(s = s, lists = lists, actions = actions, modifier = modifier, openPage = openPage)
 }
 
 /** What the page shows besides the settings themselves: the apps, what is hidden, the drawer's folders (null while
@@ -137,12 +146,16 @@ internal fun SettingsContent(
     actions: SettingsActions,
     modifier: Modifier = Modifier,
     blurAvailability: BlurAvailability = rememberBlurAvailability(),
+    openPage: String? = null,
     backupScreen: @Composable (onBack: () -> Unit) -> Unit = {
         BackupScreen(onBack = it, modifier = Modifier.fillMaxSize())
     },
 ) {
     // Where Settings was left, if that was less than five minutes ago (SettingsScrollMemory): the page and its place.
-    val start = remember { SettingsScrollMemory.restore(SystemClock.elapsedRealtime()) }
+    // A start that names its page (the screensaver's gear) opens there instead, at the top.
+    val start = remember {
+        if (openPage != null) SettingsPlace(openPage, 0) else SettingsScrollMemory.restore(SystemClock.elapsedRealtime())
+    }
     val startPage = SettingsCategory.fromKey(start.page)
     // The open category's key, or null on the main page; a key this version does not know counts as the main page.
     var pageKey by rememberSaveable { mutableStateOf(startPage?.key) }

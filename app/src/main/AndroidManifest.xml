@@ -101,6 +101,31 @@
             android:label="@string/settings_label"
             android:theme="@style/Theme.ArkikeskusLauncher" />
 
+        <!-- The gear beside the launcher in Android's screensaver choice (xml/dream_info names this
+             alias): Settings then opens on the Screensaver page. Not exported: Android's own Settings
+             may start it, another app may not. -->
+        <activity-alias
+            android:name=".ScreensaverSettingsAlias"
+            android:exported="false"
+            android:label="@string/settings_label"
+            android:targetActivity=".SettingsActivity" />
+
+        <!-- The launcher as a screensaver (Android's Settings > Display > Screen saver). Android stores
+             this class name in its screensaver setting: it never changes. -->
+        <service
+            android:name="org.arkikeskus.launcher.feature.screensaver.ScreensaverService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/dream_info" />
+        </service>
+
         <!-- Other apps' "Add to home screen" (ShortcutManager.requestPinShortcut) and "Add widget"
              (AppWidgetManager.requestPinAppWidget): declaring these actions is what makes the system
              say the launcher supports pin requests. Exported with no category, as the system starts
