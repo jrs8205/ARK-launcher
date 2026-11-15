@@ -93,9 +93,9 @@ palvelimelle; pyynnöt tunnistautuvat yleisluontoisella
 | Lupa | Käyttötarkoitus |
 |---|---|
 | `QUERY_ALL_PACKAGES` | Asennettujen sovellusten listaus ja käynnistys — launcherin ydintehtävä |
-| Ilmoitusten käyttöoikeus (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Pistemerkit, tilarivin kuvakkeet, ilmoitus- ja henkilöwidgetit sekä paikallinen eräposti |
+| Ilmoitusten käyttöoikeus (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Pistemerkit, tilarivin kuvakkeet, ilmoitus- ja henkilöwidgetit, paikallinen eräposti sekä lukemattomien ilmoitusten kuvakkeet näytönsäästäjässä |
 | Esteettömyyspalvelu (`BIND_ACCESSIBILITY_SERVICE`, valinnainen) | Ainoastaan tuplanapautuslukitus. Palvelu ei vastaanota esteettömyystapahtumia eikä voi lukea näytön sisältöä; se on olemassa vain näytön lukitsemista varten ja käynnissä vain, jos itse otat sen käyttöön |
-| `READ_CALENDAR` | Seuraavan tapahtuman näyttäminen kellowidgetissä |
+| `READ_CALENDAR` | Seuraavan tapahtuman näyttäminen kellowidgetissä sekä, jos kytket kalenteririvit päälle, seuraavat tapahtumat näytönsäästäjän Mittaristo-tyylissä |
 | `READ_CONTACTS` | Yhteystulokset sovellushaussa ja henkilöwidgetin yhteystietojen yhdistäminen (valinnainen) |
 | `READ_PHONE_STATE` | Signaalinvoimakkuus tilarivillä |
 | `ACCESS_COARSE_LOCATION` | Sää kellowidgetissä |
@@ -105,6 +105,8 @@ palvelimelle; pyynnöt tunnistautuvat yleisluontoisella
 | `EXPAND_STATUS_BAR` | Ilmoitusten avaus alaspyyhkäisyllä |
 | `HIDE_OVERLAY_WINDOWS` | Muiden sovellusten päällä näkyvien ikkunoiden piilotus, kun toisesta sovelluksesta avatun varmuuskopion palautusikkuna on näkyvissä (Android 12+), jotta mikään peittoikkuna ei voi peittää tai huijata sitä |
 | `ACCESS_HIDDEN_PROFILES` | Yksityisen tilan sovellusten näyttäminen sovellusvalikon Yksityinen-välilehdellä silloin, kun olet avannut tilan lukituksen (Android 15 ja uudemmat). Näistä sovelluksista ei tallenneta eikä varmuuskopioida mitään. |
+| `WAKE_LOCK` | Näytönsäästäjän valinnainen *Käynnistä heti latauksen alkaessa* (oletuksena pois): näytön sekunnin mittainen herätys, kun laturi kytketään, jotta näytönsäästäjä voi käynnistyä |
+| `POST_NOTIFICATIONS` (Android 13 ja uudemmat, valinnainen) | Näytönsäästäjän valinnainen *Akku täynnä -ilmoitus* (oletuksena pois), ainoa ilmoitus, jonka launcher lähettää. Android kysyy luvan vasta, kun käännät sen kytkimen päälle |
 
 Kalenteri-, yhteystieto- ja puhelintilatiedot luetaan tarvittaessa yllä
 kuvattuja ominaisuuksia varten, niitä käytetään vain laitteella, eikä niitä

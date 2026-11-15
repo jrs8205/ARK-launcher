@@ -139,6 +139,13 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   that is standard, colourful or animated, in two sizes.
 - **Hide the system navigation bar** on the home screen and the app drawer (swipe up from the bottom
   edge to show it for a moment).
+- **Screensaver** — ARK-Launcher can be chosen as Android's screensaver (Settings ▸ Display ▸ Screen
+  saver) for a phone that is charging or docked: six styles (Glow, Minimal, Night, Ring, Gauges, Edge)
+  with a large clock, the date, the next alarm, the battery's level and charging power, and the icons of
+  unread notifications. The Screensaver page in the launcher's settings previews every style and holds
+  its options: what is shown, an accent colour, dimming by hand or by night hours, a brightness of its
+  own, burn-in protection, an optional start as soon as charging begins, and an optional notification
+  when the battery is full.
 - **Backup & restore** — export/import your layout and settings to a file (widgets included).
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
@@ -180,7 +187,7 @@ Requirements: `minSdk 30`.
 - `app` — the single Activity, manifest HOME intent filter, DI entry point, the AppWidgetHost.
 - `core/*` — `model`, `data` (Room/DataStore/repositories + search providers + backup),
   `ui` (shared Compose components, popups, the expressive theme), `designsystem`, `launcher`.
-- `feature/*` — `home` (workspace + dock + widgets), `appdrawer`, `settings`, `backup`.
+- `feature/*` — `home` (workspace + dock + widgets), `appdrawer`, `settings`, `backup`, `screensaver`.
 
 ## Support development
 

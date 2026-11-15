@@ -84,9 +84,9 @@ to the server; the requests identify themselves with a generic
 | Permission | Used for |
 |---|---|
 | `QUERY_ALL_PACKAGES` | Listing and launching your installed apps — the launcher's core purpose |
-| Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Notification dots/badges, status-bar icons, notification and people widgets, and local batch delivery |
+| Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) | Notification dots/badges, status-bar icons, notification and people widgets, local batch delivery, and the icons of unread notifications on the screensaver |
 | Accessibility service (`BIND_ACCESSIBILITY_SERVICE`, opt-in) | The double-tap-to-lock gesture only. The service receives no accessibility events and cannot read screen content; it exists solely to lock the screen, and only runs if you enable it yourself |
-| `READ_CALENDAR` | Showing your next event in the clock widget |
+| `READ_CALENDAR` | Showing your next event in the clock widget and, if you switch its calendar rows on, your next events on the screensaver's Gauges style |
 | `READ_CONTACTS` | Contact results in app search and matching people-widget contacts (opt-in) |
 | `READ_PHONE_STATE` | Signal-strength indicator in the status bar |
 | `ACCESS_COARSE_LOCATION` | Weather in the clock widget |
@@ -96,6 +96,8 @@ to the server; the requests identify themselves with a generic
 | `EXPAND_STATUS_BAR` | The swipe-down-for-notifications gesture |
 | `HIDE_OVERLAY_WINDOWS` | Hiding other apps' overlay windows while the restore dialog for a backup opened from another app is shown (Android 12+), so no overlay can cover or trick it |
 | `ACCESS_HIDDEN_PROFILES` | Showing your private space's apps in the app drawer's Private tab while you have unlocked it (Android 15 and later). Nothing about those apps is stored or backed up. |
+| `WAKE_LOCK` | The screensaver's optional *Start as soon as charging begins* (off by default): a one-second wake of the screen when the charger is connected, so the screensaver can start |
+| `POST_NOTIFICATIONS` (Android 13 and later, opt-in) | The screensaver's optional *Battery full notification* (off by default), the only notification the launcher sends. Android asks for it only when you turn that switch on |
 
 Calendar, contacts and phone-state data are read on demand for the features
 above, used on the device only, and never stored beyond in-memory caches or
