@@ -103,6 +103,61 @@ class ChargeGlowTest {
         assertThat(peakOver(1500)).isEqualTo(0f)
     }
 
+    // --- The battery glyph's sweep and the system's animations switch ------------------------------------
+
+    private var sweep: (() -> Float)? = null
+
+    private fun setSystemAnimations(scale: Float) {
+        Settings.Global.putFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, scale)
+        // What the system does when the setting is written: its observers are told.
+        context.contentResolver.notifyChange(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), null)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+    }
+
+    @Test fun theSweepRunsWhileChargingWithAnimationsOn() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { sweep = rememberChargeSweep(active = true) }
+        compose.mainClock.advanceTimeBy(900)
+
+        assertThat(sweep).isNotNull()
+        assertThat(sweep!!.invoke()).isGreaterThan(0f)
+    }
+
+    @Test fun thereIsNoSweepWhenNotCharging() {
+        compose.setContent { sweep = rememberChargeSweep(active = false) }
+        compose.waitForIdle()
+
+        assertThat(sweep).isNull()
+    }
+
+    @Test fun switchingTheSystemsAnimationsOffStopsTheSweepThatIsRunning() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { sweep = rememberChargeSweep(active = true) }
+        compose.mainClock.advanceTimeBy(900)
+        val running = sweep!!
+
+        setSystemAnimations(0f)
+        compose.mainClock.advanceTimeBy(200)
+
+        // The glyph is handed no sweep any more, and the one it was handed draws nothing in the meantime:
+        // an endless animation at scale 0 jumps to its end, a glyph drawn full on a half-empty battery.
+        assertThat(sweep).isNull()
+        assertThat(running.invoke()).isEqualTo(0f)
+    }
+
+    @Test fun switchingTheSystemsAnimationsBackOnStartsTheSweepAgain() {
+        setSystemAnimations(0f)
+        compose.mainClock.autoAdvance = false
+        compose.setContent { sweep = rememberChargeSweep(active = true) }
+        compose.mainClock.advanceTimeBy(100)
+        assertThat(sweep).isNull()
+
+        setSystemAnimations(1f)
+        compose.mainClock.advanceTimeBy(900)
+
+        assertThat(sweep).isNotNull()
+    }
+
     @Test fun aSecondChargerConnectionGlowsAgain() {
         val charging = MutableStateFlow(false)
         show(charging)

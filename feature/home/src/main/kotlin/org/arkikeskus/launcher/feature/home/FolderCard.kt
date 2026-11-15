@@ -398,6 +398,11 @@ internal fun FolderCard(
 
                 Box(
                     modifier = Modifier
+                        // The grid takes what the header above it and the editor's buttons under it leave
+                        // (a column measures its unweighted children first), up to [gridMaxHeight]. Without
+                        // the weight it took its share of the window first, and on a low window the buttons
+                        // under a full folder were cut.
+                        .weight(1f, fill = false)
                         .fillMaxWidth()
                         .testTag("folderGrid")
                         .onGloballyPositioned { gridCoords = it; gridWidthPx = it.size.width }

@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.feature.home
 
 import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -15,8 +18,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -69,6 +75,30 @@ internal fun chargeGlowStarts(before: Boolean?, now: Boolean): Boolean = before 
 /** False when the user has switched the system's animations off (Developer options, or "Remove animations"). */
 internal fun systemAnimationsOn(context: Context): Boolean =
     Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+
+/**
+ * [systemAnimationsOn], kept up to date while in the composition: the setting is watched, so switching the
+ * animations off (or on) with the home screen already up is heard at once and not at some later recomposition.
+ */
+@Composable
+internal fun rememberSystemAnimationsOn(): State<Boolean> {
+    val context = LocalContext.current
+    val on = remember(context) { mutableStateOf(systemAnimationsOn(context)) }
+    DisposableEffect(context) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                on.value = systemAnimationsOn(context)
+            }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, observer,
+        )
+        // A change between the first read and the registration.
+        on.value = systemAnimationsOn(context)
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
+    return on
+}
 
 /** The glow's state. [strength] is read where the glow is drawn, so a frame of it is a redraw and no recomposition. */
 @Stable
@@ -159,12 +189,14 @@ internal fun ChargeGlowLayer(enabled: Boolean, modifier: Modifier = Modifier, vi
 /**
  * The battery glyph's sweep while charging, to hand to the glyph: from 0 to 1 in a little under two seconds,
  * a rest, and again. Null when nothing is to move: not [active] (not charging, or the switch is off), or the
- * system's animations are off. With them off an endless animation would jump to its end, a glyph drawn full.
+ * system's animations are off. With them off an endless animation jumps to its end, a glyph drawn full on
+ * a half-empty battery: so the setting is watched ([rememberSystemAnimationsOn]), and the sweep handed out
+ * also answers 0 from the moment the animations go off, before the glyph is recomposed without it.
  */
 @Composable
 internal fun rememberChargeSweep(active: Boolean): (() -> Float)? {
-    val context = LocalContext.current
-    if (!active || !systemAnimationsOn(context)) return null
+    val animationsOn = rememberSystemAnimationsOn()
+    if (!active || !animationsOn.value) return null
     val sweep = rememberInfiniteTransition(label = "charging").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -179,5 +211,5 @@ internal fun rememberChargeSweep(active: Boolean): (() -> Float)? {
         ),
         label = "sweep",
     )
-    return remember(sweep) { { sweep.value } }
+    return remember(sweep, animationsOn) { { if (animationsOn.value) sweep.value else 0f } }
 }
