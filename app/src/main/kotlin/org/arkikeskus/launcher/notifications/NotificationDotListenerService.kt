@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.ActiveNotification
 import org.arkikeskus.launcher.data.BatchDelivery
 import org.arkikeskus.launcher.data.BatchSchedule
 import org.arkikeskus.launcher.data.MessageHeuristics
@@ -237,6 +238,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         badgeRepository.clearCanceller()
         badgeRepository.setBadges(emptyMap())
         badgeRepository.setIcons(emptyList())
+        badgeRepository.setActive(emptyList())
         badgeRepository.setPeople(emptyList())
         alertedKeys.clear()
         // Aggressive OEM battery managers (Samsung, Xiaomi, …) can unbind the listener; ask the system
@@ -355,6 +357,7 @@ class NotificationDotListenerService : NotificationListenerService() {
         val visual = LinkedHashMap<String, StatusNotification>()
         val openable = HashMap<String, StatusNotification>()
         val people = ArrayList<PersonEntry>()
+        val screensaver = ArrayList<ActiveNotification>()
         val now = System.currentTimeMillis()
         // Asked for only while something is held (the legacy snoozes of the migration below).
         val snoozed = if (heldUntil.isEmpty()) emptyList() else runCatching { snoozedNotifications }.getOrNull().orEmpty().filterNotNull()
@@ -386,6 +389,20 @@ class NotificationDotListenerService : NotificationListenerService() {
             }
             // Only launcher surfaces wait. Android's shade, sound and heads-up remain unchanged.
             if (sbn.key in heldUntil) continue
+            // The screensaver's row gets the notification as it is; the screensaver itself tells an unread one
+            // from the rest (not ongoing, not a group's summary, clearable). Added only here, past the three
+            // checks above, so nothing of a private space, nothing undecided and nothing held reaches it.
+            screensaver.add(
+                ActiveNotification(
+                    key = sbn.key,
+                    packageName = sbn.packageName,
+                    postTime = sbn.postTime,
+                    isOngoing = sbn.isOngoing,
+                    isGroupSummary = ((sbn.notification?.flags ?: 0) and Notification.FLAG_GROUP_SUMMARY) != 0,
+                    isClearable = sbn.isClearable,
+                    smallIcon = sbn.notification?.smallIcon,
+                ),
+            )
             // Dots: strict badge-worthy filter (meaningful home-icon badges).
             if (isBadgeWorthy(sbn, ranking, tmp)) {
                 counts[key] = (counts[key] ?: 0) + 1
@@ -431,6 +448,7 @@ class NotificationDotListenerService : NotificationListenerService() {
                 )
             }.sortedByDescending { it.postTime },
         )
+        badgeRepository.setActive(screensaver)
         // Migration: earlier betas snoozed in Android. Those existing snoozes cannot be released
         // through the public listener API; keep showing them until Android delivers them.
         if (heldUntil.isNotEmpty()) {

@@ -114,6 +114,17 @@ class NotificationBadgeRepository @Inject constructor() {
         _icons.value = icons
     }
 
+    /** Every notification the launcher may show, one entry each, for the screensaver's row of unread
+     *  ones. Rebuilt with [icons] on every listener snapshot, under the same rules: nothing of a
+     *  private space, nothing still waiting for its decisions, nothing held for batch delivery. */
+    private val _active = MutableStateFlow<List<ActiveNotification>>(emptyList())
+    val active: StateFlow<List<ActiveNotification>> = _active.asStateFlow()
+
+    /** Replaces the screensaver's list with a fresh snapshot from the listener. */
+    fun setActive(active: List<ActiveNotification>) {
+        _active.value = active
+    }
+
     /** Set by the notification listener while connected; cancels an active notification by key. */
     private val canceller = AtomicReference<((String) -> Unit)?>(null)
 

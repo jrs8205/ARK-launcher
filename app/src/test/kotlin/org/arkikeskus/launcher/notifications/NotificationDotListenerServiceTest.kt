@@ -686,4 +686,95 @@ class NotificationDotListenerServiceTest {
         ReflectionHelpers.getField<Job>(service, "packageRefreshJob").join()
         assertThat(person(notification)!!.name).isEqualTo("Sender")
     }
+
+    // The screensaver's list: every notification the launcher may show, with what the screensaver needs to
+    // tell an unread one from the rest. It obeys the same rules as the launcher's other surfaces.
+
+    private fun numbered(id: Int, build: NotificationCompat.Builder.() -> Unit = {}) = StatusBarNotification(
+        "chat.app", "chat.app", id, null, 1000, 0, 0,
+        NotificationCompat.Builder(context, "chat").setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Title $id").setContentText("Text").apply(build).build(),
+        Process.myUserHandle(), 1_000L + id,
+    )
+
+    private fun screensaverKeys(): List<String> = service.badgeRepository.active.value.map { it.key }
+
+    @Config(sdk = [35])
+    @Test fun theScreensaversListCarriesEachNotificationWithItsFlags() {
+        aDeviceWith()
+        val plain = numbered(1)
+        val ongoing = numbered(2) { setOngoing(true) }
+        val summary = numbered(3) { setGroup("g").setGroupSummary(true) }
+
+        post(plain)
+        post(ongoing)
+        post(summary)
+
+        val active = service.badgeRepository.active.value.associateBy { it.key }
+        assertThat(active.keys).containsExactly(plain.key, ongoing.key, summary.key)
+        with(active.getValue(plain.key)) {
+            assertThat(packageName).isEqualTo("chat.app")
+            assertThat(postTime).isEqualTo(1_001L)
+            assertThat(smallIcon).isNotNull()
+            assertThat(isOngoing).isFalse()
+            assertThat(isClearable).isTrue()
+            assertThat(isGroupSummary).isFalse()
+        }
+        assertThat(active.getValue(ongoing.key).isOngoing).isTrue()
+        assertThat(active.getValue(ongoing.key).isClearable).isFalse()
+        assertThat(active.getValue(summary.key).isGroupSummary).isTrue()
+    }
+
+    @Config(sdk = [35])
+    @Test fun aPrivateSpacesNotificationNeverReachesTheScreensaversList() {
+        aDeviceWithAPrivateSpace()
+
+        post(chatOf(privateUser))
+        assertThat(screensaverKeys()).isEmpty()
+
+        // The same app's personal twin is listed, as on every other surface.
+        val personal = chat(true)
+        post(personal)
+        assertThat(screensaverKeys()).containsExactly(personal.key)
+    }
+
+    @Config(sdk = [35])
+    @Test fun aNotificationStillLeftAloneNeverReachesTheScreensaversList() {
+        val profiles = aWorkProfileNotPlacedYet()
+        val fromWork = chatOf(workUser)
+
+        post(fromWork)
+        // Not placed yet: it might have been a private space.
+        assertThat(screensaverKeys()).isEmpty()
+
+        profiles.list = listOf(own, ProfileSnapshot(10, ProfileKind.Managed, badged = false, paused = false))
+        profiles.changed.tryEmit(Unit)
+        await("the work notification") { service.badgeRepository.badges.value == mapOf("chat.app/10" to 1) }
+        assertThat(screensaverKeys()).containsExactly(fromWork.key)
+    }
+
+    @Test fun aHeldNotificationReachesTheScreensaversListOnlyWhenItIsReleased() {
+        enableBatch()
+        val first = chat(true)
+
+        post(first)
+        assertThat(service.badgeRepository.people.value.single().held).isTrue()
+        assertThat(screensaverKeys()).isEmpty()
+
+        ReflectionHelpers.getField<MutableMap<String, Long>>(service, "heldUntil")[first.key] = System.currentTimeMillis() - 1
+        ReflectionHelpers.getField<BroadcastReceiver>(service, "timeReceiver")
+            .onReceive(context, Intent(Intent.ACTION_SCREEN_ON))
+        assertThat(screensaverKeys()).containsExactly(first.key)
+    }
+
+    @Config(sdk = [35])
+    @Test fun theScreensaversListEmptiesWhenTheListenerDisconnects() {
+        aDeviceWith()
+        post(numbered(1))
+        assertThat(screensaverKeys()).hasSize(1)
+
+        service.onListenerDisconnected()
+
+        assertThat(screensaverKeys()).isEmpty()
+    }
 }
