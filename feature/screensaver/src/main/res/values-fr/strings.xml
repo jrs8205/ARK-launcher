@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Batterie pleine</string>
     <string name="battery_full_channel_description">Une notification quand la batterie devient pleine pendant l\'affichage de l\'économiseur d\'écran.</string>
     <string name="battery_full_notification_title">Batterie entièrement chargée</string>
-    <string name="battery_full_notification_text">La batterie a atteint 100 % pendant l\'affichage de l\'économiseur d\'écran.</string>
+    <string name="battery_full_notification_text" formatted="false">La batterie a atteint 100 % pendant l\'affichage de l\'économiseur d\'écran.</string>
 </resources>

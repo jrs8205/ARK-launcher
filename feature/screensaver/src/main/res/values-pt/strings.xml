@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Bateria cheia</string>
     <string name="battery_full_channel_description">Uma notificação quando a bateria fica cheia enquanto a proteção de tela é exibida.</string>
     <string name="battery_full_notification_title">Bateria totalmente carregada</string>
-    <string name="battery_full_notification_text">A bateria chegou a 100 % enquanto a proteção de tela era exibida.</string>
+    <string name="battery_full_notification_text" formatted="false">A bateria chegou a 100 % enquanto a proteção de tela era exibida.</string>
 </resources>

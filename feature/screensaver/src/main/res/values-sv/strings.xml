@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Batteriet fullt</string>
     <string name="battery_full_channel_description">En avisering när batteriet blir fullt medan skärmsläckaren visas.</string>
     <string name="battery_full_notification_title">Batteriet är fulladdat</string>
-    <string name="battery_full_notification_text">Batteriet nådde 100 % medan skärmsläckaren visades.</string>
+    <string name="battery_full_notification_text" formatted="false">Batteriet nådde 100 % medan skärmsläckaren visades.</string>
 </resources>

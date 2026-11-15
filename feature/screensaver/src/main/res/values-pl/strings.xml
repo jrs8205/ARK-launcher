@@ -73,5 +73,5 @@
     <string name="battery_full_channel_name">Bateria pełna</string>
     <string name="battery_full_channel_description">Powiadomienie, gdy bateria naładuje się do pełna podczas wyświetlania wygaszacza.</string>
     <string name="battery_full_notification_title">Bateria w pełni naładowana</string>
-    <string name="battery_full_notification_text">Bateria osiągnęła 100 % podczas wyświetlania wygaszacza.</string>
+    <string name="battery_full_notification_text" formatted="false">Bateria osiągnęła 100 % podczas wyświetlania wygaszacza.</string>
 </resources>

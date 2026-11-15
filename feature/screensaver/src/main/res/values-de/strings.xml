@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Akku voll</string>
     <string name="battery_full_channel_description">Eine Benachrichtigung, wenn der Akku voll wird, während der Bildschirmschoner läuft.</string>
     <string name="battery_full_notification_title">Akku vollständig geladen</string>
-    <string name="battery_full_notification_text">Der Akku hat 100 % erreicht, während der Bildschirmschoner lief.</string>
+    <string name="battery_full_notification_text" formatted="false">Der Akku hat 100 % erreicht, während der Bildschirmschoner lief.</string>
 </resources>

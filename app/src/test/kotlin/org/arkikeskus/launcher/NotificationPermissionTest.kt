@@ -22,11 +22,12 @@ import java.io.File
 class NotificationPermissionTest {
     private val mainSources = listOf("../app/src/main", "../core", "../feature")
 
-    /** The only files that may name the permission, each with what it does with it. */
+    /** The only files that may name the permission, each with what it does with it. Two of them ask for it. */
     private val allowed = mapOf(
         "BatteryFullNotifier.kt" to "checks that it is held before posting",
         "ScreensaverSection.kt" to "the battery-full switch asks for it",
         "PermissionsSection.kt" to "the permission's own row",
+        "BackupRepository.kt" to "checks that it is held: a restored switch is off on a phone that does not hold it",
     )
 
     private fun kotlinMainFiles(): List<File> = mainSources.flatMap { dir ->

@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Akku täynnä</string>
     <string name="battery_full_channel_description">Ilmoitus, kun akku tulee täyteen näytönsäästäjän ollessa näkyvissä.</string>
     <string name="battery_full_notification_title">Akku on ladattu täyteen</string>
-    <string name="battery_full_notification_text">Akku saavutti 100 % näytönsäästäjän ollessa näkyvissä.</string>
+    <string name="battery_full_notification_text" formatted="false">Akku saavutti 100 % näytönsäästäjän ollessa näkyvissä.</string>
 </resources>

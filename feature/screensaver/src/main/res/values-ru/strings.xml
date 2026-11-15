@@ -73,5 +73,5 @@
     <string name="battery_full_channel_name">Батарея заряжена</string>
     <string name="battery_full_channel_description">Уведомление, когда батарея заряжается полностью во время показа заставки.</string>
     <string name="battery_full_notification_title">Батарея полностью заряжена</string>
-    <string name="battery_full_notification_text">Батарея зарядилась до 100 % во время показа заставки.</string>
+    <string name="battery_full_notification_text" formatted="false">Батарея зарядилась до 100 % во время показа заставки.</string>
 </resources>

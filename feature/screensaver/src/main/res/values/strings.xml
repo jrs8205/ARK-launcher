@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Battery full</string>
     <string name="battery_full_channel_description">A notification when the battery becomes full while the screensaver is showing.</string>
     <string name="battery_full_notification_title">Battery fully charged</string>
-    <string name="battery_full_notification_text">The battery reached 100 % while the screensaver was showing.</string>
+    <string name="battery_full_notification_text" formatted="false">The battery reached 100 % while the screensaver was showing.</string>
 </resources>

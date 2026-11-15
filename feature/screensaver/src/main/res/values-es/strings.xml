@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Batería llena</string>
     <string name="battery_full_channel_description">Una notificación cuando la batería se llena mientras se muestra el salvapantallas.</string>
     <string name="battery_full_notification_title">Batería totalmente cargada</string>
-    <string name="battery_full_notification_text">La batería llegó al 100 % mientras se mostraba el salvapantallas.</string>
+    <string name="battery_full_notification_text" formatted="false">La batería llegó al 100 % mientras se mostraba el salvapantallas.</string>
 </resources>

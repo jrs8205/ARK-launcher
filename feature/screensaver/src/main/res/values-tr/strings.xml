@@ -71,5 +71,5 @@
     <string name="battery_full_channel_name">Pil dolu</string>
     <string name="battery_full_channel_description">Ekran koruyucu gösterilirken pil dolduğunda gelen bildirim.</string>
     <string name="battery_full_notification_title">Pil tamamen doldu</string>
-    <string name="battery_full_notification_text">Ekran koruyucu gösterilirken pil yüzde yüze ulaştı.</string>
+    <string name="battery_full_notification_text" formatted="false">Ekran koruyucu gösterilirken pil yüzde yüze ulaştı.</string>
 </resources>

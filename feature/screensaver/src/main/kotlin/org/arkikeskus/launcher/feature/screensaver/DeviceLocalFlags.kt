@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.feature.screensaver
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * Facts about this phone rather than the user's choices. They live in a file of their own, apart from
@@ -18,7 +19,7 @@ internal object DeviceLocalFlags {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_BATTERY_CURRENT_MICROAMPS, false)) return true
         if (!batteryCurrentUnitIsMicroamps(currentRaw)) return false
-        prefs.edit().putBoolean(KEY_BATTERY_CURRENT_MICROAMPS, true).apply()
+        prefs.edit { putBoolean(KEY_BATTERY_CURRENT_MICROAMPS, true) }
         return true
     }
 }
