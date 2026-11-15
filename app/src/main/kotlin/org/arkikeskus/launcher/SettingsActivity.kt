@@ -5,12 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import dagger.hilt.android.AndroidEntryPoint
+import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.ui.LauncherAppTheme
+import org.arkikeskus.launcher.ui.WorkProfileMarks
 import org.arkikeskus.launcher.feature.settings.SETTINGS_PAGE_SCREENSAVER
 import org.arkikeskus.launcher.feature.settings.SettingsScreen
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class SettingsActivity : ComponentActivity() {
+    @Inject
+    lateinit var workProfileRepository: WorkProfileRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -22,7 +28,11 @@ class SettingsActivity : ComponentActivity() {
         }
         setContent {
             LauncherAppTheme {
-                SettingsScreen(openPage = openPage)
+                // The lists of this window (hidden apps, the app pickers, the drawer's folders) show apps
+                // of every profile: a work app says its profile to a screen reader here as on the home screen.
+                WorkProfileMarks(workProfileRepository.workProfile) {
+                    SettingsScreen(openPage = openPage)
+                }
             }
         }
     }
