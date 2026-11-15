@@ -1,0 +1,506 @@
+package org.arkikeskus.launcher.feature.screensaver.dream
+
+import android.app.Application
+import android.graphics.Bitmap
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import android.graphics.Canvas
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
+import org.arkikeskus.launcher.feature.screensaver.R
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+import java.util.Locale
+
+/**
+ * The screensaver as a whole, drawn from a fixed sample: what each style puts on the screen
+ * and what the frame around the styles does.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "w360dp-h780dp-port-mdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class DreamScreenTest {
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val context: Application get() = ApplicationProvider.getApplicationContext()
+
+    private fun sample(): DreamUiState =
+        sampleDreamUiState(context, nowMs = SAMPLE_NOW_MS, locale = Locale.US, is24Hour = true)
+
+    /** What is on the screen; a test may change it after [show]. */
+    private var shownOptions by mutableStateOf(DreamOptions())
+
+    private fun show(
+        options: DreamOptions = DreamOptions(),
+        landscape: Boolean,
+        onTap: (() -> Unit)? = null,
+        state: DreamUiState = sample(),
+    ) {
+        shownOptions = options
+        compose.setContent {
+            DreamScreen(state = state, options = shownOptions, landscape = landscape, onTap = onTap, moving = false)
+        }
+    }
+
+    /** How many texts on the screen are, or contain, [text]. */
+    private fun countOf(text: String, substring: Boolean = false): Int =
+        compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().size
+
+    /**
+     * For every style in [texts]: the text is on the screen with the switch on and gone
+     * with it off. [texts] gives, per style, the text that stands for the field there
+     * (a part of a longer line when [substring] is set).
+     */
+    private fun assertSwitchHides(
+        texts: Map<DreamStyle, String>,
+        substring: Boolean = false,
+        off: DreamOptions.() -> DreamOptions,
+    ) {
+        show(landscape = false)
+        for ((style, text) in texts) {
+            shownOptions = DreamOptions(style = style)
+            compose.waitForIdle()
+            assertWithMessage("$style with the switch on: \"$text\"").that(countOf(text, substring)).isAtLeast(1)
+
+            shownOptions = DreamOptions(style = style).off()
+            compose.waitForIdle()
+            assertWithMessage("$style with the switch off: \"$text\"").that(countOf(text, substring)).isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `switched-off seconds are not drawn`() {
+        val state = sample()
+        assertSwitchHides(
+            mapOf(
+                DreamStyle.GLOW to ":${state.secondsText}",
+                DreamStyle.EDGE to ":${state.secondsText}",
+                DreamStyle.GAUGES to ":${state.secondsText}",
+                DreamStyle.RING to state.secondsText,
+            ),
+        ) { copy(showSeconds = false) }
+    }
+
+    @Test
+    fun `a switched-off date is not drawn`() {
+        val state = sample()
+        assertSwitchHides(
+            mapOf(
+                DreamStyle.GLOW to state.dateText,
+                DreamStyle.EDGE to state.dateText,
+                DreamStyle.MINIMAL to state.shortDateText.uppercase(Locale.US),
+                DreamStyle.RING to state.shortDateText.uppercase(Locale.US),
+                DreamStyle.GAUGES to state.compactDateText.uppercase(Locale.US),
+            ),
+            substring = true,
+        ) { copy(showDate = false) }
+    }
+
+    @Test
+    fun `a switched-off alarm is not drawn`() {
+        val state = sample()
+        assertSwitchHides(
+            mapOf(
+                DreamStyle.GLOW to state.alarmText,
+                DreamStyle.EDGE to state.alarmText,
+                DreamStyle.NIGHT to state.alarmText.uppercase(Locale.US),
+                DreamStyle.GAUGES to context.getString(R.string.dream_row_alarm),
+            ),
+            substring = true,
+        ) { copy(showAlarm = false) }
+    }
+
+    @Test
+    fun `switched-off battery details are not drawn`() {
+        assertSwitchHides(
+            mapOf(
+                DreamStyle.GLOW to "3.82 V",
+                DreamStyle.EDGE to "3.82 V",
+                DreamStyle.MINIMAL to "11.0 W",
+                DreamStyle.RING to "26.3 \u00B0C",
+                DreamStyle.GAUGES to context.getString(R.string.dream_row_temperature),
+            ),
+            substring = true,
+        ) { copy(showBatteryDetails = false) }
+    }
+
+    @Test
+    fun `a switched-off estimate is not drawn`() {
+        val state = sample()
+        assertSwitchHides(
+            mapOf(
+                DreamStyle.GLOW to state.fullTimeText,
+                DreamStyle.EDGE to state.fullTimeText,
+                DreamStyle.GAUGES to context.getString(R.string.dream_row_full),
+            ),
+        ) { copy(showEstimate = false) }
+    }
+
+    @Test
+    fun `a switched-off device name is not drawn`() {
+        assertSwitchHides(
+            mapOf(
+                DreamStyle.GLOW to "Pixel 8a",
+                DreamStyle.EDGE to "Pixel 8a",
+                DreamStyle.GAUGES to "PIXEL 8A",
+            ),
+        ) { copy(showDeviceName = false) }
+    }
+
+    @Test
+    fun `with everything switched off the clock and the level are still there`() {
+        val state = sample()
+        show(landscape = false)
+        for (style in DreamStyle.entries) {
+            shownOptions = DreamOptions(
+                style = style,
+                showDeviceName = false,
+                showNotifications = false,
+                showSeconds = false,
+                showDate = false,
+                showAlarm = false,
+                showBatteryDetails = false,
+                showEstimate = false,
+            )
+            compose.waitForIdle()
+            assertWithMessage("$style: the time").that(countOf(state.timeText)).isEqualTo(1)
+            assertWithMessage("$style: the level").that(countOf("64%", substring = true)).isAtLeast(1)
+        }
+    }
+
+    @Test
+    fun `Glow draws the sample in portrait`() {
+        show(landscape = false)
+        assertGlowSampleIsOnScreen()
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-land-mdpi")
+    fun `Glow draws the sample in landscape`() {
+        show(landscape = true)
+        assertGlowSampleIsOnScreen()
+    }
+
+    private fun assertGlowSampleIsOnScreen() {
+        val state = sample()
+        compose.onNodeWithText(state.timeText).assertExists()
+        compose.onNodeWithText(":${state.secondsText}").assertExists()
+        compose.onNodeWithText(state.dateText).assertExists()
+        compose.onNodeWithText("Pixel 8a").assertExists()
+        compose.onNodeWithText("⏰ ${state.alarmText}").assertExists()
+        compose.onNodeWithText("64%").assertExists()
+        compose.onNodeWithText(context.getString(R.string.dream_charging)).assertExists()
+        compose.onNodeWithText("3.82 V  ·  26.3 °C  ·  11.0 W").assertExists()
+        compose.onNodeWithText(state.fullTimeText).assertExists()
+    }
+
+    @Test
+    fun `Minimal draws the sample in portrait`() {
+        show(options = DreamOptions(style = DreamStyle.MINIMAL), landscape = false)
+        assertMinimalSampleIsOnScreen()
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-land-mdpi")
+    fun `Minimal draws the sample in landscape`() {
+        show(options = DreamOptions(style = DreamStyle.MINIMAL), landscape = true)
+        assertMinimalSampleIsOnScreen()
+    }
+
+    private fun assertMinimalSampleIsOnScreen() {
+        val state = sample()
+        compose.onNodeWithText(state.timeText).assertExists()
+        compose.onNodeWithText(state.shortDateText.uppercase(Locale.US)).assertExists()
+        compose.onNodeWithText("64%  ·  charging  ·  11.0 W").assertExists()
+        // What Minimal never shows: seconds, the device name, the alarm, the estimate.
+        compose.onAllNodesWithText(":${state.secondsText}").assertCountEquals(0)
+        compose.onAllNodesWithText("Pixel 8a").assertCountEquals(0)
+        compose.onAllNodesWithText(state.alarmText, substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText(state.fullTimeText).assertCountEquals(0)
+    }
+
+    @Test
+    fun `Night draws the sample in portrait`() {
+        show(options = DreamOptions(style = DreamStyle.NIGHT), landscape = false)
+        assertNightSampleIsOnScreen()
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-land-mdpi")
+    fun `Night draws the sample in landscape`() {
+        show(options = DreamOptions(style = DreamStyle.NIGHT), landscape = true)
+        assertNightSampleIsOnScreen()
+    }
+
+    private fun assertNightSampleIsOnScreen() {
+        val state = sample()
+        compose.onNodeWithText(state.timeText).assertExists()
+        compose.onNodeWithText(state.alarmText.uppercase(Locale.US)).assertExists()
+        compose.onNodeWithText("64%").assertExists()
+        // What Night never shows: the date, the device name, the figures, and any emoji
+        // (they would be drawn in their own colours, not in red).
+        compose.onAllNodesWithText(state.dateText).assertCountEquals(0)
+        compose.onAllNodesWithText(state.shortDateText.uppercase(Locale.US)).assertCountEquals(0)
+        compose.onAllNodesWithText("Pixel 8a").assertCountEquals(0)
+        compose.onAllNodesWithText("11.0 W", substring = true).assertCountEquals(0)
+        for (emoji in listOf("\u26A1", "\u23F0", "\uD83D\uDD0C", "\uD83D\uDD0B")) {
+            compose.onAllNodesWithText(emoji, substring = true).assertCountEquals(0)
+        }
+    }
+
+    @Test
+    fun `Ring draws the sample in portrait`() {
+        show(options = DreamOptions(style = DreamStyle.RING), landscape = false)
+        assertRingSampleIsOnScreen()
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-land-mdpi")
+    fun `Ring draws the sample in landscape`() {
+        show(options = DreamOptions(style = DreamStyle.RING), landscape = true)
+        assertRingSampleIsOnScreen()
+    }
+
+    private fun assertRingSampleIsOnScreen() {
+        val state = sample()
+        compose.onNodeWithText(state.timeText).assertExists()
+        compose.onNodeWithText(state.secondsText).assertExists()
+        compose.onNodeWithText(state.shortDateText.uppercase(Locale.US)).assertExists()
+        compose.onNodeWithText("64%").assertExists()
+        compose.onNodeWithText("\u26A1 charging  \u00B7  11.0 W  \u00B7  26.3 \u00B0C").assertExists()
+        // What Ring never shows: the device name, the alarm, the estimate.
+        compose.onAllNodesWithText("Pixel 8a").assertCountEquals(0)
+        compose.onAllNodesWithText(state.alarmText, substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText(state.fullTimeText).assertCountEquals(0)
+    }
+
+    @Test
+    fun `Gauges draws the sample in portrait`() {
+        show(options = DreamOptions(style = DreamStyle.GAUGES), landscape = false)
+        assertGaugesSampleIsOnScreen()
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-land-mdpi")
+    fun `Gauges draws the sample in landscape`() {
+        show(options = DreamOptions(style = DreamStyle.GAUGES), landscape = true)
+        assertGaugesSampleIsOnScreen()
+    }
+
+    private fun assertGaugesSampleIsOnScreen() {
+        val state = sample()
+        compose.onNodeWithText("PIXEL 8A").assertExists()
+        compose.onNodeWithText(state.compactDateText.uppercase(Locale.US), substring = true).assertExists()
+        compose.onNodeWithText(state.timeText).assertExists()
+        compose.onNodeWithText(":${state.secondsText}").assertExists()
+        val rows = listOf(
+            R.string.dream_row_battery to "64% \u26A1",
+            R.string.dream_row_power to "11.0 W",
+            R.string.dream_row_temperature to "26.3 \u00B0C",
+            R.string.dream_row_full to "~${state.fullClockText}",
+            R.string.dream_row_alarm to state.alarmText,
+        )
+        for ((label, value) in rows) {
+            compose.onNodeWithText(context.getString(label)).assertExists()
+            compose.onNodeWithText(value).assertExists()
+        }
+        compose.onNodeWithText(context.getString(R.string.dream_row_notifications)).assertExists()
+    }
+
+    @Test
+    fun `Edge draws the sample's texts and no charge emoji in portrait`() {
+        show(options = DreamOptions(style = DreamStyle.EDGE), landscape = false)
+        assertEdgeSampleIsOnScreen()
+    }
+
+    @Test
+    @Config(qualifiers = "w780dp-h360dp-land-mdpi")
+    fun `Edge draws the sample's texts and no charge emoji in landscape`() {
+        show(options = DreamOptions(style = DreamStyle.EDGE), landscape = true)
+        assertEdgeSampleIsOnScreen()
+    }
+
+    private fun assertEdgeSampleIsOnScreen() {
+        val state = sample()
+        compose.onNodeWithText(state.timeText).assertExists()
+        compose.onNodeWithText(":${state.secondsText}").assertExists()
+        compose.onNodeWithText(state.dateText).assertExists()
+        compose.onNodeWithText("Pixel 8a").assertExists()
+        compose.onNodeWithText(context.getString(R.string.dream_charging)).assertExists()
+        compose.onNodeWithText("64%").assertExists()
+        compose.onNodeWithText("3.82 V  \u00B7  26.3 \u00B0C  \u00B7  11.0 W").assertExists()
+        compose.onNodeWithText(state.fullTimeText).assertExists()
+        // The line round the screen says what the bolt, the plug and the battery said.
+        for (emoji in listOf("\u26A1", "\uD83D\uDD0C", "\uD83D\uDD0B")) {
+            compose.onAllNodesWithText(emoji, substring = true).assertCountEquals(0)
+        }
+    }
+
+    /**
+     * The screen as a picture. The view is drawn straight into a bitmap: what a style draws
+     * into the frame's background lands there, which is where the Edge line lives.
+     */
+    private fun drawScreen(): Bitmap {
+        val view = (compose.onRoot().fetchSemanticsNode().root as ViewRootForTest).view
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        compose.runOnUiThread { view.draw(Canvas(bitmap)) }
+        return bitmap
+    }
+
+    private fun brightestChannel(picture: Bitmap, x: Int, y: Int): Float {
+        val pixel = picture.getPixel(x, y)
+        return maxOf(android.graphics.Color.red(pixel), android.graphics.Color.green(pixel), android.graphics.Color.blue(pixel)) / 255f
+    }
+
+    @Test
+    fun `Edge lights the line as far as the battery is full`() {
+        // 360 x 780 px at one pixel a dp. Standing still the line is in the lane 7 dp from
+        // the edge; at 64 % it has left the bottom centre, climbed the left side, crossed
+        // the top and come a little way down the right side.
+        show(options = DreamOptions(style = DreamStyle.EDGE), landscape = false)
+
+        val picture = drawScreen()
+        fun brightness(x: Int, y: Int): Float = brightestChannel(picture, x, y)
+
+        assertThat(brightness(7, 400)).isGreaterThan(0.6f)      // left side: lit
+        assertThat(brightness(100, 7)).isGreaterThan(0.6f)      // top: lit
+        assertThat(brightness(100, 773)).isGreaterThan(0.6f)    // bottom, left of centre: lit
+        assertThat(brightness(353, 600)).isLessThan(0.2f)       // right side, low: the dark track
+        assertThat(brightness(260, 773)).isLessThan(0.2f)       // bottom, right of centre: the dark track
+        assertThat(brightness(353, 600)).isGreaterThan(0.03f)   // ...which is a track, not nothing
+        assertThat(brightness(30, 300)).isLessThan(0.03f)       // inside the line: black
+    }
+
+    @Test
+    fun `Edge starts from the viewer's bottom when the layout is flipped`() {
+        // Flipped, the viewer's bottom is the screen's top: the line leaves the top centre
+        // and, clockwise for the viewer, runs to the right first.
+        show(options = DreamOptions(style = DreamStyle.EDGE, layoutSwapped = true), landscape = false)
+
+        val picture = drawScreen()
+        fun brightness(x: Int, y: Int): Float = brightestChannel(picture, x, y)
+
+        assertThat(brightness(260, 7)).isGreaterThan(0.6f)      // top, right of centre: lit
+        assertThat(brightness(353, 400)).isGreaterThan(0.6f)    // right side: lit
+        assertThat(brightness(100, 7)).isLessThan(0.2f)         // top, left of centre: the dark track
+    }
+
+    /** That [rested] shows [lit] at the rest's brightness over [backdrop], channel by channel. */
+    private fun assertRested(what: String, lit: Int, rested: Int, backdrop: Int) {
+        val channels = listOf<(Int) -> Int>(
+            android.graphics.Color::red,
+            android.graphics.Color::green,
+            android.graphics.Color::blue,
+        )
+        for ((index, channel) in channels.withIndex()) {
+            val expected = EDGE_REST_ALPHA * channel(lit) + (1f - EDGE_REST_ALPHA) * channel(backdrop)
+            assertWithMessage("$what, channel $index").that(channel(rested).toFloat()).isWithin(4f).of(expected)
+        }
+    }
+
+    @Test
+    fun `a resting Edge line is one dimmed picture, its head included`() {
+        // Held at 70 % the head stands still on the right side. After ten minutes without a
+        // change the lit drawing is shown at 35 % as a whole: the head lies over the line
+        // and its own halo, and they must not show through each other and add up to more.
+        val start = SAMPLE_NOW_MS - SAMPLE_NOW_MS % 60_000L
+        var shown by mutableStateOf(
+            sample().copy(batteryLevel = 70, chargeState = DreamChargeState.HELD, clockMillis = start)
+        )
+        compose.setContent {
+            CompositionLocalProvider(LocalDreamMoving provides true) {
+                Box(Modifier.fillMaxSize()) { EdgeBackground(state = shown, swapped = false) }
+            }
+        }
+        val lit = drawScreen()
+
+        // Twelve minutes on the line is back in the lane it started in, and has rested.
+        shown = shown.copy(clockMillis = start + 12 * 60_000L)
+        compose.waitForIdle()
+        val rested = drawScreen()
+
+        val inset = EDGE_LANE_INSETS_DP[edgeLane(start / 60_000L)]
+        val radius = edgeCornerRadius(null, inset, 360f, 780f)
+        val (headX, headY) = edgePoint(0.70f, 360f, 780f, inset, radius)
+        val head = headX.toInt() to headY.toInt()
+        val line = inset.toInt() to 400              // the core, on the left side
+        val glow = inset.toInt() + 3 to 400          // beside the core: glow over black
+        val track = lit.getPixel(head.first, 700)    // the unlit track, further down the right side
+
+        assertThat(android.graphics.Color.green(lit.getPixel(head.first, head.second))).isGreaterThan(240)
+        assertThat(android.graphics.Color.green(lit.getPixel(line.first, line.second))).isGreaterThan(240)
+        assertRested("the core", lit.getPixel(line.first, line.second), rested.getPixel(line.first, line.second), track)
+        assertRested(
+            "the glow",
+            lit.getPixel(glow.first, glow.second),
+            rested.getPixel(glow.first, glow.second),
+            android.graphics.Color.BLACK,
+        )
+        assertRested("the head", lit.getPixel(head.first, head.second), rested.getPixel(head.first, head.second), track)
+    }
+
+    @Test
+    fun `Gauges lists the calendar's rows only when its switch is on`() {
+        val events = listOf(
+            DreamCalendarRow("SAT 10:00", "Dentist"),
+            DreamCalendarRow("SUN", "Father's Day lunch"),
+        )
+        show(
+            options = DreamOptions(style = DreamStyle.GAUGES, showCalendar = true),
+            landscape = false,
+            state = sample().copy(calendarRows = events),
+        )
+        for (event in events) {
+            compose.onNodeWithText(event.whenText).assertExists()
+            compose.onNodeWithText(event.title).assertExists()
+        }
+
+        shownOptions = DreamOptions(style = DreamStyle.GAUGES)
+        compose.waitForIdle()
+        for (event in events) {
+            assertThat(countOf(event.title)).isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `the flip button is gone`() {
+        show(landscape = false)
+
+        compose.onAllNodesWithText("⇅").assertCountEquals(0)
+        compose.onAllNodesWithText("⇄").assertCountEquals(0)
+    }
+
+    @Test
+    fun `a tap closes`() {
+        var taps = 0
+        show(landscape = false, onTap = { taps++ })
+
+        compose.onRoot().performClick()
+
+        assertThat(taps).isEqualTo(1)
+    }
+
+    private companion object {
+        /** 13 November 2026 at 18:10:26 UTC; the exact local time does not matter here. */
+        const val SAMPLE_NOW_MS = 1_794_593_426_000L
+    }
+}

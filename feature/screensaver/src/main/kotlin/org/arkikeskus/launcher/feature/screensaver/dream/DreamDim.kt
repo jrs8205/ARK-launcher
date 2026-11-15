@@ -1,0 +1,88 @@
+package org.arkikeskus.launcher.feature.screensaver.dream
+
+import android.content.SharedPreferences
+import android.view.WindowManager
+import org.arkikeskus.launcher.data.screensaver.DreamPreferences
+import java.util.Calendar
+import kotlin.math.pow
+
+/** Minutes since local midnight, for the night-dim window check. */
+internal fun currentMinuteOfDay(): Int {
+    val calendar = Calendar.getInstance()
+    return calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+}
+
+/**
+ * Effective dim state: the manual dim switch, or the automatic night window when enabled.
+ * Pure apart from the SharedPreferences reads so the window logic itself is unit-testable
+ * via [isInNightWindow].
+ */
+internal fun shouldDimNow(prefs: SharedPreferences, nowMinutes: Int): Boolean =
+    prefs.getBoolean(DreamPreferences.KEY_DIM_SCREENSAVER, false) || nightWindowActive(prefs, nowMinutes)
+
+/** Whether the automatic night dim is switched on and [nowMinutes] falls inside its window. */
+internal fun nightWindowActive(prefs: SharedPreferences, nowMinutes: Int): Boolean {
+    if (!prefs.getBoolean(DreamPreferences.KEY_NIGHT_DIM, false)) return false
+    return isInNightWindow(
+        nowMinutes,
+        prefs.getInt(
+            DreamPreferences.KEY_NIGHT_DIM_START_MINUTES,
+            DreamPreferences.DEFAULT_NIGHT_DIM_START_MINUTES
+        ),
+        prefs.getInt(
+            DreamPreferences.KEY_NIGHT_DIM_END_MINUTES,
+            DreamPreferences.DEFAULT_NIGHT_DIM_END_MINUTES
+        )
+    )
+}
+
+/**
+ * Whether [nowMinutes] (minutes since midnight) falls inside the window from [startMinutes]
+ * (inclusive) to [endMinutes] (exclusive). A window that crosses midnight (e.g. 22:00–07:00)
+ * is handled; an empty window (start == end) never matches.
+ */
+internal fun isInNightWindow(nowMinutes: Int, startMinutes: Int, endMinutes: Int): Boolean {
+    if (startMinutes == endMinutes) return false
+    return if (startMinutes < endMinutes) {
+        nowMinutes >= startMinutes && nowMinutes < endMinutes
+    } else {
+        nowMinutes >= startMinutes || nowMinutes < endMinutes
+    }
+}
+
+/**
+ * The style to draw right now. With the automatic Night style switched on, the chosen style
+ * gives way to Night for the hours of the night dim and comes back when they end.
+ */
+internal fun effectiveDreamStyle(
+    selected: DreamStyle,
+    nightStyleAuto: Boolean,
+    nightWindowActive: Boolean,
+): DreamStyle = if (nightStyleAuto && nightWindowActive) DreamStyle.NIGHT else selected
+
+/** The power of the brightness scale: see [dreamBrightnessOf]. */
+private const val BRIGHTNESS_CURVE = 2.2
+
+/**
+ * The window brightness, 0..1, for a level of 1..100 per cent; 100 is the brightest a
+ * window can ask for. The eye judges brightness by ratio, not by difference, so the scale
+ * is a power curve: its steps look about even, where even steps of light would crowd all
+ * that a dim room needs into the slider's first few per cent.
+ */
+internal fun dreamBrightnessOf(percent: Int): Float =
+    (percent.coerceIn(1, 100) / 100.0).pow(BRIGHTNESS_CURVE).toFloat()
+
+/**
+ * The brightness the screensaver's window asks for: the user's own level when one is
+ * set, in every style, otherwise none of its own, which leaves the phone's brightness
+ * as it is. Never while the screensaver is dimmed: [dimNow] is the manual dim switch or
+ * the night window, and dimming is the stronger wish.
+ */
+internal fun dreamWindowBrightness(options: DreamOptions, dimNow: Boolean): Float {
+    val percent = options.brightnessPercent
+    return if (percent == null || dimNow) {
+        WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+    } else {
+        dreamBrightnessOf(percent)
+    }
+}
