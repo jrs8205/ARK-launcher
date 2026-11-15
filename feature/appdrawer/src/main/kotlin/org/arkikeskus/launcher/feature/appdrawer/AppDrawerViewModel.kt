@@ -58,6 +58,7 @@ import org.arkikeskus.launcher.data.PrivateSettingsTarget
 import org.arkikeskus.launcher.data.PrivateSpace
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import javax.inject.Inject
+import org.arkikeskus.launcher.model.IconShape
 
 /** A drawer folder resolved to its member [apps] (for rendering), with the [icon] the user picked
  *  for it in place of its preview, if any. */
@@ -126,6 +127,7 @@ data class AppDrawerUiState(
     val useThemedIcons: Boolean = false,
     val themeAllIcons: Boolean = false,
     val iconPackPackage: String = "",
+    val iconShape: IconShape = IconShape.SYSTEM,
     val calc: SearchResult.Calculation? = null,
     /** The query on screen has no results yet (the debounce or the search is still running): the
      *  lists are the previous query's, so "No results" must wait. */
@@ -244,6 +246,7 @@ class AppDrawerViewModel @Inject constructor(
             useThemedIcons = settings.useThemedIcons,
             themeAllIcons = settings.themeAllIcons,
             iconPackPackage = settings.iconPackPackage,
+            iconShape = settings.iconShape,
             desktopLocked = settings.desktopLocked,
             showFrequentApps = settings.showFrequentApps,
             appLabelTextScale = settings.appLabelTextScale,

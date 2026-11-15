@@ -129,6 +129,7 @@ import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
+import org.arkikeskus.launcher.ui.component.LocalIconShape
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.ui.component.NotificationBadge
@@ -269,6 +270,7 @@ fun AppDrawerScreen(
         LocalThemedIcons provides uiState.useThemedIcons,
         LocalThemeAllIcons provides uiState.themeAllIcons,
         LocalIconPack provides uiState.iconPackPackage,
+        LocalIconShape provides uiState.iconShape,
         LocalAppLabelScale provides uiState.appLabelTextScale,
         LocalIconScale provides uiState.iconScale,
         LocalAppLabelLines provides if (uiState.twoLineLabels) 2 else 1,

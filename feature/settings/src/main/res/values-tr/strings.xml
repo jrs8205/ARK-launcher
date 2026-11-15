@@ -147,6 +147,17 @@
     <string name="settings_themed_icons">Temalı simgeler (Material You)</string>
     <string name="settings_icon_pack">Simge paketi</string>
     <string name="settings_icon_pack_system">Sistem varsayılanı</string>
+    <string name="settings_icon_shape">Simge şekli</string>
+    <string name="settings_icon_shape_desc">Simge paketindeki simgeler kendi şeklini korur.</string>
+    <string name="icon_shape_system">Sistem</string>
+    <string name="icon_shape_circle">Daire</string>
+    <string name="icon_shape_squircle">Squircle</string>
+    <string name="icon_shape_rounded_square">Yuvarlatılmış kare</string>
+    <string name="icon_shape_square">Kare</string>
+    <string name="icon_shape_teardrop">Damla</string>
+    <string name="icon_shape_hexagon">Altıgen</string>
+    <string name="icon_shape_octagon">Sekizgen</string>
+    <string name="icon_shape_flower">Çiçek</string>
     <string name="settings_label_size">Etiket metni boyutu</string>
     <string name="settings_icon_size">Simge boyutu (ana ekran ve dock)</string>
     <string name="settings_drawer_icon_size">Simge boyutu</string>

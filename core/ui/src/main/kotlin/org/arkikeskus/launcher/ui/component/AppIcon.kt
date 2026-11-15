@@ -35,6 +35,7 @@ import coil3.compose.AsyncImage
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.model.IconRequest
+import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.ui.AppLaunchOrigin
 import org.arkikeskus.launcher.ui.AppLaunchSources
 import org.arkikeskus.launcher.ui.LauncherIcons
@@ -62,6 +63,14 @@ val LocalThemeAllIcons = compositionLocalOf { false }
  * use the pack's icon and unmapped ones are masked to its style; overrides [LocalThemedIcons].
  */
 val LocalIconPack = compositionLocalOf { "" }
+
+/**
+ * The icon shape the user picked (issue #26) under this subtree; the system's leaves the icons as the phone
+ * shapes them. Provided per surface beside [LocalIconPack] and fed into the Coil request (part of the cache
+ * key): the shape is drawn into the icon's bitmap, so picking one redraws every icon. Icons that come from
+ * an icon pack keep the form their pack gave them.
+ */
+val LocalIconShape = compositionLocalOf { IconShape.SYSTEM }
 
 /**
  * Icon re-fetch tokens (see [IconEpochs]), provided once at the shell root. [AppIcon] folds the
@@ -165,6 +174,7 @@ fun AppIcon(
                     iconPack = LocalIconPack.current,
                     epoch = LocalIconEpochs.current.of(appItem.packageName),
                     themeAll = LocalThemeAllIcons.current,
+                    shape = LocalIconShape.current,
                 ),
                 // A marked icon's name is said once, with its profile, by the whole tile (above).
                 contentDescription = if (privateMark == null) spoken else null,

@@ -147,6 +147,17 @@
     <string name="settings_themed_icons">Designbasierte Symbole (Material You)</string>
     <string name="settings_icon_pack">Symbolpaket</string>
     <string name="settings_icon_pack_system">Systemstandard</string>
+    <string name="settings_icon_shape">Symbolform</string>
+    <string name="settings_icon_shape_desc">Symbole aus einem Symbolpaket behalten ihre eigene Form.</string>
+    <string name="icon_shape_system">System</string>
+    <string name="icon_shape_circle">Kreis</string>
+    <string name="icon_shape_squircle">Squircle</string>
+    <string name="icon_shape_rounded_square">Abgerundetes Quadrat</string>
+    <string name="icon_shape_square">Quadrat</string>
+    <string name="icon_shape_teardrop">Tropfen</string>
+    <string name="icon_shape_hexagon">Sechseck</string>
+    <string name="icon_shape_octagon">Achteck</string>
+    <string name="icon_shape_flower">Blume</string>
     <string name="settings_label_size">Textgröße der Beschriftungen</string>
     <string name="settings_icon_size">Symbolgröße (Startbildschirm und Dock)</string>
     <string name="settings_drawer_icon_size">Symbolgröße</string>

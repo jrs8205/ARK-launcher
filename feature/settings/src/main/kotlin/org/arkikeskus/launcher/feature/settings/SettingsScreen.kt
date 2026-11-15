@@ -31,6 +31,7 @@ import org.arkikeskus.launcher.feature.backup.BackupScreen
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.component.LocalIconPack
+import org.arkikeskus.launcher.ui.component.LocalIconShape
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import org.arkikeskus.launcher.designsystem.theme.currentBasePalette
@@ -201,6 +202,7 @@ internal fun SettingsContent(
         // So AppIcons in the pickers (left-edge app, hidden apps) match the selected icon pack / themed
         // icons like every other surface.
         LocalIconPack provides s.iconPackPackage,
+        LocalIconShape provides s.iconShape,
         LocalThemedIcons provides s.useThemedIcons,
         LocalThemeAllIcons provides s.themeAllIcons,
     ) {

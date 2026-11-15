@@ -150,6 +150,17 @@
     <string name="settings_themed_icons">Iconos temáticos (Material You)</string>
     <string name="settings_icon_pack">Paquete de iconos</string>
     <string name="settings_icon_pack_system">Predeterminado del sistema</string>
+    <string name="settings_icon_shape">Forma de los iconos</string>
+    <string name="settings_icon_shape_desc">Los iconos de un paquete de iconos conservan su propia forma.</string>
+    <string name="icon_shape_system">Sistema</string>
+    <string name="icon_shape_circle">Círculo</string>
+    <string name="icon_shape_squircle">Squircle</string>
+    <string name="icon_shape_rounded_square">Cuadrado redondeado</string>
+    <string name="icon_shape_square">Cuadrado</string>
+    <string name="icon_shape_teardrop">Gota</string>
+    <string name="icon_shape_hexagon">Hexágono</string>
+    <string name="icon_shape_octagon">Octágono</string>
+    <string name="icon_shape_flower">Flor</string>
     <string name="settings_label_size">Tamaño del texto</string>
     <string name="settings_icon_size">Tamaño de los iconos (pantalla de inicio y dock)</string>
     <string name="settings_drawer_icon_size">Tamaño de los iconos</string>

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import org.arkikeskus.launcher.model.CustomIcon
+import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -134,6 +135,8 @@ class SettingsRepository @Inject constructor(
             notificationDotScale = (p[Keys.NOTIF_DOT_SCALE] ?: 1.0f).coerceIn(MIN_DOT_SCALE, MAX_DOT_SCALE),
             useThemedIcons = p[Keys.USE_THEMED_ICONS] ?: false,
             iconPackPackage = p[Keys.ICON_PACK] ?: "",
+            // A missing id, or one a newer version stored, reads as the system's shape.
+            iconShape = IconShape.fromId(p[Keys.ICON_SHAPE]),
             searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
             weatherAppKey = p[Keys.WEATHER_APP_KEY] ?: "",
@@ -521,6 +524,7 @@ class SettingsRepository @Inject constructor(
 
     /** Sets (or clears, for blank) the selected third-party icon pack package. */
     suspend fun setIconPackPackage(pkg: String) = edit { it[Keys.ICON_PACK] = pkg.trim() }
+    suspend fun setIconShape(shape: IconShape) = edit { it[Keys.ICON_SHAPE] = shape.id }
 
     /** Count indicator style of the built-in notifications widget (see LauncherSettings.COUNT_*). */
     suspend fun setWidgetTonalBackground(value: Boolean) = edit { it[Keys.WIDGET_TONAL_BACKGROUND] = value }
@@ -874,6 +878,7 @@ class SettingsRepository @Inject constructor(
         val NOTIF_WIDGET_COUNT_STYLE = stringPreferencesKey("notif_widget_count_style")
         val USE_THEMED_ICONS = booleanPreferencesKey("use_themed_icons")
         val ICON_PACK = stringPreferencesKey("icon_pack_package")
+        val ICON_SHAPE = stringPreferencesKey("icon_shape")
         val SEARCH_CONTACTS = booleanPreferencesKey("search_contacts")
         val LEFT_SWIPE_APP_KEY = stringPreferencesKey("left_swipe_app_key")
         val WEATHER_APP_KEY = stringPreferencesKey("weather_app_key")
@@ -1017,7 +1022,7 @@ class SettingsRepository @Inject constructor(
             "page_switch_speed", "collapsed_settings_sections", "font_family",
             "people_privacy", "pinned_people", "people_aliases", "people_batch_times",
             "custom_icons", "folder_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps", "weather_icon_style",
-            "base_colour",
+            "base_colour", "icon_shape",
         )
 
         /** Preferences holding picked icons ("key\ticon" lines, see [CustomIcon.encode]). */

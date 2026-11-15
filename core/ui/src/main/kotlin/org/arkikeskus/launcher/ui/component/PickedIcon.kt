@@ -15,7 +15,8 @@ import org.arkikeskus.launcher.model.CustomIconImage
 /** An icon the user picked ([CustomIcon]) drawn on its own — a folder's icon, a tile in the icon
  *  picker — loaded and cached by Coil like the app icons. When it can't be loaded (its pack was
  *  uninstalled, its picture deleted) [fallback] shows instead, if given. Its pack's icon epoch (see
- *  [LocalIconEpochs]) is in the model, so an updated or reinstalled pack loads it anew. */
+ *  [LocalIconEpochs]) is in the model, so an updated or reinstalled pack loads it anew. So is the icon
+ *  shape ([LocalIconShape]): a gallery picture is cut to it. */
 @Composable
 fun PickedIcon(
     icon: CustomIcon,
@@ -35,7 +36,7 @@ fun PickedIcon(
         return
     }
     AsyncImage(
-        model = CustomIconImage(icon, epoch),
+        model = CustomIconImage(icon, epoch, LocalIconShape.current),
         contentDescription = contentDescription,
         modifier = modifier.size(size),
         onError = { failed = true },

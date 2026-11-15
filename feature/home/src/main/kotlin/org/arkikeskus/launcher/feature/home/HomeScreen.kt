@@ -117,6 +117,7 @@ import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalIconPack
+import org.arkikeskus.launcher.ui.component.LocalIconShape
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
 import kotlin.math.abs
@@ -581,6 +582,7 @@ fun HomeScreen(
         LocalThemedIcons provides settings.useThemedIcons,
         LocalThemeAllIcons provides settings.themeAllIcons,
         LocalIconPack provides settings.iconPackPackage,
+        LocalIconShape provides settings.iconShape,
         LocalAppLabelScale provides settings.appLabelTextScale,
         LocalIconScale provides settings.iconScale,
         LocalPageSwitchSpeed provides settings.pageSwitchSpeed,

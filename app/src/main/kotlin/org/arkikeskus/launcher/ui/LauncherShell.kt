@@ -45,6 +45,7 @@ import org.arkikeskus.launcher.feature.appdrawer.AppDrawerScreen
 import org.arkikeskus.launcher.feature.home.HomeScreen
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalIconPack
+import org.arkikeskus.launcher.ui.component.LocalIconShape
 import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.LocalThemeAllIcons
 import org.arkikeskus.launcher.ui.component.LocalThemedIcons
@@ -323,6 +324,7 @@ fun LauncherShell(
                     // their CompositionLocal scopes, so without this it reverts to the plain system icon).
                     CompositionLocalProvider(
                         LocalIconPack provides iconStyle.iconPack,
+                        LocalIconShape provides iconStyle.shape,
                         LocalThemedIcons provides iconStyle.themed,
                         LocalThemeAllIcons provides iconStyle.themeAll,
                         LocalIconScale provides iconStyle.iconScale,

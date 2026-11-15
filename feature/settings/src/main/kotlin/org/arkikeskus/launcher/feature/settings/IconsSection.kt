@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.feature.settings
 
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.ColorDrawable
 import android.provider.Settings
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -32,7 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.iconShapePath
 import org.arkikeskus.launcher.ui.launcherFontFamily
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
@@ -40,7 +53,7 @@ import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 
-/** Settings > Icons: label and icon size, label colour, font, themed icons and the icon pack. */
+/** Settings > Icons: label and icon size, label colour, font, themed icons, the icon pack and the icon shape. */
 @Composable
 internal fun IconsRows(s: LauncherSettings, iconPacks: List<IconPackInfo>, actions: SettingsActions) {
     val percentText = percentReadout()
@@ -108,7 +121,89 @@ internal fun IconsRows(s: LauncherSettings, iconPacks: List<IconPackInfo>, actio
             onDismiss = { showIconPackPicker = false },
         )
     }
+    SettingRow("I8") {
+        IconShapeRow(selected = s.iconShape, onPick = actions::setIconShape)
+    }
 }
+
+/** A test tag per icon shape tile, by the shape's id. */
+internal fun iconShapeTag(shape: IconShape): String = "icon-shape-${shape.id}"
+
+/** The name of an icon shape, in its own words. */
+private fun iconShapeNameRes(shape: IconShape): Int = when (shape) {
+    IconShape.SYSTEM -> R.string.icon_shape_system
+    IconShape.CIRCLE -> R.string.icon_shape_circle
+    IconShape.SQUIRCLE -> R.string.icon_shape_squircle
+    IconShape.ROUNDED_SQUARE -> R.string.icon_shape_rounded_square
+    IconShape.SQUARE -> R.string.icon_shape_square
+    IconShape.TEARDROP -> R.string.icon_shape_teardrop
+    IconShape.HEXAGON -> R.string.icon_shape_hexagon
+    IconShape.OCTAGON -> R.string.icon_shape_octagon
+    IconShape.FLOWER -> R.string.icon_shape_flower
+}
+
+/**
+ * The icon shape (issue #26): one tile per shape, each drawn as its own outline so the choice can be seen
+ * before it is made. The system's tile shows the phone's own icon mask. One of them is always chosen.
+ */
+@Composable
+internal fun IconShapeRow(selected: IconShape, onPick: (IconShape) -> Unit) {
+    val p = LocalExpressivePalette.current
+    Surface(
+        color = p.surfaceHi,
+        shape = expressiveCardShape(),
+        shadowElevation = expressiveCardShadow(),
+        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            RowLabel(stringResource(R.string.settings_icon_shape))
+            Text(stringResource(R.string.settings_icon_shape_desc), color = p.dim, fontSize = 12.5.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()).selectableGroup(),
+            ) {
+                IconShape.entries.forEach { shape ->
+                    IconShapeTile(shape, selected = shape == selected, onClick = { onPick(shape) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IconShapeTile(shape: IconShape, selected: Boolean, onClick: () -> Unit) {
+    val p = LocalExpressivePalette.current
+    val ink = if (selected) p.accent else p.dim
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(76.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .testTag(iconShapeTag(shape))
+            .padding(horizontal = 2.dp, vertical = 8.dp),
+    ) {
+        Canvas(Modifier.size(44.dp)) {
+            drawPath(iconShapeOutline(shape, size.minDimension).asComposePath(), ink)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            stringResource(iconShapeNameRes(shape)),
+            color = if (selected) p.accent else p.text,
+            fontSize = 11.5.sp,
+            lineHeight = 13.sp,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+        )
+    }
+}
+
+/** The outline a tile draws: the shape's own, or for the system's the phone's icon mask. */
+private fun iconShapeOutline(shape: IconShape, sizePx: Float): android.graphics.Path =
+    iconShapePath(shape, sizePx)
+        ?: AdaptiveIconDrawable(ColorDrawable(android.graphics.Color.BLACK), null)
+            .apply { setBounds(0, 0, sizePx.toInt(), sizePx.toInt()) }.iconMask
 
 /** Single-select icon-pack picker: a "System default" entry on top, then every installed pack. */
 @Composable

@@ -147,6 +147,17 @@
     <string name="settings_themed_icons">Ikoner med tema (Material You)</string>
     <string name="settings_icon_pack">Ikonpaket</string>
     <string name="settings_icon_pack_system">Systemstandard</string>
+    <string name="settings_icon_shape">Ikonform</string>
+    <string name="settings_icon_shape_desc">Ikoner från ett ikonpaket behåller sin egen form.</string>
+    <string name="icon_shape_system">System</string>
+    <string name="icon_shape_circle">Cirkel</string>
+    <string name="icon_shape_squircle">Squircle</string>
+    <string name="icon_shape_rounded_square">Rundad kvadrat</string>
+    <string name="icon_shape_square">Kvadrat</string>
+    <string name="icon_shape_teardrop">Droppe</string>
+    <string name="icon_shape_hexagon">Hexagon</string>
+    <string name="icon_shape_octagon">Oktagon</string>
+    <string name="icon_shape_flower">Blomma</string>
     <string name="settings_label_size">Textstorlek för appnamn</string>
     <string name="settings_icon_size">Ikonstorlek (startskärm och dock)</string>
     <string name="settings_drawer_icon_size">Ikonstorlek</string>

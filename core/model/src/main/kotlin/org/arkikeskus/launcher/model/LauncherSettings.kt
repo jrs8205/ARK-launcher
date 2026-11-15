@@ -75,6 +75,8 @@ data class LauncherSettings(
     /** Package name of the selected third-party icon pack (empty = system default). Overrides
      *  [useThemedIcons] when set: mapped apps use the pack's icon, unmapped apps are masked to its style. */
     val iconPackPackage: String = "",
+    /** The shape every app icon is cut to (issue #26); the system's leaves the icons as the phone shapes them. */
+    val iconShape: IconShape = IconShape.SYSTEM,
     /** Include contacts in app-drawer search (gated by READ_CONTACTS; requested when enabled). */
     val searchContacts: Boolean = false,
     /** App key launched by the left-edge home swipe (Settings ▸ Eleet); blank = gesture disabled. */

@@ -193,6 +193,7 @@ internal object SettingsIndex {
                 fallback = "I5", minSdk = Build.VERSION_CODES.TIRAMISU,
             )
             row("I7", c, R.string.settings_icon_pack)
+            row("I8", c, R.string.settings_icon_shape, R.string.settings_icon_shape_desc)
         }
         SettingsCategory.GESTURES.let { c ->
             row("G1", c, R.string.settings_swipe_up_drawer)

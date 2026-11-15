@@ -140,7 +140,7 @@ class SettingsInventoryTest {
             "H25" to "settings_people_batch_times", "H16" to "settings_widget_tonal", "H17" to "settings_widget_inset",
             "I1" to "settings_label_size", "I2" to "settings_icon_size", "I3" to "settings_label_color",
             "I4" to "settings_font", "I5" to "settings_themed_icons", "I6" to "settings_theme_all_icons",
-            "I7" to "settings_icon_pack",
+            "I7" to "settings_icon_pack", "I8" to "settings_icon_shape",
             "G1" to "settings_swipe_up_drawer", "G2" to "settings_swipe_down_notif",
             "G3" to "settings_folder_swipe_first_app", "G4" to "settings_left_edge", "G5" to "settings_double_tap_lock",
             "G5a" to "settings_double_tap_lock_grant", "G6" to "settings_long_press_delay",

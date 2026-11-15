@@ -153,6 +153,17 @@
     <string name="settings_themed_icons">Тематические значки (Material You)</string>
     <string name="settings_icon_pack">Набор значков</string>
     <string name="settings_icon_pack_system">Системные (по умолчанию)</string>
+    <string name="settings_icon_shape">Форма значков</string>
+    <string name="settings_icon_shape_desc">Значки из набора значков сохраняют свою форму.</string>
+    <string name="icon_shape_system">Системная</string>
+    <string name="icon_shape_circle">Круг</string>
+    <string name="icon_shape_squircle">Сквиркл</string>
+    <string name="icon_shape_rounded_square">Скруглённый квадрат</string>
+    <string name="icon_shape_square">Квадрат</string>
+    <string name="icon_shape_teardrop">Капля</string>
+    <string name="icon_shape_hexagon">Шестиугольник</string>
+    <string name="icon_shape_octagon">Восьмиугольник</string>
+    <string name="icon_shape_flower">Цветок</string>
     <string name="settings_label_size">Размер подписей</string>
     <string name="settings_icon_size">Размер значков (главный экран и док-панель)</string>
     <string name="settings_drawer_icon_size">Размер значков</string>

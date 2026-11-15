@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.feature.settings
 
 import android.net.Uri
+import org.arkikeskus.launcher.model.IconShape
 
 /**
  * Everything the Settings page can ask for: one function per setting it changes and per thing it
@@ -57,6 +58,7 @@ internal interface SettingsActions {
     fun setNotificationDotScale(value: Float)
     fun setUseThemedIcons(value: Boolean)
     fun setIconPack(pkg: String)
+    fun setIconShape(shape: IconShape)
     fun setSearchContacts(value: Boolean)
     fun setLeftSwipeAppKey(key: String?)
     fun setWeatherAppKey(key: String?)

@@ -891,6 +891,24 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `icon shape is the system's until picked, survives a backup round-trip and reads an unknown id as the system's`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().iconShape).isEqualTo(org.arkikeskus.launcher.model.IconShape.SYSTEM)
+        repo.setIconShape(org.arkikeskus.launcher.model.IconShape.HEXAGON)
+        assertThat(repo.settings.first().iconShape).isEqualTo(org.arkikeskus.launcher.model.IconShape.HEXAGON)
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("icon_shape", "hexagon")
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().iconShape).isEqualTo(org.arkikeskus.launcher.model.IconShape.HEXAGON)
+        restored.importRaw(mapOf("icon_shape" to "star"))
+        assertThat(restored.settings.first().iconShape).isEqualTo(org.arkikeskus.launcher.model.IconShape.SYSTEM) // unknown: the system's
+        restored.importRaw(mapOf("icon_shape" to 7))
+        assertThat(restored.settings.first().iconShape).isEqualTo(org.arkikeskus.launcher.model.IconShape.SYSTEM) // wrong type dropped
+    }
+
+    @Test
     fun `font family is the default until set, survives a backup round-trip and reads an unknown key as the default`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().fontFamily).isEqualTo(LauncherSettings.FONT_DEFAULT)

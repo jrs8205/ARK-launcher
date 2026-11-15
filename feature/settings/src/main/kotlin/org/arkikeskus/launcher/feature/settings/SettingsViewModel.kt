@@ -26,6 +26,7 @@ import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
+import org.arkikeskus.launcher.model.IconShape
 
 @HiltViewModel
 internal class SettingsViewModel @Inject constructor(
@@ -148,6 +149,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setNotificationDotScale(value: Float) = update { repository.setNotificationDotScale(value) }
     override fun setUseThemedIcons(value: Boolean) = update { repository.setUseThemedIcons(value) }
     override fun setIconPack(pkg: String) = update { repository.setIconPackPackage(pkg) }
+    override fun setIconShape(shape: IconShape) = update { repository.setIconShape(shape) }
     override fun setSearchContacts(value: Boolean) = update { repository.setSearchContacts(value) }
 
     /** Sets (or clears, for null) the app launched by the left-edge home swipe. */

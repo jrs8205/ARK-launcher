@@ -17,6 +17,7 @@ import org.arkikeskus.launcher.model.DrawerSurface
 import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.model.drawerSurface
 import javax.inject.Inject
+import org.arkikeskus.launcher.model.IconShape
 
 /** ARK's own status bar is on, with its scrim at [scrimOpacity]; the system bar is hidden on home; the app
  *  drawer paints [drawerSurface] over what is behind it (a see-through drawer leaves the wallpaper behind the bars). */
@@ -37,7 +38,13 @@ data class StatusBarSettings(
 
 /** The app-icon style (icon pack, themed, the icon-size multiplier), so the shell's floating drag icon
  *  matches the surfaces. */
-data class IconStyle(val iconPack: String = "", val themed: Boolean = false, val iconScale: Float = 1f, val themeAll: Boolean = false)
+data class IconStyle(
+    val iconPack: String = "",
+    val themed: Boolean = false,
+    val iconScale: Float = 1f,
+    val themeAll: Boolean = false,
+    val shape: IconShape = IconShape.SYSTEM,
+)
 
 /**
  * Exposes just the icon-style settings to [LauncherShell] so the single floating drag icon — drawn
@@ -58,7 +65,7 @@ class LauncherShellViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val iconStyle: StateFlow<IconStyle> = settingsRepository.settings
-        .map { IconStyle(it.iconPackPackage, it.useThemedIcons, it.iconScale, it.themeAllIcons) }
+        .map { IconStyle(it.iconPackPackage, it.useThemedIcons, it.iconScale, it.themeAllIcons, it.iconShape) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IconStyle())
 
     val iconEpochs: StateFlow<IconEpochs> = launcherAppsSource.iconEpochs

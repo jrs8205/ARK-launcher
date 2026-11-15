@@ -99,6 +99,9 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
 - **Material You themed icons** (monochrome, on supported Android versions), optionally for
   **every app** (apps without a themed icon get a silhouette of their own), and third-party
   **[icon packs](https://github.com/jrs8205/ARK-launcher/wiki/Icon-Packs)**.
+- **Icon shapes**: circle, squircle, rounded square, square, teardrop, hexagon, octagon or flower for
+  every app icon, or the phone's own shape. An old icon that has no layers of its own stands on a plate
+  of the chosen shape; an icon pack's icons keep theirs.
 - Optional **themed status bar** with the clock, status indicators and notification icons.
 - **Configurable gestures:** swipe up → app drawer, swipe down → notifications, a configurable
   **left-edge swipe** that launches an app of your choice, an opt-in **swipe up on a home folder**
