@@ -22,6 +22,8 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.CustomIconImage
 import org.arkikeskus.launcher.model.IconShape
+import org.arkikeskus.launcher.model.pictureOutline
+import org.arkikeskus.launcher.model.shapedPicture
 import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -47,7 +49,7 @@ class CustomIconSource @Inject constructor(
      */
     fun drawable(icon: CustomIcon, shape: IconShape = IconShape.SYSTEM): Drawable? = when (icon) {
         is CustomIcon.FromPack -> iconPacks.drawable(icon.pack, icon.drawable)
-        is CustomIcon.FromFile -> files.load(icon)?.let { shapedPicture(it, pictureOutline(shape)).toDrawable(context.resources) }
+        is CustomIcon.FromFile -> files.load(icon)?.let { shapedPicture(it, pictureOutline(shape, ICON_PX), ICON_PX).toDrawable(context.resources) }
     }
 }
 

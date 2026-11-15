@@ -417,17 +417,18 @@ class HomeViewModel @Inject constructor(
                 }
             }
             .take(settings.dockColumns)
-        // Resolve any not-yet-cached pinned shortcuts (label, icon, state) off the main thread. This
+        // Resolve any not-yet-cached pinned shortcuts (label, icon, state) off the main thread. The icon is
+        // drawn in the picked icon shape, which is part of the cache's key: a new shape resolves them anew. This
         // pass shows what it resolved even when a racing change kept it out of the cache — the retry
         // pass that the cache requested then replaces it.
         val resolvedShortcuts = HashMap<PinnedShortcutCache.Key, AppShortcuts.Resolved>()
         for (row in homeItems) {
             if (row.containerId == HomeItemEntity.HOME && row.isShortcut) {
-                val key = PinnedShortcutCache.Key(row.packageName, row.shortcutId!!, row.userSerial)
+                val key = PinnedShortcutCache.Key(row.packageName, row.shortcutId!!, row.userSerial, settings.iconShape)
                 val resolved = shortcutCache[key] ?: run {
                     val epoch = shortcutCache.epoch(row.packageName)
                     withContext(Dispatchers.IO) {
-                        AppShortcuts.resolve(context, row.packageName, key.shortcutId, row.userSerial)
+                        AppShortcuts.resolve(context, row.packageName, key.shortcutId, row.userSerial, key.shape)
                     }?.also { shortcutCache.put(key, it, epoch) }
                 }
                 if (resolved != null) resolvedShortcuts[key] = resolved
@@ -448,7 +449,7 @@ class HomeViewModel @Inject constructor(
                         icon = folderIcons[FolderIconKey.home(row.id)],
                     )
                     row.isShortcut -> {
-                        resolvedShortcuts[PinnedShortcutCache.Key(row.packageName, row.shortcutId!!, row.userSerial)]?.let { r ->
+                        resolvedShortcuts[PinnedShortcutCache.Key(row.packageName, row.shortcutId!!, row.userSerial, settings.iconShape)]?.let { r ->
                             PlacedShortcut(
                                 rowId = row.id,
                                 packageName = row.packageName,

@@ -19,6 +19,7 @@ import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.CustomIconImage
 import org.arkikeskus.launcher.model.IconRequest
 import org.arkikeskus.launcher.model.IconShape
+import org.arkikeskus.launcher.model.shapedIcon
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner

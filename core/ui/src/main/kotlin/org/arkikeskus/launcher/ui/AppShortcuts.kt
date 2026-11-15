@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.IconShape
+import org.arkikeskus.launcher.model.shapedIcon
 import kotlin.math.roundToInt
 
 /**
@@ -164,9 +166,16 @@ object AppShortcuts {
         Unit
     }
 
-    /** Resolves a pinned shortcut's current label, icon (rasterized) and state — the app can disable a
-     *  pinned shortcut, which then stays pinned with its reason. Null if it no longer exists. */
-    fun resolve(context: Context, packageName: String, shortcutId: String, userSerial: Long): Resolved? {
+    /** Resolves a pinned shortcut's current label, icon (rasterized, in the icon [shape] the user picked)
+     *  and state — the app can disable a pinned shortcut, which then stays pinned with its reason. Null if
+     *  it no longer exists. */
+    fun resolve(
+        context: Context,
+        packageName: String,
+        shortcutId: String,
+        userSerial: Long,
+        shape: IconShape = IconShape.SYSTEM,
+    ): Resolved? {
         val launcherApps = context.getSystemService(LauncherApps::class.java) ?: return null
         val user = userForSerial(context, userSerial) ?: return null
         return runCatching {
@@ -179,7 +188,9 @@ object AppShortcuts {
             val label = (info.longLabel ?: info.shortLabel)?.toString() ?: shortcutId
             val density = context.resources.displayMetrics.densityDpi
             // A failed icon load must not hide the shortcut: it would leave an empty but occupied cell.
-            val icon = runCatching { launcherApps.getShortcutIconDrawable(info, density)?.toImageBitmap(168) }.getOrNull()
+            val icon = runCatching {
+                launcherApps.getShortcutIconDrawable(info, density)?.let { shortcutIcon(it, shape, 168) }
+            }.getOrNull()
             Resolved(
                 label = label,
                 icon = icon,
@@ -200,6 +211,19 @@ object AppShortcuts {
         draw(Canvas(bitmap))
         return bitmap.asImageBitmap()
     }
+}
+
+/**
+ * A pinned shortcut's picture in the icon [shape] the user picked (issue #26), by the same rule as an app's
+ * icon: its layers cut to the shape, or a picture without layers smaller on a plate of it. With the
+ * system's shape it is drawn as Android hands it over.
+ */
+internal fun shortcutIcon(icon: Drawable, shape: IconShape, sizePx: Int): ImageBitmap {
+    if (shape != IconShape.SYSTEM) return shapedIcon(icon, shape, sizePx).asImageBitmap()
+    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    icon.setBounds(0, 0, sizePx, sizePx)
+    icon.draw(Canvas(bitmap))
+    return bitmap.asImageBitmap()
 }
 
 /**

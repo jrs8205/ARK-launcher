@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.ui.AppShortcuts
 
 /**
@@ -15,7 +16,13 @@ import org.arkikeskus.launcher.ui.AppShortcuts
  * drops it (the app's [epoch] moved on) and bumps [generation] so the next pass resolves afresh.
  */
 internal class PinnedShortcutCache {
-    data class Key(val packageName: String, val shortcutId: String, val userSerial: Long)
+    /** [shape] is the icon shape the shortcut's picture was drawn in: resolved for another shape, it is another entry. */
+    data class Key(
+        val packageName: String,
+        val shortcutId: String,
+        val userSerial: Long,
+        val shape: IconShape = IconShape.SYSTEM,
+    )
 
     private val entries = HashMap<Key, AppShortcuts.Resolved>()
     private val epochs = HashMap<String, Int>()

@@ -9,6 +9,33 @@ class PinnedShortcutCacheTest {
     private val cache = PinnedShortcutCache()
 
     private fun key(pkg: String) = PinnedShortcutCache.Key(pkg, "s", 0L)
+
+    private fun key(pkg: String, shape: org.arkikeskus.launcher.model.IconShape) = PinnedShortcutCache.Key(pkg, "s", 0L, shape)
+
+    /** A shortcut's picture is drawn in the icon shape, so one resolved for another shape is another entry. */
+    @org.junit.Test fun aShortcutResolvedForOneShapeIsNotServedForAnother() {
+        val cache = PinnedShortcutCache()
+        val round = org.arkikeskus.launcher.ui.AppShortcuts.Resolved("Mum", null, enabled = true, disabledMessage = null)
+        cache.put(key("com.contacts", org.arkikeskus.launcher.model.IconShape.CIRCLE), round, cache.epoch("com.contacts"))
+
+        com.google.common.truth.Truth.assertThat(cache[key("com.contacts", org.arkikeskus.launcher.model.IconShape.CIRCLE)]).isSameInstanceAs(round)
+        com.google.common.truth.Truth.assertThat(cache[key("com.contacts", org.arkikeskus.launcher.model.IconShape.HEXAGON)]).isNull()
+        com.google.common.truth.Truth.assertThat(cache[key("com.contacts")]).isNull()
+    }
+
+    /** An app's change drops its shortcuts in every shape they were resolved for. */
+    @org.junit.Test fun anAppsChangeDropsItsShortcutsInEveryShape() {
+        val cache = PinnedShortcutCache()
+        val resolved = org.arkikeskus.launcher.ui.AppShortcuts.Resolved("Mum", null, enabled = true, disabledMessage = null)
+        for (shape in listOf(org.arkikeskus.launcher.model.IconShape.SYSTEM, org.arkikeskus.launcher.model.IconShape.CIRCLE)) {
+            cache.put(key("com.contacts", shape), resolved, cache.epoch("com.contacts"))
+        }
+
+        cache.invalidate("com.contacts")
+
+        com.google.common.truth.Truth.assertThat(cache[key("com.contacts", org.arkikeskus.launcher.model.IconShape.SYSTEM)]).isNull()
+        com.google.common.truth.Truth.assertThat(cache[key("com.contacts", org.arkikeskus.launcher.model.IconShape.CIRCLE)]).isNull()
+    }
     private fun resolved(label: String) = AppShortcuts.Resolved(label, icon = null, enabled = true, disabledMessage = null)
 
     private val chat = "com.chat" to 0L
