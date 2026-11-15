@@ -86,19 +86,21 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         withContext(NonCancellable) { ShortcutPinLock.withLock {
             val previousSettings = settings.snapshot()
-            val previousScreensaver = screensaver.snapshot()
             val previousLayout = homeItemDao.getAllOnce()
             settings.importRaw(restoredSettings)
-            // The screensaver's settings are a file of their own: written with the launcher's, and put back
-            // with them when the layout write fails.
-            doc.screensaver?.let { screensaver.importRaw(screensaverForThisPhone(it)) }
             val importedSettings = settings.snapshot()
+            // The screensaver's settings are a file of their own, written with the launcher's. A file
+            // without the section (a backup from before the screensaver) leaves them alone entirely.
+            var screensaverImport: ScreensaverSettingsStore.Import? = null
             try {
+                // Throws when its file cannot be saved, having undone itself: the layout is then never touched.
+                screensaverImport = doc.screensaver?.let { screensaver.importRaw(screensaverForThisPhone(it)) }
                 homeItemDao.replaceLayout(entities)
             } catch (t: Throwable) {
-                // Put the old settings back so a failed layout write never leaves half a restore.
+                // Take both imports back so a failed write never leaves half a restore. Only what the
+                // imports themselves changed: a setting the user changed meanwhile keeps its newer value.
                 runCatching { settings.rollbackImport(previousSettings, importedSettings) }
-                runCatching { screensaver.restore(previousScreensaver) }
+                screensaverImport?.let { done -> runCatching { screensaver.rollbackImport(done) } }
                 throw t
             }
             repinShortcuts(previousLayout, entities)

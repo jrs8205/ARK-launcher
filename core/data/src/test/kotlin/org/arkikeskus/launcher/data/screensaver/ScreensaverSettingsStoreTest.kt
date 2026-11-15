@@ -44,7 +44,7 @@ class ScreensaverSettingsStoreTest {
                 DreamPreferences.KEY_STYLE to "gauges",
                 DreamPreferences.KEY_NIGHT_DIM to true,
                 "unknown_key" to 1,
-                // A known key in the wrong type keeps what the file had: nothing.
+                // A known key in the wrong type is not written: the setting is at its default.
                 DreamPreferences.KEY_SHOW_DATE to "yes",
                 DreamPreferences.KEY_ACCENT to 7,
             ),
@@ -85,26 +85,92 @@ class ScreensaverSettingsStoreTest {
     }
 
     @Test
-    fun `import keeps the keys the map does not name`() {
-        prefs.edit().putBoolean(DreamPreferences.KEY_SHOW_ALARM, false).commit()
+    fun `import puts the settings the map does not name back to their defaults`() {
+        // Export leaves a setting at its default out, so a backup says "default" by not naming the key.
+        prefs.edit()
+            .putBoolean(DreamPreferences.KEY_SHOW_ALARM, false)
+            .putBoolean(DreamPreferences.KEY_NIGHT_DIM, true)
+            .putInt(DreamPreferences.KEY_BRIGHTNESS_PERCENT, 80)
+            .commit()
 
         store.importRaw(mapOf(DreamPreferences.KEY_STYLE to "edge"))
 
-        assertThat(prefs.getBoolean(DreamPreferences.KEY_SHOW_ALARM, true)).isFalse()
+        assertThat(prefs.all).containsExactly(DreamPreferences.KEY_STYLE, "edge")
     }
 
     @Test
-    fun `restore makes the file exactly the snapshot`() {
-        prefs.edit().putString(DreamPreferences.KEY_STYLE, "night").commit()
-        val before = store.snapshot()
-        prefs.edit()
-            .putString(DreamPreferences.KEY_STYLE, "edge")
-            .putBoolean(DreamPreferences.KEY_START_ON_CHARGE, true)
-            .commit()
+    fun `importing what a phone at its defaults exported makes every setting the default`() {
+        val atDefaults = store.exportRaw()
+        prefs.edit().putBoolean(DreamPreferences.KEY_NIGHT_DIM, true).putString(DreamPreferences.KEY_STYLE, "ring").commit()
 
-        store.restore(before)
+        store.importRaw(atDefaults)
 
-        assertThat(prefs.all).containsExactly(DreamPreferences.KEY_STYLE, "night")
+        assertThat(atDefaults).isEmpty()
+        assertThat(prefs.all).isEmpty()
+    }
+
+    @Test
+    fun `a value of the wrong type puts its setting at the default instead of keeping the old one`() {
+        prefs.edit().putBoolean(DreamPreferences.KEY_SHOW_DATE, false).commit()
+
+        store.importRaw(mapOf(DreamPreferences.KEY_SHOW_DATE to "yes"))
+
+        assertThat(prefs.contains(DreamPreferences.KEY_SHOW_DATE)).isFalse()
+    }
+
+    // --- An import that fails, or that has to be taken back ---------------------------------------------
+
+    private fun nightStyleAndNoAlarm() {
+        prefs.edit().putString(DreamPreferences.KEY_STYLE, "night").putBoolean(DreamPreferences.KEY_SHOW_ALARM, false).commit()
+    }
+
+    private val edgeAndStartOnCharge = mapOf<String, Any>(
+        DreamPreferences.KEY_STYLE to "edge",
+        DreamPreferences.KEY_START_ON_CHARGE to true,
+    )
+
+    @Test
+    fun `an import that cannot be saved fails, and the settings are as they were`() {
+        nightStyleAndNoAlarm()
+        val unsavable = ScreensaverSettingsStore(UnsavableScreensaverFile(context))
+
+        val failure = runCatching { unsavable.importRaw(edgeAndStartOnCharge) }
+
+        assertThat(failure.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        // Not in memory either: the next write that does succeed would otherwise save the import after all.
+        assertThat(prefs.all).containsExactly(
+            DreamPreferences.KEY_STYLE, "night",
+            DreamPreferences.KEY_SHOW_ALARM, false,
+        )
+    }
+
+    @Test
+    fun `taking an import back makes the file what it was`() {
+        nightStyleAndNoAlarm()
+
+        store.rollbackImport(store.importRaw(edgeAndStartOnCharge))
+
+        assertThat(prefs.all).containsExactly(
+            DreamPreferences.KEY_STYLE, "night",
+            DreamPreferences.KEY_SHOW_ALARM, false,
+        )
+    }
+
+    @Test
+    fun `taking an import back keeps what was changed after it`() {
+        nightStyleAndNoAlarm()
+        val import = store.importRaw(edgeAndStartOnCharge)
+        // The Screensaver page is open while the restore runs: the user picks a style and switches seconds off.
+        prefs.edit().putString(DreamPreferences.KEY_STYLE, "ring").putBoolean(DreamPreferences.KEY_SHOW_SECONDS, false).commit()
+
+        store.rollbackImport(import)
+
+        assertThat(prefs.all).containsExactly(
+            DreamPreferences.KEY_STYLE, "ring", // newer than the import: kept
+            DreamPreferences.KEY_SHOW_SECONDS, false, // newer than the import: kept
+            DreamPreferences.KEY_SHOW_ALARM, false, // removed by the import: back
+            // start_on_charge, which the import added, is gone again
+        )
     }
 
     @Test

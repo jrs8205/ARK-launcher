@@ -12,6 +12,7 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.data.screensaver.DreamPreferences
 import org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore
+import org.arkikeskus.launcher.data.screensaver.UnsavableScreensaverFile
 import org.arkikeskus.launcher.data.screensaver.screensaverPreferences
 import org.junit.After
 import org.junit.Before
@@ -45,8 +46,8 @@ class ScreensaverBackupTest {
     @After
     fun tearDown() = db.close()
 
-    private fun repo(homeItemDao: HomeItemDao = dao) =
-        BackupRepository(context, homeItemDao, settings, resolver, ScreensaverSettingsStore(context))
+    private fun repo(homeItemDao: HomeItemDao = dao, store: ScreensaverSettingsStore = ScreensaverSettingsStore(context)) =
+        BackupRepository(context, homeItemDao, settings, resolver, store)
 
     private fun doc(screensaver: Map<String, Any>?, vararg items: BackupItem) = BackupDocument(
         format = BackupCodec.FORMAT,
@@ -78,6 +79,15 @@ class ScreensaverBackupTest {
 
         assertThat(older).doesNotContain("screensaver")
         assertThat(BackupCodec.decode(older).screensaver).isNull()
+    }
+
+    @Test
+    fun `a section with nothing in it is still a section in the file`() {
+        // A phone at its defaults exports no keys: the empty section is what says "the defaults".
+        val back = BackupCodec.decode(BackupCodec.encode(doc(emptyMap())))
+
+        assertThat(back.screensaver).isNotNull()
+        assertThat(back.screensaver).isEmpty()
     }
 
     @Test
@@ -118,16 +128,87 @@ class ScreensaverBackupTest {
         assertThat(prefs.getString(DreamPreferences.KEY_STYLE, null)).isEqualTo("night")
     }
 
-    private class FailingDao(private val inner: HomeItemDao) : HomeItemDao by inner {
-        override suspend fun replaceLayout(items: List<HomeItemEntity>): Unit = throw IllegalStateException("disk full")
+    @Test
+    fun `restoring a backup made at the defaults puts the screensaver back to its defaults`() = runTest {
+        val atDefaults = repo().exportDocument(createdAt = 0L, appVersion = "test")
+        // After the backup the user switched the night dim on and chose a style.
+        prefs.edit().putBoolean(DreamPreferences.KEY_NIGHT_DIM, true).putString(DreamPreferences.KEY_STYLE, "ring").commit()
+
+        repo().restoreDocument(BackupCodec.decode(BackupCodec.encode(atDefaults)), installedApps = emptyList())
+
+        assertThat(prefs.all).isEmpty()
+    }
+
+    @Test
+    fun `restore puts a setting the section does not name back to its default`() = runTest {
+        prefs.edit().putBoolean(DreamPreferences.KEY_NIGHT_DIM, true).commit()
+
+        repo().restoreDocument(doc(chosen), installedApps = emptyList())
+
+        assertThat(prefs.all).containsExactlyEntriesIn(chosen)
+    }
+
+    private class FailingDao(private val inner: HomeItemDao, private val before: () -> Unit = {}) : HomeItemDao by inner {
+        override suspend fun replaceLayout(items: List<HomeItemEntity>) {
+            before()
+            throw IllegalStateException("disk full")
+        }
+    }
+
+    private val oneApp = BackupItem(1, -1, null, "a", "A", true, null, 0, 0, 0)
+
+    @Test
+    fun `a screensaver file that cannot be saved fails the restore before the layout is touched`() = runTest {
+        prefs.edit().putString(DreamPreferences.KEY_STYLE, "night").commit()
+        repo().restoreDocument(doc(screensaver = null, oneApp), listOf("a/A/0"))
+        val layoutBefore = dao.getAllOnce()
+        val settingsBefore = settings.snapshot()
+        val other = BackupItem(1, -1, null, "b", "B", true, null, 1, 1, 0)
+        val backup = doc(chosen, other).copy(settings = mapOf("home_columns" to 6))
+
+        val failure = runCatching {
+            repo(store = ScreensaverSettingsStore(UnsavableScreensaverFile(context))).restoreDocument(backup, listOf("b/B/0"))
+        }
+
+        assertThat(failure.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        assertThat(layoutBefore).isNotEmpty()
+        assertThat(dao.getAllOnce()).isEqualTo(layoutBefore)
+        // Neither half of the settings stays restored.
+        assertThat(settings.snapshot()).isEqualTo(settingsBefore)
+        assertThat(prefs.all).containsExactly(DreamPreferences.KEY_STYLE, "night")
+    }
+
+    @Test
+    fun `a failed layout write keeps a screensaver setting the user changed during the restore`() = runTest {
+        prefs.edit().putString(DreamPreferences.KEY_STYLE, "night").commit()
+        val changingMeanwhile = FailingDao(dao) { prefs.edit().putBoolean(DreamPreferences.KEY_NIGHT_DIM, true).commit() }
+
+        val failure = runCatching { repo(changingMeanwhile).restoreDocument(doc(chosen, oneApp), listOf("a/A/0")) }
+
+        assertThat(failure.isFailure).isTrue()
+        assertThat(prefs.all).containsExactly(
+            DreamPreferences.KEY_STYLE, "night", // the import's change: taken back
+            DreamPreferences.KEY_NIGHT_DIM, true, // the user's, newer than the import: kept
+        )
+    }
+
+    @Test
+    fun `a failed restore of a file without the section never touches the screensaver's settings`() = runTest {
+        prefs.edit().putString(DreamPreferences.KEY_STYLE, "night").commit()
+        val changingMeanwhile = FailingDao(dao) { prefs.edit().putString(DreamPreferences.KEY_STYLE, "edge").commit() }
+
+        val failure = runCatching {
+            repo(changingMeanwhile).restoreDocument(doc(screensaver = null, oneApp), listOf("a/A/0"))
+        }
+
+        assertThat(failure.isFailure).isTrue()
+        assertThat(prefs.all).containsExactly(DreamPreferences.KEY_STYLE, "edge")
     }
 
     @Test
     fun `a failed layout write puts the screensaver's settings back too`() = runTest {
         prefs.edit().putString(DreamPreferences.KEY_STYLE, "night").commit()
-        val backup = doc(chosen, BackupItem(1, -1, null, "a", "A", true, null, 0, 0, 0))
-
-        val failure = runCatching { repo(FailingDao(dao)).restoreDocument(backup, listOf("a/A/0")) }
+        val failure = runCatching { repo(FailingDao(dao)).restoreDocument(doc(chosen, oneApp), listOf("a/A/0")) }
 
         assertThat(failure.isFailure).isTrue()
         // Exactly as before: the style back, and the keys the backup added gone again.
