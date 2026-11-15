@@ -2,8 +2,8 @@
 <resources>
     <string name="settings_title">Настройки</string>
     <string name="settings_set_default">Сделать лаунчером по умолчанию</string>
-    <string name="settings_default_current">ARK-launcher используется по умолчанию</string>
-    <string name="settings_default_tap">Нажмите, чтобы выбрать ARK-launcher для главного экрана</string>
+    <string name="settings_default_current">ARK-Launcher используется по умолчанию</string>
+    <string name="settings_default_tap">Нажмите, чтобы выбрать ARK-Launcher для главного экрана</string>
     <string name="settings_gestures">Жесты</string>
     <string name="settings_show_weather">Погода в виджете</string>
     <string name="settings_weather_app">Нажатие на погоду открывает</string>
@@ -203,8 +203,8 @@
     <string name="settings_feedback_telegram_desc">Новости о выпусках — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Сообщество в Reddit</string>
     <string name="settings_feedback_reddit_desc">Посты и обсуждение — r/ArkLauncher</string>
-    <string name="settings_support_title">Поддержать ARK-launcher</string>
-    <string name="settings_support_text">ARK-launcher бесплатен, имеет открытый исходный код и останется таким. Если он делает ваш телефон приятнее, вы можете угостить меня кофе или спонсировать работу.</string>
+    <string name="settings_support_title">Поддержать ARK-Launcher</string>
+    <string name="settings_support_text">ARK-Launcher бесплатен, имеет открытый исходный код и останется таким. Если он делает ваш телефон приятнее, вы можете угостить меня кофе или спонсировать работу.</string>
     <string name="settings_support_github">Спонсировать на GitHub</string>
     <string name="settings_support_coffee">Угостить кофе</string>
     <string name="settings_support_paypal">PayPal</string>
@@ -237,7 +237,7 @@
     <string name="settings_cat_gestures_summary">Свайпы, двойное нажатие, долгое нажатие</string>
     <string name="settings_cat_bars_summary">Скрытие системных панелей, своя строка состояния</string>
     <string name="settings_cat_notifications_summary">Значки уведомлений на приложениях</string>
-    <string name="settings_cat_permissions_summary">Что может использовать ARK-launcher</string>
+    <string name="settings_cat_permissions_summary">Что может использовать ARK-Launcher</string>
     <string name="settings_cat_backup_summary">Сохранение и восстановление макета и настроек</string>
     <string name="settings_cat_about_summary">Обновления, каналы обратной связи, версия</string>
     <string name="settings_back">Назад</string>

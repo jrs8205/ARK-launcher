@@ -7,7 +7,7 @@ import org.junit.Test
 class WidgetPickerFilterTest {
     private fun option(label: String, type: String = label.lowercase()) = WidgetOption(WidgetChoice.Builtin(type), label)
 
-    private val builtin = WidgetGroup("builtin", "ARK-launcher", listOf(option("Clock"), option("Battery")))
+    private val builtin = WidgetGroup("builtin", "ARK-Launcher", listOf(option("Clock"), option("Battery")))
     private val chat = WidgetGroup("com.chat", "Chat", listOf(option("Conversations"), option("Calls")))
     private val maps = WidgetGroup("com.maps", "Maps", listOf(option("Directions")))
     private val all = listOf(builtin, chat, maps)

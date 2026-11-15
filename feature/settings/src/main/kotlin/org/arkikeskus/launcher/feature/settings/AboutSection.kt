@@ -22,7 +22,7 @@ import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 
-/** The row that makes ARK-launcher the home app; it says whether it already is, and looks again whenever the
+/** The row that makes ARK-Launcher the home app; it says whether it already is, and looks again whenever the
  *  page comes back to the front and when the system's chooser returns. */
 @Composable
 internal fun DefaultLauncherRow() {

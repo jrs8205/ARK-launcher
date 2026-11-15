@@ -2,8 +2,8 @@
 <resources>
     <string name="settings_title">Configuración</string>
     <string name="settings_set_default">Establecer como launcher predeterminado</string>
-    <string name="settings_default_current">ARK-launcher es tu launcher predeterminado</string>
-    <string name="settings_default_tap">Toca para usar ARK-launcher como aplicación de inicio</string>
+    <string name="settings_default_current">ARK-Launcher es tu launcher predeterminado</string>
+    <string name="settings_default_tap">Toca para usar ARK-Launcher como aplicación de inicio</string>
     <string name="settings_gestures">Gestos</string>
     <string name="settings_show_weather">Clima en el widget</string>
     <string name="settings_weather_app">Tocar el clima abre</string>
@@ -200,8 +200,8 @@
     <string name="settings_feedback_telegram_desc">Novedades de versiones — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Comunidad de Reddit</string>
     <string name="settings_feedback_reddit_desc">Publicaciones y debate — r/ArkLauncher</string>
-    <string name="settings_support_title">Apoya a ARK-launcher</string>
-    <string name="settings_support_text">ARK-launcher es gratuito y de código abierto, y seguirá siéndolo. Si hace que tu teléfono sea más agradable, puedes invitarme a un café o patrocinar el trabajo.</string>
+    <string name="settings_support_title">Apoya a ARK-Launcher</string>
+    <string name="settings_support_text">ARK-Launcher es gratuito y de código abierto, y seguirá siéndolo. Si hace que tu teléfono sea más agradable, puedes invitarme a un café o patrocinar el trabajo.</string>
     <string name="settings_support_github">Patrocinar en GitHub</string>
     <string name="settings_support_coffee">Invitarme a un café</string>
     <string name="settings_support_paypal">PayPal</string>
@@ -234,7 +234,7 @@
     <string name="settings_cat_gestures_summary">Deslizamientos, doble toque, pulsación larga</string>
     <string name="settings_cat_bars_summary">Ocultar las barras del sistema, barra de estado propia</string>
     <string name="settings_cat_notifications_summary">Puntos de notificación en los iconos</string>
-    <string name="settings_cat_permissions_summary">Lo que ARK-launcher puede usar</string>
+    <string name="settings_cat_permissions_summary">Lo que ARK-Launcher puede usar</string>
     <string name="settings_cat_backup_summary">Guardar y restaurar el diseño y la configuración</string>
     <string name="settings_cat_about_summary">Actualizaciones, canales de comentarios, versión</string>
     <string name="settings_back">Atrás</string>

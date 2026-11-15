@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Deslize para cima para abrir os apps</string>
-    <string name="onboarding_title">Boas-vindas ao ARK-launcher</string>
-    <string name="onboarding_text">Para começar, defina o ARK-launcher como tela inicial padrão. Depois, deslize para cima para abrir seus apps. Para acessar as configurações, toque e segure um espaço vazio.</string>
+    <string name="onboarding_title">Boas-vindas ao ARK-Launcher</string>
+    <string name="onboarding_text">Para começar, defina o ARK-Launcher como tela inicial padrão. Depois, deslize para cima para abrir seus apps. Para acessar as configurações, toque e segure um espaço vazio.</string>
     <string name="onboarding_set_default">Definir como tela inicial padrão</string>
     <string name="default_reminder_not_now">Agora não</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Relógio e agenda</string>
     <string name="smartspace_allow_calendar">Toque para permitir o acesso à agenda</string>
     <string name="smartspace_no_title">(Sem título)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Deslize para baixo – notificações</string>
     <string name="onboarding_gesture_hold">Toque e segure um espaço vazio – configurações e widgets</string>
     <string name="onboarding_perms_title">Permissões</string>
-    <string name="onboarding_perms_text">O ARK-launcher funciona melhor com estas permissões. Você pode alterá-las a qualquer momento nas configurações do sistema.</string>
+    <string name="onboarding_perms_text">O ARK-Launcher funciona melhor com estas permissões. Você pode alterá-las a qualquer momento nas configurações do sistema.</string>
     <string name="onboarding_perm_notif">Acesso a notificações</string>
     <string name="onboarding_perm_notif_desc">Pontos de notificação e ícones na barra de status</string>
     <string name="onboarding_perm_calendar">Agenda</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: bloqueio de tela</string>
+    <string name="lock_service_label">ARK-Launcher: bloqueio de tela</string>
     <string name="lock_service_description">Usado somente para bloquear a tela quando você toca duas vezes em um espaço vazio da tela inicial. O serviço não lê o conteúdo da tela nem recebe eventos de acessibilidade.</string>
     <string name="double_tap_lock_needs_service">O bloqueio de tela precisa da permissão de acessibilidade — conceda em Configurações ▸ Gestos</string>
     <string name="widget_picker_close">Fechar seletor de widgets</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s adicionado à tela inicial</string>
     <string name="pin_request_failed">Não foi possível adicionar à tela inicial</string>
     <string name="pin_request_locked_title">A tela inicial está bloqueada</string>
-    <string name="pin_request_locked_text">Desative \"Bloquear layout da tela inicial\" nas configurações do ARK-launcher para adicionar itens.</string>
+    <string name="pin_request_locked_text">Desative \"Bloquear layout da tela inicial\" nas configurações do ARK-Launcher para adicionar itens.</string>
     <string name="pin_request_full_title">A tela inicial está cheia</string>
     <string name="pin_request_full_text">Libere espaço na tela inicial para adicionar novos itens.</string>
     <string name="pin_request_close">Fechar</string>

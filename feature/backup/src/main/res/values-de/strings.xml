@@ -4,7 +4,7 @@
     <string name="backup_file_section">Datei</string>
     <string name="backup_export">In Datei exportieren</string>
     <string name="backup_import">Aus Datei importieren</string>
-    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_default_name">ARK-Launcher-backup</string>
     <string name="backup_exported">Sicherung gespeichert</string>
     <string name="backup_restored">Sicherung wiederhergestellt</string>
     <plurals name="backup_restored_skipped">
@@ -14,9 +14,9 @@
     <string name="backup_import_invalid">Ungültige oder inkompatible Sicherungsdatei</string>
     <string name="backup_error_too_large">Die Sicherungsdatei ist zu groß</string>
     <string name="backup_failed">Vorgang fehlgeschlagen</string>
-    <string name="backup_import_read_blocked">Der Speicherdienst von Android hat das Lesen dieser Datei blockiert. Wähle sie unter „Downloads“ statt in den Speicherordnern des Telefons aus, oder öffne sie aus einer anderen Dateimanager-App mit ARK-launcher.</string>
+    <string name="backup_import_read_blocked">Der Speicherdienst von Android hat das Lesen dieser Datei blockiert. Wähle sie unter „Downloads“ statt in den Speicherordnern des Telefons aus, oder öffne sie aus einer anderen Dateimanager-App mit ARK-Launcher.</string>
     <string name="backup_import_timeout">Die Datei hat sich nicht rechtzeitig geöffnet. Versuche es erneut oder wähle sie unter „Downloads“ oder in einer anderen Dateimanager-App aus.</string>
-    <string name="backup_open_with_label">In ARK-launcher wiederherstellen</string>
+    <string name="backup_open_with_label">In ARK-Launcher wiederherstellen</string>
     <string name="backup_restoring">Wird wiederhergestellt…</string>
     <string name="backup_restore_confirm_title">Sicherung wiederherstellen?</string>
     <string name="backup_restore_confirm_msg">Dein aktueller Startbildschirm und deine Einstellungen werden ersetzt. Widgets werden als Platzhalter wiederhergestellt – tippe darauf, um sie einzurichten.</string>

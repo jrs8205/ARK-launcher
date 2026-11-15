@@ -8,8 +8,8 @@
     <string name="shortcut_unavailable">Shortcut isn\'t available</string>
     <string name="app_info_unavailable">Could not open the app\'s details</string>
     <string name="home_full">The home screen is full</string>
-    <string name="notice_work_apps_need_default">Set ARK-launcher as your default launcher to pause work apps.</string>
-    <string name="notice_private_space_needs_default">Set ARK-launcher as your default launcher to lock or unlock Private space.</string>
+    <string name="notice_work_apps_need_default">Set ARK-Launcher as your default launcher to pause work apps.</string>
+    <string name="notice_private_space_needs_default">Set ARK-Launcher as your default launcher to lock or unlock Private space.</string>
     <string name="folder_default_name">Folder</string>
     <string name="popup_widgets">Widgets</string>
     <string name="edit_title">Edit</string>

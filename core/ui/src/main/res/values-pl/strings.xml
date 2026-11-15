@@ -10,8 +10,8 @@
     <string name="home_full">Ekran główny jest pełny</string>
     <string name="folder_default_name">Folder</string>
     <string name="popup_widgets">Widżety</string>
-    <string name="notice_work_apps_need_default">Ustaw ARK-launcher jako domyślny launcher, aby wstrzymać aplikacje służbowe.</string>
-    <string name="notice_private_space_needs_default">Ustaw ARK-launcher jako domyślny launcher, aby zablokować lub odblokować przestrzeń prywatną.</string>
+    <string name="notice_work_apps_need_default">Ustaw ARK-Launcher jako domyślny launcher, aby wstrzymać aplikacje służbowe.</string>
+    <string name="notice_private_space_needs_default">Ustaw ARK-Launcher jako domyślny launcher, aby zablokować lub odblokować przestrzeń prywatną.</string>
     <string name="edit_title">Edytuj</string>
     <string name="edit_icon_hint">Dotknij ikony, aby ją zmienić</string>
     <string name="edit_swipe_up">Przeciągnięcie w górę otwiera</string>

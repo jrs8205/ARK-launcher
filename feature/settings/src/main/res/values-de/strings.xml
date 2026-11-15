@@ -2,8 +2,8 @@
 <resources>
     <string name="settings_title">Einstellungen</string>
     <string name="settings_set_default">Als Standard-Launcher festlegen</string>
-    <string name="settings_default_current">ARK-launcher ist dein Standard-Launcher</string>
-    <string name="settings_default_tap">Tippe, um ARK-launcher als Standard-Launcher festzulegen</string>
+    <string name="settings_default_current">ARK-Launcher ist dein Standard-Launcher</string>
+    <string name="settings_default_tap">Tippe, um ARK-Launcher als Standard-Launcher festzulegen</string>
     <string name="settings_gestures">Gesten</string>
     <string name="settings_show_weather">Wetter im Widget</string>
     <string name="settings_weather_app">Tippen auf das Wetter öffnet</string>
@@ -197,8 +197,8 @@
     <string name="settings_feedback_telegram_desc">Neuigkeiten zu Versionen – t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Reddit-Community</string>
     <string name="settings_feedback_reddit_desc">Beiträge und Diskussion – r/ArkLauncher</string>
-    <string name="settings_support_title">ARK-launcher unterstützen</string>
-    <string name="settings_support_text">ARK-launcher ist kostenlos und quelloffen und bleibt es auch. Wenn es dein Telefon angenehmer macht, kannst du mir einen Kaffee ausgeben oder die Arbeit sponsern.</string>
+    <string name="settings_support_title">ARK-Launcher unterstützen</string>
+    <string name="settings_support_text">ARK-Launcher ist kostenlos und quelloffen und bleibt es auch. Wenn es dein Telefon angenehmer macht, kannst du mir einen Kaffee ausgeben oder die Arbeit sponsern.</string>
     <string name="settings_support_github">Auf GitHub sponsern</string>
     <string name="settings_support_coffee">Einen Kaffee ausgeben</string>
     <string name="settings_support_paypal">PayPal</string>
@@ -231,7 +231,7 @@
     <string name="settings_cat_gestures_summary">Wischgesten, Doppeltippen, langes Drücken</string>
     <string name="settings_cat_bars_summary">Systemleisten ausblenden, eigene Statusleiste</string>
     <string name="settings_cat_notifications_summary">Benachrichtigungspunkte auf Symbolen</string>
-    <string name="settings_cat_permissions_summary">Was ARK-launcher verwenden darf</string>
+    <string name="settings_cat_permissions_summary">Was ARK-Launcher verwenden darf</string>
     <string name="settings_cat_backup_summary">Layout und Einstellungen sichern und wiederherstellen</string>
     <string name="settings_cat_about_summary">Updates, Feedback-Kanäle, Version</string>
     <string name="settings_back">Zurück</string>

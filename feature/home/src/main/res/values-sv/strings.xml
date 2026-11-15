@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Svep uppåt för att öppna appar</string>
-    <string name="onboarding_title">Välkommen till ARK-launcher</string>
-    <string name="onboarding_text">Kom igång genom att ange ARK-launcher som startskärmsapp. Svep sedan uppåt för att öppna dina appar och tryck länge på en tom yta för att komma till inställningarna.</string>
+    <string name="onboarding_title">Välkommen till ARK-Launcher</string>
+    <string name="onboarding_text">Kom igång genom att ange ARK-Launcher som startskärmsapp. Svep sedan uppåt för att öppna dina appar och tryck länge på en tom yta för att komma till inställningarna.</string>
     <string name="onboarding_set_default">Ange som startskärmsapp</string>
     <string name="default_reminder_not_now">Inte nu</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Klocka och kalender</string>
     <string name="smartspace_allow_calendar">Tryck för att tillåta kalenderåtkomst</string>
     <string name="smartspace_no_title">(Ingen titel)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Svep nedåt – aviseringar</string>
     <string name="onboarding_gesture_hold">Tryck länge på en tom yta – inställningar och widgetar</string>
     <string name="onboarding_perms_title">Behörigheter</string>
-    <string name="onboarding_perms_text">ARK-launcher fungerar bäst med de här behörigheterna. Du kan ändra dem när som helst i systeminställningarna.</string>
+    <string name="onboarding_perms_text">ARK-Launcher fungerar bäst med de här behörigheterna. Du kan ändra dem när som helst i systeminställningarna.</string>
     <string name="onboarding_perm_notif">Åtkomst till aviseringar</string>
     <string name="onboarding_perm_notif_desc">Aviseringsprickar och ikoner i statusfältet</string>
     <string name="onboarding_perm_calendar">Kalender</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: skärmlås</string>
+    <string name="lock_service_label">ARK-Launcher: skärmlås</string>
     <string name="lock_service_description">Används endast för att låsa skärmen när du trycker två gånger på en tom yta på startskärmen. Tjänsten läser inte skärmens innehåll och tar inte emot tillgänglighetshändelser.</string>
     <string name="double_tap_lock_needs_service">Skärmlåsning kräver tillgänglighetsbehörighet — ge den under Inställningar ▸ Rörelser</string>
     <string name="widget_picker_close">Stäng widgetväljaren</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s har lagts till på startskärmen</string>
     <string name="pin_request_failed">Det gick inte att lägga till på startskärmen</string>
     <string name="pin_request_locked_title">Startskärmen är låst</string>
-    <string name="pin_request_locked_text">Stäng av ”Lås startskärmens layout” i ARK-launchers inställningar för att lägga till objekt.</string>
+    <string name="pin_request_locked_text">Stäng av ”Lås startskärmens layout” i ARK-Launchers inställningar för att lägga till objekt.</string>
     <string name="pin_request_full_title">Startskärmen är full</string>
     <string name="pin_request_full_text">Frigör plats på startskärmen för att lägga till nya objekt.</string>
     <string name="pin_request_close">Stäng</string>

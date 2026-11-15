@@ -27,18 +27,18 @@ class InstalledVersionTest {
         val app = info.applicationInfo!!
         // Only the debug bit: the shadow treats a cleared FLAG_INSTALLED as "not installed".
         app.flags = if (debuggable) app.flags or ApplicationInfo.FLAG_DEBUGGABLE else app.flags and ApplicationInfo.FLAG_DEBUGGABLE.inv()
-        app.nonLocalizedLabel = "ARK-launcher"
+        app.nonLocalizedLabel = "ARK-Launcher"
     }
 
     @Test fun theInstalledBuildIsNamedWithItsVersionAndCode() {
         install("0.9.4", 61, debuggable = false)
 
-        assertThat(installedVersionLabel(context)).isEqualTo("ARK-launcher 0.9.4 (61)")
+        assertThat(installedVersionLabel(context)).isEqualTo("ARK-Launcher 0.9.4 (61)")
     }
 
     @Test fun aDebuggableBuildSaysSo() {
         install("0.9.4", 61, debuggable = true)
 
-        assertThat(installedVersionLabel(context)).isEqualTo("ARK-launcher 0.9.4-debug (61)")
+        assertThat(installedVersionLabel(context)).isEqualTo("ARK-Launcher 0.9.4-debug (61)")
     }
 }

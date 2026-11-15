@@ -2,8 +2,8 @@
 <resources>
     <string name="settings_title">Paramètres</string>
     <string name="settings_set_default">Définir comme lanceur par défaut</string>
-    <string name="settings_default_current">ARK-launcher est votre lanceur par défaut</string>
-    <string name="settings_default_tap">Appuyez pour définir ARK-launcher comme application d\'accueil</string>
+    <string name="settings_default_current">ARK-Launcher est votre lanceur par défaut</string>
+    <string name="settings_default_tap">Appuyez pour définir ARK-Launcher comme application d\'accueil</string>
     <string name="settings_gestures">Gestes</string>
     <string name="settings_show_weather">Météo dans le widget</string>
     <string name="settings_weather_app">Toucher la météo ouvre</string>
@@ -200,8 +200,8 @@
     <string name="settings_feedback_telegram_desc">Actualités des versions — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Communauté Reddit</string>
     <string name="settings_feedback_reddit_desc">Publications et discussion — r/ArkLauncher</string>
-    <string name="settings_support_title">Soutenir ARK-launcher</string>
-    <string name="settings_support_text">ARK-launcher est gratuit et open source, et le restera. S\'il rend votre téléphone plus agréable, vous pouvez m\'offrir un café ou sponsoriser le travail.</string>
+    <string name="settings_support_title">Soutenir ARK-Launcher</string>
+    <string name="settings_support_text">ARK-Launcher est gratuit et open source, et le restera. S\'il rend votre téléphone plus agréable, vous pouvez m\'offrir un café ou sponsoriser le travail.</string>
     <string name="settings_support_github">Sponsoriser sur GitHub</string>
     <string name="settings_support_coffee">Offrir un café</string>
     <string name="settings_support_paypal">PayPal</string>
@@ -234,7 +234,7 @@
     <string name="settings_cat_gestures_summary">Balayages, double appui, appui long</string>
     <string name="settings_cat_bars_summary">Masquer les barres système, barre d\'état propre</string>
     <string name="settings_cat_notifications_summary">Pastilles de notification sur les icônes</string>
-    <string name="settings_cat_permissions_summary">Ce que ARK-launcher peut utiliser</string>
+    <string name="settings_cat_permissions_summary">Ce que ARK-Launcher peut utiliser</string>
     <string name="settings_cat_backup_summary">Enregistrer et restaurer la disposition et les paramètres</string>
     <string name="settings_cat_about_summary">Mises à jour, canaux de commentaires, version</string>
     <string name="settings_back">Retour</string>

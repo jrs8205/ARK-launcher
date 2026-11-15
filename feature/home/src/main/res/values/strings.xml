@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Swipe up to open apps</string>
-    <string name="onboarding_title">Welcome to ARK-launcher</string>
-    <string name="onboarding_text">Set ARK-launcher as your default launcher to get started. Then swipe up to open your apps, and long-press an empty spot to reach settings.</string>
+    <string name="onboarding_title">Welcome to ARK-Launcher</string>
+    <string name="onboarding_text">Set ARK-Launcher as your default launcher to get started. Then swipe up to open your apps, and long-press an empty spot to reach settings.</string>
     <string name="onboarding_set_default">Set as default launcher</string>
     <string name="default_reminder_not_now">Not now</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Clock &amp; calendar</string>
     <string name="smartspace_allow_calendar">Tap to allow calendar access</string>
     <string name="smartspace_no_title">(No title)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Swipe down – notifications</string>
     <string name="onboarding_gesture_hold">Long-press an empty spot – settings and widgets</string>
     <string name="onboarding_perms_title">Permissions</string>
-    <string name="onboarding_perms_text">ARK-launcher works best with these permissions. You can change them anytime in system settings.</string>
+    <string name="onboarding_perms_text">ARK-Launcher works best with these permissions. You can change them anytime in system settings.</string>
     <string name="onboarding_perm_notif">Notification access</string>
     <string name="onboarding_perm_notif_desc">Notification dots and status-bar icons</string>
     <string name="onboarding_perm_calendar">Calendar</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2.4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: screen lock</string>
+    <string name="lock_service_label">ARK-Launcher: screen lock</string>
     <string name="lock_service_description">Used only to lock the screen when you double-tap empty space on the home screen. The service does not read screen content or receive accessibility events.</string>
     <string name="double_tap_lock_needs_service">Screen lock needs the accessibility permission — grant it in Settings ▸ Gestures</string>
     <string name="widget_picker_close">Close widget picker</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s added to home screen</string>
     <string name="pin_request_failed">Couldn\'t add to home screen</string>
     <string name="pin_request_locked_title">The desktop is locked</string>
-    <string name="pin_request_locked_text">Turn off Lock desktop in ARK-launcher\'s settings to add items.</string>
+    <string name="pin_request_locked_text">Turn off Lock desktop in ARK-Launcher\'s settings to add items.</string>
     <string name="pin_request_full_title">The home screen is full</string>
     <string name="pin_request_full_text">Free up a spot on the home screen to add new items.</string>
     <string name="pin_request_close">Close</string>

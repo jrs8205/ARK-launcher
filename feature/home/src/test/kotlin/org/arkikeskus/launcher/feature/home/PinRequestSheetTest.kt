@@ -88,7 +88,7 @@ class PinRequestSheetTest {
         show(PinRequestUiState.Locked)
 
         compose.onNodeWithText("The desktop is locked").assertIsDisplayed()
-        compose.onNodeWithText("Turn off Lock desktop in ARK-launcher's settings to add items.").assertIsDisplayed()
+        compose.onNodeWithText("Turn off Lock desktop in ARK-Launcher's settings to add items.").assertIsDisplayed()
         compose.onNodeWithText("Close").assertIsDisplayed()
         compose.onNodeWithText("Add to home screen").assertDoesNotExist()
         compose.onNodeWithText("Cancel").assertDoesNotExist()

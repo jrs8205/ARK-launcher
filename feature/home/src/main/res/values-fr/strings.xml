@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Balayez vers le haut pour ouvrir les applications</string>
-    <string name="onboarding_title">Bienvenue dans ARK-launcher</string>
-    <string name="onboarding_text">Pour commencer, définissez ARK-launcher comme lanceur par défaut. Ensuite, balayez vers le haut pour ouvrir vos applications et appuyez de manière prolongée sur un espace vide pour accéder aux paramètres.</string>
+    <string name="onboarding_title">Bienvenue dans ARK-Launcher</string>
+    <string name="onboarding_text">Pour commencer, définissez ARK-Launcher comme lanceur par défaut. Ensuite, balayez vers le haut pour ouvrir vos applications et appuyez de manière prolongée sur un espace vide pour accéder aux paramètres.</string>
     <string name="onboarding_set_default">Définir comme lanceur par défaut</string>
     <string name="default_reminder_not_now">Pas maintenant</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Horloge et agenda</string>
     <string name="smartspace_allow_calendar">Appuyez pour autoriser l\'accès à l\'agenda</string>
     <string name="smartspace_no_title">(Sans titre)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Balayez vers le bas – notifications</string>
     <string name="onboarding_gesture_hold">Appuyez de manière prolongée sur un espace vide – paramètres et widgets</string>
     <string name="onboarding_perms_title">Autorisations</string>
-    <string name="onboarding_perms_text">ARK-launcher fonctionne mieux avec ces autorisations. Vous pouvez les modifier à tout moment dans les paramètres système.</string>
+    <string name="onboarding_perms_text">ARK-Launcher fonctionne mieux avec ces autorisations. Vous pouvez les modifier à tout moment dans les paramètres système.</string>
     <string name="onboarding_perm_notif">Accès aux notifications</string>
     <string name="onboarding_perm_notif_desc">Pastilles de notification et icônes de la barre d\'état</string>
     <string name="onboarding_perm_calendar">Agenda</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher : verrouillage de l\'écran</string>
+    <string name="lock_service_label">ARK-Launcher : verrouillage de l\'écran</string>
     <string name="lock_service_description">Utilisé uniquement pour verrouiller l\'écran lorsque vous appuyez deux fois sur un espace vide de l\'écran d\'accueil. Ce service ne lit pas le contenu de l\'écran et ne reçoit aucun événement d\'accessibilité.</string>
     <string name="double_tap_lock_needs_service">Le verrouillage de l\'écran nécessite l\'autorisation d\'accessibilité — accordez-la dans Paramètres ▸ Gestes</string>
     <string name="widget_picker_close">Fermer le sélecteur de widgets</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s ajouté à l\'écran d\'accueil</string>
     <string name="pin_request_failed">Impossible d\'ajouter à l\'écran d\'accueil</string>
     <string name="pin_request_locked_title">La disposition est verrouillée</string>
-    <string name="pin_request_locked_text">Désactivez « Verrouiller la disposition » dans les paramètres d\'ARK-launcher pour ajouter des éléments.</string>
+    <string name="pin_request_locked_text">Désactivez « Verrouiller la disposition » dans les paramètres d\'ARK-Launcher pour ajouter des éléments.</string>
     <string name="pin_request_full_title">L\'écran d\'accueil est plein</string>
     <string name="pin_request_full_text">Libérez de la place sur l\'écran d\'accueil pour ajouter de nouveaux éléments.</string>
     <string name="pin_request_close">Fermer</string>

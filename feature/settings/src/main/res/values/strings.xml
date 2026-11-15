@@ -2,8 +2,8 @@
 <resources>
     <string name="settings_title">Settings</string>
     <string name="settings_set_default">Set as default launcher</string>
-    <string name="settings_default_current">ARK-launcher is your default launcher</string>
-    <string name="settings_default_tap">Tap to set ARK-launcher as your home app</string>
+    <string name="settings_default_current">ARK-Launcher is your default launcher</string>
+    <string name="settings_default_tap">Tap to set ARK-Launcher as your home app</string>
     <string name="settings_gestures">Gestures</string>
     <string name="settings_show_weather">Weather in the widget</string>
     <string name="settings_weather_app">Tap on weather opens</string>
@@ -197,8 +197,8 @@
     <string name="settings_feedback_telegram_desc">Release news — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Reddit community</string>
     <string name="settings_feedback_reddit_desc">Posts and discussion — r/ArkLauncher</string>
-    <string name="settings_support_title">Support ARK-launcher</string>
-    <string name="settings_support_text">ARK-launcher is free and open source, and stays that way. If it makes your phone nicer, you can buy me a coffee or sponsor the work.</string>
+    <string name="settings_support_title">Support ARK-Launcher</string>
+    <string name="settings_support_text">ARK-Launcher is free and open source, and stays that way. If it makes your phone nicer, you can buy me a coffee or sponsor the work.</string>
     <string name="settings_support_github">Sponsor on GitHub</string>
     <string name="settings_support_coffee">Buy me a coffee</string>
     <string name="settings_support_paypal">PayPal</string>
@@ -231,7 +231,7 @@
     <string name="settings_cat_gestures_summary">Swipes, double tap, long press</string>
     <string name="settings_cat_bars_summary">Hide the system bars, own status bar</string>
     <string name="settings_cat_notifications_summary">Notification dots on icons</string>
-    <string name="settings_cat_permissions_summary">What ARK-launcher may use</string>
+    <string name="settings_cat_permissions_summary">What ARK-Launcher may use</string>
     <string name="settings_cat_backup_summary">Save and restore the layout and settings</string>
     <string name="settings_cat_about_summary">Updates, feedback channels, version</string>
     <string name="settings_back">Back</string>

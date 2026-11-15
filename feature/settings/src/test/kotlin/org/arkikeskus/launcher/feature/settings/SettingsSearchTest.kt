@@ -95,7 +95,7 @@ class SettingsSearchTest {
     }
 
     @Test fun anExtraWordFindsTheRowWithoutMarkingItsTitle() {
-        val support = setting("E1", "Support ARK-launcher", category = null, keywords = listOf("GitHub Sponsors", "PayPal"))
+        val support = setting("E1", "Support ARK-Launcher", category = null, keywords = listOf("GitHub Sponsors", "PayPal"))
         val hit = searchSettings("paypal", listOf(support)).single()
         assertThat(hit.setting.id).isEqualTo("E1")
         assertThat(hit.titleMatch).isNull()

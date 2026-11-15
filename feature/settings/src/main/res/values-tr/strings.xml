@@ -2,8 +2,8 @@
 <resources>
     <string name="settings_title">Ayarlar</string>
     <string name="settings_set_default">Varsayılan başlatıcı yap</string>
-    <string name="settings_default_current">ARK-launcher varsayılan başlatıcınız</string>
-    <string name="settings_default_tap">ARK-launcher\'ı ana ekran uygulamanız yapmak için dokunun</string>
+    <string name="settings_default_current">ARK-Launcher varsayılan başlatıcınız</string>
+    <string name="settings_default_tap">ARK-Launcher\'ı ana ekran uygulamanız yapmak için dokunun</string>
     <string name="settings_gestures">Hareketler</string>
     <string name="settings_show_weather">Widget\'ta hava durumu</string>
     <string name="settings_weather_app">Hava durumuna dokunma şunu açar</string>
@@ -197,8 +197,8 @@
     <string name="settings_feedback_telegram_desc">Sürüm haberleri — t.me/ARKLauncherUpdates</string>
     <string name="settings_feedback_reddit">Reddit topluluğu</string>
     <string name="settings_feedback_reddit_desc">Gönderiler ve tartışma — r/ArkLauncher</string>
-    <string name="settings_support_title">ARK-launcher\'ı destekle</string>
-    <string name="settings_support_text">ARK-launcher ücretsiz ve açık kaynaklıdır ve öyle kalacak. Telefonunuzu daha hoş hale getiriyorsa bana bir kahve ısmarlayabilir veya çalışmayı destekleyebilirsiniz.</string>
+    <string name="settings_support_title">ARK-Launcher\'ı destekle</string>
+    <string name="settings_support_text">ARK-Launcher ücretsiz ve açık kaynaklıdır ve öyle kalacak. Telefonunuzu daha hoş hale getiriyorsa bana bir kahve ısmarlayabilir veya çalışmayı destekleyebilirsiniz.</string>
     <string name="settings_support_github">GitHub\'da sponsor ol</string>
     <string name="settings_support_coffee">Bir kahve ısmarla</string>
     <string name="settings_support_paypal">PayPal</string>
@@ -231,7 +231,7 @@
     <string name="settings_cat_gestures_summary">Kaydırmalar, çift dokunma, uzun basma</string>
     <string name="settings_cat_bars_summary">Sistem çubuklarını gizleme, kendi durum çubuğu</string>
     <string name="settings_cat_notifications_summary">Simgelerde bildirim noktaları</string>
-    <string name="settings_cat_permissions_summary">ARK-launcher\'ın kullanabildikleri</string>
+    <string name="settings_cat_permissions_summary">ARK-Launcher\'ın kullanabildikleri</string>
     <string name="settings_cat_backup_summary">Düzeni ve ayarları kaydedin ve geri yükleyin</string>
     <string name="settings_cat_about_summary">Güncellemeler, geri bildirim kanalları, sürüm</string>
     <string name="settings_back">Geri</string>

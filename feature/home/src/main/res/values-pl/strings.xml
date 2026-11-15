@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Przesuń w górę, aby otworzyć aplikacje</string>
-    <string name="onboarding_title">Witaj w aplikacji ARK-launcher</string>
-    <string name="onboarding_text">Na początek ustaw ARK-launcher jako domyślny launcher. Potem przesuń w górę, aby otworzyć aplikacje, i przytrzymaj puste miejsce, aby przejść do ustawień.</string>
+    <string name="onboarding_title">Witaj w aplikacji ARK-Launcher</string>
+    <string name="onboarding_text">Na początek ustaw ARK-Launcher jako domyślny launcher. Potem przesuń w górę, aby otworzyć aplikacje, i przytrzymaj puste miejsce, aby przejść do ustawień.</string>
     <string name="onboarding_set_default">Ustaw jako domyślny launcher</string>
     <string name="default_reminder_not_now">Nie teraz</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Zegar i kalendarz</string>
     <string name="smartspace_allow_calendar">Dotknij, aby zezwolić na dostęp do kalendarza</string>
     <string name="smartspace_no_title">(Bez tytułu)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Przesuń w dół – powiadomienia</string>
     <string name="onboarding_gesture_hold">Przytrzymaj puste miejsce – ustawienia i widżety</string>
     <string name="onboarding_perms_title">Uprawnienia</string>
-    <string name="onboarding_perms_text">ARK-launcher działa najlepiej z tymi uprawnieniami. W każdej chwili możesz je zmienić w ustawieniach systemu.</string>
+    <string name="onboarding_perms_text">ARK-Launcher działa najlepiej z tymi uprawnieniami. W każdej chwili możesz je zmienić w ustawieniach systemu.</string>
     <string name="onboarding_perm_notif">Dostęp do powiadomień</string>
     <string name="onboarding_perm_notif_desc">Kropki powiadomień i ikony na pasku stanu</string>
     <string name="onboarding_perm_calendar">Kalendarz</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: blokada ekranu</string>
+    <string name="lock_service_label">ARK-Launcher: blokada ekranu</string>
     <string name="lock_service_description">Służy wyłącznie do blokowania ekranu, gdy dwukrotnie dotkniesz pustego miejsca na ekranie głównym. Usługa nie odczytuje zawartości ekranu ani nie odbiera zdarzeń ułatwień dostępu.</string>
     <string name="double_tap_lock_needs_service">Blokada ekranu wymaga uprawnienia ułatwień dostępu — przyznaj je w sekcji Ustawienia ▸ Gesty</string>
     <string name="widget_picker_close">Zamknij wybór widżetów</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">Dodano %1$s do ekranu głównego</string>
     <string name="pin_request_failed">Nie udało się dodać do ekranu głównego</string>
     <string name="pin_request_locked_title">Układ jest zablokowany</string>
-    <string name="pin_request_locked_text">Wyłącz opcję „Zablokuj układ” w ustawieniach ARK-launchera, aby dodawać elementy.</string>
+    <string name="pin_request_locked_text">Wyłącz opcję „Zablokuj układ” w ustawieniach ARK-Launchera, aby dodawać elementy.</string>
     <string name="pin_request_full_title">Ekran główny jest pełny</string>
     <string name="pin_request_full_text">Zwolnij miejsce na ekranie głównym, aby dodać nowe elementy.</string>
     <string name="pin_request_close">Zamknij</string>

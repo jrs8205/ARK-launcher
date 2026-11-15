@@ -1,4 +1,4 @@
-# ARK-launcher
+# ARK-Launcher
 
 [![Latest release](https://img.shields.io/github/v/release/jrs8205/ARK-launcher?sort=semver)](https://github.com/jrs8205/ARK-launcher/releases/latest)
 [![F-Droid](https://img.shields.io/f-droid/v/org.arkikeskus.launcher)](https://f-droid.org/packages/org.arkikeskus.launcher/)
@@ -40,7 +40,7 @@ your device to install. To update, install the newer APK from the same page (Set
 "Check for updates" opens it), or let Obtainium do it for you (below). Every release is also
 mirrored on [**SourceForge**](https://sourceforge.net/projects/ark-launcher/).
 
-ARK-launcher is also on [**F-Droid**](https://f-droid.org/packages/org.arkikeskus.launcher/).
+ARK-Launcher is also on [**F-Droid**](https://f-droid.org/packages/org.arkikeskus.launcher/).
 F-Droid builds it from source and ships the same signed APK as GitHub, so you can switch between
 them without reinstalling. New versions reach F-Droid a few days after GitHub.
 
@@ -184,7 +184,7 @@ Requirements: `minSdk 30`.
 
 ## Support development
 
-If ARK-launcher is useful to you, you can support its development:
+If ARK-Launcher is useful to you, you can support its development:
 
 - [GitHub Sponsors](https://github.com/sponsors/jrs8205) — monthly or one-time
 - [Buy Me a Coffee](https://buymeacoffee.com/jrs8205) — no sign-up needed

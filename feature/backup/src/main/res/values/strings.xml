@@ -4,7 +4,7 @@
     <string name="backup_file_section">File</string>
     <string name="backup_export">Export to file</string>
     <string name="backup_import">Import from file</string>
-    <string name="backup_default_name">ARK-launcher-backup</string>
+    <string name="backup_default_name">ARK-Launcher-backup</string>
     <string name="backup_exported">Backup saved</string>
     <string name="backup_restored">Backup restored</string>
     <plurals name="backup_restored_skipped">
@@ -14,9 +14,9 @@
     <string name="backup_import_invalid">Invalid or incompatible backup file</string>
     <string name="backup_error_too_large">The backup file is too large</string>
     <string name="backup_failed">Operation failed</string>
-    <string name="backup_import_read_blocked">Android\'s storage service blocked reading this file. Pick it from Downloads instead of the phone\'s storage folders, or open it with ARK-launcher from another file manager app.</string>
+    <string name="backup_import_read_blocked">Android\'s storage service blocked reading this file. Pick it from Downloads instead of the phone\'s storage folders, or open it with ARK-Launcher from another file manager app.</string>
     <string name="backup_import_timeout">The file did not open in time. Try again, or pick it from Downloads or another file manager app.</string>
-    <string name="backup_open_with_label">Restore in ARK-launcher</string>
+    <string name="backup_open_with_label">Restore in ARK-Launcher</string>
     <string name="backup_restoring">Restoring…</string>
     <string name="backup_restore_confirm_title">Restore backup?</string>
     <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets are restored as tap-to-set-up placeholders.</string>

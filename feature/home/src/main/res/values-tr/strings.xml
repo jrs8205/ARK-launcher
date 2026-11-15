@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Uygulamaları açmak için yukarı kaydırın</string>
-    <string name="onboarding_title">ARK-launcher\'a hoş geldiniz</string>
-    <string name="onboarding_text">Başlamak için ARK-launcher\'ı varsayılan başlatıcınız yapın. Ardından uygulamalarınızı açmak için yukarı kaydırın, ayarlara ulaşmak için de boş bir alanı basılı tutun.</string>
+    <string name="onboarding_title">ARK-Launcher\'a hoş geldiniz</string>
+    <string name="onboarding_text">Başlamak için ARK-Launcher\'ı varsayılan başlatıcınız yapın. Ardından uygulamalarınızı açmak için yukarı kaydırın, ayarlara ulaşmak için de boş bir alanı basılı tutun.</string>
     <string name="onboarding_set_default">Varsayılan başlatıcı yap</string>
     <string name="default_reminder_not_now">Şimdi değil</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Saat ve takvim</string>
     <string name="smartspace_allow_calendar">Takvim erişimine izin vermek için dokunun</string>
     <string name="smartspace_no_title">(Başlık yok)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Aşağı kaydırın – bildirimler</string>
     <string name="onboarding_gesture_hold">Boş bir alanı basılı tutun – ayarlar ve widget\'lar</string>
     <string name="onboarding_perms_title">İzinler</string>
-    <string name="onboarding_perms_text">ARK-launcher bu izinlerle en iyi şekilde çalışır. Bunları istediğiniz zaman sistem ayarlarından değiştirebilirsiniz.</string>
+    <string name="onboarding_perms_text">ARK-Launcher bu izinlerle en iyi şekilde çalışır. Bunları istediğiniz zaman sistem ayarlarından değiştirebilirsiniz.</string>
     <string name="onboarding_perm_notif">Bildirim erişimi</string>
     <string name="onboarding_perm_notif_desc">Bildirim noktaları ve durum çubuğu simgeleri</string>
     <string name="onboarding_perm_calendar">Takvim</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: ekran kilidi</string>
+    <string name="lock_service_label">ARK-Launcher: ekran kilidi</string>
     <string name="lock_service_description">Yalnızca ana ekrandaki boş bir alana iki kez dokunduğunuzda ekranı kilitlemek için kullanılır. Hizmet, ekran içeriğini okumaz ve erişilebilirlik etkinliklerini almaz.</string>
     <string name="double_tap_lock_needs_service">Ekran kilidi için erişilebilirlik izni gerekir — Ayarlar ▸ Hareketler bölümünden izin verin</string>
     <string name="widget_picker_close">Widget seçiciyi kapat</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s ana ekrana eklendi</string>
     <string name="pin_request_failed">Ana ekrana eklenemedi</string>
     <string name="pin_request_locked_title">Ana ekran kilitli</string>
-    <string name="pin_request_locked_text">Öğe eklemek için ARK-launcher ayarlarında \"Ana ekran düzenini kilitle\" seçeneğini kapatın.</string>
+    <string name="pin_request_locked_text">Öğe eklemek için ARK-Launcher ayarlarında \"Ana ekran düzenini kilitle\" seçeneğini kapatın.</string>
     <string name="pin_request_full_title">Ana ekran dolu</string>
     <string name="pin_request_full_text">Yeni öğeler eklemek için ana ekranda yer açın.</string>
     <string name="pin_request_close">Kapat</string>

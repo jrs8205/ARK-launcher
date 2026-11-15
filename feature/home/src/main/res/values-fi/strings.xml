@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Pyyhkäise ylös avataksesi sovellukset</string>
-    <string name="onboarding_title">Tervetuloa ARK-launcheriin</string>
-    <string name="onboarding_text">Aseta ARK-launcher oletuslauncheriksi aloittaaksesi. Sen jälkeen pyyhkäise ylös avataksesi sovellukset ja paina tyhjää kohtaa pitkään päästäksesi asetuksiin.</string>
+    <string name="onboarding_title">Tervetuloa ARK-Launcheriin</string>
+    <string name="onboarding_text">Aseta ARK-Launcher oletuslauncheriksi aloittaaksesi. Sen jälkeen pyyhkäise ylös avataksesi sovellukset ja paina tyhjää kohtaa pitkään päästäksesi asetuksiin.</string>
     <string name="onboarding_set_default">Aseta oletuslauncheriksi</string>
     <string name="default_reminder_not_now">Ei nyt</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Kello ja kalenteri</string>
     <string name="smartspace_allow_calendar">Salli kalenterin käyttö napauttamalla</string>
     <string name="smartspace_no_title">(Ei otsikkoa)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Pyyhkäise alas – ilmoitukset</string>
     <string name="onboarding_gesture_hold">Paina tyhjää kohtaa pitkään – asetukset ja widgetit</string>
     <string name="onboarding_perms_title">Luvat</string>
-    <string name="onboarding_perms_text">ARK-launcher toimii parhaiten näillä luvilla. Voit muuttaa valintoja milloin tahansa järjestelmän asetuksista.</string>
+    <string name="onboarding_perms_text">ARK-Launcher toimii parhaiten näillä luvilla. Voit muuttaa valintoja milloin tahansa järjestelmän asetuksista.</string>
     <string name="onboarding_perm_notif">Ilmoitusten käyttö</string>
     <string name="onboarding_perm_notif_desc">Ilmoituspisteet ja tilapalkin kuvakkeet</string>
     <string name="onboarding_perm_calendar">Kalenteri</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: näytön lukitus</string>
+    <string name="lock_service_label">ARK-Launcher: näytön lukitus</string>
     <string name="lock_service_description">Käytetään ainoastaan näytön lukitsemiseen, kun kotinäytön tyhjää aluetta kaksoisnapautetaan. Palvelu ei lue näytön sisältöä eikä vastaanota esteettömyystapahtumia.</string>
     <string name="double_tap_lock_needs_service">Näytön lukitus vaatii esteettömyysluvan — myönnä se kohdasta Asetukset ▸ Eleet</string>
     <string name="widget_picker_close">Sulje widgettivalitsin</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s lisätty aloitusnäytölle</string>
     <string name="pin_request_failed">Aloitusnäytölle lisääminen ei onnistunut</string>
     <string name="pin_request_locked_title">Työpöytä on lukittu</string>
-    <string name="pin_request_locked_text">Ota ”Lukitse työpöytä” pois käytöstä ARK-launcherin asetuksissa, jotta voit lisätä kohteita.</string>
+    <string name="pin_request_locked_text">Ota ”Lukitse työpöytä” pois käytöstä ARK-Launcherin asetuksissa, jotta voit lisätä kohteita.</string>
     <string name="pin_request_full_title">Aloitusnäyttö on täynnä</string>
     <string name="pin_request_full_text">Vapauta tilaa aloitusnäytöltä, jotta voit lisätä uusia kohteita.</string>
     <string name="pin_request_close">Sulje</string>

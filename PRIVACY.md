@@ -1,11 +1,11 @@
-# ARK-launcher Privacy Policy
+# ARK-Launcher Privacy Policy
 
-*Last updated: 2026-10-26 · applies to ARK-launcher v0.9.3 and later
+*Last updated: 2026-10-26 · applies to ARK-Launcher v0.9.3 and later
 ([v0.9.2 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.md))*
 
 *Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
 
-ARK-launcher is a free, open-source Android home-screen launcher (Apache 2.0).
+ARK-Launcher is a free, open-source Android home-screen launcher (Apache 2.0).
 This policy describes exactly what data the app handles. The source code is
 public, so every claim here can be verified:
 <https://github.com/jrs8205/ARK-launcher>.
@@ -77,7 +77,7 @@ checks or downloads.
 Neither request carries account information, cookies or advertising
 identifiers. Like all internet traffic they necessarily reveal your IP address
 to the server; the requests identify themselves with a generic
-`ARK-launcher/<version>` User-Agent that contains no device details.
+`ARK-Launcher/<version>` User-Agent that contains no device details.
 
 ## Permissions
 
@@ -105,7 +105,7 @@ weather and reverse-geocoding services described under *Network use*.
 
 ## Children
 
-ARK-launcher is a general-purpose utility with no content of its own, no ads
+ARK-Launcher is a general-purpose utility with no content of its own, no ads
 and no purchases. It is not directed at children, and it does not knowingly
 collect personal data from children — or from anyone else: the app has no
 accounts and collects no personal data at all.

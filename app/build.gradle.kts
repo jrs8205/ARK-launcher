@@ -57,7 +57,7 @@ android {
             applicationIdSuffix = ".debug"
             // Installed beside the release build on the test phones: a distinct app-list label keeps
             // its own (separate) home screen from being taken for the release one.
-            manifestPlaceholders["appLabel"] = "ARK-launcher debug"
+            manifestPlaceholders["appLabel"] = "ARK-Launcher debug"
         }
         release {
             isMinifyEnabled = true
@@ -85,7 +85,7 @@ androidComponents {
         for (name in listOf("nonMinifiedRelease", "benchmarkRelease")) {
             extension.buildTypes.findByName(name)?.apply {
                 applicationIdSuffix = ".bench"
-                manifestPlaceholders["appLabel"] = "ARK-launcher bench"
+                manifestPlaceholders["appLabel"] = "ARK-Launcher bench"
             }
         }
     }

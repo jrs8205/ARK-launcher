@@ -10,8 +10,8 @@
     <string name="home_full">Der Startbildschirm ist voll</string>
     <string name="folder_default_name">Ordner</string>
     <string name="popup_widgets">Widgets</string>
-    <string name="notice_work_apps_need_default">Lege ARK-launcher als Standard-Launcher fest, um geschäftliche Apps zu pausieren.</string>
-    <string name="notice_private_space_needs_default">Lege ARK-launcher als Standard-Launcher fest, um das vertrauliche Profil zu sperren oder zu entsperren.</string>
+    <string name="notice_work_apps_need_default">Lege ARK-Launcher als Standard-Launcher fest, um geschäftliche Apps zu pausieren.</string>
+    <string name="notice_private_space_needs_default">Lege ARK-Launcher als Standard-Launcher fest, um das vertrauliche Profil zu sperren oder zu entsperren.</string>
     <string name="edit_title">Bearbeiten</string>
     <string name="edit_icon_hint">Tippe auf das Symbol, um es zu ändern</string>
     <string name="edit_swipe_up">Wischen nach oben öffnet</string>

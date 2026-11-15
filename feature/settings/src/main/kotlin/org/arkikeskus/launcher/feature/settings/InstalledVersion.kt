@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 
 /**
- * "ARK-launcher 0.9.4 (61)": the installed build as the package manager reports it — app name,
+ * "ARK-Launcher 0.9.4 (61)": the installed build as the package manager reports it — app name,
  * version name and version code — so the bottom of Settings tells which version this is without a
  * trip to the system's app info. A debuggable build adds "-debug" to the version name: it installs
  * beside the release under its own package id and looks the same otherwise. No lookup of what is

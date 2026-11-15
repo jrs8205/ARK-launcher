@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Wische nach oben, um die Apps zu öffnen</string>
-    <string name="onboarding_title">Willkommen bei ARK-launcher</string>
-    <string name="onboarding_text">Lege ARK-launcher als Standard-Launcher fest, um loszulegen. Wische dann nach oben, um deine Apps zu öffnen, und halte eine freie Stelle gedrückt, um zu den Einstellungen zu gelangen.</string>
+    <string name="onboarding_title">Willkommen bei ARK-Launcher</string>
+    <string name="onboarding_text">Lege ARK-Launcher als Standard-Launcher fest, um loszulegen. Wische dann nach oben, um deine Apps zu öffnen, und halte eine freie Stelle gedrückt, um zu den Einstellungen zu gelangen.</string>
     <string name="onboarding_set_default">Als Standard-Launcher festlegen</string>
     <string name="default_reminder_not_now">Nicht jetzt</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Uhr &amp; Kalender</string>
     <string name="smartspace_allow_calendar">Tippe, um den Kalenderzugriff zuzulassen</string>
     <string name="smartspace_no_title">(Kein Titel)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Nach unten wischen – Benachrichtigungen</string>
     <string name="onboarding_gesture_hold">Freie Stelle gedrückt halten – Einstellungen und Widgets</string>
     <string name="onboarding_perms_title">Berechtigungen</string>
-    <string name="onboarding_perms_text">ARK-launcher funktioniert am besten mit diesen Berechtigungen. Du kannst sie jederzeit in den Systemeinstellungen ändern.</string>
+    <string name="onboarding_perms_text">ARK-Launcher funktioniert am besten mit diesen Berechtigungen. Du kannst sie jederzeit in den Systemeinstellungen ändern.</string>
     <string name="onboarding_perm_notif">Benachrichtigungszugriff</string>
     <string name="onboarding_perm_notif_desc">Benachrichtigungspunkte und Symbole in der Statusleiste</string>
     <string name="onboarding_perm_calendar">Kalender</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: Bildschirm sperren</string>
+    <string name="lock_service_label">ARK-Launcher: Bildschirm sperren</string>
     <string name="lock_service_description">Wird nur verwendet, um den Bildschirm zu sperren, wenn du auf eine freie Stelle des Startbildschirms doppeltippst. Der Dienst liest keine Bildschirminhalte und empfängt keine Ereignisse der Bedienungshilfen.</string>
     <string name="double_tap_lock_needs_service">Zum Sperren des Bildschirms wird die Berechtigung für Bedienungshilfen benötigt – erteile sie unter Einstellungen ▸ Gesten</string>
     <string name="widget_picker_close">Widget-Auswahl schließen</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s zum Startbildschirm hinzugefügt</string>
     <string name="pin_request_failed">Konnte nicht zum Startbildschirm hinzugefügt werden</string>
     <string name="pin_request_locked_title">Der Startbildschirm ist gesperrt</string>
-    <string name="pin_request_locked_text">Deaktiviere „Startbildschirm-Layout sperren“ in den Einstellungen von ARK-launcher, um Elemente hinzuzufügen.</string>
+    <string name="pin_request_locked_text">Deaktiviere „Startbildschirm-Layout sperren“ in den Einstellungen von ARK-Launcher, um Elemente hinzuzufügen.</string>
     <string name="pin_request_full_title">Der Startbildschirm ist voll</string>
     <string name="pin_request_full_text">Schaffe Platz auf dem Startbildschirm, um neue Elemente hinzuzufügen.</string>
     <string name="pin_request_close">Schließen</string>

@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_open_drawer_hint">Проведите вверх, чтобы открыть список приложений</string>
-    <string name="onboarding_title">Добро пожаловать в ARK-launcher</string>
-    <string name="onboarding_text">Чтобы начать, сделайте ARK-launcher лаунчером по умолчанию. Затем проведите вверх, чтобы открыть приложения, а для перехода к настройкам нажмите и удерживайте пустое место на экране.</string>
+    <string name="onboarding_title">Добро пожаловать в ARK-Launcher</string>
+    <string name="onboarding_text">Чтобы начать, сделайте ARK-Launcher лаунчером по умолчанию. Затем проведите вверх, чтобы открыть приложения, а для перехода к настройкам нажмите и удерживайте пустое место на экране.</string>
     <string name="onboarding_set_default">Сделать лаунчером по умолчанию</string>
     <string name="default_reminder_not_now">Не сейчас</string>
-    <string name="widget_builtin_section">ARK-launcher</string>
+    <string name="widget_builtin_section">ARK-Launcher</string>
     <string name="smartspace_widget_name">Часы и календарь</string>
     <string name="smartspace_allow_calendar">Нажмите, чтобы разрешить доступ к календарю</string>
     <string name="smartspace_no_title">(Без названия)</string>
@@ -63,7 +63,7 @@
     <string name="onboarding_gesture_down">Проведите вниз – уведомления</string>
     <string name="onboarding_gesture_hold">Нажмите и удерживайте пустое место – настройки и виджеты</string>
     <string name="onboarding_perms_title">Разрешения</string>
-    <string name="onboarding_perms_text">ARK-launcher лучше всего работает с этими разрешениями. Их можно изменить в любое время в настройках системы.</string>
+    <string name="onboarding_perms_text">ARK-Launcher лучше всего работает с этими разрешениями. Их можно изменить в любое время в настройках системы.</string>
     <string name="onboarding_perm_notif">Доступ к уведомлениям</string>
     <string name="onboarding_perm_notif_desc">Значки уведомлений и значки в строке состояния</string>
     <string name="onboarding_perm_calendar">Календарь</string>
@@ -133,7 +133,7 @@
     <string name="status_wifi_band_24">2,4</string>
     <string name="status_wifi_band_5">5</string>
     <string name="status_wifi_band_6">6</string>
-    <string name="lock_service_label">ARK-launcher: блокировка экрана</string>
+    <string name="lock_service_label">ARK-Launcher: блокировка экрана</string>
     <string name="lock_service_description">Используется только для блокировки экрана, когда вы дважды нажимаете на пустое место главного экрана. Сервис не считывает содержимое экрана и не получает события специальных возможностей.</string>
     <string name="double_tap_lock_needs_service">Для блокировки экрана нужен доступ к специальным возможностям — предоставьте его в разделе «Настройки ▸ Жесты»</string>
     <string name="widget_picker_close">Закрыть список виджетов</string>
@@ -152,7 +152,7 @@
     <string name="pin_request_added">%1$s добавлен на главный экран</string>
     <string name="pin_request_failed">Не удалось добавить на главный экран</string>
     <string name="pin_request_locked_title">Макет заблокирован</string>
-    <string name="pin_request_locked_text">Отключите «Заблокировать макет» в настройках ARK-launcher, чтобы добавлять элементы.</string>
+    <string name="pin_request_locked_text">Отключите «Заблокировать макет» в настройках ARK-Launcher, чтобы добавлять элементы.</string>
     <string name="pin_request_full_title">Главный экран заполнен</string>
     <string name="pin_request_full_text">Освободите место на главном экране, чтобы добавить новые элементы.</string>
     <string name="pin_request_close">Закрыть</string>
