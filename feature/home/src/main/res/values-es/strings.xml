@@ -93,6 +93,11 @@
     <string name="folder_remove_app">Quitar de la carpeta</string>
     <string name="folder_edit">Editar carpeta</string>
     <string name="folder_done">Hecho</string>
+    <string name="folder_add_apps">Agregar aplicaciones</string>
+    <string name="folder_add">Agregar</string>
+    <string name="folder_search_apps">Buscar aplicaciones</string>
+    <string name="folder_no_results">No se encontraron resultados</string>
+    <string name="folder_sort_by_name">Ordenar A–Z</string>
     <string name="folder_delete">Eliminar carpeta</string>
     <string name="folder_delete_title">¿Eliminar la carpeta?</string>
     <string name="folder_delete_home_text">«%1$s» se quitará de la pantalla de inicio. Sus apps seguirán en el cajón de aplicaciones.</string>

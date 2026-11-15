@@ -93,6 +93,11 @@
     <string name="folder_remove_app">Aus dem Ordner entfernen</string>
     <string name="folder_edit">Ordner bearbeiten</string>
     <string name="folder_done">Fertig</string>
+    <string name="folder_add_apps">Apps hinzufügen</string>
+    <string name="folder_add">Hinzufügen</string>
+    <string name="folder_search_apps">Apps durchsuchen</string>
+    <string name="folder_no_results">Keine Ergebnisse gefunden</string>
+    <string name="folder_sort_by_name">A–Z sortieren</string>
     <string name="folder_delete">Ordner löschen</string>
     <string name="folder_delete_title">Ordner löschen?</string>
     <string name="folder_delete_home_text">„%1$s“ wird vom Startbildschirm entfernt. Die Apps bleiben im App-Drawer.</string>

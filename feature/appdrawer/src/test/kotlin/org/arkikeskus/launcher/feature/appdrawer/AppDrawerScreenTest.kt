@@ -35,6 +35,8 @@ import androidx.compose.ui.test.performTouchInput
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
+import org.arkikeskus.launcher.ui.ADD_APPS_ROW_TAG
+import org.arkikeskus.launcher.ui.ADD_APPS_SEARCH_TAG
 import org.arkikeskus.launcher.model.AppItem
 import android.os.Process
 import kotlinx.coroutines.test.TestScope

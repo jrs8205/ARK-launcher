@@ -439,6 +439,41 @@ class HomeLayoutRepository @Inject constructor(
         }
     }
 
+    /**
+     * Adds [apps] to [folderId] after the apps it has, in the order given: the editor's "Add apps" list
+     * (discussion #16). Each joins as an icon dropped on the folder would: its own home icon, if it has
+     * one, is the row that moves in, so no second icon of the app stays behind, and an app the folder
+     * already holds is not added twice. A dock icon of the app is left where it is. Nothing happens when
+     * the folder is gone (it dissolved while the list was open).
+     */
+    suspend fun addAppsToFolder(folderId: Long, apps: List<AppItem>) {
+        db.withTransaction {
+            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+            for (app in apps) {
+                joinFolder(folderId, dao.getByKey(HOME, app.packageName, app.className, app.userSerial), app)
+            }
+        }
+    }
+
+    /**
+     * Puts the apps of [folderId] in the order of [keysInOrder] (app keys): the editor's "Sort A-Z". A child
+     * the list does not name, one that resolves to no app right now and so has no name to sort by, keeps
+     * its place after the named ones. The rows are parked at negative cells first, as in
+     * [moveWithinFolder], so the unique cell index never trips. Nothing happens when the folder is gone.
+     */
+    suspend fun sortFolder(folderId: Long, keysInOrder: List<String>) {
+        db.withTransaction {
+            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+            val children = dao.getContainerOrdered(folderId)
+            val rank = keysInOrder.withIndex().associate { (index, key) -> key to index }
+            // sortedBy is stable: the unnamed children stay in the order they had.
+            val order = children.sortedBy { rank[it.key] ?: Int.MAX_VALUE }
+            if (order.map { it.id } == children.map { it.id }) return@withTransaction
+            order.forEachIndexed { i, child -> dao.moveById(child.id, folderId, 0, -1 - i, 0) }
+            order.forEachIndexed { i, child -> dao.moveById(child.id, folderId, 0, i, 0) }
+        }
+    }
+
     suspend fun renameFolder(folderId: Long, name: String) {
         dao.renameFolder(folderId, name)
     }

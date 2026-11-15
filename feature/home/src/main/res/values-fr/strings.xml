@@ -93,6 +93,11 @@
     <string name="folder_remove_app">Retirer du dossier</string>
     <string name="folder_edit">Modifier le dossier</string>
     <string name="folder_done">OK</string>
+    <string name="folder_add_apps">Ajouter des applications</string>
+    <string name="folder_add">Ajouter</string>
+    <string name="folder_search_apps">Rechercher des applications</string>
+    <string name="folder_no_results">Aucun résultat</string>
+    <string name="folder_sort_by_name">Trier de A à Z</string>
     <string name="folder_delete">Supprimer le dossier</string>
     <string name="folder_delete_title">Supprimer le dossier ?</string>
     <string name="folder_delete_home_text">« %1$s » sera retiré de l’écran d’accueil. Ses applis resteront dans la liste des applications.</string>

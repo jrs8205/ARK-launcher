@@ -93,6 +93,11 @@
     <string name="folder_remove_app">Usuń z folderu</string>
     <string name="folder_edit">Edytuj folder</string>
     <string name="folder_done">Gotowe</string>
+    <string name="folder_add_apps">Dodaj aplikacje</string>
+    <string name="folder_add">Dodaj</string>
+    <string name="folder_search_apps">Szukaj aplikacji</string>
+    <string name="folder_no_results">Nie znaleziono wyników</string>
+    <string name="folder_sort_by_name">Sortuj A–Z</string>
     <string name="folder_delete">Usuń folder</string>
     <string name="folder_delete_title">Usunąć folder?</string>
     <string name="folder_delete_home_text">„%1$s” zostanie usunięty z ekranu głównego. Jego aplikacje pozostaną w szufladzie aplikacji.</string>

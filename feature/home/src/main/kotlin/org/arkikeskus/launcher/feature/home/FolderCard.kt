@@ -93,6 +93,7 @@ import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
+import org.arkikeskus.launcher.ui.AddAppsDialog
 import org.arkikeskus.launcher.ui.FolderIconButton
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.dragPointer
@@ -184,6 +185,12 @@ internal fun FolderCard(
     columns: Int = FOLDER_COLUMNS,
     /** App names, icon size, row spacing and the card's colour (Settings > Folder appearance). */
     style: FolderStyle = FolderStyle(),
+    /** The apps the editor's "Add apps" list offers: the ones this folder does not hold (discussion #16). */
+    candidates: List<AppItem> = emptyList(),
+    /** The list confirmed: the ticked apps, in the order they were ticked. */
+    onAddApps: (List<AppItem>) -> Unit = {},
+    /** The editor's "Sort A-Z": the folder's apps in the order of their names. */
+    onSortByName: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -204,6 +211,7 @@ internal fun FolderCard(
     // The card opens to look (issue #20); the pencil turns the header into the editor.
     var editing by remember(folder.id) { mutableStateOf(false) }
     var confirmDelete by remember(folder.id) { mutableStateOf(false) }
+    var showAddApps by remember(folder.id) { mutableStateOf(false) }
 
     // Root-space bounds of the card: a lifted icon pulled past them leaves the folder for the home
     // screen. The card then fades out but STAYS COMPOSED until the gesture ends — removing the node
@@ -550,11 +558,22 @@ internal fun FolderCard(
                     }
                 }
                 if (editing) {
+                    val actionColors = ButtonDefaults.textButtonColors(
+                        contentColor = folderActionColor(cardColors, themeText, MaterialTheme.colorScheme.primary),
+                    )
+                    // What fills and orders the folder on one line, what removes it on a line of its own:
+                    // three buttons side by side do not fit a narrow card in every language.
+                    Row(modifier = Modifier.align(Alignment.Start)) {
+                        TextButton(onClick = { showAddApps = true }, colors = actionColors) {
+                            Text(stringResource(R.string.folder_add_apps))
+                        }
+                        TextButton(onClick = onSortByName, colors = actionColors) {
+                            Text(stringResource(R.string.folder_sort_by_name))
+                        }
+                    }
                     TextButton(
                         onClick = { confirmDelete = true },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = folderActionColor(cardColors, themeText, MaterialTheme.colorScheme.primary),
-                        ),
+                        colors = actionColors,
                         modifier = Modifier.align(Alignment.End),
                     ) {
                         Text(stringResource(R.string.folder_delete))
@@ -564,6 +583,21 @@ internal fun FolderCard(
         }
     }
 
+    if (showAddApps) {
+        AddAppsDialog(
+            apps = candidates,
+            title = stringResource(R.string.folder_add_apps),
+            searchHint = stringResource(R.string.folder_search_apps),
+            noResults = stringResource(R.string.folder_no_results),
+            addLabel = stringResource(R.string.folder_add),
+            cancelLabel = stringResource(R.string.cancel),
+            onConfirm = { picked ->
+                showAddApps = false
+                onAddApps(picked)
+            },
+            onDismiss = { showAddApps = false },
+        )
+    }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },

@@ -203,9 +203,18 @@ data class HomeUiState(
     val swipeUpTargets: Map<String, AppItem> = emptyMap(),
     /** "Swipe down opens": the same for a swipe down on the icon. */
     val swipeDownTargets: Map<String, AppItem> = emptyMap(),
+    /** Every app that can be put on the home screen (none of the private space's): what a folder's
+     *  "Add apps" list picks from. */
+    val apps: List<AppItem> = emptyList(),
     /** False for the placeholder shown before settings and the layout have been read. */
     val loaded: Boolean = false,
 )
+
+/** The apps the editor's "Add apps" list offers for [folder]: every app it does not hold yet, by name. */
+internal fun folderCandidates(apps: List<AppItem>, folder: PlacedFolder): List<AppItem> {
+    val held = folder.apps.mapTo(HashSet()) { it.key }
+    return apps.filter { it.key !in held }.sortedBy { it.label.lowercase() }
+}
 
 /** The "Swipe up opens" choices that still resolve: the icon's key to the installed app it opens. */
 internal fun resolveSwipeUpTargets(choices: Map<String, String>, byKey: Map<String, AppItem>): Map<String, AppItem> =
@@ -493,6 +502,7 @@ class HomeViewModel @Inject constructor(
         val pageCount = permanentPageCount(occupied, settings.homePageCount)
         HomeUiState(
             settings = settings,
+            apps = apps,
             dockEntries = dockEntries,
             entries = entries,
             pageCount = pageCount,
@@ -772,6 +782,19 @@ class HomeViewModel @Inject constructor(
         if (!homeLayoutRepository.removeFromFolder(appItem, folderId, s.homeColumns, s.homeRows)) {
             notify(HomeNotice.HomeFull)
         }
+    }
+
+    /** The editor's "Add apps" list, confirmed (discussion #16): the ticked apps join the folder, in the
+     *  order they were ticked. */
+    fun addAppsToFolder(folderId: Long, apps: List<AppItem>) = viewModelScope.launch {
+        homeLayoutRepository.addAppsToFolder(folderId, apps)
+    }
+
+    /** The editor's "Sort A-Z" (discussion #16): the folder's apps in the order of their names, capitals
+     *  aside, as the app drawer lists apps. Done once: an app added later goes to the end again. */
+    fun sortFolderByName(folderId: Long) = viewModelScope.launch {
+        val byName = appRepository.apps.first().sortedBy { it.label.lowercase() }.map { it.key }
+        homeLayoutRepository.sortFolder(folderId, byName)
     }
 
     /** A drag inside the open folder ended at a new slot: [appItem] goes just before [before]

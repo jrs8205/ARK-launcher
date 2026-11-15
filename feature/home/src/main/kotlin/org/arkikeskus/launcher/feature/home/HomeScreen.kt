@@ -880,6 +880,9 @@ fun HomeScreen(
                     viewModel.deleteFolder(openFolder.id)
                     openFolderId = null
                 },
+                candidates = remember(uiState.apps, openFolder) { folderCandidates(uiState.apps, openFolder) },
+                onAddApps = { viewModel.addAppsToFolder(openFolder.id, it) },
+                onSortByName = { viewModel.sortFolderByName(openFolder.id) },
                 // The card would cover the picker: close it first.
                 onWidgets = if (settings.desktopLocked) null else ({ app ->
                     openFolderId = null
