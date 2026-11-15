@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Mostrar contagem</string>
     <string name="settings_notif_access">Conceder acesso a notificações</string>
     <string name="settings_notif_access_granted">Concedido</string>
+    <string name="settings_restricted_hint">A chave está esmaecida?</string>
+    <string name="settings_restricted_hint_desc">O Android bloqueia o acesso às notificações para apps instalados a partir de um arquivo. Toque uma vez na chave esmaecida, depois abra aqui as informações do app, toque nos três pontos no canto superior direito e escolha “Permitir configurações restritas”. Depois disso a chave pode ser ativada.</string>
     <string name="settings_notif_access_not_granted">Não concedido – necessário para mostrar os pontos de notificação</string>
     <string name="settings_notif_size">Tamanho do ponto de notificação</string>
     <string name="settings_notif_widget_count">Contagem de notificações no widget</string>

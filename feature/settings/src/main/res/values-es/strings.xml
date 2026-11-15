@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Mostrar número</string>
     <string name="settings_notif_access">Permitir acceso a las notificaciones</string>
     <string name="settings_notif_access_granted">Permitido</string>
+    <string name="settings_restricted_hint">¿El interruptor está atenuado?</string>
+    <string name="settings_restricted_hint_desc">Android bloquea el acceso a las notificaciones para las apps instaladas desde un archivo. Toca una vez el interruptor atenuado, abre después aquí la información de la app, toca los tres puntos de la esquina superior derecha y elige «Permitir ajustes restringidos». Después se puede activar el interruptor.</string>
     <string name="settings_notif_access_not_granted">No permitido – necesario para mostrar los puntos de notificación</string>
     <string name="settings_notif_size">Tamaño del punto de notificación</string>
     <string name="settings_notif_widget_count">Número de notificaciones en el widget</string>

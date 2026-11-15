@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Visa antal</string>
     <string name="settings_notif_access">Tillåt åtkomst till aviseringar</string>
     <string name="settings_notif_access_granted">Tillåten</string>
+    <string name="settings_restricted_hint">Är reglaget nedtonat?</string>
+    <string name="settings_restricted_hint_desc">Android blockerar aviseringsåtkomst för appar som installerats från en fil. Tryck en gång på det nedtonade reglaget, öppna sedan appinformationen här, tryck på de tre prickarna uppe till höger och välj ”Tillåt begränsade inställningar”. Därefter går reglaget att slå på.</string>
     <string name="settings_notif_access_not_granted">Inte tillåten – krävs för att visa aviseringsprickar</string>
     <string name="settings_notif_size">Storlek på aviseringsprickar</string>
     <string name="settings_notif_widget_count">Antal aviseringar i widgeten</string>

@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Sayıyı göster</string>
     <string name="settings_notif_access">Bildirim erişimi ver</string>
     <string name="settings_notif_access_granted">İzin verildi</string>
+    <string name="settings_restricted_hint">Anahtar gri mi görünüyor?</string>
+    <string name="settings_restricted_hint_desc">Android, dosyadan yüklenen uygulamalar için bildirim erişimini engeller. Gri anahtara bir kez dokunun, sonra buradan uygulama bilgilerini açın, sağ üstteki üç noktaya dokunun ve “Kısıtlanmış ayarlara izin ver” seçeneğini seçin. Bundan sonra anahtar açılabilir.</string>
     <string name="settings_notif_access_not_granted">İzin verilmedi – bildirim noktalarını göstermek için gerekli</string>
     <string name="settings_notif_size">Bildirim noktası boyutu</string>
     <string name="settings_notif_widget_count">Widget\'ta bildirim sayısı</string>

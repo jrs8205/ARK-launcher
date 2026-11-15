@@ -261,6 +261,10 @@ internal object SettingsIndex {
         }
         SettingsCategory.PERMISSIONS.let { c ->
             row("P1", c, R.string.settings_notif_access)
+            row(
+                "P1a", c, R.string.settings_restricted_hint, R.string.settings_restricted_hint_desc,
+                fallback = "P1", minSdk = Build.VERSION_CODES.TIRAMISU,
+            )
             row("P2", c, R.string.settings_permission_calendar)
             row("P3", c, R.string.settings_permission_contacts)
             row("P4", c, R.string.settings_permission_phone)

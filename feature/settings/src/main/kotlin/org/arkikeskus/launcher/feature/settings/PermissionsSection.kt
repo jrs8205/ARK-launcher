@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 
 /** Settings > Permissions: every permission the launcher uses, with a live granted or not-granted status. */
@@ -44,6 +45,17 @@ internal fun PermissionsRows() {
             ),
         ) {
             openNotificationAccess(context)
+        }
+    }
+    if (restrictedSettingsHintShown(notifAccessGranted, android.os.Build.VERSION.SDK_INT)) {
+        SettingRow("P1a") {
+            ExpressiveActionRow(
+                label = stringResource(R.string.settings_restricted_hint),
+                description = stringResource(R.string.settings_restricted_hint_desc),
+                trailingIcon = LauncherIcons.OpenInNew,
+            ) {
+                openAppDetailsSettings(context)
+            }
         }
     }
     SettingRow("P2") {
@@ -128,6 +140,16 @@ internal tailrec fun android.content.Context.findActivity(): android.app.Activit
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> null
 }
+
+/**
+ * Whether the page explains Android's "restricted settings" (issue #27). From Android 13 the system greys
+ * out notification access for an app installed from a file, until the user allows restricted settings in
+ * the app's info; the switch then simply cannot be turned on, and nothing says why. Whether this install is
+ * restricted cannot be asked by an app, so the hint shows whenever the access is missing where the
+ * restriction exists, and goes when the access is there.
+ */
+internal fun restrictedSettingsHintShown(accessGranted: Boolean, sdkInt: Int): Boolean =
+    !accessGranted && sdkInt >= android.os.Build.VERSION_CODES.TIRAMISU
 
 /** The app's system details page — where a permanently denied permission can still be granted. */
 internal fun openAppDetailsSettings(context: android.content.Context) {

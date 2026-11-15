@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Näytä lukumäärä</string>
     <string name="settings_notif_access">Myönnä ilmoitusten käyttöoikeus</string>
     <string name="settings_notif_access_granted">Myönnetty</string>
+    <string name="settings_restricted_hint">Onko kytkin harmaana?</string>
+    <string name="settings_restricted_hint_desc">Android estää ilmoitusten käyttöoikeuden sovelluksilta, jotka on asennettu tiedostosta. Napauta harmaata kytkintä kerran, avaa sitten tästä sovelluksen tiedot, napauta oikean yläkulman kolmea pistettä ja valitse ”Salli rajoitetut asetukset”. Sen jälkeen kytkimen saa päälle.</string>
     <string name="settings_notif_access_not_granted">Ei myönnetty – tarvitaan ilmoituspisteiden näyttämiseen</string>
     <string name="settings_notif_size">Ilmoituspisteen koko</string>
     <string name="settings_notif_widget_count">Ilmoitusten määrä widgetissä</string>

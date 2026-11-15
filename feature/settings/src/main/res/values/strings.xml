@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Show count</string>
     <string name="settings_notif_access">Grant notification access</string>
     <string name="settings_notif_access_granted">Granted</string>
+    <string name="settings_restricted_hint">Is the switch greyed out?</string>
+    <string name="settings_restricted_hint_desc">Android blocks notification access for apps installed from a file. Tap the greyed-out switch once, then open the app\'s info here, tap the three dots at the top right and choose “Allow restricted settings”. After that the switch can be turned on.</string>
     <string name="settings_notif_access_not_granted">Not granted – required to show notification dots</string>
     <string name="settings_notif_size">Notification dot size</string>
     <string name="settings_notif_widget_count">Notification count in the widget</string>

@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Показывать количество</string>
     <string name="settings_notif_access">Предоставить доступ к уведомлениям</string>
     <string name="settings_notif_access_granted">Доступ предоставлен</string>
+    <string name="settings_restricted_hint">Переключатель неактивен?</string>
+    <string name="settings_restricted_hint_desc">Android блокирует доступ к уведомлениям для приложений, установленных из файла. Нажмите один раз на неактивный переключатель, затем откройте здесь сведения о приложении, нажмите три точки в правом верхнем углу и выберите «Разрешить ограниченные настройки». После этого переключатель можно включить.</string>
     <string name="settings_notif_access_not_granted">Доступ не предоставлен – он нужен для значков уведомлений</string>
     <string name="settings_notif_size">Размер значков уведомлений</string>
     <string name="settings_notif_widget_count">Число уведомлений в виджете</string>

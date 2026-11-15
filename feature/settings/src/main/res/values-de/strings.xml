@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Anzahl anzeigen</string>
     <string name="settings_notif_access">Benachrichtigungszugriff zulassen</string>
     <string name="settings_notif_access_granted">Zugelassen</string>
+    <string name="settings_restricted_hint">Ist der Schalter ausgegraut?</string>
+    <string name="settings_restricted_hint_desc">Android sperrt den Benachrichtigungszugriff für Apps, die aus einer Datei installiert wurden. Tippe einmal auf den ausgegrauten Schalter, öffne dann hier die App-Info, tippe oben rechts auf die drei Punkte und wähle „Eingeschränkte Einstellungen zulassen“. Danach lässt sich der Schalter einschalten.</string>
     <string name="settings_notif_access_not_granted">Nicht zugelassen – für Benachrichtigungspunkte erforderlich</string>
     <string name="settings_notif_size">Größe der Benachrichtigungspunkte</string>
     <string name="settings_notif_widget_count">Anzahl der Benachrichtigungen im Widget</string>

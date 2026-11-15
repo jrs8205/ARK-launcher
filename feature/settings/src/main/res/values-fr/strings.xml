@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Afficher le nombre</string>
     <string name="settings_notif_access">Autoriser l\'accès aux notifications</string>
     <string name="settings_notif_access_granted">Autorisé</string>
+    <string name="settings_restricted_hint">L\'interrupteur est grisé ?</string>
+    <string name="settings_restricted_hint_desc">Android bloque l\'accès aux notifications pour les applis installées depuis un fichier. Touchez une fois l\'interrupteur grisé, ouvrez ensuite ici les infos de l\'appli, touchez les trois points en haut à droite et choisissez « Autoriser les paramètres restreints ». L\'interrupteur peut alors être activé.</string>
     <string name="settings_notif_access_not_granted">Non autorisé – requis pour afficher les pastilles de notification</string>
     <string name="settings_notif_size">Taille des pastilles de notification</string>
     <string name="settings_notif_widget_count">Nombre de notifications dans le widget</string>

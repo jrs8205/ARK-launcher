@@ -84,6 +84,8 @@
     <string name="settings_notif_count">Pokaż liczbę</string>
     <string name="settings_notif_access">Przyznaj dostęp do powiadomień</string>
     <string name="settings_notif_access_granted">Przyznano</string>
+    <string name="settings_restricted_hint">Przełącznik jest wyszarzony?</string>
+    <string name="settings_restricted_hint_desc">Android blokuje dostęp do powiadomień aplikacjom zainstalowanym z pliku. Dotknij raz wyszarzonego przełącznika, potem otwórz tutaj informacje o aplikacji, dotknij trzech kropek w prawym górnym rogu i wybierz „Zezwól na ustawienia z ograniczonym dostępem”. Potem przełącznik da się włączyć.</string>
     <string name="settings_notif_access_not_granted">Nie przyznano – wymagane do wyświetlania kropek powiadomień</string>
     <string name="settings_notif_size">Rozmiar kropek powiadomień</string>
     <string name="settings_notif_widget_count">Liczba powiadomień w widżecie</string>

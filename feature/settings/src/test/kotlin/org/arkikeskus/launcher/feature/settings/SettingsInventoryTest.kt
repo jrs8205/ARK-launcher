@@ -159,7 +159,7 @@ class SettingsInventoryTest {
             "SS15" to "dream_flip_title", "SS16" to "force_portrait_title", "SS17" to "dream_vertical_shift_title",
             "SS18" to "dim_screensaver_title", "SS19" to "night_dim_title", "SS20" to "settings_screensaver_night_times",
             "SS21" to "dream_night_style_title", "SS22" to "dream_brightness_title", "SS23" to "settings_screensaver_brightness_level",
-            "P1" to "settings_notif_access", "P2" to "settings_permission_calendar",
+            "P1" to "settings_notif_access", "P1a" to "settings_restricted_hint", "P2" to "settings_permission_calendar",
             "P3" to "settings_permission_contacts", "P4" to "settings_permission_phone",
             "P5" to "settings_permission_location", "P6" to "settings_permission_notifications",
             "B1" to "settings_backup",
@@ -208,7 +208,15 @@ class SettingsInventoryTest {
         assertThat(SettingsIndex.entries.filter { it.category == SettingsCategory.BACKUP }.map { it.id }).containsExactly("B1")
     }
 
+    /** Notification access as Android stores it: the hint about restricted settings shows only without it. */
+    private fun notificationAccess(granted: Boolean) {
+        val app = RuntimeEnvironment.getApplication()
+        val listeners = if (granted) android.content.ComponentName(app.packageName, "Listener").flattenToString() else ""
+        android.provider.Settings.Secure.putString(app.contentResolver, "enabled_notification_listeners", listeners)
+    }
+
     @Test fun withEverythingOffEachPageShowsItsUnconditionalRowsInOrder() {
+        notificationAccess(granted = true)
         show(everythingOff)
         assertEveryPageShowsExactlyItsRows(unconditionalIds - "B1")
     }
