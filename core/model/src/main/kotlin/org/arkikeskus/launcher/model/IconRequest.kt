@@ -16,6 +16,10 @@ package org.arkikeskus.launcher.model
  * [epoch] is the app's [IconEpochs] token. It's part of the model/cache key so a package update
  * re-renders that app's icon immediately — including icons already on screen, whose AsyncImage only
  * re-fetches when the model changes.
+ *
+ * [shape] is the icon shape the user picked (issue #26); the system's means the icon is drawn as the phone
+ * shapes it. Part of the key, so picking a shape redraws every icon. An icon from an icon pack keeps the
+ * form its pack gave it.
  */
 data class IconRequest(
     val app: AppItem,
@@ -24,4 +28,5 @@ data class IconRequest(
     val iconPack: String = "",
     val epoch: Int = 0,
     val themeAll: Boolean = false,
+    val shape: IconShape = IconShape.SYSTEM,
 )

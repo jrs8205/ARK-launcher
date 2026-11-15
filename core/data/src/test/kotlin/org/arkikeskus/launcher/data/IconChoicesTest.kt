@@ -63,9 +63,9 @@ class IconChoicesTest {
         assertThat(pack.mappedDrawables()).containsExactly("google_chrome")
     }
 
-    /** A gallery picture becomes a square icon cut to the phone's icon shape: the middle of the
-     *  picture is kept, the corners outside the shape are clear. */
-    @Test fun aGalleryImageBecomesAnIconShapedLikeThePhonesIcons() = runTest {
+    /** A gallery picture becomes a square icon: the middle of the picture is kept, corners and all.
+     *  It is cut to the icon shape when it is drawn (IconShaperTest), so it follows a shape picked later. */
+    @Test fun aGalleryImageIsSavedAsTheWholeSquare() = runTest {
         val picture = Bitmap.createBitmap(400, 200, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.GREEN) }
         val file = File(context.cacheDir, "picture.png").apply { outputStream().use { picture.compress(Bitmap.CompressFormat.PNG, 100, it) } }
         val files = CustomIconFiles(context)
@@ -77,7 +77,7 @@ class IconChoicesTest {
         assertThat(saved.width).isEqualTo(CustomIconFiles.SIZE)
         assertThat(saved.height).isEqualTo(CustomIconFiles.SIZE)
         assertThat(saved.getPixel(CustomIconFiles.SIZE / 2, CustomIconFiles.SIZE / 2)).isEqualTo(Color.GREEN)
-        assertThat(Color.alpha(saved.getPixel(0, 0))).isEqualTo(0)
+        assertThat(saved.getPixel(0, 0)).isEqualTo(Color.GREEN)
     }
 
     @Test fun somethingThatIsNoImageGivesNoIcon() = runTest {

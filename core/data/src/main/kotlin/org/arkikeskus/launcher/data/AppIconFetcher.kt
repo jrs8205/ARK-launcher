@@ -28,8 +28,8 @@ class AppIconFetcher(
 ) : Fetcher {
     override suspend fun fetch(): FetchResult? = withContext(Dispatchers.IO) {
         // An icon the user picked for the app wins; if its pack or file is gone, the app's own shows.
-        val drawable = data.app.customIcon?.let(custom::drawable)
-            ?: source.loadIcon(data.app, data.themed, data.dark, data.iconPack, data.themeAll)
+        val drawable = data.app.customIcon?.let { custom.drawable(it, data.shape) }
+            ?: source.loadIcon(data.app, data.themed, data.dark, data.iconPack, data.themeAll, data.shape)
             ?: return@withContext null
         iconResult(drawable)
     }
@@ -39,9 +39,6 @@ class AppIconFetcher(
             AppIconFetcher(data, source, custom)
     }
 }
-
-/** Rasterization size (px); crisp for icons up to ~56dp at xxxhdpi. */
-private const val ICON_PX = 168
 
 /** [drawable] drawn once into a bitmap (see [AppIconFetcher]) as Coil's result. */
 internal fun iconResult(drawable: Drawable): FetchResult {

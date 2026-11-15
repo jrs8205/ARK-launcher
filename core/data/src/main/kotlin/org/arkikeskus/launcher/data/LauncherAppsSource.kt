@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.IconEpochs
+import org.arkikeskus.launcher.model.IconShape
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -503,6 +504,10 @@ class LauncherAppsSource @Inject constructor(
      * its normal icon. Otherwise, when [themed] is set (and the device + app support it) the Material You
      * monochrome icon is returned, tinted for the [dark]/light theme; an app without one gets a silhouette
      * of its icon in the same colours when [themeAll] asks for it; else the normal icon.
+     *
+     * [shape] is the icon shape the user picked (issue #26). The pack's icons keep the form their pack gave
+     * them; a themed icon and the app's own are cut to the shape. With the system's shape nothing here is
+     * done differently from before the choice existed.
      */
     fun loadIcon(
         appItem: AppItem,
@@ -510,6 +515,7 @@ class LauncherAppsSource @Inject constructor(
         dark: Boolean = false,
         iconPack: String = "",
         themeAll: Boolean = false,
+        shape: IconShape = IconShape.SYSTEM,
     ): Drawable? = runCatching {
         val info = launcherApps.getActivityList(appItem.packageName, appItem.user)
             .firstOrNull { it.componentName.className == appItem.className }
@@ -519,10 +525,14 @@ class LauncherAppsSource @Inject constructor(
         if (iconPack.isNotBlank()) {
             iconPacks.get(iconPack)?.getIcon(appItem.componentName)?.let { return@runCatching it }
         } else if (themed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            themedIcon(info, dark)?.let { return@runCatching it }
-            if (themeAll) silhouetteThemedIcon(info, dark)?.let { return@runCatching it }
+            themedIcon(info, dark)?.let { return@runCatching ownIconInShape(it, shape, context.resources) }
+            if (themeAll) silhouetteThemedIcon(info, dark)?.let { return@runCatching ownIconInShape(it, shape, context.resources) }
         }
-        info.getBadgedIcon(0)
+        if (shape == IconShape.SYSTEM) return@runCatching info.getBadgedIcon(0)
+        // getBadgedIcon is getIcon with the profile's badge on it. With a picked shape the badge has to
+        // go on after the cut, or a work app's badged picture would count as an old icon and get a plate.
+        val own = info.getIcon(0) ?: return@runCatching null
+        context.packageManager.getUserBadgedIcon(ownIconInShape(own, shape, context.resources), appItem.user)
     }.getOrNull()
 
     /**

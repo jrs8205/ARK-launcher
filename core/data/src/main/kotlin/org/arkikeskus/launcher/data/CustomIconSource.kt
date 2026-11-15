@@ -4,11 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.graphics.Paint
 import android.graphics.Rect
-import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import androidx.core.graphics.createBitmap
@@ -23,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.CustomIconImage
+import org.arkikeskus.launcher.model.IconShape
 import java.io.File
 import java.util.UUID
 import kotlin.math.roundToInt
@@ -41,9 +40,14 @@ class CustomIconSource @Inject constructor(
 ) {
     val files = CustomIconFiles(context)
 
-    fun drawable(icon: CustomIcon): Drawable? = when (icon) {
+    /**
+     * [icon] as it is drawn with the icon [shape] the user picked. A pack's drawable keeps the form its
+     * pack gave it. A gallery picture is cut here, when it is drawn, to the picked shape or else to the
+     * phone's own: the file holds the whole square, so a new shape needs no new pick.
+     */
+    fun drawable(icon: CustomIcon, shape: IconShape = IconShape.SYSTEM): Drawable? = when (icon) {
         is CustomIcon.FromPack -> iconPacks.drawable(icon.pack, icon.drawable)
-        is CustomIcon.FromFile -> files.load(icon)?.toDrawable(context.resources)
+        is CustomIcon.FromFile -> files.load(icon)?.let { shapedPicture(it, pictureOutline(shape)).toDrawable(context.resources) }
     }
 }
 
@@ -52,9 +56,11 @@ class CustomIconFiles(context: Context) {
     private val dir = File(context.filesDir, "custom_icons")
 
     /**
-     * Turns the picture at [uri] into an icon: the middle square of it, scaled to [SIZE] and cut to
-     * the phone's own icon shape (the adaptive-icon mask), so it sits among the other icons like
-     * one of them. Null when [uri] is no readable picture.
+     * Turns the picture at [uri] into an icon: the middle square of it, scaled to [SIZE]. The whole
+     * square is saved; it is cut to the icon shape when it is drawn ([CustomIconSource.drawable]), so it
+     * follows the shape the user picks later. (Before 1.2.0 the file was cut to the phone's shape here:
+     * such a picture stays that shape inside any wider one until it is picked again.) Null when [uri] is
+     * no readable picture.
      */
     fun import(context: Context, uri: Uri): CustomIcon.FromFile? = runCatching {
         val picture = decodePicture(context, uri) ?: return null
@@ -62,8 +68,6 @@ class CustomIconFiles(context: Context) {
         val crop = Rect((picture.width - side) / 2, (picture.height - side) / 2, (picture.width + side) / 2, (picture.height + side) / 2)
         val icon = createBitmap(SIZE, SIZE)
         val canvas = Canvas(icon)
-        val shape = AdaptiveIconDrawable(Color.BLACK.toDrawable(), null).apply { setBounds(0, 0, SIZE, SIZE) }.iconMask
-        canvas.clipPath(shape)
         canvas.drawBitmap(picture, crop, Rect(0, 0, SIZE, SIZE), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
         save(icon)
     }.getOrNull()
@@ -127,13 +131,15 @@ class CustomIconFiles(context: Context) {
 
 class CustomIconKeyer : Keyer<CustomIconImage> {
     // The epoch keeps an updated pack's old drawable from being served out of the cache.
-    override fun key(data: CustomIconImage, options: Options): String = "customicon:${data.icon.encode()}:e=${data.epoch}"
+    // So does the icon shape: a gallery picture is cut to it in the bitmap itself.
+    override fun key(data: CustomIconImage, options: Options): String =
+        "customicon:${data.icon.encode()}:e=${data.epoch}:s=${data.shape.id}"
 }
 
 /** Draws a [CustomIconImage] once into a bitmap, like [AppIconFetcher] does for app icons. */
 class CustomIconFetcher(private val data: CustomIconImage, private val source: CustomIconSource) : Fetcher {
     override suspend fun fetch(): FetchResult? = withContext(Dispatchers.IO) {
-        source.drawable(data.icon)?.let(::iconResult)
+        source.drawable(data.icon, data.shape)?.let(::iconResult)
     }
 
     class Factory(private val source: CustomIconSource) : Fetcher.Factory<CustomIconImage> {
