@@ -128,6 +128,7 @@ class SettingsRepository @Inject constructor(
             chameleonLastArgb = p[Keys.CHAMELEON_LAST_ARGB],
             infiniteScroll = p[Keys.INFINITE_SCROLL] ?: true,
             wallpaperScroll = p[Keys.WALLPAPER_SCROLL] ?: true,
+            chargingAnimation = p[Keys.CHARGING_ANIMATION] ?: true,
             hidePrivateSpaceWhenLocked = p[Keys.HIDE_PRIVATE_SPACE_LOCKED] ?: false,
             defaultReminderDismissed = p[Keys.DEFAULT_REMINDER_DISMISSED] ?: false,
             showNotificationDots = p[Keys.SHOW_NOTIF_DOTS] ?: true,
@@ -513,6 +514,7 @@ class SettingsRepository @Inject constructor(
 
     /** Whether the system wallpaper moves with the home pages. */
     suspend fun setWallpaperScroll(value: Boolean) = edit { it[Keys.WALLPAPER_SCROLL] = value }
+    suspend fun setChargingAnimation(value: Boolean) = edit { it[Keys.CHARGING_ANIMATION] = value }
 
     /** Whether the private space's entry stays out of sight while the space is locked (Android 15). */
     suspend fun setHidePrivateSpaceWhenLocked(value: Boolean) = edit { it[Keys.HIDE_PRIVATE_SPACE_LOCKED] = value }
@@ -867,6 +869,7 @@ class SettingsRepository @Inject constructor(
         val CHAMELEON_LAST_ARGB = intPreferencesKey("chameleon_last_argb")
         val INFINITE_SCROLL = booleanPreferencesKey("infinite_scroll")
         val WALLPAPER_SCROLL = booleanPreferencesKey("wallpaper_scroll")
+        val CHARGING_ANIMATION = booleanPreferencesKey("charging_animation")
         val HIDE_PRIVATE_SPACE_LOCKED = booleanPreferencesKey("hide_private_space_locked")
         val FOLDER_SWIPE_FIRST_APP = booleanPreferencesKey("folder_swipe_first_app")
         val HIDE_HOME_APPS_FROM_DRAWER = booleanPreferencesKey("hide_home_apps_from_drawer")
@@ -1014,7 +1017,7 @@ class SettingsRepository @Inject constructor(
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
             "show_home_folder_names", "show_drawer_folder_names", "mix_drawer_folders", "blur_behind_drawer",
             "theme_all_icons", "hide_system_navigation_bar", "folder_show_labels", "home_glass_panel",
-            "weather_icon_large", "wallpaper_scroll", "hide_private_space_locked",
+            "weather_icon_large", "wallpaper_scroll", "hide_private_space_locked", "charging_animation",
         )
         val STRING_KEYS = setOf(
             "dock_favorites", "hidden_apps", "custom_labels", "drawer_folders",

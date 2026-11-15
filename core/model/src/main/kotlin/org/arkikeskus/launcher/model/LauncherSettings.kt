@@ -59,6 +59,9 @@ data class LauncherSettings(
     /** The system wallpaper moves with the home pages (Settings > Home). Off leaves it where the
      *  system puts it. */
     val wallpaperScroll: Boolean = true,
+    /** The charging animation: a glow on the home screen when the charger is connected, and the battery
+     *  glyph of the launcher's own status bar filling while it charges. */
+    val chargingAnimation: Boolean = true,
     /** The entry to the private space does not show while the space is locked. The launcher's own switch,
      *  used where Android's setting of the same name cannot be read (Android 15). */
     val hidePrivateSpaceWhenLocked: Boolean = false,

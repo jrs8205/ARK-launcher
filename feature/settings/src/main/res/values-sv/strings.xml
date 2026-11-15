@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Grundfärg</string>
     <string name="settings_cat_appearance_summary_value">Grundfärg: %1$s</string>
     <string name="settings_base_colour">Grundfärg</string>
+    <string name="settings_charging_animation">Laddningsanimation</string>
+    <string name="settings_charging_animation_desc">Ett sken på startskärmen när laddaren ansluts, och ett batteri som fylls i dess statusfält under laddning.</string>
     <string name="settings_base_colour_desc">Färgar hela launchern</string>
     <string name="settings_base_colour_keywords">färg tema accent palett color theme</string>
     <string name="base_colour_orange">Orange</string>

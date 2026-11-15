@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Perusväri</string>
     <string name="settings_cat_appearance_summary_value">Perusväri: %1$s</string>
     <string name="settings_base_colour">Perusväri</string>
+    <string name="settings_charging_animation">Latausanimaatio</string>
+    <string name="settings_charging_animation_desc">Hehku kotinäytöllä, kun laturi kytketään, ja launcherin tilapalkissa akku, joka täyttyy latauksen aikana.</string>
     <string name="settings_base_colour_desc">Värittää koko launcherin</string>
     <string name="settings_base_colour_keywords">väri teema korostus paletti color theme</string>
     <string name="base_colour_orange">Oranssi</string>

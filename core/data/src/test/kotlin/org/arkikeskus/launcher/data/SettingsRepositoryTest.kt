@@ -891,6 +891,22 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `the charging animation is on until switched off, and the choice travels in a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().chargingAnimation).isTrue()
+        repo.setChargingAnimation(false)
+        assertThat(repo.settings.first().chargingAnimation).isFalse()
+        val exported = repo.exportRaw()
+        assertThat(exported).containsEntry("charging_animation", false)
+
+        val restored = newRepository()
+        restored.importRaw(exported)
+        assertThat(restored.settings.first().chargingAnimation).isFalse()
+        restored.importRaw(mapOf("charging_animation" to "no"))
+        assertThat(restored.settings.first().chargingAnimation).isTrue() // wrong type dropped: the default
+    }
+
+    @Test
     fun `icon shape is the system's until picked, survives a backup round-trip and reads an unknown id as the system's`() = runTest {
         val repo = newRepository()
         assertThat(repo.settings.first().iconShape).isEqualTo(org.arkikeskus.launcher.model.IconShape.SYSTEM)

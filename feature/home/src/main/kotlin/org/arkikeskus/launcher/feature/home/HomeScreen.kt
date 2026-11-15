@@ -674,6 +674,7 @@ fun HomeScreen(
                     // Only align to the camera cutout when we own the top zone (system bar hidden).
                     alignToCutout = settings.hideSystemStatusBar,
                     scrimAlpha = settings.statusBarScrimOpacity,
+                    chargeAnimation = settings.chargingAnimation,
                     // When hidden we own the whole top zone (no inset, self-aligns to the cutout);
                     // otherwise reserve the system bar's height so the scrim fills it and glyphs clear it.
                     topInset = if (settings.hideSystemStatusBar) 0.dp else systemBarInset,
@@ -842,6 +843,9 @@ fun HomeScreen(
                 labelColor = Color(settings.appLabelColor),
             )
         }
+
+        // The charging animation's glow: over the home surfaces, under the open folder's card.
+        ChargeGlowLayer(enabled = settings.chargingAnimation)
 
         // The open folder: a card in this window (so a drag can leave it for the home surfaces),
         // composed before the remove pill so the pill draws over the fading card.

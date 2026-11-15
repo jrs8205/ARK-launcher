@@ -112,7 +112,7 @@ class SettingsInventoryTest {
     @Test fun theRegistryIsThe108Inventory() {
         val expected = listOf(
             "T2" to "settings_set_default",
-            "AP1" to "settings_base_colour",
+            "AP1" to "settings_base_colour", "AP2" to "settings_charging_animation",
             "H1" to "settings_columns", "H2" to "settings_rows", "H3" to "settings_show_labels",
             "H4" to "settings_two_line_labels", "H5" to "settings_show_folder_names", "H6" to "settings_folder_columns",
             "H7" to "settings_glass_panel", "H8" to "settings_glass_strength", "H9" to "settings_page_indicator",

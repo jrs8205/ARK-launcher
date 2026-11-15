@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Grundfarbe</string>
     <string name="settings_cat_appearance_summary_value">Grundfarbe: %1$s</string>
     <string name="settings_base_colour">Grundfarbe</string>
+    <string name="settings_charging_animation">Ladeanimation</string>
+    <string name="settings_charging_animation_desc">Ein Leuchten auf dem Startbildschirm, wenn das Ladegerät angeschlossen wird, und in der Statusleiste des Launchers ein Akku, der sich beim Laden füllt.</string>
     <string name="settings_base_colour_desc">Färbt den ganzen Launcher</string>
     <string name="settings_base_colour_keywords">farbe thema akzent palette design color theme</string>
     <string name="base_colour_orange">Orange</string>

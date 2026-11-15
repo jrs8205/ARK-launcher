@@ -264,6 +264,8 @@
     <string name="settings_cat_appearance_summary">Couleur de base</string>
     <string name="settings_cat_appearance_summary_value">Couleur de base : %1$s</string>
     <string name="settings_base_colour">Couleur de base</string>
+    <string name="settings_charging_animation">Animation de charge</string>
+    <string name="settings_charging_animation_desc">Une lueur sur l\'écran d\'accueil quand le chargeur est branché, et une batterie qui se remplit dans la barre d\'état du lanceur pendant la charge.</string>
     <string name="settings_base_colour_desc">Colore tout le launcher</string>
     <string name="settings_base_colour_keywords">couleur thème accent palette color theme</string>
     <string name="base_colour_orange">Orange</string>

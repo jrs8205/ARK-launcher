@@ -264,6 +264,8 @@
     <string name="settings_cat_appearance_summary">Cor base</string>
     <string name="settings_cat_appearance_summary_value">Cor base: %1$s</string>
     <string name="settings_base_colour">Cor base</string>
+    <string name="settings_charging_animation">Animação de carregamento</string>
+    <string name="settings_charging_animation_desc">Um brilho na tela inicial quando o carregador é conectado e uma bateria que se enche na barra de status do launcher durante o carregamento.</string>
     <string name="settings_base_colour_desc">Dá cor a todo o launcher</string>
     <string name="settings_base_colour_keywords">cor tema destaque paleta color theme</string>
     <string name="base_colour_orange">Laranja</string>

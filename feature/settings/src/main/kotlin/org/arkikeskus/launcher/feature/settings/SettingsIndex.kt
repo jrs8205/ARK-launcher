@@ -100,6 +100,7 @@ internal object SettingsIndex {
                 "AP1", c, R.string.settings_base_colour, R.string.settings_base_colour_desc,
                 keywords = listOf(R.string.settings_base_colour_keywords),
             )
+            row("AP2", c, R.string.settings_charging_animation, R.string.settings_charging_animation_desc)
         }
 
         SettingsCategory.HOME.let { c ->

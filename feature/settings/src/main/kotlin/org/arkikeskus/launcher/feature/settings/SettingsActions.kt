@@ -53,6 +53,7 @@ internal interface SettingsActions {
     fun setHomePageMarker(value: String)
     fun setInfiniteScroll(value: Boolean)
     fun setWallpaperScroll(value: Boolean)
+    fun setChargingAnimation(value: Boolean)
     fun setShowNotificationDots(value: Boolean)
     fun setNotificationDotCount(value: Boolean)
     fun setNotificationDotScale(value: Float)

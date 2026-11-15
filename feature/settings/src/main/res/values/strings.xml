@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Base colour</string>
     <string name="settings_cat_appearance_summary_value">Base colour: %1$s</string>
     <string name="settings_base_colour">Base colour</string>
+    <string name="settings_charging_animation">Charging animation</string>
+    <string name="settings_charging_animation_desc">A glow on the home screen when the charger is connected, and a battery that fills in the launcher\'s status bar while charging.</string>
     <string name="settings_base_colour_desc">Colours the whole launcher</string>
     <string name="settings_base_colour_keywords">color theme accent palette</string>
     <string name="base_colour_orange">Orange</string>

@@ -75,6 +75,14 @@ internal fun baseColourName(key: String): Int = when (key) {
 @Composable
 internal fun AppearanceRows(s: LauncherSettings, actions: SettingsActions) {
     SettingRow("AP1") { BaseColourCard(selected = s.baseColour, onPick = actions::setBaseColour) }
+    SettingRow("AP2") {
+        SwitchRow(
+            stringResource(R.string.settings_charging_animation),
+            stringResource(R.string.settings_charging_animation_desc),
+            s.chargingAnimation,
+            actions::setChargingAnimation,
+        )
+    }
 }
 
 /**

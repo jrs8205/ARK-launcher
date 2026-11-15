@@ -173,6 +173,8 @@ fun StatusBar(
     alignToCutout: Boolean = false,
     topInset: Dp = 0.dp,
     scrimAlpha: Float = 0.6f,
+    /** The charging animation's switch: the battery glyph fills from its level while the phone charges. */
+    chargeAnimation: Boolean = true,
     viewModel: StatusViewModel = hiltViewModel(),
 ) {
     val s by viewModel.state.collectAsStateWithLifecycle()
@@ -301,7 +303,11 @@ fun StatusBar(
                             tint = batteryColor,
                         )
                     }
-                    BatteryBar(percent = s.battery.percent, color = batteryColor)
+                    BatteryBar(
+                        percent = s.battery.percent,
+                        color = batteryColor,
+                        sweep = rememberChargeSweep(active = chargeAnimation && s.battery.charging),
+                    )
                 }
             }
         },

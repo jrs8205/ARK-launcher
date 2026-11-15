@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Ana renk</string>
     <string name="settings_cat_appearance_summary_value">Ana renk: %1$s</string>
     <string name="settings_base_colour">Ana renk</string>
+    <string name="settings_charging_animation">Şarj animasyonu</string>
+    <string name="settings_charging_animation_desc">Şarj aleti takıldığında ana ekranda bir parıltı ve şarj olurken başlatıcının durum çubuğunda dolan bir pil.</string>
     <string name="settings_base_colour_desc">Tüm launcher’ı renklendirir</string>
     <string name="settings_base_colour_keywords">renk tema vurgu palet color theme</string>
     <string name="base_colour_orange">Turuncu</string>
