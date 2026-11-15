@@ -266,4 +266,17 @@
     <string name="base_colour_black">Negro</string>
     <string name="base_colour_chameleon">Camaleón</string>
     <string name="base_colour_chameleon_desc">Sigue tu fondo de pantalla</string>
+    <string name="settings_cat_screensaver">Salvapantallas</string>
+    <string name="settings_cat_screensaver_summary">Estilos, qué muestra, brillo y noche</string>
+    <string name="settings_screensaver_start">Inicio</string>
+    <string name="settings_screensaver_shows">Qué muestra</string>
+    <string name="settings_screensaver_layout">Disposición</string>
+    <string name="settings_screensaver_night">Brillo y noche</string>
+    <string name="settings_screensaver_night_times">Horas de la atenuación nocturna</string>
+    <string name="settings_screensaver_brightness_level">Brillo</string>
+    <string name="settings_screensaver_keywords">salvapantallas protector de pantalla reloj carga base mesilla quemado</string>
+    <string name="settings_screensaver_battery_full">Notificación de batería llena</string>
+    <string name="settings_screensaver_battery_full_desc">Una notificación cuando la batería se llena mientras se muestra el salvapantallas. Al activarlo se pide permiso para enviar notificaciones.</string>
+    <string name="settings_screensaver_battery_full_denied">Las notificaciones no están permitidas para ARK-Launcher, así que no se puede enviar ninguna. Permítelas en los ajustes de notificaciones de la aplicación.</string>
+    <string name="settings_permission_notifications">Enviar notificaciones</string>
 </resources>

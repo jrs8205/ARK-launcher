@@ -270,4 +270,17 @@
     <string name="base_colour_black">Czarny</string>
     <string name="base_colour_chameleon">Kameleon</string>
     <string name="base_colour_chameleon_desc">Podąża za Twoją tapetą</string>
+    <string name="settings_cat_screensaver">Wygaszacz ekranu</string>
+    <string name="settings_cat_screensaver_summary">Style, wyświetlane informacje, jasność i noc</string>
+    <string name="settings_screensaver_start">Uruchamianie</string>
+    <string name="settings_screensaver_shows">Co pokazuje</string>
+    <string name="settings_screensaver_layout">Układ</string>
+    <string name="settings_screensaver_night">Jasność i noc</string>
+    <string name="settings_screensaver_night_times">Godziny nocnego przyciemnienia</string>
+    <string name="settings_screensaver_brightness_level">Jasność</string>
+    <string name="settings_screensaver_keywords">wygaszacz ekranu zegar ładowanie stacja dokująca szafka nocna wypalenie</string>
+    <string name="settings_screensaver_battery_full">Powiadomienie o pełnej baterii</string>
+    <string name="settings_screensaver_battery_full_desc">Powiadomienie, gdy bateria naładuje się do pełna podczas wyświetlania wygaszacza. Włączenie prosi o uprawnienie do wysyłania powiadomień.</string>
+    <string name="settings_screensaver_battery_full_denied">Powiadomienia nie są dozwolone dla ARK-Launcher, więc nie można żadnego wysłać. Zezwól na nie w ustawieniach powiadomień aplikacji.</string>
+    <string name="settings_permission_notifications">Wysyłanie powiadomień</string>
 </resources>

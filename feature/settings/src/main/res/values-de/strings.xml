@@ -262,4 +262,17 @@
     <string name="base_colour_black">Schwarz</string>
     <string name="base_colour_chameleon">Chamäleon</string>
     <string name="base_colour_chameleon_desc">Folgt deinem Hintergrundbild</string>
+    <string name="settings_cat_screensaver">Bildschirmschoner</string>
+    <string name="settings_cat_screensaver_summary">Stile, angezeigte Infos, Helligkeit und Nacht</string>
+    <string name="settings_screensaver_start">Start</string>
+    <string name="settings_screensaver_shows">Was er anzeigt</string>
+    <string name="settings_screensaver_layout">Layout</string>
+    <string name="settings_screensaver_night">Helligkeit und Nacht</string>
+    <string name="settings_screensaver_night_times">Zeiten der Nachtabdunklung</string>
+    <string name="settings_screensaver_brightness_level">Helligkeit</string>
+    <string name="settings_screensaver_keywords">bildschirmschoner uhr laden dock nachttisch einbrennen</string>
+    <string name="settings_screensaver_battery_full">Benachrichtigung bei vollem Akku</string>
+    <string name="settings_screensaver_battery_full_desc">Eine Benachrichtigung, wenn der Akku voll wird, während der Bildschirmschoner läuft. Beim Einschalten wird die Berechtigung zum Senden von Benachrichtigungen angefragt.</string>
+    <string name="settings_screensaver_battery_full_denied">Benachrichtigungen sind für ARK-Launcher nicht erlaubt, daher können keine gesendet werden. Erlaube sie in den Benachrichtigungseinstellungen der App.</string>
+    <string name="settings_permission_notifications">Benachrichtigungen senden</string>
 </resources>

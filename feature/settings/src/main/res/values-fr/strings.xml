@@ -266,4 +266,17 @@
     <string name="base_colour_black">Noir</string>
     <string name="base_colour_chameleon">Caméléon</string>
     <string name="base_colour_chameleon_desc">Suit votre fond d’écran</string>
+    <string name="settings_cat_screensaver">Économiseur d\'écran</string>
+    <string name="settings_cat_screensaver_summary">Styles, contenu affiché, luminosité et nuit</string>
+    <string name="settings_screensaver_start">Démarrage</string>
+    <string name="settings_screensaver_shows">Ce qu\'il affiche</string>
+    <string name="settings_screensaver_layout">Disposition</string>
+    <string name="settings_screensaver_night">Luminosité et nuit</string>
+    <string name="settings_screensaver_night_times">Heures de l\'atténuation nocturne</string>
+    <string name="settings_screensaver_brightness_level">Luminosité</string>
+    <string name="settings_screensaver_keywords">économiseur écran veille horloge charge station chevet marquage</string>
+    <string name="settings_screensaver_battery_full">Notification de batterie pleine</string>
+    <string name="settings_screensaver_battery_full_desc">Une notification quand la batterie devient pleine pendant l\'affichage de l\'économiseur d\'écran. L\'activation demande l\'autorisation d\'envoyer des notifications.</string>
+    <string name="settings_screensaver_battery_full_denied">Les notifications ne sont pas autorisées pour ARK-Launcher : aucune ne peut être envoyée. Autorisez-les dans les paramètres de notification de l\'application.</string>
+    <string name="settings_permission_notifications">Envoi de notifications</string>
 </resources>

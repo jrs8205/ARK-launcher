@@ -266,4 +266,17 @@
     <string name="base_colour_black">Preto</string>
     <string name="base_colour_chameleon">Camaleão</string>
     <string name="base_colour_chameleon_desc">Segue o seu papel de parede</string>
+    <string name="settings_cat_screensaver">Proteção de tela</string>
+    <string name="settings_cat_screensaver_summary">Estilos, o que ela mostra, brilho e noite</string>
+    <string name="settings_screensaver_start">Início</string>
+    <string name="settings_screensaver_shows">O que ela mostra</string>
+    <string name="settings_screensaver_layout">Layout</string>
+    <string name="settings_screensaver_night">Brilho e noite</string>
+    <string name="settings_screensaver_night_times">Horários do escurecimento noturno</string>
+    <string name="settings_screensaver_brightness_level">Brilho</string>
+    <string name="settings_screensaver_keywords">proteção de tela descanso relógio carregamento dock cabeceira queima</string>
+    <string name="settings_screensaver_battery_full">Notificação de bateria cheia</string>
+    <string name="settings_screensaver_battery_full_desc">Uma notificação quando a bateria fica cheia enquanto a proteção de tela é exibida. Ao ativar, é pedida a permissão para enviar notificações.</string>
+    <string name="settings_screensaver_battery_full_denied">As notificações não estão permitidas para o ARK-Launcher, então nenhuma pode ser enviada. Permita nas configurações de notificações do app.</string>
+    <string name="settings_permission_notifications">Enviar notificações</string>
 </resources>

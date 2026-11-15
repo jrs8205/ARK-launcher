@@ -270,4 +270,17 @@
     <string name="base_colour_black">Чёрный</string>
     <string name="base_colour_chameleon">Хамелеон</string>
     <string name="base_colour_chameleon_desc">Следует за обоями</string>
+    <string name="settings_cat_screensaver">Заставка</string>
+    <string name="settings_cat_screensaver_summary">Стили, отображаемые сведения, яркость и ночь</string>
+    <string name="settings_screensaver_start">Запуск</string>
+    <string name="settings_screensaver_shows">Что показывает</string>
+    <string name="settings_screensaver_layout">Расположение</string>
+    <string name="settings_screensaver_night">Яркость и ночь</string>
+    <string name="settings_screensaver_night_times">Часы ночного затемнения</string>
+    <string name="settings_screensaver_brightness_level">Яркость</string>
+    <string name="settings_screensaver_keywords">заставка скринсейвер часы зарядка док-станция тумбочка выгорание</string>
+    <string name="settings_screensaver_battery_full">Уведомление о полной зарядке</string>
+    <string name="settings_screensaver_battery_full_desc">Уведомление, когда батарея заряжается полностью во время показа заставки. При включении запрашивается разрешение на отправку уведомлений.</string>
+    <string name="settings_screensaver_battery_full_denied">Уведомления для ARK-Launcher не разрешены, поэтому отправить их нельзя. Разрешите их в настройках уведомлений приложения.</string>
+    <string name="settings_permission_notifications">Отправка уведомлений</string>
 </resources>

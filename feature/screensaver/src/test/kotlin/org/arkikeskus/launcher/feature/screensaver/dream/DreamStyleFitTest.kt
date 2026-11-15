@@ -50,6 +50,72 @@ class DreamStyleFitTest {
     @Config(qualifiers = "fi-w320dp-h640dp-port-mdpi")
     fun `narrow portrait in Finnish`() = assertEveryStyleFits(landscape = false)
 
+    // The launcher's other languages: their words are longer or shorter than the two the styles were drawn for.
+
+    @Test
+    @Config(qualifiers = "de-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in German`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "de-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in German`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "es-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in Spanish`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "es-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in Spanish`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "fr-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in French`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "fr-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in French`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "pl-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in Polish`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "pl-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in Polish`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "pt-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in Portuguese`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "pt-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in Portuguese`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "ru-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in Russian`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "ru-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in Russian`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "sv-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in Swedish`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "sv-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in Swedish`() = assertEveryStyleFits(landscape = false)
+
+    @Test
+    @Config(qualifiers = "tr-w480dp-h320dp-land-mdpi")
+    fun `narrow landscape in Turkish`() = assertEveryStyleFits(landscape = true)
+
+    @Test
+    @Config(qualifiers = "tr-w320dp-h640dp-port-mdpi")
+    fun `narrow portrait in Turkish`() = assertEveryStyleFits(landscape = false)
+
     /** What the notification row calls itself: "N unread notifications". */
     private fun unreadDescription(state: DreamUiState): String {
         val context = ApplicationProvider.getApplicationContext<Application>()

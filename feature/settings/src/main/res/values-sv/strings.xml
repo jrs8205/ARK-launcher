@@ -262,4 +262,17 @@
     <string name="base_colour_black">Svart</string>
     <string name="base_colour_chameleon">Kameleont</string>
     <string name="base_colour_chameleon_desc">Följer din bakgrundsbild</string>
+    <string name="settings_cat_screensaver">Skärmsläckare</string>
+    <string name="settings_cat_screensaver_summary">Stilar, vad som visas, ljusstyrka och natt</string>
+    <string name="settings_screensaver_start">Start</string>
+    <string name="settings_screensaver_shows">Vad den visar</string>
+    <string name="settings_screensaver_layout">Layout</string>
+    <string name="settings_screensaver_night">Ljusstyrka och natt</string>
+    <string name="settings_screensaver_night_times">Nattdämpningens tider</string>
+    <string name="settings_screensaver_brightness_level">Ljusstyrka</string>
+    <string name="settings_screensaver_keywords">skärmsläckare klocka laddning docka nattduksbord inbränning</string>
+    <string name="settings_screensaver_battery_full">Avisering om fullt batteri</string>
+    <string name="settings_screensaver_battery_full_desc">En avisering när batteriet blir fullt medan skärmsläckaren visas. När du slår på detta frågas det om behörighet att skicka aviseringar.</string>
+    <string name="settings_screensaver_battery_full_denied">Aviseringar är inte tillåtna för ARK-Launcher, så inga kan skickas. Tillåt dem i appens aviseringsinställningar.</string>
+    <string name="settings_permission_notifications">Skicka aviseringar</string>
 </resources>

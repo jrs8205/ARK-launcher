@@ -262,4 +262,17 @@
     <string name="base_colour_black">Siyah</string>
     <string name="base_colour_chameleon">Bukalemun</string>
     <string name="base_colour_chameleon_desc">Duvar kâğıdınızı takip eder</string>
+    <string name="settings_cat_screensaver">Ekran koruyucu</string>
+    <string name="settings_cat_screensaver_summary">Stiller, gösterilenler, parlaklık ve gece</string>
+    <string name="settings_screensaver_start">Başlatma</string>
+    <string name="settings_screensaver_shows">Ne gösterir</string>
+    <string name="settings_screensaver_layout">Düzen</string>
+    <string name="settings_screensaver_night">Parlaklık ve gece</string>
+    <string name="settings_screensaver_night_times">Gece karartması saatleri</string>
+    <string name="settings_screensaver_brightness_level">Parlaklık</string>
+    <string name="settings_screensaver_keywords">ekran koruyucu saat şarj dok komodin yanma</string>
+    <string name="settings_screensaver_battery_full">Pil dolu bildirimi</string>
+    <string name="settings_screensaver_battery_full_desc">Ekran koruyucu gösterilirken pil dolduğunda gelen bildirim. Açıldığında bildirim gönderme izni istenir.</string>
+    <string name="settings_screensaver_battery_full_denied">ARK-Launcher için bildirimlere izin verilmiyor, bu yüzden bildirim gönderilemiyor. Uygulamanın bildirim ayarlarından izin verin.</string>
+    <string name="settings_permission_notifications">Bildirim gönderme</string>
 </resources>
