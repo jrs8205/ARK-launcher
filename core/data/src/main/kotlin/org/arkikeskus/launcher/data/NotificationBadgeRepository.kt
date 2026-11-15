@@ -36,6 +36,20 @@ data class StatusNotification(
 )
 
 /**
+ * One notification currently in the shade, as the listener sees it. Only what the screensaver's
+ * notification row needs: no title, no text.
+ */
+data class ActiveNotification(
+    val key: String,
+    val packageName: String,
+    val postTime: Long,
+    val isOngoing: Boolean,
+    val isGroupSummary: Boolean,
+    val isClearable: Boolean,
+    val smallIcon: Icon?,
+)
+
+/**
  * Holds the current notification-dot counts, keyed by [org.arkikeskus.launcher.model.AppItem.badgeKey]
  * ("packageName/userSerial"). The platform [android.service.notification.NotificationListenerService]
  * (in the app module) pushes snapshots here; ViewModels observe [badges] and the UI draws a dot.

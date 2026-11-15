@@ -1,0 +1,76 @@
+package org.arkikeskus.launcher.feature.screensaver
+
+import android.graphics.drawable.Icon
+import org.arkikeskus.launcher.data.ActiveNotification
+
+/** One icon on the screensaver's notification row: an app and how many of its notifications wait. */
+internal data class NotificationIconGroup(
+    val packageName: String,
+    val count: Int,
+    val newestPostTime: Long,
+    val smallIcon: Icon?,
+)
+
+/** Whether the screensaver row shows this notification: the ones a person still has to clear. */
+internal fun isUnreadForDream(n: ActiveNotification): Boolean =
+    !n.isOngoing && !n.isGroupSummary && n.isClearable
+
+/**
+ * Collapses the active notifications to one icon per app, newest app first. The icon is
+ * the app's newest notification's small icon.
+ */
+internal fun visibleNotificationGroups(active: List<ActiveNotification>): List<NotificationIconGroup> =
+    active.filter(::isUnreadForDream)
+        .groupBy { it.packageName }
+        .map { (packageName, list) ->
+            val newest = list.maxBy { it.postTime }
+            NotificationIconGroup(
+                packageName = packageName,
+                count = list.size,
+                newestPostTime = newest.postTime,
+                smallIcon = newest.smallIcon,
+            )
+        }
+        .sortedByDescending { it.newestPostTime }
+
+/** Keys of the notifications the row shows, for spotting arrivals between two snapshots. */
+internal fun visibleNotificationKeys(active: List<ActiveNotification>): Set<String> =
+    active.filter(::isUnreadForDream).mapTo(mutableSetOf()) { it.key }
+
+/** Keys that are visible now and were not before: these pulse the row. */
+internal fun newArrivalKeys(previous: Set<String>, current: Set<String>): Set<String> =
+    current - previous
+
+/** The groups the screensaver row shows on one line, and how many apps fold into "+N". */
+internal data class NotificationRowFit(val shown: List<NotificationIconGroup>, val hidden: Int)
+
+/**
+ * Keeps whole groups from the front of [groups] while they fit in [availableWidth], never
+ * more than [maxGroups]. Whenever something is folded away, the "+N" label's width is
+ * reserved too, so the label never pushes the last icon out. Widths are in any one unit
+ * (pixels in the dream); [countWidth] is the width of a group's count label (called only for
+ * counts above one) and [overflowWidth] the width of the label for that many hidden apps.
+ */
+internal fun fitNotificationRow(
+    groups: List<NotificationIconGroup>,
+    availableWidth: Float,
+    iconWidth: Float,
+    spacing: Float,
+    countGap: Float,
+    countWidth: (Int) -> Float,
+    overflowWidth: (Int) -> Float,
+    maxGroups: Int,
+): NotificationRowFit {
+    if (groups.isEmpty()) return NotificationRowFit(emptyList(), 0)
+    fun groupWidth(g: NotificationIconGroup) =
+        iconWidth + if (g.count > 1) countGap + countWidth(g.count) else 0f
+    for (n in minOf(maxGroups, groups.size) downTo 0) {
+        val hidden = groups.size - n
+        val items = n + if (hidden > 0) 1 else 0
+        var width = groups.take(n).sumOf { groupWidth(it).toDouble() }.toFloat()
+        if (hidden > 0) width += overflowWidth(hidden)
+        if (items > 1) width += spacing * (items - 1)
+        if (width <= availableWidth) return NotificationRowFit(groups.take(n), hidden)
+    }
+    return NotificationRowFit(emptyList(), groups.size)
+}
