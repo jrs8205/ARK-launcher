@@ -1,6 +1,6 @@
 # ARK-Launcherin tietosuojaseloste
 
-*Päivitetty: 26.10.2026 · koskee ARK-Launcherin versiota 0.9.3 ja uudempia
+*Päivitetty: 15.11.2026 · koskee ARK-Launcherin versiota 1.2.0 ja uudempia
 ([version 0.9.2 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.fi.md))*
 
 *This policy in English: [PRIVACY.md](PRIVACY.md)*

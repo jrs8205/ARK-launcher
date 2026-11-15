@@ -1,0 +1,9 @@
+New
+- Screensaver: ARK-Launcher can be chosen as Android's screensaver. Six styles and a settings page of its own.
+- Icon shapes: eight shapes for every app icon (Settings > Icons).
+- A charging animation on the home screen and in the launcher's status bar.
+- Home folders: add several apps from a list, sort A–Z.
+
+Changed
+- Two new optional permissions: notifications (battery-full alert) and wake lock (start on charge).
+- The name is now written ARK-Launcher.

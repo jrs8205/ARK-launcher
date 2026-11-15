@@ -1,6 +1,6 @@
 # ARK-Launcher Privacy Policy
 
-*Last updated: 2026-10-26 · applies to ARK-Launcher v0.9.3 and later
+*Last updated: 2026-11-15 · applies to ARK-Launcher v1.2.0 and later
 ([v0.9.2 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.md))*
 
 *Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
