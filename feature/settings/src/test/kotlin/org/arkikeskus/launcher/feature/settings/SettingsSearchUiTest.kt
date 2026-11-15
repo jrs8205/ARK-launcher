@@ -256,16 +256,21 @@ class SettingsSearchUiTest {
         val android13 = searchableSettings(res, sdkInt = 33).map { it.id }
         assertThat(android12).containsNoneOf("I5", "I6")
         assertThat(android13).containsAtLeast("I5", "I6")
-        // Every row but the one that needs a private space, which this phone does not have.
-        assertThat(android13).hasSize(SettingsIndex.entries.size - 1)
+        // Every row but the one that needs a private space, which this phone does not have, and the hint
+        // about Android 17's low light mode.
+        assertThat(android13).hasSize(SettingsIndex.entries.size - 2)
         assertThat(android13).doesNotContain("A22")
+        assertThat(android13).doesNotContain("SS24")
+        assertThat(searchableSettings(res, sdkInt = 37).map { it.id }).contains("SS24")
     }
 
     /** The launcher's own hide switch exists on Android 15 alone, and only where the launcher sees a private space. */
     @Test fun aRowWithAnUpperBoundOrThatNeedsAPrivateSpaceIsOfferedOnlyWhereItExists() {
         fun ids(sdkInt: Int, privateSpaceSeen: Boolean) = searchableSettings(res, sdkInt, privateSpaceSeen).map { it.id }
         assertThat(ids(35, privateSpaceSeen = true)).contains("A22")
-        assertThat(ids(35, privateSpaceSeen = true)).hasSize(SettingsIndex.entries.size)
+        // All of them but the hint that belongs to Android 17.
+        assertThat(ids(35, privateSpaceSeen = true)).hasSize(SettingsIndex.entries.size - 1)
+        assertThat(ids(35, privateSpaceSeen = true)).doesNotContain("SS24")
         assertThat(ids(35, privateSpaceSeen = false)).doesNotContain("A22")
         // Android 16 and later follow Android's own setting: no switch of the launcher's.
         assertThat(ids(36, privateSpaceSeen = true)).doesNotContain("A22")

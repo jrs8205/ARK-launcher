@@ -211,6 +211,9 @@ internal fun ScreensaverRows() {
             onClick = { openDreamSettings(context) },
         )
     }
+    if (lowLightHintShown(Build.VERSION.SDK_INT)) {
+        SettingRow("SS24") { LowLightHintRow() }
+    }
     SettingRow("SS3") {
         SwitchRow(
             label = stringResource(ScreensaverR.string.dream_start_on_charge_title),
@@ -598,6 +601,32 @@ private fun styleName(style: DreamStyle): Int = when (style) {
     DreamStyle.RING -> ScreensaverR.string.dream_style_ring
     DreamStyle.GAUGES -> ScreensaverR.string.dream_style_gauges
     DreamStyle.EDGE -> ScreensaverR.string.dream_style_edge
+}
+
+/**
+ * The Android version from which the screensaver page has "Low light mode": in a dark room the system then
+ * shows its own dim clock (its LowLightClockDreamService) in place of the chosen screensaver. Seen on
+ * Android 17; the setting behind it is a secure one no app can write.
+ */
+internal const val LOW_LIGHT_MODE_SDK = 37
+
+/** Whether the page tells about Android's low light mode on Android [sdkInt]: where the switch exists. */
+internal fun lowLightHintShown(sdkInt: Int): Boolean = sdkInt >= LOW_LIGHT_MODE_SDK
+
+/**
+ * Says that Android replaces the screensaver with its own clock in the dark and that the switch for it is
+ * on Android's screensaver page, and leads there. The launcher cannot read or change that setting, so the
+ * row is the same whether the mode is on or off.
+ */
+@Composable
+internal fun LowLightHintRow() {
+    val context = LocalContext.current
+    ExpressiveActionRow(
+        label = stringResource(R.string.settings_screensaver_low_light),
+        description = stringResource(R.string.settings_screensaver_low_light_desc),
+        trailingIcon = LauncherIcons.OpenInNew,
+        onClick = { openDreamSettings(context) },
+    )
 }
 
 /** Android's own screensaver page: which screensaver is used, and when it starts. */

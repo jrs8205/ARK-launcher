@@ -150,7 +150,8 @@ class SettingsInventoryTest {
             "N1" to "settings_notif_dots", "N2" to "settings_notif_count", "N3" to "settings_notif_size",
             "S1" to "settings_lock_sounds", "S2" to "settings_lock_sound", "S3" to "settings_unlock_sound",
             "S4" to "settings_phone_sound_settings",
-            "SS1" to "dream_style_title", "SS2" to "open_screensaver_settings", "SS3" to "dream_start_on_charge_title",
+            "SS1" to "dream_style_title", "SS2" to "open_screensaver_settings",
+            "SS24" to "settings_screensaver_low_light", "SS3" to "dream_start_on_charge_title",
             "SS4" to "settings_screensaver_battery_full", "SS5" to "dream_device_name_title",
             "SS6" to "dream_show_seconds", "SS7" to "dream_show_date", "SS8" to "dream_show_alarm",
             "SS9" to "dream_notifications_title", "SS10" to "dream_show_battery_details", "SS11" to "dream_show_estimate",
@@ -182,7 +183,10 @@ class SettingsInventoryTest {
 
     /** The ids of [category]'s rows (null = the main page) among [visible], in the registry's order. */
     private fun rowsOf(category: SettingsCategory?, visible: Collection<String>): List<String> =
-        SettingsIndex.entries.filter { it.category == category && it.id in visible }.map { it.id }
+        SettingsIndex.entries
+            // A row for a later Android than the one this test runs on is not on the page (the low light hint).
+            .filter { it.category == category && it.id in visible && it.available(android.os.Build.VERSION.SDK_INT, privateSpaceSeen = true) }
+            .map { it.id }
 
     /** Walks every page and holds its rows, in order, against the registry's for that page. */
     private fun assertEveryPageShowsExactlyItsRows(visible: Collection<String>, eachRow: (SettingEntry) -> Unit = {}) {

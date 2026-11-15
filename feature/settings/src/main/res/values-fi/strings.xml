@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Perusväri</string>
     <string name="settings_cat_appearance_summary_value">Perusväri: %1$s</string>
     <string name="settings_base_colour">Perusväri</string>
+    <string name="settings_screensaver_low_light">Androidin kello pimeässä huoneessa</string>
+    <string name="settings_screensaver_low_light_desc">Pimeässä huoneessa Android näyttää valitun näytönsäästäjän tilalla oman himmeän kellonsa (”Low light mode”). Jos haluat tämän näytönsäästäjän näkyvän pimeässäkin, kytke se asetus pois Androidin näytönsäästäjäsivulta.</string>
     <string name="settings_charging_animation">Latausanimaatio</string>
     <string name="settings_charging_animation_desc">Hehku kotinäytöllä, kun laturi kytketään, ja launcherin tilapalkissa akku, joka täyttyy latauksen aikana.</string>
     <string name="settings_base_colour_desc">Värittää koko launcherin</string>

@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Grundfarbe</string>
     <string name="settings_cat_appearance_summary_value">Grundfarbe: %1$s</string>
     <string name="settings_base_colour">Grundfarbe</string>
+    <string name="settings_screensaver_low_light">Androids Uhr im dunklen Raum</string>
+    <string name="settings_screensaver_low_light_desc">In einem dunklen Raum zeigt Android statt des gewählten Bildschirmschoners seine eigene gedimmte Uhr („Low light mode“). Damit dieser Bildschirmschoner auch im Dunkeln bleibt, diese Einstellung auf Androids Bildschirmschoner-Seite ausschalten.</string>
     <string name="settings_charging_animation">Ladeanimation</string>
     <string name="settings_charging_animation_desc">Ein Leuchten auf dem Startbildschirm, wenn das Ladegerät angeschlossen wird, und in der Statusleiste des Launchers ein Akku, der sich beim Laden füllt.</string>
     <string name="settings_base_colour_desc">Färbt den ganzen Launcher</string>

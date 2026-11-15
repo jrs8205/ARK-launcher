@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Grundfärg</string>
     <string name="settings_cat_appearance_summary_value">Grundfärg: %1$s</string>
     <string name="settings_base_colour">Grundfärg</string>
+    <string name="settings_screensaver_low_light">Androids klocka i ett mörkt rum</string>
+    <string name="settings_screensaver_low_light_desc">I ett mörkt rum visar Android sin egen dämpade klocka i stället för den valda skärmsläckaren (”Low light mode”). Stäng av den inställningen på Androids skärmsläckarsida om den här skärmsläckaren ska visas även i mörker.</string>
     <string name="settings_charging_animation">Laddningsanimation</string>
     <string name="settings_charging_animation_desc">Ett sken på startskärmen när laddaren ansluts, och ett batteri som fylls i dess statusfält under laddning.</string>
     <string name="settings_base_colour_desc">Färgar hela launchern</string>

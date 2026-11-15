@@ -228,6 +228,10 @@ internal object SettingsIndex {
             row("SS1", c, ScreensaverR.string.dream_style_title, keywords = listOf(R.string.settings_screensaver_keywords))
             row("SS2", c, ScreensaverR.string.open_screensaver_settings, ScreensaverR.string.screensaver_charging_hint)
             row(
+                "SS24", c, R.string.settings_screensaver_low_light, R.string.settings_screensaver_low_light_desc,
+                minSdk = LOW_LIGHT_MODE_SDK,
+            )
+            row(
                 "SS3", c, ScreensaverR.string.dream_start_on_charge_title, ScreensaverR.string.dream_start_on_charge_description,
             )
             row("SS4", c, R.string.settings_screensaver_battery_full, R.string.settings_screensaver_battery_full_desc)

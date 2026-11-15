@@ -268,6 +268,8 @@
     <string name="settings_cat_appearance_summary">Основной цвет</string>
     <string name="settings_cat_appearance_summary_value">Основной цвет: %1$s</string>
     <string name="settings_base_colour">Основной цвет</string>
+    <string name="settings_screensaver_low_light">Часы Android в тёмной комнате</string>
+    <string name="settings_screensaver_low_light_desc">В тёмной комнате Android показывает собственные приглушённые часы вместо выбранной заставки («Low light mode»). Чтобы эта заставка оставалась и в темноте, отключите эту настройку на странице заставки Android.</string>
     <string name="settings_charging_animation">Анимация зарядки</string>
     <string name="settings_charging_animation_desc">Свечение на главном экране при подключении зарядного устройства и батарея, которая заполняется в строке состояния лаунчера во время зарядки.</string>
     <string name="settings_base_colour_desc">Окрашивает весь лаунчер</string>

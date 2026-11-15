@@ -264,6 +264,8 @@
     <string name="settings_cat_appearance_summary">Couleur de base</string>
     <string name="settings_cat_appearance_summary_value">Couleur de base : %1$s</string>
     <string name="settings_base_colour">Couleur de base</string>
+    <string name="settings_screensaver_low_light">L\'horloge d\'Android dans le noir</string>
+    <string name="settings_screensaver_low_light_desc">Dans une pièce sombre, Android affiche sa propre horloge atténuée à la place de l\'économiseur d\'écran choisi (« Low light mode »). Pour garder cet économiseur d\'écran dans le noir aussi, désactivez ce réglage sur la page d\'économiseur d\'écran d\'Android.</string>
     <string name="settings_charging_animation">Animation de charge</string>
     <string name="settings_charging_animation_desc">Une lueur sur l\'écran d\'accueil quand le chargeur est branché, et une batterie qui se remplit dans la barre d\'état du lanceur pendant la charge.</string>
     <string name="settings_base_colour_desc">Colore tout le launcher</string>

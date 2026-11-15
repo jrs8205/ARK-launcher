@@ -264,6 +264,8 @@
     <string name="settings_cat_appearance_summary">Cor base</string>
     <string name="settings_cat_appearance_summary_value">Cor base: %1$s</string>
     <string name="settings_base_colour">Cor base</string>
+    <string name="settings_screensaver_low_light">O relógio do Android no escuro</string>
+    <string name="settings_screensaver_low_light_desc">Em um ambiente escuro, o Android mostra seu próprio relógio esmaecido no lugar da proteção de tela escolhida (“Low light mode”). Para manter esta proteção de tela também no escuro, desative essa configuração na página de proteção de tela do Android.</string>
     <string name="settings_charging_animation">Animação de carregamento</string>
     <string name="settings_charging_animation_desc">Um brilho na tela inicial quando o carregador é conectado e uma bateria que se enche na barra de status do launcher durante o carregamento.</string>
     <string name="settings_base_colour_desc">Dá cor a todo o launcher</string>

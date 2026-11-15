@@ -268,6 +268,8 @@
     <string name="settings_cat_appearance_summary">Kolor bazowy</string>
     <string name="settings_cat_appearance_summary_value">Kolor bazowy: %1$s</string>
     <string name="settings_base_colour">Kolor bazowy</string>
+    <string name="settings_screensaver_low_light">Zegar Androida w ciemnym pokoju</string>
+    <string name="settings_screensaver_low_light_desc">W ciemnym pokoju Android pokazuje własny przyciemniony zegar zamiast wybranego wygaszacza ekranu („Low light mode”). Aby ten wygaszacz był widoczny także w ciemności, wyłącz to ustawienie na stronie wygaszacza ekranu w Androidzie.</string>
     <string name="settings_charging_animation">Animacja ładowania</string>
     <string name="settings_charging_animation_desc">Poświata na ekranie głównym po podłączeniu ładowarki oraz bateria, która wypełnia się na pasku stanu launchera podczas ładowania.</string>
     <string name="settings_base_colour_desc">Koloruje cały launcher</string>

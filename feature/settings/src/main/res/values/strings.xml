@@ -260,6 +260,8 @@
     <string name="settings_cat_appearance_summary">Base colour</string>
     <string name="settings_cat_appearance_summary_value">Base colour: %1$s</string>
     <string name="settings_base_colour">Base colour</string>
+    <string name="settings_screensaver_low_light">Android\'s clock in a dark room</string>
+    <string name="settings_screensaver_low_light_desc">In a dark room Android shows its own dim clock in place of the chosen screensaver (“Low light mode”). To keep this screensaver in the dark too, switch that setting off on Android\'s screensaver page.</string>
     <string name="settings_charging_animation">Charging animation</string>
     <string name="settings_charging_animation_desc">A glow on the home screen when the charger is connected, and a battery that fills in the launcher\'s status bar while charging.</string>
     <string name="settings_base_colour_desc">Colours the whole launcher</string>

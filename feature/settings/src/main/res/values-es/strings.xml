@@ -264,6 +264,8 @@
     <string name="settings_cat_appearance_summary">Color base</string>
     <string name="settings_cat_appearance_summary_value">Color base: %1$s</string>
     <string name="settings_base_colour">Color base</string>
+    <string name="settings_screensaver_low_light">El reloj de Android a oscuras</string>
+    <string name="settings_screensaver_low_light_desc">En una habitación a oscuras Android muestra su propio reloj atenuado en lugar del salvapantallas elegido («Low light mode»). Para conservar este salvapantallas también a oscuras, desactiva ese ajuste en la página de salvapantallas de Android.</string>
     <string name="settings_charging_animation">Animación de carga</string>
     <string name="settings_charging_animation_desc">Un resplandor en la pantalla de inicio al conectar el cargador, y una batería que se llena en la barra de estado del launcher mientras se carga.</string>
     <string name="settings_base_colour_desc">Da color a todo el launcher</string>
