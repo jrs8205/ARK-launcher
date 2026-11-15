@@ -152,26 +152,135 @@ class IconShaperTest {
         }
     }
 
-    // --- An icon that is not adaptive: smaller, on a white plate of the shape -------------------------
+    // --- An icon that is not adaptive (issue #26, the requester's follow-up) ---------------------------
+    // One that is a full tile of its own is enlarged to fill the shape, on its own edge colour: it must not
+    // sit small on a white plate. Only a free-form logo, which cannot fill a shape, keeps a plate.
 
-    @Test
-    fun `an old icon stands smaller on a white plate of the shape`() {
-        val shaped = shapedIcon(solid(Color.GREEN), IconShape.CIRCLE, size)
+    /** A picture painted in a box of 100 by 100 units, stretched over the drawable's bounds. */
+    private class Painted(private val paint: Canvas.(Paint) -> Unit) : Drawable() {
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            canvas.save()
+            canvas.translate(b.left.toFloat(), b.top.toFloat())
+            canvas.scale(b.width() / 100f, b.height() / 100f)
+            canvas.paint(Paint(Paint.ANTI_ALIAS_FLAG))
+            canvas.restore()
+        }
+        override fun setAlpha(alpha: Int) = Unit
+        override fun setColorFilter(colorFilter: ColorFilter?) = Unit
+        @Deprecated("Deprecated in Java") override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+    }
 
-        // The icon itself, in the middle; 0.64 of 144 is 92: from 26 to 118.
-        assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.GREEN)
-        assertThat(shaped.getPixel(30, 72)).isEqualTo(Color.GREEN)
-        // The plate around it, inside the circle.
-        assertThat(shaped.getPixel(72, 10)).isEqualTo(Color.WHITE)
-        assertThat(shaped.getPixel(18, 72)).isEqualTo(Color.WHITE)
-        // Nothing outside the circle.
-        assertThat(shaped.clear(4, 4)).isTrue()
+    /** A tile: a filled box from [from] to [to] of the picture's 100 units, its corners rounded by [radius]. */
+    private fun tile(colour: Int, from: Float = 0f, to: Float = 100f, radius: Float = 0f): Drawable = Painted { p ->
+        p.color = colour
+        drawRoundRect(from, from, to, to, radius, radius, p)
+    }
+
+    /** A free-form logo: a cross whose arms span [from] to [to] and are a quarter of that thick. */
+    private fun cross(colour: Int, from: Float = 0f, to: Float = 100f): Drawable = Painted { p ->
+        p.color = colour
+        val arm = (to - from) / 8f
+        val mid = (from + to) / 2f
+        drawRect(mid - arm, from, mid + arm, to, p)
+        drawRect(from, mid - arm, to, mid + arm, p)
     }
 
     @Test
-    fun `the plate has the picked shape`() {
-        assertThat(shapedIcon(solid(Color.GREEN), IconShape.SQUARE, size).getPixel(8, 8)).isEqualTo(Color.WHITE)
-        assertThat(shapedIcon(solid(Color.GREEN), IconShape.HEXAGON, size).clear(8, 8)).isTrue()
+    fun `an old icon that is a full tile fills the shape`() {
+        val square = shapedIcon(tile(Color.GREEN), IconShape.SQUARE, size)
+        val circle = shapedIcon(tile(Color.GREEN), IconShape.CIRCLE, size)
+
+        // Edge to edge: no plate shows anywhere.
+        assertThat(square.getPixel(72, 72)).isEqualTo(Color.GREEN)
+        assertThat(square.getPixel(8, 8)).isEqualTo(Color.GREEN)
+        assertThat(square.getPixel(72, 10)).isEqualTo(Color.GREEN)
+        assertThat(circle.getPixel(72, 3)).isEqualTo(Color.GREEN)
+        assertThat(circle.clear(4, 4)).isTrue()
+    }
+
+    @Test
+    fun `a tile drawn with empty margins is enlarged until it fills the shape`() {
+        // Many old icons leave room around their tile: here it covers only the middle half of its picture.
+        val shaped = shapedIcon(tile(Color.GREEN, from = 25f, to = 75f), IconShape.SQUARE, size)
+
+        assertThat(shaped.getPixel(20, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(124, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(72, 20)).isEqualTo(Color.GREEN)
+    }
+
+    @Test
+    fun `what a rounded tile leaves of the shape is its own colour, not white`() {
+        // The tile's corners are rounder than the square's: the square shows behind them.
+        val shaped = shapedIcon(tile(Color.GREEN, radius = 30f), IconShape.SQUARE, size)
+
+        assertThat(shaped.getPixel(5, 5)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(138, 138)).isEqualTo(Color.GREEN)
+    }
+
+    @Test
+    fun `a round old icon in a square shape stands on its own colour`() {
+        val disc = Painted { p ->
+            p.color = Color.BLUE
+            drawCircle(50f, 50f, 50f, p)
+        }
+
+        val shaped = shapedIcon(disc, IconShape.SQUARE, size)
+
+        assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.BLUE)
+        assertThat(shaped.getPixel(8, 8)).isEqualTo(Color.BLUE)
+    }
+
+    @Test
+    fun `a faint shadow under a tile is not taken for a part of it`() {
+        // A red tile over the upper four fifths of the picture, and under it a soft shadow.
+        val withShadow = Painted { p ->
+            p.color = Color.RED
+            drawRect(0f, 0f, 100f, 80f, p)
+            p.color = Color.argb(50, 0, 0, 0)
+            drawRect(0f, 80f, 100f, 100f, p)
+        }
+
+        val shaped = shapedIcon(withShadow, IconShape.SQUARE, size)
+
+        // The tile alone is what is centred in the shape: its lower part is where the shadow would be
+        // had the shadow counted (the tile would then start at the top and end at 115 of 144).
+        assertThat(shaped.getPixel(72, 122)).isEqualTo(Color.RED)
+        assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.RED)
+        // Above the tile, the shape is the tile's own colour.
+        assertThat(shaped.getPixel(72, 5)).isEqualTo(Color.RED)
+    }
+
+    @Test
+    fun `a free-form logo keeps a white plate of the shape`() {
+        val circle = shapedIcon(cross(Color.GREEN), IconShape.CIRCLE, size)
+
+        // The logo in the middle (0.64 of 144 is 92: from 26 to 118), the plate around it, nothing outside.
+        assertThat(circle.getPixel(72, 72)).isEqualTo(Color.GREEN)
+        assertThat(circle.getPixel(30, 72)).isEqualTo(Color.GREEN)
+        assertThat(circle.getPixel(40, 40)).isEqualTo(Color.WHITE)
+        assertThat(circle.getPixel(72, 12)).isEqualTo(Color.WHITE)
+        assertThat(circle.clear(4, 4)).isTrue()
+        // The plate has the picked shape.
+        assertThat(shapedIcon(cross(Color.GREEN), IconShape.SQUARE, size).getPixel(8, 8)).isEqualTo(Color.WHITE)
+        assertThat(shapedIcon(cross(Color.GREEN), IconShape.HEXAGON, size).clear(8, 8)).isTrue()
+    }
+
+    @Test
+    fun `a free-form logo with empty margins is sized by what shows of it`() {
+        // The cross covers only the middle half of its picture; on the plate it is as large as a whole one.
+        val shaped = shapedIcon(cross(Color.GREEN, from = 25f, to = 75f), IconShape.SQUARE, size)
+
+        assertThat(shaped.getPixel(30, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(114, 72)).isEqualTo(Color.GREEN)
+        assertThat(shaped.getPixel(40, 40)).isEqualTo(Color.WHITE)
+    }
+
+    @Test
+    fun `an icon with nothing to show leaves an empty plate`() {
+        val shaped = shapedIcon(Painted { }, IconShape.SQUARE, size)
+
+        assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.WHITE)
     }
 
     // --- The system's shape: nothing is redrawn --------------------------------------------------------

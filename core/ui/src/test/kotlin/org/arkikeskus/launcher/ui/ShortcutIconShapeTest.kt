@@ -20,8 +20,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * A shortcut pinned on the home screen (a contact, a web page) is drawn in the icon shape the user picked,
- * by the same rule as an app's icon: its layers cut to the shape, or a picture without layers on a plate of
- * it. With the system's shape it is drawn as Android hands it over.
+ * by the same rule as an app's icon: its layers cut to the shape, or a picture without layers enlarged to
+ * fill it. With the system's shape it is drawn as Android hands it over.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -51,11 +51,12 @@ class ShortcutIconShapeTest {
     }
 
     @Test
-    fun `a shortcut that is a plain picture stands on a plate of the shape`() {
+    fun `a shortcut that is a plain picture fills the shape`() {
+        // A contact's photo, a page's picture: a full tile, cut to the shape like any old icon that is one.
         val shaped = drawn(picture(Color.GREEN), IconShape.SQUARE)
 
         assertThat(shaped.getPixel(72, 72)).isEqualTo(Color.GREEN)
-        assertThat(shaped.getPixel(8, 8)).isEqualTo(Color.WHITE)
+        assertThat(shaped.getPixel(8, 8)).isEqualTo(Color.GREEN)
         assertThat(drawn(picture(Color.GREEN), IconShape.HEXAGON).clear(8, 8)).isTrue()
     }
 

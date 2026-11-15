@@ -25,8 +25,9 @@ enum class IconShape(val id: String) {
 }
 
 /**
- * How large an icon that is not adaptive is drawn on its plate, as a part of the icon's side. It is the
- * largest square, to two decimals, that stays inside every shape; the hexagon is the tight one.
+ * How large a free-form icon that is not adaptive is drawn on its plate, as a part of the icon's side (an
+ * old icon that is a tile of its own fills the shape instead, see `shapedIcon`). It is the largest square,
+ * to two decimals, that stays inside every shape; the hexagon is the tight one.
  */
 const val LEGACY_ICON_SCALE = 0.64f
 
