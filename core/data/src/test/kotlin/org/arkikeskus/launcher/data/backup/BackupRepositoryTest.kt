@@ -39,7 +39,7 @@ class BackupRepositoryTest {
     fun tearDown() = db.close()
 
     private fun repo(homeItemDao: HomeItemDao = dao) =
-        BackupRepository(RuntimeEnvironment.getApplication(), homeItemDao, settings, resolver)
+        BackupRepository(RuntimeEnvironment.getApplication(), homeItemDao, settings, resolver, screensaver())
 
     private fun doc(settings: Map<String, Any>, vararg items: BackupItem, mainUserSerial: Long? = null) =
         BackupDocument(BackupCodec.FORMAT, "test", 0L, settings, items.toList(), mainUserSerial)
@@ -135,4 +135,7 @@ class BackupRepositoryTest {
         assertThat(settings.settings.first().homeColumns).isEqualTo(5)
         assertThat(dao.getAll().map { it.key }).containsExactly("x/X/0")
     }
+
+    private fun screensaver() =
+        org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore(RuntimeEnvironment.getApplication())
 }

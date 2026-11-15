@@ -46,7 +46,7 @@ class DockBackupTest {
     @After
     fun tearDown() = db.close()
 
-    private fun repo() = BackupRepository(RuntimeEnvironment.getApplication(), dao, settings, resolver)
+    private fun repo() = BackupRepository(RuntimeEnvironment.getApplication(), dao, settings, resolver, screensaver())
 
     private fun doc(settings: Map<String, Any>, vararg items: BackupItem, format: Int = BackupCodec.FORMAT, mainUserSerial: Long? = 0L) =
         BackupDocument(format, "test", 0L, settings, items.toList(), mainUserSerial)
@@ -190,11 +190,14 @@ class DockBackupTest {
         val backup = doc(mapOf("home_columns" to 4), dockApp(1, "a", 0))
 
         val failure = runCatching {
-            BackupRepository(RuntimeEnvironment.getApplication(), failing, settings, resolver).restoreDocument(backup, listOf("a/Main/0"))
+            BackupRepository(RuntimeEnvironment.getApplication(), failing, settings, resolver, screensaver()).restoreDocument(backup, listOf("a/Main/0"))
         }
 
         assertThat(failure.isFailure).isTrue()
         assertThat(dockOrder()).containsExactly("x")
         assertThat(settings.settings.first().homeColumns).isEqualTo(4)
     }
+
+    private fun screensaver() =
+        org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore(RuntimeEnvironment.getApplication())
 }

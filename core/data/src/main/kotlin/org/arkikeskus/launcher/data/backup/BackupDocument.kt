@@ -34,6 +34,9 @@ data class BackupDocument(
     /** User serial of the profile the exporting launcher ran as: the settings' app keys carry it.
      *  Null in files written before it was recorded. */
     val mainUserSerial: Long? = null,
+    /** The screensaver's own settings (they live in a file of their own, not among [settings]), by their
+     *  keys. Null in files written before the launcher had a screensaver: restoring one leaves them alone. */
+    val screensaver: Map<String, Any>? = null,
 )
 
 class BackupFormatException(message: String) : Exception(message)

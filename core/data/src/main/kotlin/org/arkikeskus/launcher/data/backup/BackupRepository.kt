@@ -1,7 +1,10 @@
 package org.arkikeskus.launcher.data.backup
 
 import android.appwidget.AppWidgetManager
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -11,6 +14,8 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.screensaver.DreamPreferences
+import org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,6 +27,7 @@ class BackupRepository @Inject constructor(
     private val homeItemDao: HomeItemDao,
     private val settings: SettingsRepository,
     private val resolver: AppRowResolver,
+    private val screensaver: ScreensaverSettingsStore,
 ) {
     suspend fun exportDocument(createdAt: Long, appVersion: String): BackupDocument =
         BackupDocument(
@@ -31,6 +37,7 @@ class BackupRepository @Inject constructor(
             settings = settings.exportRaw(),
             homeItems = BackupMapper.toBackupItems(homeItemDao.getAllOnce(), mainUserSerial()),
             mainUserSerial = mainUserSerial(),
+            screensaver = screensaver.exportRaw(),
         )
 
     /** Restores [doc] against the launchable apps on this device ([installedApps]: AppItem keys,
@@ -79,14 +86,19 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         withContext(NonCancellable) { ShortcutPinLock.withLock {
             val previousSettings = settings.snapshot()
+            val previousScreensaver = screensaver.snapshot()
             val previousLayout = homeItemDao.getAllOnce()
             settings.importRaw(restoredSettings)
+            // The screensaver's settings are a file of their own: written with the launcher's, and put back
+            // with them when the layout write fails.
+            doc.screensaver?.let { screensaver.importRaw(screensaverForThisPhone(it)) }
             val importedSettings = settings.snapshot()
             try {
                 homeItemDao.replaceLayout(entities)
             } catch (t: Throwable) {
                 // Put the old settings back so a failed layout write never leaves half a restore.
                 runCatching { settings.rollbackImport(previousSettings, importedSettings) }
+                runCatching { screensaver.restore(previousScreensaver) }
                 throw t
             }
             repinShortcuts(previousLayout, entities)
@@ -129,4 +141,19 @@ class BackupRepository @Inject constructor(
             .map { it.provider.packageName }
             .toSet()
     }.getOrDefault(emptySet())
+
+    /**
+     * The backup's screensaver settings as this phone can take them: the battery-full notification needs the
+     * permission to send notifications, which the phone the backup came from held and this one may not. Its
+     * switch is then restored off, so the page never shows a switch that is on and sends nothing; turning it
+     * on there asks for the permission.
+     */
+    private fun screensaverForThisPhone(values: Map<String, Any>): Map<String, Any> {
+        val key = DreamPreferences.KEY_BATTERY_FULL_NOTIFICATION
+        return if (values[key] == true && !maySendNotifications()) values + (key to false) else values
+    }
+
+    private fun maySendNotifications(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 }

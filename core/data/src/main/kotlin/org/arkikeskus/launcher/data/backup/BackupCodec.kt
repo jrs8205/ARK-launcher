@@ -14,7 +14,8 @@ object BackupCodec {
      *  place of the `dock_favorites` settings key, which a reader of format 4 turns into rows. Decode
      *  still accepts every older format, absent fields defaulting. The optional top-level
      *  mainUserSerial came later without a format bump: older readers ignore it, and files without
-     *  it still decode. */
+     *  it still decode. The optional top-level screensaver object (the screensaver's own settings)
+     *  came the same way. */
     const val FORMAT = 4
 
     fun encode(doc: BackupDocument): String {
@@ -49,6 +50,11 @@ object BackupCodec {
             .put("settings", settings)
             .put("homeItems", items)
         doc.mainUserSerial?.let { root.put("mainUserSerial", it) }
+        doc.screensaver?.let { values ->
+            val screensaver = JSONObject()
+            for ((k, v) in values) screensaver.put(k, v)
+            root.put("screensaver", screensaver)
+        }
         return root.toString()
     }
 
@@ -91,7 +97,13 @@ object BackupCodec {
         }
         // A missing, null or garbled serial only disables the settings' profile remapping hint.
         val mainUserSerial = root.optLong("mainUserSerial", -1L).takeIf { it >= 0 }
-        return BackupDocument(format, root.getString("appVersion"), root.getLong("createdAt"), settings, items, mainUserSerial)
+        // Absent in files written before the launcher had a screensaver; anything but an object counts as absent.
+        val screensaver = root.optJSONObject("screensaver")?.let { obj ->
+            LinkedHashMap<String, Any>().apply { for (key in obj.keys()) put(key, obj.get(key)) }
+        }
+        return BackupDocument(
+            format, root.getString("appVersion"), root.getLong("createdAt"), settings, items, mainUserSerial, screensaver,
+        )
     }
 
     private fun JSONObject.optStringOrNull(name: String): String? =

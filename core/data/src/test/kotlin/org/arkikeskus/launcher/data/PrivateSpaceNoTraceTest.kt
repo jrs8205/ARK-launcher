@@ -105,7 +105,7 @@ class PrivateSpaceNoTraceTest {
         val work = WorkProfileRepository(profiles, scope, dispatcher, 5_000)
         val privateSpace = PrivateSpaceRepository(profiles, work, source, settings, scope)
         val apps = AppRepository(source, settings, usage, work, privateSpace, scope)
-        val backup = BackupRepository(context, db.homeItemDao(), settings, source)
+        val backup = BackupRepository(context, db.homeItemDao(), settings, source, org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore(context))
 
         // Listed: the personal app in the shared list, the private one in its own.
         await("the first scan") { privateSpace.apps.value.isNotEmpty() }
