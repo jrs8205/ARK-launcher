@@ -103,6 +103,7 @@ internal fun SettingsCategoryPage(
                     onSetEnabled = actions::setLockSoundsEnabled,
                     onSetSound = actions::setLockSound,
                 )
+                SettingsCategory.SCREENSAVER -> ScreensaverRows()
                 SettingsCategory.PERMISSIONS -> PermissionsRows()
                 SettingsCategory.BACKUP -> Unit
                 SettingsCategory.ABOUT -> {
@@ -148,7 +149,7 @@ internal fun SettingsPageHeader(title: String, onBack: () -> Unit) {
 
 /** A heading between the groups of a page that gathers more than one; the [first] one sits closer to the header. */
 @Composable
-private fun PageHeading(text: String, first: Boolean = false) {
+internal fun PageHeading(text: String, first: Boolean = false) {
     Text(
         text = text,
         color = LocalExpressivePalette.current.text,

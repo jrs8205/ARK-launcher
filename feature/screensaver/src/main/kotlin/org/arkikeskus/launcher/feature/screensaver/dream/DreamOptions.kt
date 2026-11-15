@@ -8,7 +8,7 @@ import org.arkikeskus.launcher.data.screensaver.DreamPreferences
  * The colour of the clock's seconds. A ready-made handful rather than a colour picker:
  * each one sits well beside the battery's colours. [id] is what the settings store.
  */
-internal enum class DreamAccent(val id: String, val color: Color) {
+enum class DreamAccent(val id: String, val color: Color) {
     SKY("sky", Color(0xFF38BDF8)),
     TEAL("teal", Color(0xFF2DD4BF)),
     VIOLET("violet", Color(0xFFA78BFA)),
@@ -23,7 +23,7 @@ internal fun dreamAccentOf(id: String?): DreamAccent =
  * What the user chose for the screensaver, read once when it starts. The settings preview
  * builds the same object from the settings page's state.
  */
-internal data class DreamOptions(
+data class DreamOptions(
     val style: DreamStyle = DreamStyle.GLOW,
     val layoutSwapped: Boolean = false,
     val verticalShiftOnly: Boolean = false,
@@ -64,7 +64,7 @@ internal data class DreamOptions(
  * missing or of another type; each then falls back to its default instead of stopping
  * the screensaver.
  */
-internal fun readDreamOptions(prefs: SharedPreferences): DreamOptions {
+fun readDreamOptions(prefs: SharedPreferences): DreamOptions {
     val defaults = DreamOptions()
     return DreamOptions(
         style = dreamStyleOf(prefs.stringOrNull(DreamPreferences.KEY_STYLE)),
@@ -94,7 +94,7 @@ internal fun readDreamOptions(prefs: SharedPreferences): DreamOptions {
  * switched on: the settings page shows it either way. Missing or of another type, it is
  * the default.
  */
-internal fun storedBrightnessPercent(prefs: SharedPreferences): Int {
+fun storedBrightnessPercent(prefs: SharedPreferences): Int {
     val stored = try {
         prefs.getInt(DreamPreferences.KEY_BRIGHTNESS_PERCENT, DreamPreferences.DEFAULT_BRIGHTNESS_PERCENT)
     } catch (_: ClassCastException) {

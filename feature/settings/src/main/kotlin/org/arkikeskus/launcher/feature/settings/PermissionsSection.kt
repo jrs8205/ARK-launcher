@@ -113,14 +113,14 @@ internal fun PermissionRow(label: String, permission: String) {
 }
 
 /** Unwraps the Activity behind a Compose LocalContext (a ContextWrapper chain). */
-private tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
+internal tailrec fun android.content.Context.findActivity(): android.app.Activity? = when (this) {
     is android.app.Activity -> this
     is android.content.ContextWrapper -> baseContext.findActivity()
     else -> null
 }
 
 /** The app's system details page — where a permanently denied permission can still be granted. */
-private fun openAppDetailsSettings(context: android.content.Context) {
+internal fun openAppDetailsSettings(context: android.content.Context) {
     runCatching {
         context.startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
@@ -130,7 +130,7 @@ private fun openAppDetailsSettings(context: android.content.Context) {
 }
 
 /** True when our notification listener has been granted notification access in the system settings. */
-private fun isNotificationAccessGranted(context: android.content.Context): Boolean =
+internal fun isNotificationAccessGranted(context: android.content.Context): Boolean =
     runCatching {
         NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
     }.getOrDefault(false)

@@ -92,7 +92,7 @@ class SettingsNavigationTest {
         assertThat(tags("category-")).containsExactlyElementsIn(SettingsCategory.entries.map { categoryTag(it.key) }).inOrder()
         assertThat(SettingsCategory.entries.map { it.key }).containsExactly(
             "appearance", "home", "dock", "drawer", "folders", "widgets", "icons", "gestures", "bars", "notifications",
-            "sounds",
+            "sounds", "screensaver",
             "permissions", "backup", "about",
         ).inOrder()
     }
@@ -133,8 +133,8 @@ class SettingsNavigationTest {
     // Android's screensaver choice opens Settings straight on the screensaver's page (its gear).
 
     @Test fun openedOnAPageSettingsShowsItAndBackLeavesForTheMainPage() {
-        show(openPage = "sounds")
-        assertOnPageNamed(R.string.settings_sounds)
+        show(openPage = SETTINGS_PAGE_SCREENSAVER)
+        assertOnPageNamed(R.string.settings_cat_screensaver)
 
         systemBack()
 
@@ -149,8 +149,8 @@ class SettingsNavigationTest {
 
     @Test fun thePageToOpenWinsOverThePlaceSettingsWasLeftAt() {
         SettingsScrollMemory.remember("dock", 0, android.os.SystemClock.elapsedRealtime())
-        show(openPage = "sounds")
-        assertOnPageNamed(R.string.settings_sounds)
+        show(openPage = SETTINGS_PAGE_SCREENSAVER)
+        assertOnPageNamed(R.string.settings_cat_screensaver)
     }
 
     @Test fun systemBackReturnsFromAPageToTheMainPage() {

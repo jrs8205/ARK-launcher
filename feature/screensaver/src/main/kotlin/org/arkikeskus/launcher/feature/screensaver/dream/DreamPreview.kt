@@ -72,3 +72,12 @@ internal fun DreamPreview(
         }
     }
 }
+
+/**
+ * [DreamPreview] for the settings page, which lives in another module: the sample it draws stays this
+ * module's own.
+ */
+@Composable
+fun DreamStylePreview(style: DreamStyle, options: DreamOptions, modifier: Modifier = Modifier) {
+    DreamPreview(style = style, options = options, modifier = modifier)
+}

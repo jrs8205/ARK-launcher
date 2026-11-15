@@ -37,6 +37,7 @@ object LauncherIcons {
     @DrawableRes val Folder: Int = R.drawable.ic_folder
     @DrawableRes val Notifications: Int = R.drawable.ic_notifications
     @DrawableRes val VolumeUp: Int = R.drawable.ic_volume_up
+    @DrawableRes val Screensaver: Int = R.drawable.ic_screensaver
     @DrawableRes val Dock: Int = R.drawable.ic_dock
     @DrawableRes val Category: Int = R.drawable.ic_category
     @DrawableRes val Palette: Int = R.drawable.ic_palette

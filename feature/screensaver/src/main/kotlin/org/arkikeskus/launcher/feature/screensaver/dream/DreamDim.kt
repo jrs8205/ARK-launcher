@@ -69,7 +69,7 @@ private const val BRIGHTNESS_CURVE = 2.2
  * is a power curve: its steps look about even, where even steps of light would crowd all
  * that a dim room needs into the slider's first few per cent.
  */
-internal fun dreamBrightnessOf(percent: Int): Float =
+fun dreamBrightnessOf(percent: Int): Float =
     (percent.coerceIn(1, 100) / 100.0).pow(BRIGHTNESS_CURVE).toFloat()
 
 /**

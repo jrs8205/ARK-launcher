@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:ui"))
     implementation(project(":feature:backup"))
+    implementation(project(":feature:screensaver"))
     implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)

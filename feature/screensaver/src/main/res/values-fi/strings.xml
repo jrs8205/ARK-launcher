@@ -46,7 +46,7 @@
     <string name="dream_flip_description">Telineelle, jossa puhelin on ylösalaisin: näytönsäästäjä kääntyy 180°.</string>
     <string name="dream_notifications_title">Näytä ilmoitusten kuvakkeet</string>
     <string name="dream_notifications_description">Näyttää kuittaamattomien ilmoitusten kuvakkeet kellon alla ja sykäyttää niitä, kun uusi ilmoitus saapuu. Vaatii ilmoitusten käyttöoikeuden.</string>
-    <string name="dream_notifications_access_missing">Ilmoitusten käyttöoikeutta ei ole myönnetty, joten näytönsäästäjä ei näe ilmoituksia. Myönnä se alla kohdassa Erityisoikeudet.</string>
+    <string name="dream_notifications_access_missing">Ilmoitusten käyttöoikeutta ei ole myönnetty, joten näytönsäästäjä ei näe ilmoituksia. Myönnä se kohdassa Asetukset ▸ Luvat.</string>
     <string name="dream_vertical_shift_title">Siirrä vain pystysuunnassa</string>
     <string name="dream_vertical_shift_description">Näytönsäästäjä siirtyy minuutin välein hieman, ettei näyttöön pala kuvaa. Tämän ollessa päällä se siirtyy vain ylös ja alas ja pysyy vaakasuunnassa keskellä.</string>
     <string name="dream_device_name_title">Näytä laitteen nimi</string>
@@ -64,4 +64,14 @@
     <string name="dream_charging">Latautuu</string>
     <string name="dream_on_battery">Akkuvirralla</string>
     <string name="dream_plugged_not_charging">Ei lataudu</string>
+    <string name="force_portrait_title">Pakota pystyasento</string>
+    <string name="force_portrait_description">Pidä näytönsäästäjä pystyssä, vaikka laite olisi vaaka-asennossa.</string>
+    <string name="dim_screensaver_title">Himmennä näytönsäästäjä</string>
+    <string name="dim_screensaver_description">Laske näytön kirkkautta näytönsäästäjän aikana (miellyttävämpi silmille yöllä).</string>
+    <string name="night_dim_title">Himmennä yöllä</string>
+    <string name="night_dim_description">Himmennä näytönsäästäjä automaattisesti valitulla aikavälillä.</string>
+    <string name="night_dim_start_label">Alkaa %1$s</string>
+    <string name="night_dim_end_label">Päättyy %1$s</string>
+    <string name="open_screensaver_settings">Avaa näytönsäästäjän asetukset</string>
+    <string name="screensaver_charging_hint">Näytönsäästäjä otetaan käyttöön Androidin järjestelmäasetuksista, ja se näkyy kun näyttö sammuu laitteen ollessa latauksessa. Joissakin puhelimissa (esim. Samsung) se käynnistyy vain latauksen aikana, ja Always On Display voi täytyä poistaa käytöstä, jos se näkyy sen sijaan.</string>
 </resources>

@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import org.arkikeskus.launcher.ui.LauncherIcons
+import org.arkikeskus.launcher.feature.screensaver.R as ScreensaverR
 
 /**
  * The pages of Settings, in the order the main page lists them: each with its [key] (kept in the saved state), its
@@ -30,6 +31,9 @@ internal enum class SettingsCategory(
         "notifications", R.string.settings_notifications, R.string.settings_cat_notifications_summary, LauncherIcons.Notifications,
     ),
     SOUNDS("sounds", R.string.settings_sounds, R.string.settings_lock_sounds, LauncherIcons.VolumeUp),
+    SCREENSAVER(
+        "screensaver", R.string.settings_cat_screensaver, R.string.settings_cat_screensaver_summary, LauncherIcons.Screensaver,
+    ),
     PERMISSIONS("permissions", R.string.settings_permissions, R.string.settings_cat_permissions_summary, LauncherIcons.Shield),
     BACKUP("backup", R.string.settings_backup, R.string.settings_cat_backup_summary, LauncherIcons.Backup),
     ABOUT("about", R.string.settings_cat_about, R.string.settings_cat_about_summary, LauncherIcons.Info),
@@ -216,6 +220,34 @@ internal object SettingsIndex {
             row("S2", c, R.string.settings_lock_sound, fallback = "S1")
             row("S3", c, R.string.settings_unlock_sound, fallback = "S1")
             row("S4", c, R.string.settings_phone_sound_settings, R.string.settings_phone_sound_settings_desc, fallback = "S1")
+        }
+        // The screensaver's rows carry the screensaver module's own texts.
+        SettingsCategory.SCREENSAVER.let { c ->
+            row("SS1", c, ScreensaverR.string.dream_style_title, keywords = listOf(R.string.settings_screensaver_keywords))
+            row("SS2", c, ScreensaverR.string.open_screensaver_settings, ScreensaverR.string.screensaver_charging_hint)
+            row("SS5", c, ScreensaverR.string.dream_device_name_title, ScreensaverR.string.dream_device_name_description)
+            row("SS6", c, ScreensaverR.string.dream_show_seconds)
+            row("SS7", c, ScreensaverR.string.dream_show_date)
+            row("SS8", c, ScreensaverR.string.dream_show_alarm)
+            row("SS9", c, ScreensaverR.string.dream_notifications_title, ScreensaverR.string.dream_notifications_description)
+            row("SS10", c, ScreensaverR.string.dream_show_battery_details)
+            row("SS11", c, ScreensaverR.string.dream_show_estimate)
+            row("SS12", c, ScreensaverR.string.dream_accent_title)
+            // The Gauges style's own rows.
+            row("SS13", c, ScreensaverR.string.dream_calendar_title, ScreensaverR.string.dream_calendar_description, fallback = "SS1")
+            row(
+                "SS14", c, ScreensaverR.string.dream_calendar_titles_title, ScreensaverR.string.dream_calendar_titles_description,
+                fallback = "SS1",
+            )
+            row("SS15", c, ScreensaverR.string.dream_flip_title, ScreensaverR.string.dream_flip_description)
+            row("SS16", c, ScreensaverR.string.force_portrait_title, ScreensaverR.string.force_portrait_description)
+            row("SS17", c, ScreensaverR.string.dream_vertical_shift_title, ScreensaverR.string.dream_vertical_shift_description)
+            row("SS18", c, ScreensaverR.string.dim_screensaver_title, ScreensaverR.string.dim_screensaver_description)
+            row("SS19", c, ScreensaverR.string.night_dim_title, ScreensaverR.string.night_dim_description)
+            row("SS20", c, R.string.settings_screensaver_night_times, fallback = "SS19")
+            row("SS21", c, ScreensaverR.string.dream_night_style_title, ScreensaverR.string.dream_night_style_description)
+            row("SS22", c, ScreensaverR.string.dream_brightness_title, ScreensaverR.string.dream_brightness_description)
+            row("SS23", c, R.string.settings_screensaver_brightness_level, fallback = "SS22")
         }
         SettingsCategory.PERMISSIONS.let { c ->
             row("P1", c, R.string.settings_notif_access)

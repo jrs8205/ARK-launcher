@@ -62,6 +62,8 @@ internal fun scalePercent(value: Float): Int = (value * 100f).roundToInt()
  * value is shown beside the label in the words of [valueText], the thumb snaps to [step]
  * increments with a tick of haptic feedback on every change so a move is felt, and a "Default …"
  * chip under the slider appears whenever the value is off [default] to bring it straight back.
+ * [onChangeFinished] hears the end of a move (the finger lifted, or the chip tapped), for a value that is
+ * stored only then.
  */
 @Composable
 internal fun ScaleSliderRow(
@@ -73,6 +75,7 @@ internal fun ScaleSliderRow(
     description: String? = null,
     step: Float = 0.05f,
     default: Float = 1f,
+    onChangeFinished: () -> Unit = {},
 ) {
     val p = LocalExpressivePalette.current
     val haptics = LocalHapticFeedback.current
@@ -111,7 +114,10 @@ internal fun ScaleSliderRow(
             Slider(
                 value = value,
                 onValueChange = change,
-                onValueChangeFinished = { feltBase = null },
+                onValueChangeFinished = {
+                    feltBase = null
+                    onChangeFinished()
+                },
                 valueRange = valueRange,
                 steps = scaleSliderSteps(valueRange, step),
                 colors = expressiveSliderColors(),
@@ -123,6 +129,7 @@ internal fun ScaleSliderRow(
                         onClick = {
                             change(default)
                             feltBase = null
+                            onChangeFinished()
                         },
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                     ) {

@@ -262,4 +262,13 @@
     <string name="base_colour_black">Black</string>
     <string name="base_colour_chameleon">Chameleon</string>
     <string name="base_colour_chameleon_desc">Follows your wallpaper</string>
+    <string name="settings_cat_screensaver">Screensaver</string>
+    <string name="settings_cat_screensaver_summary">Styles, what it shows, brightness and night</string>
+    <string name="settings_screensaver_start">Start</string>
+    <string name="settings_screensaver_shows">What it shows</string>
+    <string name="settings_screensaver_layout">Layout</string>
+    <string name="settings_screensaver_night">Brightness and night</string>
+    <string name="settings_screensaver_night_times">Night dim times</string>
+    <string name="settings_screensaver_brightness_level">Brightness</string>
+    <string name="settings_screensaver_keywords">screen saver clock charging dock daydream bedside burn-in</string>
 </resources>

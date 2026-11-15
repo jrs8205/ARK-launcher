@@ -14,6 +14,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import org.arkikeskus.launcher.data.screensaver.DreamPreferences
+import org.arkikeskus.launcher.data.screensaver.screensaverPreferences
 import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Before
@@ -35,8 +37,23 @@ import java.io.File
 class SettingsInventoryTest {
     @get:Rule val compose = createComposeRule()
 
-    @Before fun nothingRemembered() = SettingsScrollMemory.clear()
+    @Before fun nothingRemembered() {
+        SettingsScrollMemory.clear()
+        screensaver.edit().clear().commit()
+    }
     private val res = RuntimeEnvironment.getApplication().resources
+
+    /** The screensaver's own settings file: its page's conditional rows follow it, not [LauncherSettings]. */
+    private val screensaver get() = RuntimeEnvironment.getApplication().screensaverPreferences()
+
+    /** The Gauges style with its calendar rows, the night dim with its times, own brightness with its level. */
+    private fun everyScreensaverRowShown() {
+        screensaver.edit()
+            .putString(DreamPreferences.KEY_STYLE, "gauges")
+            .putBoolean(DreamPreferences.KEY_NIGHT_DIM, true)
+            .putBoolean(DreamPreferences.KEY_OWN_BRIGHTNESS, true)
+            .commit()
+    }
 
     /** Everything that makes a conditional row show is off, and the drawer has no colour layer and no picture. */
     private val everythingOff = LauncherSettings(
@@ -133,6 +150,13 @@ class SettingsInventoryTest {
             "N1" to "settings_notif_dots", "N2" to "settings_notif_count", "N3" to "settings_notif_size",
             "S1" to "settings_lock_sounds", "S2" to "settings_lock_sound", "S3" to "settings_unlock_sound",
             "S4" to "settings_phone_sound_settings",
+            "SS1" to "dream_style_title", "SS2" to "open_screensaver_settings", "SS5" to "dream_device_name_title",
+            "SS6" to "dream_show_seconds", "SS7" to "dream_show_date", "SS8" to "dream_show_alarm",
+            "SS9" to "dream_notifications_title", "SS10" to "dream_show_battery_details", "SS11" to "dream_show_estimate",
+            "SS12" to "dream_accent_title", "SS13" to "dream_calendar_title", "SS14" to "dream_calendar_titles_title",
+            "SS15" to "dream_flip_title", "SS16" to "force_portrait_title", "SS17" to "dream_vertical_shift_title",
+            "SS18" to "dim_screensaver_title", "SS19" to "night_dim_title", "SS20" to "settings_screensaver_night_times",
+            "SS21" to "dream_night_style_title", "SS22" to "dream_brightness_title", "SS23" to "settings_screensaver_brightness_level",
             "P1" to "settings_notif_access", "P2" to "settings_permission_calendar",
             "P3" to "settings_permission_contacts", "P4" to "settings_permission_phone",
             "P5" to "settings_permission_location",
@@ -185,6 +209,7 @@ class SettingsInventoryTest {
     }
 
     @Test fun withEverythingOnEachPageShowsAllItsRowsButThePictureDim() {
+        everyScreensaverRowShown()
         show(everythingOn, privateSpace = true)
         assertEveryPageShowsExactlyItsRows(allIds - "A13" - "B1", eachRow = ::assertRowNamesItsTitle)
     }
