@@ -1,0 +1,10 @@
+New
+- A folder on the home screen opens by its icon, like a folder in the app drawer.
+- A folder can be dragged from the app drawer to the home screen (a copy is made).
+- Every folder setting is on one page: Settings > Folders.
+- The search field is as see-through as the app drawer.
+
+Fixed
+- A hold on an app in a drawer folder opens its menu (#31).
+- Dragging an icon to the next page is easier (#30).
+- The clock widget shows the next alarm whole (#29).
