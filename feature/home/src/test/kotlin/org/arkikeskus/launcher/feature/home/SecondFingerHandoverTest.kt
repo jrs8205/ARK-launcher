@@ -70,7 +70,7 @@ class SecondFingerHandoverTest {
                     onMoveFolder = { _, _, _, _ -> true },
                     onDropOnDock = { _, _ -> },
                     onRemoveFromHome = {},
-                    onOpenFolder = {},
+                    onOpenFolder = { _, _ -> },
                     onLaunchShortcut = {},
                     onRemoveShortcut = {},
                     onCreateFolder = { _, _ -> },

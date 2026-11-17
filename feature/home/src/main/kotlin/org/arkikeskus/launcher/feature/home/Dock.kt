@@ -36,6 +36,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.node.Ref
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
@@ -96,7 +98,8 @@ fun Dock(
     onAppMenu: (AppItem, IntOffset) -> Unit = { _, _ -> },
     /** The name under a folder's tile, as on home (issue #17); [showLabels] off hides it too. */
     showFolderNames: Boolean = true,
-    onOpenFolder: (PlacedFolder) -> Unit = {},
+    /** A dock folder was tapped; the [Rect] is its icon in root coordinates, where its card opens. */
+    onOpenFolder: (PlacedFolder, Rect) -> Unit = { _, _ -> },
     /** A dock folder dropped on a home cell; the host moves it only while the cell is free. */
     onMoveFolderToHome: (folderId: Long, page: Int, cellX: Int, cellY: Int) -> Unit = { _, _, _, _ -> },
     /** A dock folder that shows no apps dropped on the remove pill. */
@@ -483,7 +486,7 @@ private fun RowScope.DockFolderSlot(
     dragController: HomeDragController,
     haptics: HapticFeedback,
     itemRoots: Map<Int, Offset>,
-    onOpenFolder: (PlacedFolder) -> Unit,
+    onOpenFolder: (PlacedFolder, Rect) -> Unit,
     onLift: (token: Any) -> Unit,
     onDragX: (Float) -> Unit,
     onDropped: (rootPos: Offset, removable: Boolean) -> Unit,
@@ -492,7 +495,12 @@ private fun RowScope.DockFolderSlot(
     // Read when a gesture fires, not from the closure the detector was made with: the folder's apps
     // (and so its removability) change while the detector lives on.
     val currentFolder by rememberUpdatedState(folder)
-    val currentOnOpen by rememberUpdatedState(onOpenFolder)
+    val currentOnOpenAt by rememberUpdatedState(onOpenFolder)
+    // Where the icon is when it is tapped: the folder's card opens by it.
+    val iconPlace = remember { Ref<LayoutCoordinates>() }
+    val currentOnOpen: (PlacedFolder) -> Unit = {
+        currentOnOpenAt(it, iconPlace.value?.takeIf { place -> place.isAttached }?.boundsInRoot() ?: Rect.Zero)
+    }
     val currentOnDropped by rememberUpdatedState(onDropped)
     Box(
         modifier = slot
@@ -569,6 +577,7 @@ private fun RowScope.DockFolderSlot(
                 labelColor = labelColor,
                 size = dockIconSize,
                 customIcon = folder.icon,
+                modifier = Modifier.onGloballyPositioned { iconPlace.value = it },
             )
         }
     }

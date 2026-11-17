@@ -63,6 +63,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.node.Ref
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -186,7 +188,8 @@ internal fun Workspace(
     onRemoveFromHome: (AppItem) -> Unit,
     /** A home folder released over the dock while it has room, at the slot index under the finger. */
     onMoveFolderToDock: (folderId: Long, index: Int) -> Unit = { _, _ -> },
-    onOpenFolder: (PlacedFolder) -> Unit,
+    /** A folder was tapped; the [Rect] is its icon in root coordinates, where its card opens. */
+    onOpenFolder: (PlacedFolder, Rect) -> Unit,
     onLaunchShortcut: (PlacedShortcut) -> Unit,
     onRemoveShortcut: (Long) -> Unit,
     /** A still long-press on a pinned shortcut: edit it (its own icon, issue #23). */
@@ -1118,6 +1121,9 @@ internal fun Workspace(
                             when (entry) {
                             is PlacedFolder -> {
                                 val folderBadge = entry.apps.sumOf { badges[it.badgeKey] ?: 0 }
+                                // Where the icon (with its name) is when it is tapped: the folder's card opens by it.
+                                val iconPlace = remember { Ref<LayoutCoordinates>() }
+                                val iconBounds = { iconPlace.value?.takeIf { it.isAttached }?.boundsInRoot() ?: Rect.Zero }
                                 Box(
                                     modifier = Modifier
                                         .offset {
@@ -1137,8 +1143,8 @@ internal fun Workspace(
                                             // Only a folder that shows no apps (all disabled or gone)
                                             // can be dragged to Remove; otherwise it could never go.
                                             removable = entry.apps.isEmpty(),
-                                            onTap = { onOpenFolder(entry) },
-                                            onStillPress = { onOpenFolder(entry) },
+                                            onTap = { onOpenFolder(entry, iconBounds()) },
+                                            onStillPress = { onOpenFolder(entry, iconBounds()) },
                                             onRemove = { onRemoveFolder(entry.id) },
                                             pageLocked = pageLocked,
                                         ),
@@ -1155,6 +1161,7 @@ internal fun Workspace(
                                         labelColor = labelColor,
                                         size = cellIconSize,
                                         customIcon = entry.icon,
+                                        modifier = Modifier.onGloballyPositioned { iconPlace.value = it },
                                     )
                                 }
                             }

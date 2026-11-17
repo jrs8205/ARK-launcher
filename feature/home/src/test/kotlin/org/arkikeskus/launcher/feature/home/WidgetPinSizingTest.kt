@@ -147,7 +147,7 @@ class WidgetPinSizingTest {
                 widgetDragController = remember { WidgetDragController(drag) },
                 onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
                 onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
-                onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
+                onRemoveFromHome = {}, onOpenFolder = { _, _ -> }, onLaunchShortcut = {}, onRemoveShortcut = {},
                 onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                 cellSize = cellSize,
                 // Within Robolectric's 320×470 dp window, so nothing is clipped.
@@ -320,7 +320,7 @@ class WidgetPinSizingTest {
                     homePage = 0, dragController = drag, widgetDragController = remember { WidgetDragController(drag) },
                     onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
                     onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
-                    onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
+                    onRemoveFromHome = {}, onOpenFolder = { _, _ -> }, onLaunchShortcut = {}, onRemoveShortcut = {},
                     onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                     cellSize = cellSize, chrome = workspaceChrome(settings, pageCount, LocalDensity.current.fontScale, dockApps.size),
                     modifier = Modifier.weight(1f).fillMaxWidth().homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled),

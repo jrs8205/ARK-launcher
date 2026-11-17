@@ -61,6 +61,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -258,6 +259,8 @@ fun HomeScreen(
     // A pinned shortcut whose icon is being edited (issue #23): a still long-press on it.
     var editingShortcut by remember { mutableStateOf<PlacedShortcut?>(null) }
     var openFolderId by remember { mutableStateOf<Long?>(null) }
+    // Where the open folder's icon is (root coordinates): its card opens by it.
+    var openFolderBounds by remember { mutableStateOf<Rect?>(null) }
     // Empty-area long-press options popup (anchor + whether it flips above the press point).
     var homeOptions by remember { mutableStateOf<Pair<IntOffset, Boolean>?>(null) }
     // Page the workspace should show after a page was added or removed from the empty-area menu.
@@ -728,7 +731,10 @@ fun HomeScreen(
                 onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Home) },
                 onMoveFolderToDock = { folderId, index -> viewModel.moveFolderToDock(folderId, index) },
                 onRemoveFromHome = { viewModel.removeFromHome(it) },
-                onOpenFolder = { openFolderId = it.id },
+                onOpenFolder = { folder, bounds ->
+                    openFolderBounds = bounds
+                    openFolderId = folder.id
+                },
                 onLaunchShortcut = { viewModel.launchShortcut(it) },
                 onRemoveShortcut = { viewModel.removeShortcut(it) },
                 onEditShortcut = { editingShortcut = it },
@@ -806,7 +812,10 @@ fun HomeScreen(
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName) },
                     onRemoveFromDock = { viewModel.removeFromDock(it) },
                     onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
-                    onOpenFolder = { openFolderId = it.id },
+                    onOpenFolder = { folder, bounds ->
+                    openFolderBounds = bounds
+                    openFolderId = folder.id
+                },
                     onMoveFolderToHome = { folderId, page, cellX, cellY ->
                         widgetScope.launch { viewModel.moveDockFolderToHome(folderId, page, cellX, cellY) }
                     },
@@ -894,6 +903,8 @@ fun HomeScreen(
                     showWidgetPicker = true
                 }),
                 onDismiss = { openFolderId = null },
+                // An icon that was not laid out when it was tapped gives no place: the card is then centred.
+                anchorBounds = openFolderBounds?.takeUnless { it.isEmpty },
             )
         }
 

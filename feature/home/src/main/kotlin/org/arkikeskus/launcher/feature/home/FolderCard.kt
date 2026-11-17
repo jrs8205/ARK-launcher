@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -88,6 +90,10 @@ import org.arkikeskus.launcher.model.FolderStyle
 import org.arkikeskus.launcher.model.compositeOver
 import org.arkikeskus.launcher.model.contentIsDarkOn
 import org.arkikeskus.launcher.ui.AppActionPopup
+import org.arkikeskus.launcher.ui.expressive.groupShape
+import org.arkikeskus.launcher.ui.expressive.GroupPosition
+import org.arkikeskus.launcher.ui.FOLDER_CARD_WIDTH
+import org.arkikeskus.launcher.ui.AnchoredCardInPlace
 import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DockTarget
@@ -107,7 +113,6 @@ import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
-import org.arkikeskus.launcher.ui.DimSystemBars
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -120,13 +125,12 @@ internal data class FolderCardColors(val container: Color, val content: Color)
  * The card's colours for [style]: solid and without a colour of the user's, the theme's [surface] and
  * [onSurface] as always. A colour of the user's, or the surface made see-through, is painted at the
  * opacity, and the text is then black or white by its contrast with what the card looks like over the
- * dimmed home screen behind it: the [wallpaper]'s colour under the folder's 50 % black scrim.
+ * home screen behind it: the [wallpaper]'s colour (nothing is darkened under the card).
  */
 internal fun folderCardColors(style: FolderStyle, surface: Color, onSurface: Color, wallpaper: Int): FolderCardColors {
     if (style.backgroundColor == null && style.backgroundOpacity >= 1f) return FolderCardColors(surface, onSurface)
     val argb = style.backgroundColor ?: surface.toArgb()
-    val dimmedHome = compositeOver(0xFF000000.toInt(), FOLDER_SCRIM_ALPHA, wallpaper)
-    val dark = contentIsDarkOn(argb, style.backgroundOpacity, dimmedHome)
+    val dark = contentIsDarkOn(argb, style.backgroundOpacity, wallpaper)
     return FolderCardColors(Color(argb).copy(alpha = style.backgroundOpacity), if (dark) Color.Black else Color.White)
 }
 
@@ -135,13 +139,12 @@ internal fun folderCardColors(style: FolderStyle, surface: Color, onSurface: Col
 internal fun folderActionColor(colors: FolderCardColors, themeText: Color, accent: Color): Color =
     if (colors.content == themeText) accent else colors.content
 
-/** How dark the scrim under the open folder is. */
-private const val FOLDER_SCRIM_ALPHA = 0.5f
-
 /**
  * The open folder: a card in the home screen's own window (not a sheet in a window of its own, so a
- * drag can continue onto the home surfaces) over a scrim that closes it when tapped. Inside: the
- * name, editable in place, and the apps in a four-column grid.
+ * drag can continue onto the home surfaces) over a see-through cover that closes it when tapped. It
+ * opens and looks like the app drawer's folder card (1.2.1, a Telegram request): by its folder's icon
+ * with a caret, as wide, the name as its title, nothing darkened behind it. Inside: the name, the
+ * pencil that turns the header into the editor, and the apps in a grid.
  *
  * One gesture detector on the grid's container owns every icon touch — the icons publish their
  * bounds and the container hit-tests the DOWN. A tap launches the app and closes the folder; a
@@ -191,6 +194,9 @@ internal fun FolderCard(
     onAddApps: (List<AppItem>) -> Unit = {},
     /** The editor's "Sort A-Z": the folder's apps in the order of their names. */
     onSortByName: () -> Unit = {},
+    /** The folder's icon in root coordinates: the card opens by it, as the app drawer's does. Null (nothing
+     *  to open by) puts the card in the middle of the window. */
+    anchorBounds: Rect? = null,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -252,16 +258,14 @@ internal fun FolderCard(
     var lifted by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onDismiss)
-    // The scrim below covers the whole of home, behind the system bars too: the bars' glyph colour counts it.
-    DimSystemBars { FOLDER_SCRIM_ALPHA * dragOutAlpha.value }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .testTag("folderScrim")
             .graphicsLayer { alpha = dragOutAlpha.value }
-            .background(Color.Black.copy(alpha = FOLDER_SCRIM_ALPHA))
-            // The scrim swallows every touch under it: nothing reaches the home grid behind. For
+            // The cover draws nothing (the app drawer's card darkens nothing either), but it still
+            // swallows every touch under it: nothing reaches the home grid behind. For
             // accessibility services it is a pane named after the folder (announced as it opens,
             // dismissable): a node that matters covers the home nodes under it, so a swipe through
             // the screen cannot reach a home icon, a widget or the dock while the folder is open.
@@ -270,28 +274,31 @@ internal fun FolderCard(
                 dismiss { currentOnDismiss(); true }
             }
             .pointerInput(Unit) { detectTapGestures { currentOnDismiss() } },
-        contentAlignment = Alignment.Center,
     ) {
         val themeText = MaterialTheme.colorScheme.onSurface
         // Behind the card: the home screen at the card's own height on the glass panel (its middle until
         // the card is laid out).
         val behindCard = LocalHomeBackdrop.current.colorBehind(cardBounds.takeIf { it != Rect.Zero }?.center?.y)
         val cardColors = folderCardColors(style, MaterialTheme.colorScheme.surface, themeText, behindCard)
+        // As wide as the app drawer's folder card.
+        val cardWidth = with(density) { minOf(FOLDER_CARD_WIDTH, LocalWindowInfo.current.containerSize.width.toDp() - 16.dp) }
+        val card: @Composable () -> Unit = {
         Surface(
-            shape = RoundedCornerShape(28.dp),
+            shape = groupShape(GroupPosition.Only),
             color = cardColors.container,
             contentColor = cardColors.content,
+            // Nothing is darkened behind the card, so a solid card lifts off the home screen by its shadow;
+            // a see-through one would show its own shadow through itself.
+            shadowElevation = if (cardColors.container.alpha >= 1f) 10.dp else 0.dp,
             modifier = Modifier
-                .padding(16.dp)
-                .widthIn(max = 360.dp)
-                .fillMaxWidth()
+                .width(cardWidth)
                 .testTag("folderCard")
                 // A tap in the card's own padding closes nothing (and the consumed release keeps
                 // the scrim's tap from firing for a press that began inside the card).
                 .pointerInput(Unit) { detectTapGestures { } }
                 .onGloballyPositioned { cardBounds = it.boundsInRoot() },
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(8.dp)) {
                 var name by remember(folder.id) { mutableStateOf(folder.name) }
                 // The home tile's see-through backing vanishes on the card: give the preview one.
                 val preview: @Composable (CustomIcon?, Dp) -> Unit = { icon, size ->
@@ -349,16 +356,14 @@ internal fun FolderCard(
                                 Icon(painterResource(LauncherIcons.Check), contentDescription = stringResource(R.string.folder_done))
                             }
                         } else {
-                            // A look at the folder (issue #20): the name as text beside its preview, which the
-                            // text speaks for; the pencil opens the editor. A locked desktop edits nothing.
-                            Box(Modifier.padding(4.dp).clearAndSetSemantics { }) { preview(folder.icon, 48.dp) }
-                            Spacer(Modifier.width(8.dp))
+                            // A look at the folder (issue #20): the name as the card's title, as on the app
+                            // drawer's folder card; the pencil opens the editor. A locked desktop edits nothing.
                             Text(
                                 text = name,
                                 style = MaterialTheme.typography.titleMedium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 4.dp),
                             )
                             if (!locked) {
                                 IconButton(onClick = { editing = true }) {
@@ -367,7 +372,7 @@ internal fun FolderCard(
                             }
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(if (editing) 12.dp else 4.dp))
                 }
 
                 // The icon follows the user's icon-size setting, capped by the slot like the drawer.
@@ -585,6 +590,26 @@ internal fun FolderCard(
                     }
                 }
             }
+        }
+        }
+        if (anchorBounds != null) {
+            // By the folder's icon, like the app drawer's card and the menus: under an icon in the upper half
+            // of the window, over one lower down.
+            val preferAbove = anchorBounds.center.y > windowHeightPx / 2
+            val anchorY = if (preferAbove) anchorBounds.top else anchorBounds.bottom
+            AnchoredCardInPlace(
+                anchor = IntOffset(anchorBounds.center.x.roundToInt(), anchorY.roundToInt()),
+                preferAbove = preferAbove,
+                width = cardWidth,
+                caretColor = cardColors.container,
+                modifier = Modifier.fillMaxSize(),
+                // A full folder's card is tall: it stops short of the status and navigation bars.
+                safeTop = WindowInsets.systemBars.getTop(density),
+                safeBottom = WindowInsets.systemBars.getBottom(density),
+                body = card,
+            )
+        } else {
+            Box(Modifier.fillMaxSize().padding(vertical = 16.dp), contentAlignment = Alignment.Center) { card() }
         }
     }
 

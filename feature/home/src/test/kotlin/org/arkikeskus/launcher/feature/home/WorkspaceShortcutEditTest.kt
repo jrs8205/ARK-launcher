@@ -50,7 +50,7 @@ class WorkspaceShortcutEditTest {
                 widgetDragController = remember { WidgetDragController(drag) },
                 onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
                 onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
-                onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = { launched += it }, onRemoveShortcut = {},
+                onRemoveFromHome = {}, onOpenFolder = { _, _ -> }, onLaunchShortcut = { launched += it }, onRemoveShortcut = {},
                 onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                 onEditShortcut = { edited += it },
                 modifier = Modifier.size(300.dp, 500.dp),

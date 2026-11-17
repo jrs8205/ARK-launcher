@@ -112,8 +112,8 @@ class FolderCardStyleTest {
     }
 
     /** No colour chosen and solid: the theme's surface and its text colour, as before. Anything else
-     *  takes black or white text by the contrast with what the card looks like over the dimmed home
-     *  screen (the wallpaper under the folder's 50 % black scrim). */
+     *  takes black or white text by the contrast with what the card looks like over the home screen
+     *  behind it (the wallpaper; nothing is darkened under the card since 1.2.1). */
     @Test fun theCardColours() {
         val surface = Color(0xFFFBFCFF)
         val onSurface = Color(0xFF1A1C1E)
@@ -126,14 +126,18 @@ class FolderCardStyleTest {
         // The offered blue, solid: black text reads far better than white (7.9:1 against 2.65:1).
         assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFF42A5F5.toInt()), surface, onSurface, blackWallpaper).content)
             .isEqualTo(Color.Black)
-        // A faint light card over the dimmed home screen is dark: light text.
+        // A faint light card over a dark home screen is dark: light text.
         assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFFFFFFFF.toInt(), backgroundOpacity = 0.25f), surface, onSurface, blackWallpaper).content)
             .isEqualTo(Color.White)
+        // A faint dark card over a white home screen is still light: dark text. (Under the 50 % scrim the
+        // card used to lie on, the same card was dark and took white text.)
+        assertThat(folderCardColors(FolderStyle(backgroundColor = 0xFF000000.toInt(), backgroundOpacity = 0.3f), surface, onSurface, whiteWallpaper).content)
+            .isEqualTo(Color.Black)
     }
 
-    /** The open folder's scrim covers the whole of home, behind the system bars too: it tells the bars'
-     *  glyph colour how dark it makes them (half), and nothing once the folder is gone. */
-    @Test fun theOpenFolderReportsItsScrimToTheSystemBars() {
+    /** The open folder darkens nothing behind it (it did, by half, until 1.2.1): the system bars' glyph
+     *  colour is told of no scrim, open or closed. */
+    @Test fun theOpenFolderReportsNoScrimToTheSystemBars() {
         val covers = SystemBarCovers()
         var open by mutableStateOf(true)
         compose.setContent {
@@ -154,7 +158,7 @@ class FolderCardStyleTest {
             }
         }
         compose.waitForIdle()
-        assertThat(covers.homeDim).isEqualTo(0.5f)
+        assertThat(covers.homeDim).isEqualTo(0f)
 
         open = false
         compose.waitForIdle()

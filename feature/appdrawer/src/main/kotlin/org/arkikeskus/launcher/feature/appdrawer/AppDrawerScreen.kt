@@ -106,6 +106,7 @@ import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
 import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.ui.AnchoredPopupCard
+import org.arkikeskus.launcher.ui.FOLDER_CARD_WIDTH
 import org.arkikeskus.launcher.ui.AppActionPopup
 import org.arkikeskus.launcher.ui.IconMenuItem
 import org.arkikeskus.launcher.ui.IconMenuPopup
@@ -989,8 +990,6 @@ private fun FolderSlot(app: AppItem?, size: Dp) {
         AppIcon(appItem = app, labelColor = Color.Transparent, showLabel = false, iconSize = size)
     }
 }
-
-private val FOLDER_CARD_WIDTH = 328.dp
 
 /**
  * A tapped folder: its apps in a card by its tile, as the home screen opens a folder — the thumb

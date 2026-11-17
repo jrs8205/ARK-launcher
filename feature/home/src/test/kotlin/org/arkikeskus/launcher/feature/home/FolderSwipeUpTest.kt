@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.moveBy
@@ -44,6 +45,7 @@ class FolderSwipeUpTest {
     private val games = PlacedFolder(id = 8L, name = "Games", apps = listOf(chat, mail), page = 0, cellX = 2, cellY = 4)
     private val swipedFolders = mutableListOf<Long>()
     private val opened = mutableListOf<Long>()
+    private val openedBounds = mutableListOf<Rect>()
     private var drawerDrags = 0
     private var shadeOpens = 0
 
@@ -70,7 +72,7 @@ class FolderSwipeUpTest {
                     widgetDragController = remember { WidgetDragController(drag) },
                     onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
                     onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
-                    onRemoveFromHome = {}, onOpenFolder = { opened += it.id }, onLaunchShortcut = {}, onRemoveShortcut = {},
+                    onRemoveFromHome = {}, onOpenFolder = { folder, bounds -> opened += folder.id; openedBounds += bounds }, onLaunchShortcut = {}, onRemoveShortcut = {},
                     onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                     modifier = Modifier.size(300.dp, 400.dp),
                 )
@@ -120,6 +122,13 @@ class FolderSwipeUpTest {
         compose.waitForIdle()
         assertThat(opened).containsExactly(7L)
         assertThat(swipedFolders).isEmpty()
+        // The folder's card opens by its icon: the tap hands on where the icon and its name are, inside the
+        // folder's own cell (column 1 of four on 300 dp).
+        val name = compose.onNodeWithText("Tools").fetchSemanticsNode().boundsInRoot
+        val icon = openedBounds.single()
+        assertThat(icon.contains(name.center)).isTrue()
+        assertThat(icon.left).isAtLeast(75f)
+        assertThat(icon.right).isAtMost(150f)
     }
 
     /** The folder is the one under the finger that swipes. A second finger resting on

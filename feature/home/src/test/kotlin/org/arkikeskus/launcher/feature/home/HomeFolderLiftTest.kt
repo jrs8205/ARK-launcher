@@ -50,7 +50,7 @@ class HomeFolderLiftTest {
                 widgetDragController = remember { WidgetDragController(drag) },
                 onAddWidget = { _, _ -> }, onAppClick = {}, onAppMenu = { _, _, _ -> },
                 onMove = { _, _, _, _ -> true }, onMoveFolder = { _, _, _, _ -> true }, onDropOnDock = { _, _ -> },
-                onRemoveFromHome = {}, onOpenFolder = {}, onLaunchShortcut = {}, onRemoveShortcut = {},
+                onRemoveFromHome = {}, onOpenFolder = { _, _ -> }, onLaunchShortcut = {}, onRemoveShortcut = {},
                 onCreateFolder = { _, _ -> }, onAddToFolder = { _, _ -> }, onEmptyAreaMenu = { _, _ -> },
                 modifier = Modifier.size(300.dp, 320.dp),
             )

@@ -53,6 +53,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -84,6 +86,9 @@ private const val POPUP_MARGIN_PX = 24
 internal const val POPUP_ROWS_WAIT_MS = 400L
 private val CARD_WIDTH = 232.dp
 internal val SHORTCUT_ICON_SIZE = 24.dp
+
+/** How wide a folder's card is, in the app drawer and on the home screen (the window less 16 dp at most). */
+val FOLDER_CARD_WIDTH = 328.dp
 
 /**
  * The Pixel-style long-press popup, shared by the home screen and the app drawer. Shows the app's
@@ -249,6 +254,54 @@ internal fun AnchoredPopupMenu(
     }
 }
 
+/**
+ * The frame of [AnchoredPopupCard], its caret and its place by [anchor], for a card that has to stay in the window
+ * it is opened from: the home screen's open folder, whose icons are dragged on over the home screen (pointer
+ * events never cross windows). It fills its parent, which fills the window ([anchor] is in the window's root
+ * coordinates, as for the popups), and takes no touches itself. [body] is the card, [width] wide, in the colour
+ * the caret takes ([caretColor]); it is as tall as the room on its side of the anchor at most.
+ */
+@Composable
+fun AnchoredCardInPlace(
+    anchor: IntOffset,
+    preferAbove: Boolean,
+    width: Dp,
+    caretColor: Color,
+    modifier: Modifier = Modifier,
+    /** Pixels at the parent's top and bottom the card keeps out of (the system bars over the home screen). */
+    safeTop: Int = 0,
+    safeBottom: Int = 0,
+    body: @Composable () -> Unit,
+) {
+    val windowWidthPx = LocalWindowInfo.current.containerSize.width.toFloat()
+    Layout(
+        content = {
+            PopupFrame(
+                anchor, preferAbove, windowWidthPx, showCaret = true, blockTouches = false, width = width,
+                caretColor = caretColor, body = body,
+            )
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        // The card has the room on its side of the anchor, so it never lies over what it opened from (its caret
+        // would then point at nothing); a taller content scrolls inside it. A third of the parent at least, for
+        // an anchor that leaves no room on its side.
+        val margin = POPUP_MARGIN_PX
+        val room = if (preferAbove) {
+            anchor.y - margin - (safeTop + margin)
+        } else {
+            constraints.maxHeight - safeBottom - margin - (anchor.y + margin)
+        }
+        val frame = measurables.single().measure(
+            Constraints(maxWidth = constraints.maxWidth, maxHeight = room.coerceAtLeast(constraints.maxHeight / 3)),
+        )
+        val parent = IntSize(constraints.maxWidth, constraints.maxHeight)
+        val at = anchoredPopupPosition(anchor, preferAbove, parent, IntSize(frame.width, frame.height), safeTop, safeBottom)
+        // Absolute, like the anchor: a right-to-left layout does not mirror where the icon is.
+        layout(parent.width, parent.height) { frame.place(at) }
+    }
+}
+
 /** The window both share: anchored, dismissed by a touch outside, splitting touches, in [palette] or the root's. */
 @Composable
 private fun AnchoredPopupWindow(
@@ -363,7 +416,9 @@ private fun PopupFrame(
     Box {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (showCaret && !preferAbove) Caret(pointingUp = true, color = caretColor, modifier = caretModifier(caretStart))
-            body()
+            // Weighted, so the caret is measured first: a body as tall as the room it is given (a full folder's
+            // card in place) would otherwise leave a caret under it no height at all.
+            Box(Modifier.weight(1f, fill = false)) { body() }
             if (showCaret && preferAbove) Caret(pointingUp = false, color = caretColor, modifier = caretModifier(caretStart))
         }
         // On top of the rows, so it is hit instead of them (siblings do not share touches).
@@ -515,16 +570,27 @@ private class AnchoredPopupPositionProvider(
         windowSize: IntSize,
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
-    ): IntOffset {
-        val margin = POPUP_MARGIN_PX
-        val x = (anchor.x - popupContentSize.width / 2)
-            .coerceIn(margin, (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin))
-        val y = if (preferAbove) {
-            (anchor.y - popupContentSize.height - margin).coerceAtLeast(margin)
-        } else {
-            (anchor.y + margin)
-                .coerceAtMost((windowSize.height - popupContentSize.height - margin).coerceAtLeast(margin))
-        }
-        return IntOffset(x, y)
-    }
+    ): IntOffset = anchoredPopupPosition(anchor, preferAbove, windowSize, popupContentSize)
+}
+
+/**
+ * Where an anchored card of [contentSize] goes in a window of [windowSize]: centred on [anchor]'s x and a margin
+ * under it, or with [preferAbove] a margin over it, and always a margin inside the window, whose top
+ * [safeTop] and bottom [safeBottom] pixels it keeps out of as well.
+ */
+internal fun anchoredPopupPosition(
+    anchor: IntOffset,
+    preferAbove: Boolean,
+    windowSize: IntSize,
+    contentSize: IntSize,
+    safeTop: Int = 0,
+    safeBottom: Int = 0,
+): IntOffset {
+    val margin = POPUP_MARGIN_PX
+    val x = (anchor.x - contentSize.width / 2)
+        .coerceIn(margin, (windowSize.width - contentSize.width - margin).coerceAtLeast(margin))
+    val top = safeTop + margin
+    val lowest = (windowSize.height - safeBottom - contentSize.height - margin).coerceAtLeast(top)
+    val y = if (preferAbove) anchor.y - contentSize.height - margin else anchor.y + margin
+    return IntOffset(x, y.coerceIn(top, lowest))
 }

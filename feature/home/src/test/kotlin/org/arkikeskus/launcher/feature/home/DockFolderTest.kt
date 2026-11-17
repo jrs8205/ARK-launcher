@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -45,6 +46,7 @@ class DockFolderTest {
     private val tools = PlacedFolder(id = 7L, name = "Tools", apps = listOf(mail, chat), page = DOCK_PAGE, cellX = 1, cellY = 0)
     private val entries = mutableStateOf<List<DockEntry>>(listOf(DockApp(1L, maps), DockFolder(tools)))
     private val opened = mutableListOf<PlacedFolder>()
+    private val openedBounds = mutableListOf<Rect>()
     private val reorders = mutableListOf<List<Long>>()
     private val folderMoves = mutableListOf<Triple<Int, Int, Int>>()
     private val tileDrops = mutableListOf<Pair<String, Int>>()
@@ -67,7 +69,7 @@ class DockFolderTest {
                     onAppClick = {},
                     onReorder = { reorders += it.map { e -> e.rowId } },
                     onMoveToHome = { _, _, _, _ -> },
-                    onOpenFolder = { opened += it },
+                    onOpenFolder = { folder, bounds -> opened += folder; openedBounds += bounds },
                     onMoveFolderToHome = { _, page, x, y -> folderMoves += Triple(page, x, y) },
                     onDropOnTile = { app, target -> tileDrops += app.label to target.index },
                     modifier = Modifier.size(300.dp, 100.dp),
@@ -87,6 +89,10 @@ class DockFolderTest {
 
         assertThat(opened.map { it.id }).containsExactly(7L)
         assertThat(drag.isDragging).isFalse()
+        // The folder's card opens by its icon: the tap hands on where the icon is.
+        val slot = compose.onNodeWithText("Tools").fetchSemanticsNode().boundsInRoot
+        assertThat(openedBounds.single().isEmpty).isFalse()
+        assertThat(slot.contains(openedBounds.single().center)).isTrue()
     }
 
     @Test fun theFolderNameFollowsTheSwitchLikeOnHome() {
