@@ -480,6 +480,10 @@ class AppDrawerScreenTest {
         while (runBlocking { wiring.homeLayoutRepository.homeItems.first() }.count { !it.isFolder } < 2) {
             check(System.currentTimeMillis() < deadline) { "Timed out waiting for the folder's copy on home" }
             Thread.sleep(20)
+            // The drop's work may still have a step waiting on the main thread: a wait that only sleeps never
+            // lets it run (one run in about ten timed out here).
+            shadowOf(Looper.getMainLooper()).idle()
+            compose.waitForIdle()
         }
         val rows = runBlocking { wiring.homeLayoutRepository.homeItems.first() }
         val folder = rows.single { it.isFolder }
