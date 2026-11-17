@@ -305,6 +305,27 @@ class AppDrawerScreenTest {
         compose.onNodeWithText(mailApp).assertDoesNotExist()
     }
 
+    /** Issue #31: an app on a folder's card has the long-press menu an app in the grid has, and the card stays
+     *  under the menu (the menu changes nothing in the folder). */
+    @Test fun aLongPressOnAnAppOfTheFolderCardOpensItsMenu() {
+        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        show()
+        awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
+        val keys = viewModel.uiState.value.apps.filter { it.packageName == mailApp }.map { it.key }
+        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        awaitState("the folder holds it") { it.folders.firstOrNull()?.apps?.size == 1 }
+        settle()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+        compose.onNodeWithText(appInfo()).assertDoesNotExist()
+
+        compose.onNodeWithText(mailApp).performTouchInput { longClick() }
+        awaitText(appInfo())
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+    }
+
     /** Mixed among the apps the order is by name, so the editor offers no moves. */
     @Test fun theEditorHidesMovesWhileFoldersMixWithTheApps() {
         runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }

@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.feature.appdrawer
 
+import android.view.View
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -67,13 +68,16 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.node.Ref
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -446,6 +450,7 @@ fun AppDrawerScreen(
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
             onAppClick = { if (openApp(it)) folderCard = null },
+            onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = app to bounds },
             onDismiss = { folderCard = null },
         )
     }
@@ -989,10 +994,12 @@ private val FOLDER_CARD_WIDTH = 328.dp
 
 /**
  * A tapped folder: its apps in a card by its tile, as the home screen opens a folder — the thumb
- * stays where it was instead of travelling to a sheet at the bottom. A tap launches the app; nothing
- * on the card changes the folder, that is the editor's (a long-press away), so ordinary use cannot
- * rename, empty or delete a folder by accident.
+ * stays where it was instead of travelling to a sheet at the bottom. A tap launches the app and a hold
+ * opens the app's own menu, as in the grid (issue #31); nothing on the card changes the folder, that is
+ * the editor's (a long-press on the tile away), so ordinary use cannot rename, empty or delete a folder
+ * by accident.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerFolderCard(
     folder: DrawerFolderUi,
@@ -1005,9 +1012,13 @@ private fun DrawerFolderCard(
     badgeShowCount: Boolean,
     badgeScale: Float,
     onAppClick: (AppItem) -> Unit,
+    /** A held app with its bounds in the root of the launcher's own window, where its menu is placed. */
+    onAppLongClick: (AppItem, Rect) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val windowSize = LocalWindowInfo.current.containerSize
+    // The launcher's own window, read outside the card's: an app's menu is anchored in this one's root.
+    val hostView = LocalView.current
     // Anchored like the app menu: below a tile in the upper half of the window, above one lower down.
     val preferAbove = bounds.center.y > windowSize.height / 2
     val anchor = IntOffset(bounds.center.x.roundToInt(), (if (preferAbove) bounds.top else bounds.bottom).roundToInt())
@@ -1017,7 +1028,8 @@ private fun DrawerFolderCard(
     // The drawer's palette (the user's colour) for the card AND its texts: the popup is its own window, where the
     // system palette would otherwise paint a light card under this palette's light text (round 11).
     val palette = LocalExpressivePalette.current
-    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width, palette = palette) {
+    // The card is a window of its own: the long-press delay setting is applied again for its apps' hold.
+    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width, palette = palette) { LongPressDelay {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1043,6 +1055,7 @@ private fun DrawerFolderCard(
             folder.apps.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEach { app ->
+                        val placed = remember(app.key) { Ref<LayoutCoordinates>() }
                         AppIcon(
                             appItem = app,
                             labelColor = palette.text,
@@ -1053,7 +1066,15 @@ private fun DrawerFolderCard(
                             badgeScale = badgeScale,
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { onAppClick(app) }
+                                .onGloballyPositioned { placed.value = it }
+                                .combinedClickable(
+                                    onClick = { onAppClick(app) },
+                                    // Where the app is at the hold, not where it was laid out: the card scrolls.
+                                    onLongClick = {
+                                        placed.value?.takeIf { it.isAttached }
+                                            ?.let { onAppLongClick(app, it.boundsInRootOf(hostView)) }
+                                    },
+                                )
                                 .padding(vertical = 10.dp * style.spacing, horizontal = 4.dp),
                         )
                     }
@@ -1061,7 +1082,20 @@ private fun DrawerFolderCard(
                 }
             }
         }
-    }
+    } }
+}
+
+/**
+ * These bounds in the root of [host], the launcher's own window, for coordinates laid out in another window (a
+ * folder's card): the menus are placed in the launcher's window, and a card's own root starts at the card.
+ */
+private fun LayoutCoordinates.boundsInRootOf(host: View): Rect {
+    val hostOnScreen = IntArray(2).also(host::getLocationOnScreen)
+    val origin = Offset(hostOnScreen[0].toFloat(), hostOnScreen[1].toFloat())
+    return Rect(
+        topLeft = localToScreen(Offset.Zero) - origin,
+        bottomRight = localToScreen(Offset(size.width.toFloat(), size.height.toFloat())) - origin,
+    )
 }
 
 /** The folder editor sheet: rename, member apps (tap launches, long-press removes), add apps, delete
