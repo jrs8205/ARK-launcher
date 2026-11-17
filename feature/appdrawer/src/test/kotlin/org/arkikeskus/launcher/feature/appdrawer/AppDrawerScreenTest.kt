@@ -335,6 +335,49 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
     }
 
+    /** A locked desktop takes nothing new, and the menu is how an app is put on the home screen or the dock from
+     *  here: a hold on an app of the card opens none, as a hold on an app of the grid opens none. The lock used
+     *  to be asked only in the grid, and "Add to home" on the card's menu went through. */
+    @Test fun onALockedDesktopAHoldOnAnAppOfTheFolderCardOpensNoMenu() {
+        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        showWithFilledFolder()
+        awaitState("the lock reached the drawer") { it.desktopLocked }
+        settle()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+
+        compose.onNodeWithText(mailApp).performTouchInput { longClick() }
+        // The menu waits for the app's shortcuts for up to 400 ms before it shows.
+        compose.mainClock.advanceTimeBy(1_000)
+        settle()
+
+        compose.onNodeWithText(appInfo()).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.add_to_home)).assertDoesNotExist()
+        // Nor is a hold offered to a screen reader, which would open the same menu.
+        compose.onNodeWithText(mailApp).assert(
+            SemanticsMatcher("no long-press action") { it.config.getOrNull(SemanticsActions.OnLongClick) == null },
+        )
+        // The hold's release is no tap either: the app is not launched, so the card is still open.
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+    }
+
+    /** A tap on the card's app still launches it on a locked desktop (the card closes with the launch). */
+    @Test fun onALockedDesktopATapOnAnAppOfTheFolderCardStillLaunchesIt() {
+        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        showWithFilledFolder()
+        awaitState("the lock reached the drawer") { it.desktopLocked }
+        settle()
+        compose.onNodeWithText("Tools").performClick()
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+
+        compose.onNodeWithText(mailApp).performClick()
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
+    }
+
     /** The drawer's folder "Tools" holding Mail and Maps, on screen. */
     private fun showWithFilledFolder() {
         val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }

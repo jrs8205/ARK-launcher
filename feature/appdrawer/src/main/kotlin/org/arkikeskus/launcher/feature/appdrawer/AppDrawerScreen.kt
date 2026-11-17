@@ -10,6 +10,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -455,7 +456,13 @@ fun AppDrawerScreen(
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
             onAppClick = { if (openApp(it)) folderCard = null },
-            onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = app to bounds },
+            // A locked desktop: a hold opens no menu here either, as in the grid (DrawerAppCell). The menu is
+            // how an app is put on the home screen or the dock, and nothing in it asks the lock again.
+            onAppLongClick = if (uiState.desktopLocked) {
+                null
+            } else {
+                { app, bounds -> if (drawerOpen) menuTarget = app to bounds }
+            },
             onDismiss = { folderCard = null },
         )
     }
@@ -1111,7 +1118,8 @@ private fun FolderSlot(app: AppItem?, size: Dp) {
 /**
  * A tapped folder: its apps in a card by its tile, as the home screen opens a folder — the thumb
  * stays where it was instead of travelling to a sheet at the bottom. A tap launches the app and a hold
- * opens the app's own menu, as in the grid (issue #31); nothing on the card changes the folder, that is
+ * opens the app's own menu, as in the grid (issue #31; none on a locked desktop, as in the grid); nothing
+ * on the card changes the folder, that is
  * the editor's (a long-press on the tile away), so ordinary use cannot rename, empty or delete a folder
  * by accident.
  */
@@ -1128,8 +1136,9 @@ private fun DrawerFolderCard(
     badgeShowCount: Boolean,
     badgeScale: Float,
     onAppClick: (AppItem) -> Unit,
-    /** A held app with its bounds in the root of the launcher's own window, where its menu is placed. */
-    onAppLongClick: (AppItem, Rect) -> Unit,
+    /** A held app with its bounds in the root of the launcher's own window, where its menu is placed. Null on a
+     *  locked desktop: a hold then does nothing and is offered to no screen reader, as in the grid. */
+    onAppLongClick: ((AppItem, Rect) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val windowSize = LocalWindowInfo.current.containerSize
@@ -1183,12 +1192,20 @@ private fun DrawerFolderCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .onGloballyPositioned { placed.value = it }
-                                .combinedClickable(
-                                    onClick = { onAppClick(app) },
-                                    // Where the app is at the hold, not where it was laid out: the card scrolls.
-                                    onLongClick = {
-                                        placed.value?.takeIf { it.isAttached }
-                                            ?.let { onAppLongClick(app, it.boundsInRootOf(hostView)) }
+                                .then(
+                                    if (onAppLongClick != null) {
+                                        Modifier.combinedClickable(
+                                            onClick = { onAppClick(app) },
+                                            // Where the app is at the hold, not where it was laid out: the card scrolls.
+                                            onLongClick = {
+                                                placed.value?.takeIf { it.isAttached }
+                                                    ?.let { onAppLongClick(app, it.boundsInRootOf(hostView)) }
+                                            },
+                                        )
+                                    } else {
+                                        // A locked desktop: a tap launches and a hold does nothing, as on an app
+                                        // of the grid. Without the second modifier the hold's release was a tap.
+                                        Modifier.clickable { onAppClick(app) }.heldPressIsNoClick()
                                     },
                                 )
                                 .padding(vertical = 10.dp * style.spacing, horizontal = 4.dp),
@@ -1199,6 +1216,27 @@ private fun DrawerFolderCard(
             }
         }
     } }
+}
+
+/**
+ * After a clickable: a press held past the long-press time is no click when it is released. The moves and the
+ * release of such a press are consumed here first (the later modifier is asked first), so the clickable, which
+ * takes any release for a tap however long the press was, sees none.
+ */
+private fun Modifier.heldPressIsNoClick(): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+            waitForUpOrCancellation()
+            true
+        }
+        if (ended == null) {
+            do {
+                val event = awaitPointerEvent()
+                event.changes.forEach { it.consume() }
+            } while (event.changes.any { it.pressed })
+        }
+    }
 }
 
 /**
