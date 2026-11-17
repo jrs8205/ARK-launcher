@@ -45,10 +45,12 @@ import androidx.compose.ui.layout.ParentDataModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -207,6 +209,8 @@ internal fun SmartspaceContent(
     onRefresh: () -> Unit,
     onOpenWeatherApp: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The time shown; a test gives a day of its own, so a date's length does not depend on the day it runs. */
+    clock: () -> Long = System::currentTimeMillis,
 ) {
     val context = LocalContext.current
     val hasPermission = state.hasCalendarPermission
@@ -216,15 +220,15 @@ internal fun SmartspaceContent(
     val weather = state.weather
     val weatherApp = state.weatherApp
 
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var now by remember { mutableLongStateOf(clock()) }
     LaunchedEffect(Unit) {
         while (true) {
-            now = System.currentTimeMillis()
+            now = clock()
             delay(60_000 - now % 60_000)
         }
     }
     LifecycleResumeEffect(Unit) {
-        now = System.currentTimeMillis()
+        now = clock()
         onRefresh()
         onPauseOrDispose { }
     }
@@ -235,13 +239,9 @@ internal fun SmartspaceContent(
 
     val timeFormat = rememberTimeFormat()
     val timeText = remember(now, timeFormat) { timeFormat.format(Date(now)) }
-    val dateText = remember(now) {
-        DateUtils.formatDateTime(
-            context, now,
-            DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
-                DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_NO_YEAR,
-        )
-    }
+    val dateText = remember(now) { DateUtils.formatDateTime(context, now, DATE_FLAGS) }
+    // The month's short name: for the compact row when the full date does not fit beside the alarm.
+    val dateShortText = remember(now) { DateUtils.formatDateTime(context, now, DATE_FLAGS or DateUtils.FORMAT_ABBREV_MONTH) }
 
     // The wallpaper is arbitrary, so the text carries its own soft shadow (like the home labels).
     val look = LocalSmartspaceStyle.current
@@ -400,26 +400,38 @@ internal fun SmartspaceContent(
             )
         }
         if (merged) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (w != null) {
-                    // The city is the variable-length part — it alone gives way (ellipsis) when
-                    // the merged row runs out of width; fill=false keeps the card content-hugging.
-                    TapTarget(onTap = openWeather, fillWidth = false, fillHeight = true, interactionSource = noIndication,
-                        modifier = Modifier.weight(1f, fill = false)) {
-                        WeatherLine(
-                            w, withCity = true, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink,
-                            textStyle = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
-                        )
-                    }
-                    MiddleDot(scale, shadow, ink)
+            val rowStyle = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow))
+            // The row's date: the full one when the row has the width for all of it, else the month's short name.
+            // The widths are those of the parts below (a dot with its padding, the alarm's icon and gap).
+            val measurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            val roomPx = constraints.maxWidth - with(density) { (44 * scale).dp.roundToPx() }
+            val rowDate = remember(dateText, dateShortText, alarmText, w?.temperatureC, rowStyle, roomPx, density) {
+                fun widthOf(text: String) = measurer.measure(text, rowStyle, maxLines = 1, softWrap = false).size.width
+                with(density) {
+                    val dot = widthOf("·") + (10 * scale).dp.roundToPx()
+                    val alarm = if (alarmText != null) dot + (17 * scale).dp.roundToPx() + widthOf(alarmText) else 0
+                    // The least the weather takes: the temperature and its icon (the place gives way first).
+                    val weatherLeast = if (w != null) dot + widthOf("${w.temperatureC.roundToInt()}°") + (2 * rowStyle.fontSize.toPx()).roundToInt() else 0
+                    if (widthOf(dateText) + alarm + weatherLeast <= roomPx) dateText else dateShortText
                 }
-                TapTarget(onTap = openCalendarDay, fillWidth = false, fillHeight = true, interactionSource = noIndication) {
-                    Text(
-                        text = dateText,
-                        color = ink,
-                        style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
-                        maxLines = 1,
-                    )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The alarm and its dot stand outside this inner row, so they are measured first and are whole
+                // whatever the width (issue #29: measured after the date, the alarm wrapped its time out of
+                // sight). Inside it the date is measured before the weather: the place gives way first (it
+                // alone, as before), then the date is cut, which the short form above should make rare.
+                Row(Modifier.weight(1f, fill = false), verticalAlignment = Alignment.CenterVertically) {
+                    if (w != null) {
+                        TapTarget(onTap = openWeather, fillWidth = false, fillHeight = true, interactionSource = noIndication,
+                            modifier = Modifier.weight(1f, fill = false)) {
+                            WeatherLine(w, withCity = true, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink, textStyle = rowStyle)
+                        }
+                        MiddleDot(scale, shadow, ink)
+                    }
+                    TapTarget(onTap = openCalendarDay, fillWidth = false, fillHeight = true, interactionSource = noIndication) {
+                        Text(text = rowDate, color = ink, style = rowStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
                 if (alarmText != null) {
                     MiddleDot(scale, shadow, ink)
@@ -435,8 +447,9 @@ internal fun SmartspaceContent(
                             Text(
                                 text = alarmText,
                                 color = ink.copy(alpha = 0.9f),
-                                style = themedTextStyle(TextStyle(fontSize = (15 * scale).sp, shadow = shadow)),
+                                style = rowStyle,
                                 maxLines = 1,
+                                softWrap = false,
                             )
                         }
                     }
@@ -562,6 +575,10 @@ internal fun SmartspaceContent(
     }
     }
 }
+
+/** The widget's date: the weekday's short name, the day and the month, no year. */
+private const val DATE_FLAGS = DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT_ABBREV_WEEKDAY or
+    DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_NO_YEAR
 
 /** [this] with its font size and line height multiplied by [scale] (the widget's text-size setting). */
 private fun TextStyle.scaledBy(scale: Float): TextStyle =
