@@ -126,6 +126,29 @@ class HomeDragControllerTest {
         assertThat(c.dockTargetAt(Offset(150f, 130f))).isEqualTo(DockTarget.Between(1))
     }
 
+    /** A folder of the app drawer lands on the home grid only. The dock takes none, so it must not say it does:
+     *  with a free slot it lit up as for a drop, and the release over it did nothing. */
+    @Test
+    fun theDockTakesNoDrawerFolder() {
+        c.dockBounds = Rect(0f, 100f, 300f, 160f)
+        c.dockItemCount = 1
+        c.dockHasSpace = true
+        val overDock = Offset(250f, 130f)
+
+        // An app from the drawer has the free slot.
+        c.start(app, DragSource.Drawer, Offset.Zero, token)
+        c.beginMove()
+        c.update(overDock)
+        assertThat(c.dockAccepts(overDock)).isTrue()
+        c.stop(token)
+
+        c.startDrawerFolder(DraggedDrawerFolder("Tools", listOf(app), icon = null), Offset.Zero, token)
+        c.beginMove()
+        c.update(overDock)
+        assertThat(c.isIncomingFrom(DragSource.Drawer)).isTrue()
+        assertThat(c.dockAccepts(overDock)).isFalse()
+    }
+
     /** A folder of the app drawer is lifted like an app: one lift at a time, over the home screen from its
      *  first move, and gone when the gesture ends. */
     @Test

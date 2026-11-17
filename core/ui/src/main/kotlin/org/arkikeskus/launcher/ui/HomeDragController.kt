@@ -315,9 +315,12 @@ class HomeDragController {
     }
 
     /** True while a drop at [p] on the dock has somewhere to land: a gap while the dock has room,
-     *  or a tile (which takes an app in even when the dock is full). Only apps land on tiles. */
+     *  or a tile (which takes an app in even when the dock is full). Only apps land on tiles, and a
+     *  folder of the app drawer lands nowhere on the dock: its copy is made on the home grid only, so
+     *  the dock must not light up for it as for a drop. */
     fun dockAccepts(p: Offset): Boolean =
-        isOverDock(p) && (dockHasSpace || (draggedApp != null && dockTargetAt(p) is DockTarget.Onto))
+        draggedDrawerFolder == null &&
+            isOverDock(p) && (dockHasSpace || (draggedApp != null && dockTargetAt(p) is DockTarget.Onto))
 }
 
 @Composable
