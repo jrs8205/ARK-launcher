@@ -58,8 +58,18 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.LayoutIdParentData
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasurePolicy
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,6 +85,7 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -298,7 +309,21 @@ internal fun FolderCard(
                 .pointerInput(Unit) { detectTapGestures { } }
                 .onGloballyPositioned { cardBounds = it.boundsInRoot() },
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
+            // The icon follows the user's icon-size setting, capped by the slot like the drawer.
+            val nominalIconSize = 56.dp * iconScale * style.iconScale
+            val iconSize = if (gridWidthPx > 0) {
+                iconSizeForCell(with(density) { (gridWidthPx.toFloat() / columns).toDp() }, nominalIconSize)
+            } else {
+                nominalIconSize
+            }
+            val rowHeight = iconSize +
+                labelBlockHeight(showLabel = style.showLabels, labelScale = labelScale, fontFactor = labelFontFactor(density.fontScale), lines = 2) +
+                20.dp * style.spacing
+            // Up to four rows without scrolling when the screen allows; taller folders scroll.
+            val gridMaxHeight: Dp = min(rowHeight * 4, with(density) { windowHeightPx.toDp() } * 0.6f)
+            // The least of the grid the card asks for: a whole row of apps, where there is one.
+            val gridMinHeight = if (shown.isEmpty()) 0.dp else min(rowHeight, gridMaxHeight)
+            FolderCardColumn(minGridHeight = gridMinHeight, modifier = Modifier.padding(8.dp)) {
                 var name by remember(folder.id) { mutableStateOf(folder.name) }
                 // The home tile's see-through backing vanishes on the card: give the preview one.
                 val preview: @Composable (CustomIcon?, Dp) -> Unit = { icon, size ->
@@ -375,18 +400,6 @@ internal fun FolderCard(
                     Spacer(Modifier.height(if (editing) 12.dp else 4.dp))
                 }
 
-                // The icon follows the user's icon-size setting, capped by the slot like the drawer.
-                val nominalIconSize = 56.dp * iconScale * style.iconScale
-                val iconSize = if (gridWidthPx > 0) {
-                    iconSizeForCell(with(density) { (gridWidthPx.toFloat() / columns).toDp() }, nominalIconSize)
-                } else {
-                    nominalIconSize
-                }
-                val rowHeight = iconSize +
-                    labelBlockHeight(showLabel = style.showLabels, labelScale = labelScale, fontFactor = labelFontFactor(density.fontScale), lines = 2) +
-                    20.dp * style.spacing
-                // Up to four rows without scrolling when the screen allows; taller folders scroll.
-                val gridMaxHeight: Dp = min(rowHeight * 4, with(density) { windowHeightPx.toDp() } * 0.6f)
                 val gridState = rememberLazyGridState()
                 // A visible icon's root bounds, for the menu's anchor; null once it has scrolled out.
                 fun itemRootBounds(key: String): Rect? {
@@ -404,10 +417,10 @@ internal fun FolderCard(
                 Box(
                     modifier = Modifier
                         // The grid takes what the header above it and the editor's buttons under it leave
-                        // (a column measures its unweighted children first), up to [gridMaxHeight]. Without
-                        // the weight it took its share of the window first, and on a low window the buttons
-                        // under a full folder were cut.
-                        .weight(1f, fill = false)
+                        // ([FolderCardColumn] measures those first), up to [gridMaxHeight]. Measured in its
+                        // turn it took its share of the window first, and on a low window the buttons under
+                        // a full folder were cut.
+                        .layoutId(FOLDER_GRID_SLOT)
                         .fillMaxWidth()
                         .testTag("folderGrid")
                         .onGloballyPositioned { gridCoords = it; gridWidthPx = it.size.width }
@@ -573,20 +586,22 @@ internal fun FolderCard(
                     )
                     // What fills and orders the folder on one line, what removes it on a line of its own:
                     // three buttons side by side do not fit a narrow card in every language.
-                    Row(modifier = Modifier.align(Alignment.Start)) {
-                        TextButton(onClick = { showAddApps = true }, colors = actionColors) {
-                            Text(stringResource(R.string.folder_add_apps))
+                    Column(Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.align(Alignment.Start)) {
+                            TextButton(onClick = { showAddApps = true }, colors = actionColors) {
+                                Text(stringResource(R.string.folder_add_apps))
+                            }
+                            TextButton(onClick = onSortByName, colors = actionColors) {
+                                Text(stringResource(R.string.folder_sort_by_name))
+                            }
                         }
-                        TextButton(onClick = onSortByName, colors = actionColors) {
-                            Text(stringResource(R.string.folder_sort_by_name))
+                        TextButton(
+                            onClick = { confirmDelete = true },
+                            colors = actionColors,
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text(stringResource(R.string.folder_delete))
                         }
-                    }
-                    TextButton(
-                        onClick = { confirmDelete = true },
-                        colors = actionColors,
-                        modifier = Modifier.align(Alignment.End),
-                    ) {
-                        Text(stringResource(R.string.folder_delete))
                     }
                 }
             }
@@ -600,7 +615,6 @@ internal fun FolderCard(
             AnchoredCardInPlace(
                 anchor = IntOffset(anchorBounds.center.x.roundToInt(), anchorY.roundToInt()),
                 preferAbove = preferAbove,
-                width = cardWidth,
                 caretColor = cardColors.container,
                 modifier = Modifier.fillMaxSize(),
                 // A full folder's card is tall: it stops short of the status and navigation bars.
@@ -669,6 +683,58 @@ internal fun FolderCard(
             held = dragController.isDragging,
         )
     }
+}
+
+/** The layout id of the child of [FolderCardColumn] that scrolls: the grid of apps. */
+private const val FOLDER_GRID_SLOT = "folderGrid"
+
+/**
+ * The card's column. What does not scroll (the header above the grid, the editor's buttons under it) keeps its
+ * height, and the grid (the child with the layout id [FOLDER_GRID_SLOT]) takes what is left, as a weighted child of
+ * a Column would. The least the column asks for (its min intrinsic height, which the card's frame reads to see
+ * whether the card fits on its icon's side, [org.arkikeskus.launcher.ui.AnchoredCardInPlace]) is that fixed part
+ * and [minGridHeight], a row of apps: a Column would ask its lazy grid, which cannot answer.
+ */
+@Composable
+private fun FolderCardColumn(minGridHeight: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val minGridPx = with(LocalDensity.current) { minGridHeight.roundToPx() }
+    Layout(content = content, modifier = modifier, measurePolicy = remember(minGridPx) { FolderCardColumnPolicy(minGridPx) })
+}
+
+private class FolderCardColumnPolicy(private val minGridPx: Int) : MeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<Measurable>, constraints: Constraints): MeasureResult {
+        val placeables = arrayOfNulls<Placeable>(measurables.size)
+        var fixed = 0
+        fun left() = if (constraints.hasBoundedHeight) (constraints.maxHeight - fixed).coerceAtLeast(0) else Constraints.Infinity
+        // The fixed part first, in its order; then the grid, with what is left.
+        measurables.forEachIndexed { i, measurable ->
+            if (measurable.layoutId != FOLDER_GRID_SLOT) {
+                val placeable = measurable.measure(Constraints(maxWidth = constraints.maxWidth, maxHeight = left()))
+                placeables[i] = placeable
+                fixed += placeable.height
+            }
+        }
+        measurables.forEachIndexed { i, measurable ->
+            if (measurable.layoutId == FOLDER_GRID_SLOT) {
+                placeables[i] = measurable.measure(Constraints(maxWidth = constraints.maxWidth, maxHeight = left()))
+            }
+        }
+        val placed = placeables.filterNotNull()
+        val width = (placed.maxOfOrNull { it.width } ?: 0).coerceIn(constraints.minWidth, constraints.maxWidth)
+        val height = placed.sumOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
+        return layout(width, height) {
+            var y = 0
+            placed.forEach {
+                it.placeRelative(0, y)
+                y += it.height
+            }
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<IntrinsicMeasurable>, width: Int): Int =
+        measurables.sumOf {
+            if ((it.parentData as? LayoutIdParentData)?.layoutId == FOLDER_GRID_SLOT) minGridPx else it.minIntrinsicHeight(width)
+        }
 }
 
 /** [apps] with [moving] taken out and put back at [toIndex] (clamped to the list). */
