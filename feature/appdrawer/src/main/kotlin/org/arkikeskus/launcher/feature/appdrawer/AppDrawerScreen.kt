@@ -725,7 +725,9 @@ private fun AppDrawerContent(
                                 showLabels = showLabels,
                                 iconSize = drawerIconSize,
                                 onAppClick = onAppClick,
-                                onAppLongClick = onAppLongClick,
+                                // A locked desktop: no menu from this card either (the grid's tiles ask the
+                                // lock themselves).
+                                onAppLongClick = if (locked) null else onAppLongClick,
                             )
                         }
                     }
@@ -1205,20 +1207,14 @@ private fun DrawerFolderCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .onGloballyPositioned { placed.value = it }
-                                .then(
-                                    if (onAppLongClick != null) {
-                                        Modifier.combinedClickable(
-                                            onClick = { onAppClick(app) },
-                                            // Where the app is at the hold, not where it was laid out: the card scrolls.
-                                            onLongClick = {
-                                                placed.value?.takeIf { it.isAttached }
-                                                    ?.let { onAppLongClick(app, it.boundsInRootOf(hostView)) }
-                                            },
-                                        )
-                                    } else {
-                                        // A locked desktop: a tap launches and a hold does nothing, as on an app
-                                        // of the grid. Without the second modifier the hold's release was a tap.
-                                        Modifier.clickable { onAppClick(app) }.heldPressIsNoClick()
+                                .cardAppPress(
+                                    onClick = { onAppClick(app) },
+                                    // Where the app is at the hold, not where it was laid out: the card scrolls.
+                                    onLongClick = onAppLongClick?.let { open ->
+                                        {
+                                            placed.value?.takeIf { it.isAttached }
+                                                ?.let { open(app, it.boundsInRootOf(hostView)) }
+                                        }
                                     },
                                 )
                                 .padding(vertical = 10.dp * style.spacing, horizontal = 4.dp),
@@ -1230,6 +1226,20 @@ private fun DrawerFolderCard(
         }
     } }
 }
+
+/**
+ * The press of an app on one of the drawer's cards (a folder's, the most used): a tap is [onClick] and a hold is
+ * [onLongClick], the app's menu. Without one (a locked desktop, where the menu would put the app on the home
+ * screen or the dock) a hold does nothing, as on an app of the grid: no menu, no long-press for a screen reader, no
+ * haptic, and no tap at its release.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.cardAppPress(onClick: () -> Unit, onLongClick: (() -> Unit)?): Modifier =
+    if (onLongClick != null) {
+        combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        clickable(onClick = onClick).heldPressIsNoClick()
+    }
 
 /**
  * After a clickable: a press held past the long-press time is no click when it is released. The moves and the
@@ -1422,7 +1432,8 @@ internal fun FrequentAppsCard(
     showLabels: Boolean,
     iconSize: Dp,
     onAppClick: (AppItem) -> Unit,
-    onAppLongClick: (AppItem, Rect) -> Unit,
+    /** A held app and its bounds, for its menu; null on a locked desktop, where a hold does nothing. */
+    onAppLongClick: ((AppItem, Rect) -> Unit)?,
 ) {
     val p = LocalExpressivePalette.current
     Surface(
@@ -1456,9 +1467,9 @@ internal fun FrequentAppsCard(
                         modifier = Modifier
                             .weight(1f)
                             .onGloballyPositioned { bounds = it.boundsInRoot() }
-                            .combinedClickable(
+                            .cardAppPress(
                                 onClick = { onAppClick(app) },
-                                onLongClick = { onAppLongClick(app, bounds) },
+                                onLongClick = onAppLongClick?.let { open -> { open(app, bounds) } },
                             )
                             .padding(vertical = 4.dp, horizontal = 2.dp),
                     )

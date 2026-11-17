@@ -415,6 +415,31 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
     }
 
+    /** The same on the "most used" card, the drawer's third way to an app's menu: it never asked the lock (older
+     *  than the folder card's menu), and "Add to home" went through from there too. */
+    @Test fun onALockedDesktopAHoldOnAMostUsedAppOpensNoMenu() {
+        runBlocking {
+            wiring.settingsRepository.setDesktopLocked(true)
+            wiring.settingsRepository.setShowFrequentApps(true)
+        }
+        show()
+        awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
+        val mail = viewModel.uiState.value.apps.first { it.packageName == mailApp }
+        viewModel.onAppClick(mail) // a launch is what puts an app on the card
+        awaitState("the card has the app, on a locked desktop") { s -> s.desktopLocked && s.frequentApps.any { it.key == mail.key } }
+        settle()
+
+        // The card leads the grid: its tile is the first of the two "com.mail" on screen.
+        compose.onAllNodesWithText(mailApp).onFirst().performTouchInput { longClick() }
+        compose.mainClock.advanceTimeBy(1_000)
+        settle()
+
+        compose.onNodeWithText(appInfo()).assertDoesNotExist()
+        compose.onAllNodesWithText(mailApp).onFirst().assert(
+            SemanticsMatcher("no long-press action") { it.config.getOrNull(SemanticsActions.OnLongClick) == null },
+        )
+    }
+
     /** The drawer's folder "Tools" holding Mail and Maps, on screen. */
     private fun showWithFilledFolder() {
         val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
