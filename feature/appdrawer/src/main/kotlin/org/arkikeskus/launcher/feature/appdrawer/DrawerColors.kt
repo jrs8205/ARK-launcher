@@ -171,8 +171,17 @@ internal fun drawerExpressivePalette(
     )
 }
 
-/** The search field's fill and the colour of what is on it (its text, its hint, its cursor and its clear button). */
-internal data class SearchFieldColors(val container: Color, val content: Color)
+/** The search field's fill, the colour of what is on it (its text, its hint, its cursor and its clear button), and
+ *  its text selection: the handles, and the highlight behind selected text. */
+internal data class SearchFieldColors(
+    val container: Color,
+    val content: Color,
+    val selectionHandle: Color,
+    val selectionBackground: Color,
+)
+
+/** How much of its colour a selection highlight shows (Material's own share). */
+internal const val SELECTION_ALPHA = 0.4f
 
 /** The least of the search field's own colour that shows: on a drawer that paints nothing ("Transparent", or the
  *  user's own picture without a dim) the field is still a pill one can find. */
@@ -192,13 +201,52 @@ internal fun drawerSearchFieldColors(
     surface: Color,
     opacity: Float,
     behindLuminance: Float,
+    /** The theme's selection colour (Material's: the scheme's primary), kept where it reads. */
+    accent: Color,
 ): SearchFieldColors {
-    if (opacity >= 1f) return SearchFieldColors(palette.container, palette.onContainer)
+    if (opacity >= 1f) return searchFieldColors(palette.container, palette.onContainer, shown = palette.container, accent)
     val container = palette.container.copy(alpha = opacity.coerceIn(SEARCH_FIELD_MIN_OPACITY, 1f))
     val grey = srgbGrey(behindLuminance)
     val drawer = surface.copy(alpha = opacity.coerceIn(0f, 1f)).compositeOver(Color(grey, grey, grey))
     val shown = container.compositeOver(drawer)
-    return SearchFieldColors(container, if (darkReadsBetter(shown.luminance())) Color.Black else Color.White)
+    return searchFieldColors(container, if (darkReadsBetter(shown.luminance())) Color.Black else Color.White, shown, accent)
+}
+
+/**
+ * The field's colours with its text selection fitted to what the field looks like ([shown]). Material paints a
+ * selection in the theme's [accent] whatever the field is: on a see-through field over a dark picture selected
+ * text read 2.7:1 on that highlight, and over a white one a handle stood 1.6:1 from the field. A handle is a
+ * control on the field ([standingOut]); the highlight is what the selected text is read on ([selectionHighlight]).
+ */
+private fun searchFieldColors(container: Color, content: Color, shown: Color, accent: Color) = SearchFieldColors(
+    container = container,
+    content = content,
+    selectionHandle = standingOut(accent, listOf(shown), toward = content),
+    selectionBackground = selectionHighlight(accent, shown, content),
+)
+
+/** What a highlight needs against the field around it to show what is selected. */
+private const val SELECTION_SHOWS = 1.2f
+
+/**
+ * The highlight behind selected text: [accent] at [SELECTION_ALPHA], as Material paints it, where the text
+ * ([content]) reads on it over the field ([shown]) and it shows against the field around it. Otherwise [accent]
+ * blended in twentieths, the smallest step that makes both hold: toward the opposite of the text (the end the text
+ * reads on best), or toward the text itself (on a field as dark as the accent, a darker highlight reads and shows
+ * nothing). Where no step shows on the field, the first one the text reads on.
+ */
+private fun selectionHighlight(accent: Color, shown: Color, content: Color): Color {
+    val away = if (content.luminance() < LIGHT_BACKGROUND) Color.White else Color.Black
+    var readable: Color? = null
+    for (step in 0..20) for (toward in if (step == 0) listOf(away) else listOf(away, content)) {
+        val tint = if (step == 0) accent else toward.copy(alpha = step / 20f).compositeOver(accent)
+        val highlight = tint.copy(alpha = SELECTION_ALPHA)
+        val onScreen = highlight.compositeOver(shown)
+        if (contrastRatio(content.luminance(), onScreen.luminance()) < READABLE_TEXT) continue
+        if (contrastRatio(onScreen.luminance(), shown.luminance()) >= SELECTION_SHOWS) return highlight
+        if (readable == null) readable = highlight
+    }
+    return readable ?: away.copy(alpha = SELECTION_ALPHA)
 }
 
 /** What a control needs against what it sits on (WCAG AA for what is not text). */

@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -645,39 +646,15 @@ private fun AppDrawerContent(
                 // drawer the pill is as see-through, and its text is what reads on what shows through it.
                 val palette = LocalExpressivePalette.current
                 val drawerColour = surfacePaint ?: MaterialTheme.colorScheme.surface
-                val field = remember(palette, drawerColour, surfaceOpacity, behindLuminance) {
-                    drawerSearchFieldColors(palette, drawerColour, surfaceOpacity, behindLuminance)
+                // The theme's selection colour is the scheme's primary; the field keeps it where it reads.
+                val accent = MaterialTheme.colorScheme.primary
+                val field = remember(palette, drawerColour, surfaceOpacity, behindLuminance, accent) {
+                    drawerSearchFieldColors(palette, drawerColour, surfaceOpacity, behindLuminance, accent)
                 }
-                TextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    singleLine = true,
-                    placeholder = { Text(stringResource(R.string.app_drawer_search_hint)) },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange("") }) {
-                                Icon(
-                                    painter = painterResource(LauncherIcons.Close),
-                                    contentDescription = stringResource(R.string.search_clear),
-                                    tint = field.content,
-                                )
-                            }
-                        }
-                    },
-                    shape = PillShape,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = field.container,
-                        unfocusedContainerColor = field.container,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = field.content,
-                        focusedTextColor = field.content,
-                        unfocusedTextColor = field.content,
-                        // The hint follows the pill, not the drawer's text: a solid yellow pill keeps dark text
-                        // while the labels around it are white.
-                        focusedPlaceholderColor = field.content,
-                        unfocusedPlaceholderColor = field.content,
-                    ),
+                DrawerSearchField(
+                    query = query,
+                    onQueryChange = onQueryChange,
+                    colors = field,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -896,6 +873,57 @@ private fun AppDrawerContent(
         }
     }
     }
+}
+
+/**
+ * The drawer's search field: a pill in [colors], with no underline. Everything on it takes [colors]' content
+ * colour, the hint too: it follows the pill, not the drawer's text (a solid yellow pill keeps dark text while the
+ * labels around it are white). [placeholder] is the hint; it is composed inside the field, so a test's probe there
+ * sees the selection colours the field's text really gets.
+ */
+@Composable
+internal fun DrawerSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    colors: SearchFieldColors,
+    modifier: Modifier = Modifier,
+    placeholder: @Composable () -> Unit = { Text(stringResource(R.string.app_drawer_search_hint)) },
+) {
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        singleLine = true,
+        placeholder = placeholder,
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        painter = painterResource(LauncherIcons.Close),
+                        contentDescription = stringResource(R.string.search_clear),
+                        tint = colors.content,
+                    )
+                }
+            }
+        },
+        shape = PillShape,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = colors.container,
+            unfocusedContainerColor = colors.container,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            cursorColor = colors.content,
+            focusedTextColor = colors.content,
+            unfocusedTextColor = colors.content,
+            focusedPlaceholderColor = colors.content,
+            unfocusedPlaceholderColor = colors.content,
+            // Not the theme's: the handles and the highlight are fitted to what the field looks like.
+            selectionColors = TextSelectionColors(
+                handleColor = colors.selectionHandle,
+                backgroundColor = colors.selectionBackground,
+            ),
+        ),
+        modifier = modifier,
+    )
 }
 
 /** Visual pull-down affordance: a small pill below the status bar. */
