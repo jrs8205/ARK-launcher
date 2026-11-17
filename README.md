@@ -89,7 +89,9 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   stretch to full width or be reconfigured. Collection widgets (e.g. chat lists) scroll in place.
   Built-in clock (with the next event, alarm and optional weather), battery and notification
   widgets adapt to their size and offer translucent or themed backgrounds in Settings ▸ Widgets.
-- **Folders** on the home screen and inside the drawer: a tap opens a folder to look, a pencil opens its editor.
+- **Folders** on the home screen and inside the drawer: a tap opens a folder in a card by its icon, the same
+  card in both places; on the home screen a pencil opens its editor, in the drawer a hold on the folder does.
+  A drawer folder can be dragged to the home screen, where a copy of it is made.
 - **Notification dots / badges** (via a notification-listener service; dot or Nova-style count).
 - **People widget**: messages, missed calls and mail grouped by person as tiles, with optional
   batch delivery that holds others' messages in the launcher's widgets, badges and status bar until

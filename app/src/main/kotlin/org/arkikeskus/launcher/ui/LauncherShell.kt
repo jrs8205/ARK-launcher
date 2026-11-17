@@ -42,6 +42,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.feature.appdrawer.AppDrawerScreen
+import org.arkikeskus.launcher.feature.home.FolderIcon
 import org.arkikeskus.launcher.feature.home.HomeScreen
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalIconPack
@@ -300,7 +301,9 @@ fun LauncherShell(
             // Single floating icon for any in-progress drag (home, dock or drawer), drawn above every
             // surface so it can travel between them. Positioned by the finger's root coords.
             val dragged = dragController.draggedApp
-            if (dragged != null && dragController.moving) {
+            // A folder of the app drawer on its way to the home screen floats the same way.
+            val draggedFolder = dragController.draggedDrawerFolder
+            if ((dragged != null || draggedFolder != null) && dragController.moving) {
                 // The floating icon follows the user's icon-size setting like the surfaces it travels between.
                 val sizeDp = 56.dp * iconStyle.iconScale
                 val halfPx = with(density) { (sizeDp / 2).toPx() }
@@ -329,12 +332,24 @@ fun LauncherShell(
                         LocalThemeAllIcons provides iconStyle.themeAll,
                         LocalIconScale provides iconStyle.iconScale,
                     ) {
-                        AppIcon(
-                            appItem = dragged,
-                            labelColor = Color.White,
-                            showLabel = false,
-                            iconSize = 52.dp * iconStyle.iconScale,
-                        )
+                        if (dragged != null) {
+                            AppIcon(
+                                appItem = dragged,
+                                labelColor = Color.White,
+                                showLabel = false,
+                                iconSize = 52.dp * iconStyle.iconScale,
+                            )
+                        } else if (draggedFolder != null) {
+                            FolderIcon(
+                                name = draggedFolder.name,
+                                apps = draggedFolder.apps,
+                                showLabel = false,
+                                badgeCount = 0,
+                                badgeShowCount = false,
+                                size = 52.dp * iconStyle.iconScale,
+                                customIcon = draggedFolder.icon,
+                            )
+                        }
                     }
                 }
             }

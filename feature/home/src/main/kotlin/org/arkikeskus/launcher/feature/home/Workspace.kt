@@ -1020,8 +1020,10 @@ internal fun Workspace(
                                 dragController.isIncomingFrom(DragSource.Dock, DragSource.Drawer, DragSource.Folder) &&
                                     dragController.isOverGrid(dragController.rootPosition) -> {
                                     val (_, cx, cy) = dragController.cellAt(dragController.rootPosition)
-                                    // A dock folder lands only on a free cell (folders never merge).
-                                    if (dragController.draggedFolderId != null && cellTaken(effectiveEntries, page, cx, cy)) null
+                                    // A folder (the dock's, or the copy of the app drawer's) lands only on a
+                                    // free cell: folders never merge.
+                                    val folder = dragController.draggedFolderId != null || dragController.draggedDrawerFolder != null
+                                    if (folder && cellTaken(effectiveEntries, page, cx, cy)) null
                                     else IntOffset(cx, cy)
                                 }
                                 else -> null

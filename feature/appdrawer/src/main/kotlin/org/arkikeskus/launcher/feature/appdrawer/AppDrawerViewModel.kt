@@ -518,6 +518,30 @@ class AppDrawerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * A folder of the drawer dropped on a home cell: a copy of it is made there (the drawer keeps its own), at
+     * the cell when it is free, else at the first free one. A home folder holds two apps or more (one left with
+     * a single app turns into that app), so a folder of one app lands as the app's own icon. An icon from an
+     * icon pack goes with the copy; a picture of the user's does not (the file has one owner, and deleting
+     * either folder's icon would take it from the other): the copy then shows the preview of its apps.
+     */
+    fun addFolderToHomeAt(folder: DrawerFolderUi, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
+        val apps = folder.apps
+        if (apps.isEmpty()) return@launch
+        val s = settingsRepository.settings.first()
+        if (apps.size == 1) {
+            val result = homeLayoutRepository.placeAt(apps.single(), page, cellX, cellY, s.homeColumns, s.homeRows, folder.name)
+            if (result == PlaceResult.HomeFull) notify(HomeNotice.HomeFull)
+            return@launch
+        }
+        val id = homeLayoutRepository.addFolderAt(folder.name, apps, page, cellX, cellY, s.homeColumns, s.homeRows)
+        if (id == null) {
+            notify(HomeNotice.HomeFull)
+            return@launch
+        }
+        (folder.icon as? CustomIcon.FromPack)?.let { customIcons.setFolderIcon(FolderIconKey.home(id), it) }
+    }
+
     fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 
     /** Stores a pinned shortcut on home; false when every page the pager shows is full. */

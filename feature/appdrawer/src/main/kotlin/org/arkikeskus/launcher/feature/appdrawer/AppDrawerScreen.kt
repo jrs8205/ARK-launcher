@@ -83,6 +83,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -114,6 +116,7 @@ import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.DragSource
+import org.arkikeskus.launcher.ui.DraggedDrawerFolder
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.EditAppDialog
 import org.arkikeskus.launcher.ui.FolderIconButton
@@ -320,6 +323,7 @@ fun AppDrawerScreen(
         dragController = dragController,
         onDragOutStart = onDragOutStart,
         onDropOnHome = { app, page, cellX, cellY -> viewModel.addToHomeAt(app, page, cellX, cellY, defaultFolderName) },
+        onDropFolderOnHome = { folder, page, cellX, cellY -> viewModel.addFolderToHomeAt(folder, page, cellX, cellY) },
         onDropOnDock = { app, target -> viewModel.dropOnDock(app, target, defaultFolderName) },
         showLabels = uiState.showLabels,
         showFolderNames = uiState.showFolderNames,
@@ -526,6 +530,8 @@ private fun AppDrawerContent(
     dragController: HomeDragController,
     onDragOutStart: () -> Unit,
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
+    /** A folder dragged out of the drawer and dropped on a home cell: a copy of it is made there. */
+    onDropFolderOnHome: (DrawerFolderUi, Int, Int, Int) -> Unit,
     /** An icon released over the dock where it can land (see [HomeDragController.dockAccepts]). */
     onDropOnDock: (AppItem, DockTarget) -> Unit,
     showLabels: Boolean,
@@ -725,6 +731,11 @@ private fun AppDrawerContent(
                                 badgeScale = badgeScale,
                                 onClick = { bounds -> onFolderClick(entry.folder, bounds) },
                                 onLongClick = { onFolderLongClick(entry.folder) },
+                                dragController = dragController,
+                                onDragOutStart = onDragOutStart,
+                                onDropOnHome = { page, cellX, cellY -> onDropFolderOnHome(entry.folder, page, cellX, cellY) },
+                                haptics = haptics,
+                                locked = locked,
                             )
                             is DrawerEntry.App -> DrawerAppCell(entry.app, badges, badgeShowCount, badgeScale, showLabels,
                                 drawerIconSize, onAppClick, onAppLongClick, dragController, onDragOutStart, onDropOnHome,
@@ -888,33 +899,139 @@ private fun DragHandle() {
     }
 }
 
-/** A drawer folder tile: a rounded 2×2 preview of its first apps + label. A tap opens the folder's
- *  card ([onClick] gets the tile's root bounds to anchor it by); a long-press (with the haptic of an
- *  app's) opens its editor. */
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * A drawer folder tile: a rounded 2×2 preview of its first apps + label. A tap opens the folder's card
+ * ([onClick] gets the tile's root bounds to anchor it by). A hold lifts the folder, with the haptic of an
+ * app's: pulled away it is dragged out of the drawer, like an app, and a copy of it is dropped on the home
+ * screen ([onDropOnHome]); released where it was lifted it opens the editor ([onLongClick]). A folder that
+ * cannot be lifted (it holds no apps, or the desktop is locked) opens the editor at the hold, as it always did.
+ */
 @Composable
 private fun DrawerFolderTile(
     folder: DrawerFolderUi,
     showLabel: Boolean,
     onClick: (Rect) -> Unit,
     onLongClick: () -> Unit,
+    dragController: HomeDragController,
+    onDragOutStart: () -> Unit,
+    onDropOnHome: (page: Int, cellX: Int, cellY: Int) -> Unit,
+    haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    locked: Boolean,
     tileSize: Dp = 56.dp,
     badgeCount: Int = 0,
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
 ) {
+    // The gesture lives as long as the folder's id and acts on the folder as it is NOW (its apps and its icon
+    // change under it), through the callbacks as they are now.
+    val currentFolder by rememberUpdatedState(folder)
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnLongClick by rememberUpdatedState(onLongClick)
+    val currentOnDragOutStart by rememberUpdatedState(onDragOutStart)
+    val currentOnDropOnHome by rememberUpdatedState(onDropOnHome)
+    // [bounds] anchors the card and is clipped by the grid; [origin] is the tile's real top-left, which a tile
+    // half scrolled under the grid's top edge still needs for the finger's position.
     var bounds by remember(folder.id) { mutableStateOf(Rect.Zero) }
+    var origin by remember(folder.id) { mutableStateOf(Offset.Zero) }
+    val editLabel = stringResource(R.string.folder_edit)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .onGloballyPositioned { bounds = it.boundsInRoot() }
-            // combinedClickable ticks the long-press haptic itself (as an app's does). The label is
-            // what TalkBack reads for the hold: the editor has no other way in.
-            .combinedClickable(
-                onClick = { onClick(bounds) },
-                onLongClickLabel = stringResource(R.string.folder_edit),
-                onLongClick = onLongClick,
-            )
+            .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
+            // One node for accessibility services with the actions a clickable tile had; the pointer gesture
+            // below never reaches them. The hold's label is what TalkBack reads for it: the editor has no
+            // other way in.
+            .semantics(mergeDescendants = true) {
+                onClick { currentOnClick(bounds); true }
+                onLongClick(label = editLabel) { currentOnLongClick(); true }
+            }
+            // The app tiles' gesture: nothing is consumed until the hold completes, so a quick drag still
+            // scrolls the grid.
+            .pointerInput(folder.id, locked) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val slop = viewConfiguration.touchSlop
+                    // 0 = long-press (timed out still), 1 = tap, 2 = scroll/abandon.
+                    var outcome = 0
+                    var holdPos = down.position
+                    withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        while (true) {
+                            val ev = awaitPointerEvent()
+                            val c = ev.changes.firstOrNull { it.id == down.id }
+                            if (c == null) {
+                                outcome = 2
+                                return@withTimeoutOrNull
+                            }
+                            if (!c.pressed) {
+                                outcome = 1
+                                return@withTimeoutOrNull
+                            }
+                            if (c.isConsumed ||
+                                abs(c.position.y - down.position.y) > slop ||
+                                !IconPress.staysOnIcon(c.position, size, slop)
+                            ) {
+                                outcome = 2
+                                return@withTimeoutOrNull
+                            }
+                            holdPos = c.position
+                            // The Personal / Work pager's claim of a sideways swipe shows only in the Final
+                            // pass (see the app tile).
+                            awaitPointerEvent(PointerEventPass.Final)
+                            if (c.isConsumed) {
+                                outcome = 2
+                                return@withTimeoutOrNull
+                            }
+                        }
+                    }
+                    when (outcome) {
+                        1 -> {
+                            currentOnClick(bounds)
+                            return@awaitEachGesture
+                        }
+                        2 -> return@awaitEachGesture
+                    }
+                    val lifted = currentFolder
+                    // Nothing to copy, or a locked desktop: the hold opens the editor, as it always did.
+                    if (locked || lifted.apps.isEmpty()) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        currentOnLongClick()
+                        return@awaitEachGesture
+                    }
+                    val token = Any()
+                    val payload = DraggedDrawerFolder(lifted.name, lifted.apps, lifted.icon)
+                    if (!dragController.startDrawerFolder(payload, origin + holdPos, token)) return@awaitEachGesture
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val dragStartPx = IconPress.DragStartThreshold.toPx()
+                    try {
+                        val completed = drag(down.id) { change ->
+                            change.consume()
+                            if (!dragController.owns(token)) return@drag
+                            // Only a pull past the threshold is a drag out of the drawer: a hold that
+                            // merely wobbles still releases into the editor.
+                            if (!dragController.moving && IconPress.startsDrag(change.position, holdPos, dragStartPx)) {
+                                dragController.beginMove()
+                                currentOnDragOutStart()
+                            }
+                            if (dragController.moving) dragController.update(origin + change.position)
+                        }
+                        // Nothing on release once HOME cancelled the lift.
+                        val live = completed && dragController.owns(token)
+                        when {
+                            !live -> Unit
+                            // Released where it was lifted: the editor.
+                            !dragController.moving -> currentOnLongClick()
+                            // A copy lands on the home grid only; anywhere else nothing is made.
+                            dragController.isOverGrid(dragController.rootPosition) -> {
+                                val (page, cx, cy) = dragController.cellAt(dragController.rootPosition)
+                                currentOnDropOnHome(page, cx, cy)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        }
+                    } finally {
+                        dragController.stop(token)
+                    }
+                }
+            }
             .padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.flow.drop
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 
 /** Which surface an in-progress drag was picked up from. */
 enum class DragSource { Home, Dock, Drawer, Folder }
@@ -36,8 +37,20 @@ sealed interface DockTarget {
  *
  * Geometry is all in root coordinates so the surfaces and the overlay share one space.
  */
+/** A folder of the app drawer on its way to the home screen, where a copy of it is made: what the copy holds,
+ *  and what the floating icon shows. */
+data class DraggedDrawerFolder(val name: String, val apps: List<AppItem>, val icon: CustomIcon?)
+
 class HomeDragController {
     var draggedApp by mutableStateOf<AppItem?>(null)
+        private set
+
+    /**
+     * A folder of the app drawer a long-press lifted (always from [DragSource.Drawer]): dropped on a home cell, a
+     * copy of it is made there. Never set together with [draggedApp] or [draggedFolderId]. The shell draws its
+     * floating copy, as it draws an app's.
+     */
+    var draggedDrawerFolder by mutableStateOf<DraggedDrawerFolder?>(null)
         private set
 
     /**
@@ -158,7 +171,7 @@ class HomeDragController {
      */
     val scrollableWidgetRects = mutableStateMapOf<Long, Rect>()
 
-    val isDragging: Boolean get() = draggedApp != null || draggedFolderId != null
+    val isDragging: Boolean get() = draggedApp != null || draggedFolderId != null || draggedDrawerFolder != null
 
     /** True if [p] (root coords) is inside a placed widget that scrolls its own content. */
     fun isOverScrollableWidget(p: Offset): Boolean =
@@ -190,6 +203,7 @@ class HomeDragController {
         if (!claim(token)) return false
         draggedApp = app
         draggedFolderId = null
+        draggedDrawerFolder = null
         source = from
         rootPosition = root
         moving = false
@@ -202,7 +216,21 @@ class HomeDragController {
         if (!claim(token)) return false
         draggedApp = null
         draggedFolderId = folderId
+        draggedDrawerFolder = null
         source = from
+        rootPosition = root
+        moving = false
+        leftSource = false
+        return true
+    }
+
+    /** Lift a folder of the app drawer (long-press) for [token] — see [draggedDrawerFolder]. False if refused. */
+    fun startDrawerFolder(folder: DraggedDrawerFolder, root: Offset, token: Any): Boolean {
+        if (!claim(token)) return false
+        draggedApp = null
+        draggedFolderId = null
+        draggedDrawerFolder = folder
+        source = DragSource.Drawer
         rootPosition = root
         moving = false
         leftSource = false
@@ -233,6 +261,7 @@ class HomeDragController {
         if (owner !== token) return
         draggedApp = null
         draggedFolderId = null
+        draggedDrawerFolder = null
         moving = false
         leftSource = false
         owner = null
@@ -242,6 +271,7 @@ class HomeDragController {
     fun cancel() {
         draggedApp = null
         draggedFolderId = null
+        draggedDrawerFolder = null
         moving = false
         leftSource = false
         localDragging = false

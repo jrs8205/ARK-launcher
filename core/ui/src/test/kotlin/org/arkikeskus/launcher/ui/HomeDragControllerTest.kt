@@ -125,4 +125,52 @@ class HomeDragControllerTest {
         assertThat(c.dockIndexAt(Offset(150f, 130f))).isEqualTo(1)
         assertThat(c.dockTargetAt(Offset(150f, 130f))).isEqualTo(DockTarget.Between(1))
     }
+
+    /** A folder of the app drawer is lifted like an app: one lift at a time, over the home screen from its
+     *  first move, and gone when the gesture ends. */
+    @Test
+    fun aDrawerFolderIsLiftedLikeAnApp() {
+        val folder = DraggedDrawerFolder("Tools", listOf(app), icon = null)
+
+        assertThat(c.startDrawerFolder(folder, Offset(10f, 20f), token)).isTrue()
+
+        assertThat(c.draggedDrawerFolder).isEqualTo(folder)
+        assertThat(c.draggedApp).isNull()
+        assertThat(c.draggedFolderId).isNull()
+        assertThat(c.isDragging).isTrue()
+        assertThat(c.source).isEqualTo(DragSource.Drawer)
+        assertThat(c.rootPosition).isEqualTo(Offset(10f, 20f))
+        // Another finger's lift is refused while this one is held.
+        assertThat(c.start(app, DragSource.Home, Offset.Zero, Any())).isFalse()
+        assertThat(c.draggedDrawerFolder).isEqualTo(folder)
+
+        c.beginMove()
+        assertThat(c.isIncomingFrom(DragSource.Drawer)).isTrue()
+
+        c.stop(token)
+        assertThat(c.draggedDrawerFolder).isNull()
+        assertThat(c.isDragging).isFalse()
+    }
+
+    @Test
+    fun homeEndsALiftedDrawerFolder() {
+        c.startDrawerFolder(DraggedDrawerFolder("Tools", listOf(app), icon = null), Offset.Zero, token)
+
+        c.cancel()
+
+        assertThat(c.draggedDrawerFolder).isNull()
+        assertThat(c.owns(token)).isFalse()
+    }
+
+    /** The next lift starts clean: an app lifted after a folder's drag carries no folder with it. */
+    @Test
+    fun anAppLiftedAfterAFolderCarriesNoFolder() {
+        c.startDrawerFolder(DraggedDrawerFolder("Tools", listOf(app), icon = null), Offset.Zero, token)
+        c.stop(token)
+
+        assertThat(c.start(app, DragSource.Drawer, Offset.Zero, token)).isTrue()
+
+        assertThat(c.draggedApp).isEqualTo(app)
+        assertThat(c.draggedDrawerFolder).isNull()
+    }
 }

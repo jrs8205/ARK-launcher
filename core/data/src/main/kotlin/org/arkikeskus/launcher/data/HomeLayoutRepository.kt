@@ -135,6 +135,37 @@ class HomeLayoutRepository @Inject constructor(
             PlaceResult.Placed
         }
 
+    /**
+     * Puts a new folder named [name] holding [apps], in that order, on the home screen: the copy of an app
+     * drawer folder dragged out of the drawer. It takes ([page], [cellX], [cellY]) when that cell is free, else
+     * the first free cell. Nothing already on the home screen is moved or taken into it: an app that has an icon
+     * there keeps it and gets a row of its own in the folder. Returns the folder's id, or null (nothing stored)
+     * for no apps and when every page the pager shows is full.
+     */
+    suspend fun addFolderAt(
+        name: String,
+        apps: List<AppItem>,
+        page: Int,
+        cellX: Int,
+        cellY: Int,
+        columns: Int,
+        rows: Int,
+    ): Long? =
+        db.withTransaction {
+            val members = apps.distinctBy { Triple(it.packageName, it.className, it.userSerial) }
+            if (members.isEmpty()) return@withTransaction null
+            val items = dao.getContainer(HOME)
+            val (p, x, y) = if (isShownPage(page) && rectFitsForRow(items, NO_ROW, page, cellX, cellY, 1, 1, columns, rows)) {
+                Triple(page, cellX, cellY)
+            } else {
+                firstFreeCell(items, columns, rows)
+            }
+            if (!isShownPage(p)) return@withTransaction null
+            val folderId = dao.insert(HomeItemEntity(containerId = HOME, folderName = name, page = p, cellX = x, cellY = y))
+            members.forEachIndexed { index, app -> dao.insert(homeApp(app, folderId, 0, index, 0)) }
+            folderId
+        }
+
     suspend fun removeFromHome(appItem: AppItem) {
         dao.deleteByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
     }

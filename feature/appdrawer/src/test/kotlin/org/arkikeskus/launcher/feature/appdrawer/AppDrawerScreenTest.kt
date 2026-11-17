@@ -36,6 +36,11 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import org.arkikeskus.launcher.ui.ADD_APPS_ROW_TAG
+import org.arkikeskus.launcher.ui.HomeDragController
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.test.moveBy
+import kotlinx.coroutines.flow.first
 import org.arkikeskus.launcher.ui.ADD_APPS_SEARCH_TAG
 import org.arkikeskus.launcher.model.AppItem
 import android.os.Process
@@ -73,6 +78,8 @@ class AppDrawerScreenTest {
     private val viewModel = wiring.viewModel()
     private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     private val drawerOpen = mutableStateOf(true)
+    private val drag = HomeDragController()
+    private var dragOuts = 0
 
     @After fun tearDown() {
         wiring.clear(viewModel)
@@ -86,6 +93,8 @@ class AppDrawerScreenTest {
                 onOpenSettings = {},
                 homeSignals = homeSignals,
                 drawerOpen = drawerOpen.value,
+                dragController = drag,
+                onDragOutStart = { dragOuts++ },
                 viewModel = viewModel,
             )
         }
@@ -324,6 +333,121 @@ class AppDrawerScreenTest {
         awaitText(appInfo())
 
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+    }
+
+    /** The drawer's folder "Tools" holding Mail and Maps, on screen. */
+    private fun showWithFilledFolder() {
+        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        show()
+        val members = listOf(mailApp, mapsApp)
+        awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
+        val keys = viewModel.uiState.value.apps.filter { it.packageName in members }.map { it.key }
+        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        awaitState("the folder holds the two") { it.folders.firstOrNull()?.apps?.size == 2 }
+        settle()
+    }
+
+    /** A finger down on the folder's tile until the hold completes; it stays down. */
+    private fun holdTheFolder() {
+        compose.onNodeWithText("Tools").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(1_000)
+        settle()
+    }
+
+    /** A Telegram request after 1.2.0: a folder of the drawer can be dragged to the home screen. A hold lifts it,
+     *  as it lifts an app; a pull takes it out of the drawer, and that is not the editor's gesture. */
+    @Test fun aHeldFolderIsLiftedAndAPullDragsItOutOfTheDrawer() {
+        showWithFilledFolder()
+
+        holdTheFolder()
+        assertThat(drag.draggedDrawerFolder?.name).isEqualTo("Tools")
+        assertThat(drag.draggedDrawerFolder?.apps?.map { it.packageName }).containsExactly(mailApp, mapsApp)
+        assertThat(drag.moving).isFalse()
+        assertThat(dragOuts).isEqualTo(0)
+
+        compose.onNodeWithText("Tools").performTouchInput { repeat(8) { moveBy(Offset(0f, 40f)) } }
+        settle()
+        assertThat(drag.moving).isTrue()
+        assertThat(dragOuts).isEqualTo(1)
+        compose.onNodeWithText(addApps()).assertDoesNotExist()
+
+        // Released over nothing (no home grid in this test): nothing is made, and no editor opens.
+        compose.onNodeWithText("Tools").performTouchInput { up() }
+        settle()
+        assertThat(drag.isDragging).isFalse()
+        compose.onNodeWithText(addApps()).assertDoesNotExist()
+        assertThat(runBlocking { wiring.homeLayoutRepository.homeItems.first() }).isEmpty()
+    }
+
+    /** Dropped on the home grid, a copy of the folder is made there; the drawer keeps its own. */
+    @Test fun aFolderDroppedOnTheHomeScreenIsCopiedThereAndStaysInTheDrawer() {
+        showWithFilledFolder()
+        // The home grid as the home screen publishes it to the controller: here the whole window, four by five.
+        compose.runOnIdle {
+            drag.gridBounds = Rect(0f, 0f, 4000f, 8000f)
+            drag.columns = 4
+            drag.rows = 5
+        }
+
+        holdTheFolder()
+        compose.onNodeWithText("Tools").performTouchInput {
+            repeat(8) { moveBy(Offset(0f, 40f)) }
+            up()
+        }
+        settle()
+
+        val deadline = System.currentTimeMillis() + 10_000
+        while (runBlocking { wiring.homeLayoutRepository.homeItems.first() }.count { !it.isFolder } < 2) {
+            check(System.currentTimeMillis() < deadline) { "Timed out waiting for the folder's copy on home" }
+            Thread.sleep(20)
+        }
+        val rows = runBlocking { wiring.homeLayoutRepository.homeItems.first() }
+        val folder = rows.single { it.isFolder }
+        assertThat(folder.folderName).isEqualTo("Tools")
+        assertThat(rows.filter { it.containerId == folder.id }.map { it.packageName }).containsExactly(mailApp, mapsApp)
+        assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools")
+        compose.onNodeWithText(addApps()).assertDoesNotExist()
+    }
+
+    /** Released where it was lifted, the hold is what it always was: the editor. */
+    @Test fun aHeldFolderReleasedWhereItWasLiftedOpensItsEditor() {
+        showWithFilledFolder()
+
+        holdTheFolder()
+        compose.onNodeWithText(addApps()).assertDoesNotExist() // not before the finger lifts: it may still pull
+        compose.onNodeWithText("Tools").performTouchInput { up() }
+        settle()
+
+        compose.onNodeWithText(addApps()).assertExists()
+        assertThat(drag.isDragging).isFalse()
+        assertThat(dragOuts).isEqualTo(0)
+    }
+
+    /** A folder with no apps has nothing to copy: it is not lifted, and the hold opens the editor at once. */
+    @Test fun anEmptyFolderIsNotLifted() {
+        showWithFolder()
+
+        holdTheFolder()
+
+        assertThat(drag.isDragging).isFalse()
+        compose.onNodeWithText(addApps()).assertExists()
+        // The tile is the first "Tools" on screen; the editor's name field is the other.
+        compose.onAllNodesWithText("Tools").onFirst().performTouchInput { up() }
+    }
+
+    /** A locked desktop takes nothing new: the folder is not lifted; its editor (the drawer's own) still opens. */
+    @Test fun onALockedDesktopAFolderIsNotLifted() {
+        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        showWithFilledFolder()
+        awaitState("the lock reached the drawer") { it.desktopLocked }
+        settle()
+
+        holdTheFolder()
+
+        assertThat(drag.isDragging).isFalse()
+        compose.onNodeWithText(addApps()).assertExists()
+        // The tile is the first "Tools" on screen; the editor's name field is the other.
+        compose.onAllNodesWithText("Tools").onFirst().performTouchInput { up() }
     }
 
     /** Mixed among the apps the order is by name, so the editor offers no moves. */
