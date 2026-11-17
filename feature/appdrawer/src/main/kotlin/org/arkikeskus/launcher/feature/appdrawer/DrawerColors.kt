@@ -21,6 +21,7 @@ import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.toExpressive
 import org.arkikeskus.launcher.ui.readableOn
 import org.arkikeskus.launcher.ui.shownLuminance
+import org.arkikeskus.launcher.ui.srgbGrey
 
 /** A colour scheme's onSurface darker than this (relative luminance) is dark text: schemes' text is near black or
  *  near white, so any mid value tells them apart. */
@@ -127,8 +128,9 @@ internal fun OpaqueDrawerSurface(content: @Composable () -> Unit) {
  * purple), then away from it -- which always clears it, as the text was chosen for the colour itself. The secondary
  * and faint text are the text blended into the FINAL card, not the base palette's greys made for near-white or
  * near-black cards (round 9: #5B616A read 1.4:1 on a darkened red card). These elements are opaque, so their own
- * colour decides whatever the drawer's opacity: a yellow pill on a 10 % yellow drawer over a dark wallpaper keeps
- * dark text while the app labels around it are white.
+ * colour decides whatever the drawer's opacity: a yellow card on a 10 % yellow drawer over a dark wallpaper keeps
+ * dark text while the app labels around it are white. The search field alone is see-through with the drawer
+ * since 1.2.1, and takes its text by what shows through it ([drawerSearchFieldColors]).
  */
 internal fun drawerExpressivePalette(
     system: ExpressivePalette,
@@ -167,6 +169,36 @@ internal fun drawerExpressivePalette(
         container = card,
         onContainer = base.text,
     )
+}
+
+/** The search field's fill and the colour of what is on it (its text, its hint, its cursor and its clear button). */
+internal data class SearchFieldColors(val container: Color, val content: Color)
+
+/** The least of the search field's own colour that shows: on a drawer that paints nothing ("Transparent", or the
+ *  user's own picture without a dim) the field is still a pill one can find. */
+internal const val SEARCH_FIELD_MIN_OPACITY = 0.25f
+
+/**
+ * The search field's colours (a Telegram request after 1.2.0): the field is as see-through as the drawer itself.
+ * On a solid drawer it is the [palette]'s opaque container with the text made for it, as it always was
+ * ([drawerExpressivePalette]). On a see-through drawer its colour shows as much as the drawer's own does
+ * ([opacity], and [SEARCH_FIELD_MIN_OPACITY] at least), and then its own colour no longer decides its text: that
+ * is black or white by what the field looks like on screen, its colour over the drawer's [surface] over what is
+ * behind that ([behindLuminance]), composited per channel as the window composites them. It is the rule the labels
+ * around the field follow ([drawerTextIsDark]), with the field's own layer on top.
+ */
+internal fun drawerSearchFieldColors(
+    palette: ExpressivePalette,
+    surface: Color,
+    opacity: Float,
+    behindLuminance: Float,
+): SearchFieldColors {
+    if (opacity >= 1f) return SearchFieldColors(palette.container, palette.onContainer)
+    val container = palette.container.copy(alpha = opacity.coerceIn(SEARCH_FIELD_MIN_OPACITY, 1f))
+    val grey = srgbGrey(behindLuminance)
+    val drawer = surface.copy(alpha = opacity.coerceIn(0f, 1f)).compositeOver(Color(grey, grey, grey))
+    val shown = container.compositeOver(drawer)
+    return SearchFieldColors(container, if (darkReadsBetter(shown.luminance())) Color.Black else Color.White)
 }
 
 /** What a control needs against what it sits on (WCAG AA for what is not text). */

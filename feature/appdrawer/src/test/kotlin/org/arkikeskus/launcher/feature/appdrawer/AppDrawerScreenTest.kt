@@ -781,6 +781,24 @@ class AppDrawerScreenTest {
         assertThat(textColorOf(appsTitle).luminance()).isGreaterThan(0.5f)
     }
 
+    /** A Telegram request after 1.2.0: the search field is as see-through as the drawer, so its text is picked by
+     *  what shows through it, as the labels' is. Over the user's own dark picture a light theme's field used to be
+     *  its own opaque light pill with dark text; see-through there, dark text would sit on the dark picture. */
+    @Test fun theSearchFieldsTextFollowsWhatShowsThroughIt() {
+        show()
+        val hint = context.getString(R.string.app_drawer_search_hint)
+        awaitText(hint, unmerged = true)
+        // The solid drawer: the field's own pill decides, dark text on the light theme's.
+        assertThat(textColorOf(hint).luminance()).isLessThan(0.5f)
+
+        val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
+        runBlocking { wiring.drawerWallpaper.set(dark) }
+        awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
+        settle()
+
+        assertThat(textColorOf(hint).luminance()).isGreaterThan(0.5f)
+    }
+
     /** The colour a text is laid out with (its Text's colour merged into its style). */
     private fun textColorOf(text: String): Color {
         val node = compose.onAllNodesWithText(text, useUnmergedTree = true).onFirst().fetchSemanticsNode()

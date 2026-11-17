@@ -290,10 +290,11 @@ fun AppDrawerScreen(
     // (the folder editor sheet, the add-apps dialog) are opaque and keep the text their solid colour calls for.
     val surface = drawerSurface(uiState.backgroundColor, uiState.backgroundOpacity, uiState.wallpaper != null, uiState.pictureDim)
     val drawerBackground = surface.tint?.let { Color(it) }
+    val behindDrawer = uiState.wallpaper?.luminanceFor(windowAspect) ?: behindLuminance
     val textIsDark = drawerTextIsDark(
         surface.paint?.let { Color(it) } ?: MaterialTheme.colorScheme.surface,
         surface.opacity,
-        uiState.wallpaper?.luminanceFor(windowAspect) ?: behindLuminance,
+        behindDrawer,
     )
     val opaqueColors = opaqueDrawerColorScheme(MaterialTheme.colorScheme, drawerBackground)
     MaterialTheme(colorScheme = drawerColorScheme(MaterialTheme.colorScheme, drawerBackground, textIsDark)) {
@@ -303,6 +304,7 @@ fun AppDrawerScreen(
         apps = uiState.apps,
         surfacePaint = surface.paint?.let { Color(it) },
         surfaceOpacity = surface.opacity,
+        behindLuminance = behindDrawer,
         wallpaper = uiState.wallpaper,
         wallpaperBlur = drawerWallpaperBlur(uiState.blurBehindDrawer, uiState.drawerBlurStrength),
         frequentApps = uiState.frequentApps,
@@ -513,6 +515,9 @@ private fun AppDrawerContent(
     surfacePaint: Color?,
     /** How much of [surfacePaint] shows (issue #21): 1 = the solid drawer, 0 = nothing of it. */
     surfaceOpacity: Float,
+    /** The relative luminance of what is behind the surface (the wallpaper, or the user's own picture): the
+     *  see-through search field picks its text by it. */
+    behindLuminance: Float,
     /** The user's own picture under the surface, or null for the system wallpaper through the window. */
     wallpaper: DrawerWallpaper?,
     /** How much the own picture is blurred inside the window ([drawerWallpaperBlur]). */
@@ -636,8 +641,13 @@ private fun AppDrawerContent(
         ) {
             DragHandle()
             if (showSearch) {
-                val searchPalette = LocalExpressivePalette.current
-                // A pill in the container colour with what is read on a container; no underline.
+                // A pill in the container colour with what is read on a container; no underline. On a see-through
+                // drawer the pill is as see-through, and its text is what reads on what shows through it.
+                val palette = LocalExpressivePalette.current
+                val drawerColour = surfacePaint ?: MaterialTheme.colorScheme.surface
+                val field = remember(palette, drawerColour, surfaceOpacity, behindLuminance) {
+                    drawerSearchFieldColors(palette, drawerColour, surfaceOpacity, behindLuminance)
+                }
                 TextField(
                     value = query,
                     onValueChange = onQueryChange,
@@ -649,24 +659,24 @@ private fun AppDrawerContent(
                                 Icon(
                                     painter = painterResource(LauncherIcons.Close),
                                     contentDescription = stringResource(R.string.search_clear),
-                                    tint = searchPalette.onContainer,
+                                    tint = field.content,
                                 )
                             }
                         }
                     },
                     shape = PillShape,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = searchPalette.container,
-                        unfocusedContainerColor = searchPalette.container,
+                        focusedContainerColor = field.container,
+                        unfocusedContainerColor = field.container,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = searchPalette.onContainer,
-                        focusedTextColor = searchPalette.onContainer,
-                        unfocusedTextColor = searchPalette.onContainer,
-                        // The hint follows the pill's own palette, not the drawer's text (a yellow pill on a
-                        // see-through drawer over a dark wallpaper keeps dark text while the labels are white).
-                        focusedPlaceholderColor = searchPalette.onContainer,
-                        unfocusedPlaceholderColor = searchPalette.onContainer,
+                        cursorColor = field.content,
+                        focusedTextColor = field.content,
+                        unfocusedTextColor = field.content,
+                        // The hint follows the pill, not the drawer's text: a solid yellow pill keeps dark text
+                        // while the labels around it are white.
+                        focusedPlaceholderColor = field.content,
+                        unfocusedPlaceholderColor = field.content,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
