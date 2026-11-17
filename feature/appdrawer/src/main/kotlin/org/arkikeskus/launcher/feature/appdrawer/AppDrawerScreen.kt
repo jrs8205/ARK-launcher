@@ -952,6 +952,9 @@ private fun DrawerFolderTile(
                 onClick { currentOnClick(bounds); true }
                 onLongClick(label = editLabel) { currentOnLongClick(); true }
             }
+            // And for a keyboard or a D-pad, which the pointer gesture below does not answer either: the tile
+            // takes focus, Enter opens the card and the key held down the editor.
+            .keyClickable(onClick = { currentOnClick(bounds) }, onLongClick = { currentOnLongClick() })
             // The app tiles' gesture: nothing is consumed until the hold completes, so a quick drag still
             // scrolls the grid.
             .pointerInput(folder.id, locked) {

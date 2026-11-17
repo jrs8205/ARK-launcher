@@ -12,6 +12,11 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.up
 import androidx.compose.ui.test.hasSetTextAction
@@ -185,6 +190,38 @@ class AppDrawerScreenTest {
                 it.config.getOrNull(SemanticsActions.OnLongClick)?.label == editFolder
             },
         )
+    }
+
+    /** A keyboard or a D-pad reaches the folder as it reaches a button: the tile takes focus and Enter opens its
+     *  card. The tile's touches are a pointer gesture of its own (it can be dragged out), which answers no key. */
+    @Test fun theFolderTileTakesFocusAndEnterOpensItsCard() {
+        showWithFolder()
+
+        compose.onNodeWithText("Tools").requestFocus()
+        settle()
+        compose.onNodeWithText("Tools").assertIsFocused()
+        compose.onNodeWithText("Tools").performKeyInput { pressKey(Key.Enter) }
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
+        compose.onNodeWithText(addApps()).assertDoesNotExist()
+    }
+
+    /** The key held down is the hold: the editor, which has no other way in. Its release opens no card after it. */
+    @Test fun aHeldEnterOnTheFolderTileOpensItsEditor() {
+        showWithFolder()
+
+        compose.onNodeWithText("Tools").requestFocus()
+        settle()
+        compose.onNodeWithText("Tools").performKeyInput { keyDown(Key.Enter) }
+        compose.mainClock.advanceTimeBy(1_000)
+        settle()
+
+        compose.onNodeWithText(addApps()).assertExists()
+        // The tile is the first "Tools" on screen; the editor's name field is the other.
+        compose.onAllNodesWithText("Tools").onFirst().performKeyInput { keyUp(Key.Enter) }
+        settle()
+        compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
     }
 
     /** The setting sorts the folders by name, case aside; off, they keep the user's order. */
