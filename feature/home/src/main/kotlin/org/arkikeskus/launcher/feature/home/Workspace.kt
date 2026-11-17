@@ -426,8 +426,10 @@ internal fun Workspace(
     // A widget's margin inside its cells when it is to line up with the icons (a Telegram request).
     val widgetInsets = widgetInsets(with(density) { cellW.toDp() }, with(density) { cellH.toDp() }, cellIconSize, widgetEdgesAlignWithIcons)
     val moveThresholdPx = with(density) { 16.dp.toPx() }
-    // Page flips only when the dragged icon is pushed right against the screen edge.
-    val edgePx = with(density) { 20.dp.toPx() }
+    // A dragged item held this near an edge of the grid flips the page (after the dwell). Read as state: the
+    // effects that watch for it outlive the composition that started them, and the first one runs before the
+    // grid is measured.
+    val edgePx by rememberUpdatedState(edgeFlipZonePx(cellW, density))
 
     // Client-side mirror of rectFitsForRow over the rendered entries, for the live drag placeholder.
     fun rectFreeOnGrid(excludeRowId: Long, page: Int, x: Int, y: Int, spanX: Int, spanY: Int): Boolean {

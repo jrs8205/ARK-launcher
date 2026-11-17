@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.AccessibilityAction
@@ -107,14 +108,64 @@ class WorkspaceInfiniteScrollTest {
      *  [leftSource] false, one that moves without leaving its surface (a reorder inside the folder
      *  card). The writes are pushed out at once: the test clock alone does not deliver writes made
      *  outside a frame. */
-    private fun holdDragAtTheRightEdge(token: Any, source: DragSource = DragSource.Dock, leftSource: Boolean = true) {
+    private fun holdDragAtTheRightEdge(token: Any, source: DragSource = DragSource.Dock, leftSource: Boolean = true) =
+        holdDragAt(token, source, leftSource) { grid -> Offset(grid.right - 2f, grid.center.y) }
+
+    /** The same drag held at [at], a point worked out from the grid's bounds. */
+    private fun holdDragAt(
+        token: Any,
+        source: DragSource = DragSource.Dock,
+        leftSource: Boolean = true,
+        at: (Rect) -> Offset,
+    ) {
         compose.runOnUiThread {
             drag.start(AppItem("p", "p.Main", Process.myUserHandle(), 0L, "App"), source, Offset.Zero, token)
             drag.beginMove(leftSource)
-            val grid = drag.gridBounds
-            drag.update(Offset(grid.right - 2f, grid.center.y))
+            drag.update(at(drag.gridBounds))
             Snapshot.sendApplyNotifications()
         }
+    }
+
+    private fun px(dp: Int): Float = with(compose.density) { dp.dp.toPx() }
+
+    /** Issue #30: the page flips with the finger NEAR an edge, not only pressed against it (20 dp asked for a reach
+     *  few thumbs have on the far side). This grid is 300 dp of four columns: its zone is 30 dp, 40 % of a column. */
+    @Test
+    fun aDragHeldNearTheLeftEdgeFlipsToThePageBefore() {
+        setWorkspace(pageCount = 3, homePage = 1, infiniteScroll = false)
+        holdDragAt(Any()) { grid -> Offset(grid.left + px(26), grid.center.y) }
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.waitForIdle()
+        assertThat(drag.currentPage).isEqualTo(0)
+    }
+
+    @Test
+    fun aDragHeldNearTheRightEdgeFlipsToThePageAfter() {
+        setWorkspace(pageCount = 3, homePage = 2, infiniteScroll = false)
+        holdDragAt(Any()) { grid -> Offset(grid.right - px(26), grid.center.y) }
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.waitForIdle()
+        assertThat(drag.currentPage).isEqualTo(3)
+    }
+
+    /** An icon held over the outermost column, on its way into a cell there, is not at the edge. */
+    @Test
+    fun aDragHeldPastTheEdgeZoneNeverFlipsThePage() {
+        setWorkspace(pageCount = 3, homePage = 1, infiniteScroll = false)
+        val token = Any()
+        holdDragAt(token) { grid -> Offset(grid.left + px(34), grid.center.y) }
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.waitForIdle()
+        assertThat(drag.currentPage).isEqualTo(1)
+
+        compose.runOnUiThread {
+            val grid = drag.gridBounds
+            drag.update(Offset(grid.right - px(34), grid.center.y))
+            Snapshot.sendApplyNotifications()
+        }
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.waitForIdle()
+        assertThat(drag.currentPage).isEqualTo(1)
     }
 
     private fun swipeOn() = compose.onNodeWithTag("workspace").performTouchInput { swipeLeft() }
