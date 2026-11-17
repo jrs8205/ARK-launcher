@@ -49,15 +49,6 @@ internal fun HomeGridRows(s: LauncherSettings, actions: SettingsActions) {
     SettingRow("H4") {
         SwitchRow(stringResource(R.string.settings_two_line_labels), s.twoLineHomeLabels, actions::setTwoLineHomeLabels)
     }
-    SettingRow("H5") {
-        SwitchRow(stringResource(R.string.settings_show_folder_names), s.showHomeFolderNames, actions::setShowHomeFolderNames)
-    }
-    SettingRow("H6") {
-        StepperRow(
-            stringResource(R.string.settings_folder_columns), s.folderColumns,
-            SettingsRepository.MIN_FOLDER_COLUMNS, SettingsRepository.MAX_FOLDER_COLUMNS, actions::setFolderColumns,
-        )
-    }
     SettingRow("H7") {
         SwitchRow(
             stringResource(R.string.settings_glass_panel),

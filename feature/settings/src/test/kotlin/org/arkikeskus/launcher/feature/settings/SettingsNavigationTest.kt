@@ -199,9 +199,9 @@ class SettingsNavigationTest {
         assertOnMainPage()
     }
 
-    @Test fun theDrawerFoldersSubScreenReturnsToTheDrawerPage() {
+    @Test fun theDrawerFoldersSubScreenReturnsToTheFoldersPage() {
         show()
-        open(SettingsCategory.DRAWER)
+        open(SettingsCategory.FOLDERS)
         compose.onNodeWithTag(settingTag("A18")).performScrollTo().performClick()
         compose.waitForIdle()
         assertThat(tags("setting-")).isEmpty()

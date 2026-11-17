@@ -146,9 +146,9 @@ data class AppDrawerUiState(
     val sortDrawerFolders: Boolean = false,
     /** The folders seated among the apps by name (issue #22); the editor hides its moves then too. */
     val mixDrawerFolders: Boolean = false,
-    /** Icons per row in an open folder's card and editor (Settings > Home > Folder columns). */
+    /** Icons per row in an open folder's card and editor (Settings > Folders > Folder columns). */
     val folderColumns: Int = 4,
-    /** App names, icon size and row spacing of an open folder (Settings > Folder appearance, shared with home). */
+    /** App names, icon size and row spacing of an open folder (Settings > Folders, shared with home). */
     val folderStyle: org.arkikeskus.launcher.model.FolderStyle = org.arkikeskus.launcher.model.FolderStyle(),
 )
 

@@ -136,8 +136,10 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
 - **Glass layer over the wallpaper** — an optional frosted sheet behind the icons and the bars, from
   the top of the screen to the bottom, with a strength slider; the system bars' icons stay readable
   over it.
-- **Folder appearance** — show or hide app names in folders, folder icon size, row spacing, and a
-  background colour and opacity of your own (the text turns dark or light to match).
+- **Folder settings on one page** (Settings ▸ Folders) — folder names on the home screen and in the app
+  drawer, folder columns, the app drawer's own folders and their order, and what an open folder looks
+  like: app names, icon size, row spacing, and a background colour and opacity of your own (the text
+  turns dark or light to match).
 - **Clock and weather widget look** — background colour and opacity, text size, and a weather icon
   that is standard, colourful or animated, in two sizes.
 - **Hide the system navigation bar** on the home screen and the app drawer (swipe up from the bottom

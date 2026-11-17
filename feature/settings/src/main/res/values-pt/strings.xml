@@ -22,7 +22,8 @@
     <string name="settings_rows">Linhas</string>
     <string name="settings_show_labels">Mostrar nomes</string>
     <string name="settings_two_line_labels">Nomes em duas linhas</string>
-    <string name="settings_show_folder_names">Mostrar nomes das pastas</string>
+    <string name="settings_home_folder_names">Nomes das pastas na tela inicial</string>
+    <string name="settings_drawer_folder_names">Nomes das pastas na gaveta de apps</string>
     <string name="settings_folder_columns">Colunas da pasta</string>
     <string name="settings_glass_panel">Camada de vidro sobre o papel de parede</string>
     <string name="settings_glass_panel_desc">Uma lâmina fosca sobre todo o papel de parede, de cima a baixo da tela, atrás dos ícones e das barras.</string>
@@ -240,8 +241,9 @@
     <string name="settings_cat_about">Sobre e feedback</string>
     <string name="settings_cat_home_summary">Grade, nomes, camada de vidro, páginas</string>
     <string name="settings_cat_dock_summary">Visibilidade, ícones, fundo, espaçamento</string>
-    <string name="settings_cat_drawer_summary">Layout, fundo, desfoque, pastas, apps ocultos</string>
-    <string name="settings_cat_folders_summary">Tamanho dos ícones, espaçamento, cor</string>
+    <string name="settings_cat_drawer_summary">Layout, fundo, desfoque, apps ocultos</string>
+    <string name="settings_cat_folders">Pastas</string>
+    <string name="settings_cat_folders_summary">Nomes, colunas, aparência, pastas da gaveta de apps</string>
     <string name="settings_cat_widgets_summary">Relógio e clima, notificações, pessoas</string>
     <string name="settings_cat_icons_summary">Tamanho, nomes, fonte, pacote de ícones</string>
     <string name="settings_cat_gestures_summary">Deslizes, toque duplo, toque longo</string>

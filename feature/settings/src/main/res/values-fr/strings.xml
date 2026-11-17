@@ -22,7 +22,8 @@
     <string name="settings_rows">Lignes</string>
     <string name="settings_show_labels">Afficher les noms</string>
     <string name="settings_two_line_labels">Noms sur deux lignes</string>
-    <string name="settings_show_folder_names">Afficher les noms des dossiers</string>
+    <string name="settings_home_folder_names">Noms des dossiers sur l\'écran d\'accueil</string>
+    <string name="settings_drawer_folder_names">Noms des dossiers dans la liste des applications</string>
     <string name="settings_folder_columns">Colonnes des dossiers</string>
     <string name="settings_glass_panel">Couche de verre sur le fond d’écran</string>
     <string name="settings_glass_panel_desc">Une plaque dépolie sur tout le fond d’écran, du haut au bas de l’écran, derrière les icônes et les barres.</string>
@@ -240,8 +241,9 @@
     <string name="settings_cat_about">À propos et commentaires</string>
     <string name="settings_cat_home_summary">Grille, noms, couche de verre, pages</string>
     <string name="settings_cat_dock_summary">Visibilité, icônes, arrière-plan, espacement</string>
-    <string name="settings_cat_drawer_summary">Disposition, arrière-plan, flou, dossiers, applications masquées</string>
-    <string name="settings_cat_folders_summary">Taille des icônes, espacement, couleur</string>
+    <string name="settings_cat_drawer_summary">Disposition, arrière-plan, flou, applications masquées</string>
+    <string name="settings_cat_folders">Dossiers</string>
+    <string name="settings_cat_folders_summary">Noms, colonnes, apparence, dossiers de la liste des applications</string>
     <string name="settings_cat_widgets_summary">Horloge et météo, notifications, personnes</string>
     <string name="settings_cat_icons_summary">Taille, noms, police, pack d\'icônes</string>
     <string name="settings_cat_gestures_summary">Balayages, double appui, appui long</string>

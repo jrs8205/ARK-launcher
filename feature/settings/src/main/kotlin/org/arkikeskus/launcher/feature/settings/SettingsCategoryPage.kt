@@ -35,8 +35,8 @@ internal const val PAGE_HEADER_TAG = "settings-page-header"
 
 /**
  * One category's page: its header with the way back, then its rows. Back (the arrow or the system's) calls [onBack].
- * The App drawer page opens its two sub-screens through [onOpenHiddenApps] and [onOpenFolders]. The backup category
- * has no page of rows: it opens the backup screen itself.
+ * The App drawer page opens its sub-screen through [onOpenHiddenApps], the Folders page its own through
+ * [onOpenFolders]. The backup category has no page of rows: it opens the backup screen itself.
  */
 @Composable
 internal fun SettingsCategoryPage(
@@ -73,9 +73,8 @@ internal fun SettingsCategoryPage(
                     actions = actions,
                     blurAvailability = blurAvailability,
                     onOpenHiddenApps = onOpenHiddenApps,
-                    onOpenFolders = onOpenFolders,
                 )
-                SettingsCategory.FOLDERS -> FolderAppearanceRows(s, actions)
+                SettingsCategory.FOLDERS -> FoldersRows(s, lists, actions, onOpenFolders)
                 SettingsCategory.WIDGETS -> {
                     PageHeading(stringResource(R.string.settings_clock_widget), first = true)
                     WeatherToggleRow(s, actions)

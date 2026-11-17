@@ -22,7 +22,8 @@
     <string name="settings_rows">Filas</string>
     <string name="settings_show_labels">Mostrar nombres</string>
     <string name="settings_two_line_labels">Nombres en dos líneas</string>
-    <string name="settings_show_folder_names">Mostrar nombres de carpetas</string>
+    <string name="settings_home_folder_names">Nombres de carpetas en la pantalla de inicio</string>
+    <string name="settings_drawer_folder_names">Nombres de carpetas en el cajón de aplicaciones</string>
     <string name="settings_folder_columns">Columnas de carpeta</string>
     <string name="settings_glass_panel">Capa de cristal sobre el fondo de pantalla</string>
     <string name="settings_glass_panel_desc">Una lámina esmerilada sobre todo el fondo de pantalla, de arriba abajo, detrás de los iconos y las barras.</string>
@@ -240,8 +241,9 @@
     <string name="settings_cat_about">Información y comentarios</string>
     <string name="settings_cat_home_summary">Cuadrícula, nombres, capa de cristal, páginas</string>
     <string name="settings_cat_dock_summary">Visibilidad, iconos, fondo, espaciado</string>
-    <string name="settings_cat_drawer_summary">Diseño, fondo, desenfoque, carpetas, aplicaciones ocultas</string>
-    <string name="settings_cat_folders_summary">Tamaño de los iconos, espaciado, color</string>
+    <string name="settings_cat_drawer_summary">Diseño, fondo, desenfoque, aplicaciones ocultas</string>
+    <string name="settings_cat_folders">Carpetas</string>
+    <string name="settings_cat_folders_summary">Nombres, columnas, aspecto, carpetas del cajón de aplicaciones</string>
     <string name="settings_cat_widgets_summary">Reloj y tiempo, notificaciones, personas</string>
     <string name="settings_cat_icons_summary">Tamaño, nombres, fuente, paquete de iconos</string>
     <string name="settings_cat_gestures_summary">Deslizamientos, doble toque, pulsación larga</string>

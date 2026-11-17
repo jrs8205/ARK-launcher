@@ -114,24 +114,26 @@ class SettingsInventoryTest {
             "T2" to "settings_set_default",
             "AP1" to "settings_base_colour", "AP2" to "settings_charging_animation",
             "H1" to "settings_columns", "H2" to "settings_rows", "H3" to "settings_show_labels",
-            "H4" to "settings_two_line_labels", "H5" to "settings_show_folder_names", "H6" to "settings_folder_columns",
+            "H4" to "settings_two_line_labels",
             "H7" to "settings_glass_panel", "H8" to "settings_glass_strength", "H9" to "settings_page_indicator",
             "H10" to "settings_home_page_marker", "H11" to "settings_page_switch_speed",
             "H12" to "settings_infinite_scroll", "H28" to "settings_wallpaper_scroll", "H13" to "settings_lock_desktop",
             "D1" to "settings_dock_show", "D2" to "settings_dock_icons", "D3" to "settings_show_labels",
             "D4" to "settings_dock_bg", "D5" to "settings_dock_bottom_space",
             "A1" to "settings_columns", "A2" to "settings_show_labels", "A3" to "settings_two_line_labels",
-            "A4" to "settings_label_color", "A5" to "settings_show_folder_names", "A6" to "settings_drawer_search",
+            "A4" to "settings_label_color", "A6" to "settings_drawer_search",
             "A22" to "settings_hide_private_space",
             "Q1" to "settings_search_contacts", "A7" to "settings_frequent_apps", "A8" to "settings_hide_home_apps",
             "A9" to "settings_drawer_open_top", "A10" to "settings_drawer_color", "A11" to "settings_drawer_bg",
             "A12" to "settings_drawer_wallpaper", "A13" to "settings_drawer_picture_dim",
             "A14" to "settings_blur_behind_drawer", "A15" to "settings_blur_strength",
-            "A16" to "settings_drawer_icon_size", "A17" to "settings_hidden_apps", "A18" to "settings_drawer_folders",
-            "A19" to "settings_new_drawer_folder", "A20" to "settings_sort_drawer_folders",
-            "A21" to "settings_mix_drawer_folders",
+            "A16" to "settings_drawer_icon_size", "A17" to "settings_hidden_apps",
+            // Every folder setting is on the Folders page (1.2.1); the rows kept the ids they had on their old pages.
+            "H5" to "settings_home_folder_names", "A5" to "settings_drawer_folder_names", "H6" to "settings_folder_columns",
             "F1" to "settings_folder_app_names", "F2" to "settings_folder_icon_size", "F3" to "settings_folder_spacing",
             "F4" to "settings_folder_color", "F5" to "settings_folder_opacity",
+            "A18" to "settings_drawer_folders", "A19" to "settings_new_drawer_folder",
+            "A20" to "settings_sort_drawer_folders", "A21" to "settings_mix_drawer_folders",
             "H18" to "settings_show_weather", "C1" to "settings_clock_widget_color",
             "C2" to "settings_clock_widget_opacity", "C3" to "settings_clock_widget_text_size",
             "C4" to "settings_weather_icon", "C5" to "settings_weather_icon_size", "H19" to "settings_weather_app",
@@ -170,6 +172,19 @@ class SettingsInventoryTest {
         assertThat(SettingsIndex.entries.map { it.id to res.getResourceEntryName(it.title) })
             .containsExactlyElementsIn(expected).inOrder()
         assertThat(allIds).containsNoDuplicates()
+    }
+
+    /** A Telegram request after 1.2.0: the folder settings were on three pages (the home screen's, the app drawer's
+     *  and "Folder appearance"). They are on one, named for all of them, and the two name switches say whose names. */
+    @Test fun everyFolderSettingIsOnTheFoldersPage() {
+        fun idsOf(category: SettingsCategory) = SettingsIndex.entries.filter { it.category == category }.map { it.id }
+        val folderRows = listOf("H5", "A5", "H6", "F1", "F2", "F3", "F4", "F5", "A18", "A19", "A20", "A21")
+
+        assertThat(idsOf(SettingsCategory.FOLDERS)).containsExactlyElementsIn(folderRows).inOrder()
+        assertThat(idsOf(SettingsCategory.HOME)).containsNoneIn(folderRows)
+        assertThat(idsOf(SettingsCategory.DRAWER)).containsNoneIn(folderRows)
+        assertThat(res.getResourceEntryName(SettingsCategory.FOLDERS.title)).isEqualTo("settings_cat_folders")
+        assertThat(res.getString(SettingsIndex.entry("H5").title)).isNotEqualTo(res.getString(SettingsIndex.entry("A5").title))
     }
 
     @Test fun everyFallbackIsAnUnconditionalRowOfTheSameCategory() {

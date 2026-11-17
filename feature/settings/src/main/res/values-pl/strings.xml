@@ -22,7 +22,8 @@
     <string name="settings_rows">Wiersze</string>
     <string name="settings_show_labels">Pokaż etykiety</string>
     <string name="settings_two_line_labels">Etykiety w dwóch wierszach</string>
-    <string name="settings_show_folder_names">Pokazuj nazwy folderów</string>
+    <string name="settings_home_folder_names">Nazwy folderów na ekranie głównym</string>
+    <string name="settings_drawer_folder_names">Nazwy folderów w szufladzie aplikacji</string>
     <string name="settings_folder_columns">Kolumny folderu</string>
     <string name="settings_glass_panel">Szklana warstwa na tapecie</string>
     <string name="settings_glass_panel_desc">Matowa tafla na całej tapecie, od góry do dołu ekranu, za ikonami i paskami.</string>
@@ -243,8 +244,9 @@
     <string name="settings_cat_about">Informacje i opinie</string>
     <string name="settings_cat_home_summary">Siatka, etykiety, szklana warstwa, strony</string>
     <string name="settings_cat_dock_summary">Widoczność, ikony, tło, odstęp</string>
-    <string name="settings_cat_drawer_summary">Układ, tło, rozmycie, foldery, ukryte aplikacje</string>
-    <string name="settings_cat_folders_summary">Rozmiar ikon, odstęp, kolor</string>
+    <string name="settings_cat_drawer_summary">Układ, tło, rozmycie, ukryte aplikacje</string>
+    <string name="settings_cat_folders">Foldery</string>
+    <string name="settings_cat_folders_summary">Nazwy, kolumny, wygląd, foldery w szufladzie aplikacji</string>
     <string name="settings_cat_widgets_summary">Zegar i pogoda, powiadomienia, osoby</string>
     <string name="settings_cat_icons_summary">Rozmiar, etykiety, czcionka, pakiet ikon</string>
     <string name="settings_cat_gestures_summary">Przesunięcia, dwukrotne dotknięcie, długie naciśnięcie</string>

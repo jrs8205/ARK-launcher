@@ -181,9 +181,9 @@ internal fun FolderCard(
     onSetIcon: (CustomIcon?) -> Unit = {},
     /** Home shows folder names: off, the view's header is just the pencil (issue #18 follow-up). */
     showName: Boolean = true,
-    /** Icons per row (Settings > Home > Folder columns). */
+    /** Icons per row (Settings > Folders > Folder columns). */
     columns: Int = FOLDER_COLUMNS,
-    /** App names, icon size, row spacing and the card's colour (Settings > Folder appearance). */
+    /** App names, icon size, row spacing and the card's colour (Settings > Folders). */
     style: FolderStyle = FolderStyle(),
     /** The apps the editor's "Add apps" list offers: the ones this folder does not hold (discussion #16). */
     candidates: List<AppItem> = emptyList(),

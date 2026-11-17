@@ -623,7 +623,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setHideSystemStatusBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = value }
     suspend fun setHideSystemNavigationBar(value: Boolean) = edit { it[Keys.HIDE_SYSTEM_NAVIGATION_BAR] = value }
 
-    // The open folder's look (Settings > Folder appearance).
+    // The open folder's look (Settings > Folders).
     suspend fun setFolderShowLabels(value: Boolean) = edit { it[Keys.FOLDER_SHOW_LABELS] = value }
     suspend fun setFolderIconScale(value: Float) =
         edit { it[Keys.FOLDER_ICON_SCALE] = value.coerceIn(MIN_FOLDER_ICON_SCALE, MAX_FOLDER_ICON_SCALE) }

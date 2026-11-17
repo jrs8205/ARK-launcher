@@ -22,7 +22,8 @@
     <string name="settings_rows">Строки</string>
     <string name="settings_show_labels">Показывать подписи</string>
     <string name="settings_two_line_labels">Подписи в две строки</string>
-    <string name="settings_show_folder_names">Показывать названия папок</string>
+    <string name="settings_home_folder_names">Названия папок на главном экране</string>
+    <string name="settings_drawer_folder_names">Названия папок в списке приложений</string>
     <string name="settings_folder_columns">Столбцы папки</string>
     <string name="settings_glass_panel">Стеклянный слой поверх обоев</string>
     <string name="settings_glass_panel_desc">Матовое стекло поверх всех обоев, от верха до низа экрана, под значками и панелями.</string>
@@ -243,8 +244,9 @@
     <string name="settings_cat_about">О приложении и обратная связь</string>
     <string name="settings_cat_home_summary">Сетка, подписи, стеклянный слой, страницы</string>
     <string name="settings_cat_dock_summary">Видимость, значки, фон, отступ</string>
-    <string name="settings_cat_drawer_summary">Макет, фон, размытие, папки, скрытые приложения</string>
-    <string name="settings_cat_folders_summary">Размер значков, интервал, цвет</string>
+    <string name="settings_cat_drawer_summary">Макет, фон, размытие, скрытые приложения</string>
+    <string name="settings_cat_folders">Папки</string>
+    <string name="settings_cat_folders_summary">Названия, столбцы, вид, папки в списке приложений</string>
     <string name="settings_cat_widgets_summary">Часы и погода, уведомления, люди</string>
     <string name="settings_cat_icons_summary">Размер, подписи, шрифт, набор значков</string>
     <string name="settings_cat_gestures_summary">Свайпы, двойное нажатие, долгое нажатие</string>

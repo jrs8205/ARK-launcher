@@ -1004,9 +1004,9 @@ private val FOLDER_CARD_WIDTH = 328.dp
 private fun DrawerFolderCard(
     folder: DrawerFolderUi,
     bounds: Rect,
-    /** Icons per row (Settings > Home > Folder columns, shared with the home screen's folders). */
+    /** Icons per row (Settings > Folders > Folder columns, shared with the home screen's folders). */
     columns: Int,
-    /** App names, icon size and row spacing (Settings > Folder appearance); the card keeps the drawer's own colour. */
+    /** App names, icon size and row spacing (Settings > Folders); the card keeps the drawer's own colour. */
     style: org.arkikeskus.launcher.model.FolderStyle,
     badges: Map<String, Int>,
     badgeShowCount: Boolean,
@@ -1106,7 +1106,7 @@ private fun LayoutCoordinates.boundsInRootOf(host: View): Rect {
 private fun DrawerFolderSheet(
     folder: DrawerFolderUi,
     candidateApps: List<AppItem>,
-    /** Icons per row of the member grid (Settings > Home > Folder columns). */
+    /** Icons per row of the member grid (Settings > Folders > Folder columns). */
     columns: Int,
     badges: Map<String, Int>,
     badgeShowCount: Boolean,

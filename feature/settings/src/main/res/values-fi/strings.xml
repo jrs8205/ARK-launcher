@@ -22,7 +22,8 @@
     <string name="settings_rows">Rivit</string>
     <string name="settings_show_labels">Näytä nimet</string>
     <string name="settings_two_line_labels">Nimet kahdella rivillä</string>
-    <string name="settings_show_folder_names">Näytä kansioiden nimet</string>
+    <string name="settings_home_folder_names">Kansioiden nimet etusivulla</string>
+    <string name="settings_drawer_folder_names">Kansioiden nimet sovellusvalikossa</string>
     <string name="settings_folder_columns">Kansion sarakkeet</string>
     <string name="settings_glass_panel">Lasikerros taustakuvan päällä</string>
     <string name="settings_glass_panel_desc">Himmeä lasikerros koko taustakuvan päällä näytön yläreunasta alareunaan, kuvakkeiden ja palkkien takana.</string>
@@ -237,8 +238,9 @@
     <string name="settings_cat_about">Tietoja ja palaute</string>
     <string name="settings_cat_home_summary">Ruudukko, nimet, lasikerros, sivut</string>
     <string name="settings_cat_dock_summary">Näkyvyys, kuvakkeet, tausta, väli</string>
-    <string name="settings_cat_drawer_summary">Asettelu, tausta, sumennus, kansiot, piilotetut sovellukset</string>
-    <string name="settings_cat_folders_summary">Kuvakekoko, riviväli, väri</string>
+    <string name="settings_cat_drawer_summary">Asettelu, tausta, sumennus, piilotetut sovellukset</string>
+    <string name="settings_cat_folders">Kansiot</string>
+    <string name="settings_cat_folders_summary">Nimet, sarakkeet, ulkoasu, sovellusvalikon kansiot</string>
     <string name="settings_cat_widgets_summary">Kello ja sää, ilmoitukset, ihmiset</string>
     <string name="settings_cat_icons_summary">Koko, nimet, fontti, ikonipaketti</string>
     <string name="settings_cat_gestures_summary">Pyyhkäisyt, tuplanapautus, pitkä painallus</string>

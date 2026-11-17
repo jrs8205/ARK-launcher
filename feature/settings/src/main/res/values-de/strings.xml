@@ -22,7 +22,8 @@
     <string name="settings_rows">Zeilen</string>
     <string name="settings_show_labels">Beschriftungen anzeigen</string>
     <string name="settings_two_line_labels">Zweizeilige Beschriftungen</string>
-    <string name="settings_show_folder_names">Ordnernamen anzeigen</string>
+    <string name="settings_home_folder_names">Ordnernamen auf dem Startbildschirm</string>
+    <string name="settings_drawer_folder_names">Ordnernamen im App-Drawer</string>
     <string name="settings_folder_columns">Ordnerspalten</string>
     <string name="settings_glass_panel">Glasschicht über dem Hintergrundbild</string>
     <string name="settings_glass_panel_desc">Eine mattierte Scheibe über dem ganzen Hintergrundbild, vom oberen bis zum unteren Bildschirmrand, hinter Symbolen und Leisten.</string>
@@ -237,8 +238,9 @@
     <string name="settings_cat_about">Info und Feedback</string>
     <string name="settings_cat_home_summary">Raster, Beschriftungen, Glasschicht, Seiten</string>
     <string name="settings_cat_dock_summary">Sichtbarkeit, Symbole, Hintergrund, Abstand</string>
-    <string name="settings_cat_drawer_summary">Layout, Hintergrund, Weichzeichnung, Ordner, ausgeblendete Apps</string>
-    <string name="settings_cat_folders_summary">Symbolgröße, Zeilenabstand, Farbe</string>
+    <string name="settings_cat_drawer_summary">Layout, Hintergrund, Weichzeichnung, ausgeblendete Apps</string>
+    <string name="settings_cat_folders">Ordner</string>
+    <string name="settings_cat_folders_summary">Namen, Spalten, Darstellung, Ordner im App-Drawer</string>
     <string name="settings_cat_widgets_summary">Uhr und Wetter, Benachrichtigungen, Personen</string>
     <string name="settings_cat_icons_summary">Größe, Beschriftungen, Schrift, Symbolpaket</string>
     <string name="settings_cat_gestures_summary">Wischgesten, Doppeltippen, langes Drücken</string>

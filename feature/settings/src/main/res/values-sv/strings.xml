@@ -22,7 +22,8 @@
     <string name="settings_rows">Rader</string>
     <string name="settings_show_labels">Visa appnamn</string>
     <string name="settings_two_line_labels">Appnamn på två rader</string>
-    <string name="settings_show_folder_names">Visa mappnamn</string>
+    <string name="settings_home_folder_names">Mappnamn på startskärmen</string>
+    <string name="settings_drawer_folder_names">Mappnamn i applådan</string>
     <string name="settings_folder_columns">Mappkolumner</string>
     <string name="settings_glass_panel">Glasskikt över bakgrundsbilden</string>
     <string name="settings_glass_panel_desc">En frostad skiva över hela bakgrundsbilden, från skärmens överkant till nederkant, bakom ikonerna och fälten.</string>
@@ -237,8 +238,9 @@
     <string name="settings_cat_about">Om och feedback</string>
     <string name="settings_cat_home_summary">Rutnät, appnamn, glasskikt, sidor</string>
     <string name="settings_cat_dock_summary">Synlighet, ikoner, bakgrund, avstånd</string>
-    <string name="settings_cat_drawer_summary">Layout, bakgrund, suddning, mappar, dolda appar</string>
-    <string name="settings_cat_folders_summary">Ikonstorlek, radavstånd, färg</string>
+    <string name="settings_cat_drawer_summary">Layout, bakgrund, suddning, dolda appar</string>
+    <string name="settings_cat_folders">Mappar</string>
+    <string name="settings_cat_folders_summary">Namn, kolumner, utseende, mappar i applådan</string>
     <string name="settings_cat_widgets_summary">Klocka och väder, aviseringar, personer</string>
     <string name="settings_cat_icons_summary">Storlek, appnamn, typsnitt, ikonpaket</string>
     <string name="settings_cat_gestures_summary">Svep, dubbeltryck, långtryck</string>

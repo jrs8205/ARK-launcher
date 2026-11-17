@@ -22,7 +22,7 @@ internal enum class SettingsCategory(
     HOME("home", R.string.settings_home, R.string.settings_cat_home_summary, LauncherIcons.Home),
     DOCK("dock", R.string.settings_dock, R.string.settings_cat_dock_summary, LauncherIcons.Dock),
     DRAWER("drawer", R.string.settings_drawer, R.string.settings_cat_drawer_summary, LauncherIcons.Apps),
-    FOLDERS("folders", R.string.settings_folder_appearance, R.string.settings_cat_folders_summary, LauncherIcons.Folder),
+    FOLDERS("folders", R.string.settings_cat_folders, R.string.settings_cat_folders_summary, LauncherIcons.Folder),
     WIDGETS("widgets", R.string.settings_cat_widgets, R.string.settings_cat_widgets_summary, LauncherIcons.Widgets),
     ICONS("icons", R.string.settings_icons, R.string.settings_cat_icons_summary, LauncherIcons.Category),
     GESTURES("gestures", R.string.settings_gestures, R.string.settings_cat_gestures_summary, LauncherIcons.SwipeUp),
@@ -108,8 +108,6 @@ internal object SettingsIndex {
             row("H2", c, R.string.settings_rows)
             row("H3", c, R.string.settings_show_labels)
             row("H4", c, R.string.settings_two_line_labels)
-            row("H5", c, R.string.settings_show_folder_names)
-            row("H6", c, R.string.settings_folder_columns)
             row("H7", c, R.string.settings_glass_panel, R.string.settings_glass_panel_desc)
             row("H8", c, R.string.settings_glass_strength, fallback = "H7")
             row("H9", c, R.string.settings_page_indicator)
@@ -134,7 +132,6 @@ internal object SettingsIndex {
             row("A2", c, R.string.settings_show_labels)
             row("A3", c, R.string.settings_two_line_labels)
             row("A4", c, R.string.settings_label_color)
-            row("A5", c, R.string.settings_show_folder_names)
             row("A6", c, R.string.settings_drawer_search)
             // Android 15 alone: from Android 16 the launcher follows Android's own setting of this name. And
             // only where the launcher sees a private space (it is the default launcher and the phone has one).
@@ -154,17 +151,22 @@ internal object SettingsIndex {
             row("A15", c, R.string.settings_blur_strength, fallback = "A14")
             row("A16", c, R.string.settings_drawer_icon_size)
             row("A17", c, R.string.settings_hidden_apps)
-            row("A18", c, R.string.settings_drawer_folders)
-            row("A19", c, R.string.settings_new_drawer_folder, R.string.settings_new_drawer_folder_desc)
-            row("A20", c, R.string.settings_sort_drawer_folders, R.string.settings_sort_drawer_folders_desc)
-            row("A21", c, R.string.settings_mix_drawer_folders, R.string.settings_mix_drawer_folders_desc)
         }
+        // Every folder setting, wherever its folders are (1.2.1; a Telegram request). The rows that came from the
+        // home screen's and the app drawer's pages keep the ids they had there (H5, H6, A5, A18 to A21).
         SettingsCategory.FOLDERS.let { c ->
+            row("H5", c, R.string.settings_home_folder_names)
+            row("A5", c, R.string.settings_drawer_folder_names)
+            row("H6", c, R.string.settings_folder_columns)
             row("F1", c, R.string.settings_folder_app_names)
             row("F2", c, R.string.settings_folder_icon_size)
             row("F3", c, R.string.settings_folder_spacing)
             row("F4", c, R.string.settings_folder_color)
             row("F5", c, R.string.settings_folder_opacity)
+            row("A18", c, R.string.settings_drawer_folders)
+            row("A19", c, R.string.settings_new_drawer_folder, R.string.settings_new_drawer_folder_desc)
+            row("A20", c, R.string.settings_sort_drawer_folders, R.string.settings_sort_drawer_folders_desc)
+            row("A21", c, R.string.settings_mix_drawer_folders, R.string.settings_mix_drawer_folders_desc)
         }
         SettingsCategory.WIDGETS.let { c ->
             row("H18", c, R.string.settings_show_weather)

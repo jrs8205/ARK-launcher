@@ -22,7 +22,8 @@
     <string name="settings_rows">Satırlar</string>
     <string name="settings_show_labels">Etiketleri göster</string>
     <string name="settings_two_line_labels">İki satırlı etiketler</string>
-    <string name="settings_show_folder_names">Klasör adlarını göster</string>
+    <string name="settings_home_folder_names">Ana ekranda klasör adları</string>
+    <string name="settings_drawer_folder_names">Uygulama çekmecesinde klasör adları</string>
     <string name="settings_folder_columns">Klasör sütunları</string>
     <string name="settings_glass_panel">Duvar kâğıdının üzerinde cam katman</string>
     <string name="settings_glass_panel_desc">Duvar kâğıdının tamamını kaplayan buzlu bir levha: ekranın üstünden altına, simgelerin ve çubukların arkasında.</string>
@@ -237,8 +238,9 @@
     <string name="settings_cat_about">Hakkında ve geri bildirim</string>
     <string name="settings_cat_home_summary">Izgara, etiketler, cam katman, sayfalar</string>
     <string name="settings_cat_dock_summary">Görünürlük, simgeler, arka plan, boşluk</string>
-    <string name="settings_cat_drawer_summary">Düzen, arka plan, bulanıklık, klasörler, gizli uygulamalar</string>
-    <string name="settings_cat_folders_summary">Simge boyutu, satır aralığı, renk</string>
+    <string name="settings_cat_drawer_summary">Düzen, arka plan, bulanıklık, gizli uygulamalar</string>
+    <string name="settings_cat_folders">Klasörler</string>
+    <string name="settings_cat_folders_summary">Adlar, sütunlar, görünüm, uygulama çekmecesindeki klasörler</string>
     <string name="settings_cat_widgets_summary">Saat ve hava durumu, bildirimler, kişiler</string>
     <string name="settings_cat_icons_summary">Boyut, etiketler, yazı tipi, simge paketi</string>
     <string name="settings_cat_gestures_summary">Kaydırmalar, çift dokunma, uzun basma</string>

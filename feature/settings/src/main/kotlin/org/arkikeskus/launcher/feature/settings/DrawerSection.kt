@@ -44,14 +44,13 @@ import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.drawerSurface
-import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
 
-/** Settings > App drawer; [onOpenHiddenApps] and [onOpenFolders] open the two sub-screens. */
+/** Settings > App drawer; [onOpenHiddenApps] opens its sub-screen. The drawer's folders are on the Folders page. */
 @Composable
 internal fun DrawerRows(
     s: LauncherSettings,
@@ -59,12 +58,9 @@ internal fun DrawerRows(
     actions: SettingsActions,
     blurAvailability: BlurAvailability,
     onOpenHiddenApps: () -> Unit,
-    onOpenFolders: () -> Unit,
 ) {
     val drawerWallpaper = lists.drawerWallpaper
     val hiddenKeys = lists.hiddenKeys
-    val drawerFolders = lists.drawerFolders
-    val context = LocalContext.current
     SettingRow("A1") {
         StepperRow(stringResource(R.string.settings_columns), s.drawerColumns, 3, 7, actions::setDrawerColumns)
     }
@@ -76,9 +72,6 @@ internal fun DrawerRows(
     }
     SettingRow("A4") {
         DrawerLabelColorRow(selected = s.drawerLabelColor, onPick = actions::setDrawerLabelColor)
-    }
-    SettingRow("A5") {
-        SwitchRow(stringResource(R.string.settings_show_folder_names), s.showDrawerFolderNames, actions::setShowDrawerFolderNames)
     }
     // The launcher's own "hide the private space when locked": a row only where it does something (Android 15,
     // and the launcher sees a private space). A hidden, locked space is opened through the drawer's search.
@@ -143,42 +136,6 @@ internal fun DrawerRows(
             label = stringResource(R.string.settings_hidden_apps),
             description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
         ) { onOpenHiddenApps() }
-    }
-    SettingRow("A18") {
-        ExpressiveActionRow(
-            label = stringResource(R.string.settings_drawer_folders),
-            description = pluralStringResource(
-                R.plurals.settings_drawer_folders_count, drawerFolders.orEmpty().size, drawerFolders.orEmpty().size,
-            ),
-        ) { onOpenFolders() }
-    }
-    val newFolderName = stringResource(R.string.drawer_folder_default)
-    val folderCreatedMsg = stringResource(R.string.settings_drawer_folder_created)
-    SettingRow("A19") {
-        ExpressiveActionRow(
-            label = stringResource(R.string.settings_new_drawer_folder),
-            description = stringResource(R.string.settings_new_drawer_folder_desc),
-            trailingIcon = LauncherIcons.Add,
-        ) {
-            actions.createDrawerFolder(newFolderName)
-            android.widget.Toast.makeText(context, folderCreatedMsg, android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-    SettingRow("A20") {
-        SwitchRow(
-            stringResource(R.string.settings_sort_drawer_folders),
-            stringResource(R.string.settings_sort_drawer_folders_desc),
-            s.sortDrawerFolders,
-            actions::setSortDrawerFolders,
-        )
-    }
-    SettingRow("A21") {
-        SwitchRow(
-            stringResource(R.string.settings_mix_drawer_folders),
-            stringResource(R.string.settings_mix_drawer_folders_desc),
-            s.mixDrawerFolders,
-            actions::setMixDrawerFolders,
-        )
     }
 }
 

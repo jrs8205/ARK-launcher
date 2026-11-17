@@ -3,7 +3,7 @@ package org.arkikeskus.launcher.model
 import kotlin.math.pow
 
 /**
- * The look of an open folder (Settings > Folder appearance): app names under the icons, the icons'
+ * The look of an open folder (Settings > Folders): app names under the icons, the icons'
  * size on top of the launcher's icon size, the room between the rows, and the card's colour
  * ([backgroundColor], ARGB; null = the theme's surface) at [backgroundOpacity].
  */
