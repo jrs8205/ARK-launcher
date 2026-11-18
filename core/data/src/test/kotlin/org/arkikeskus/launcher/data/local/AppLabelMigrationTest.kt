@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.arkikeskus.launcher.data.di.MIGRATION_7_8
+import org.arkikeskus.launcher.data.di.MIGRATION_8_9
 import org.json.JSONObject
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,7 +41,8 @@ class AppLabelMigrationTest {
         }
 
         val database = Room.databaseBuilder(context, LauncherDatabase::class.java, file.absolutePath)
-            .addMigrations(MIGRATION_7_8)
+            // The database is on version 9 since home profiles: a version-7 phone runs both steps.
+            .addMigrations(MIGRATION_7_8, MIGRATION_8_9)
             .allowMainThreadQueries()
             .build()
         try {
@@ -51,7 +53,7 @@ class AppLabelMigrationTest {
                 database.appLabelDao().replaceAll(listOf(AppLabelEntity("com.mail/mail.Main/0", "Mail", "en-US")))
                 assertThat(database.appLabelDao().getAll("en-US").map { it.label }).containsExactly("Mail")
             }
-            assertThat(database.openHelper.readableDatabase.version).isEqualTo(8)
+            assertThat(database.openHelper.readableDatabase.version).isEqualTo(9)
         } finally {
             database.close()
         }

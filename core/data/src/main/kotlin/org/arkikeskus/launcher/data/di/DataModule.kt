@@ -32,6 +32,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
+import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
+import org.arkikeskus.launcher.data.profile.DiskHomeProfileFiles
+import org.arkikeskus.launcher.data.profile.HomeProfileFiles
+import org.arkikeskus.launcher.data.profile.HomeProfileStore
+import org.arkikeskus.launcher.data.profile.ProfiledPreferences
+import javax.inject.Qualifier
 import javax.inject.Singleton
 import org.arkikeskus.launcher.model.IconChoices
 
@@ -69,14 +75,66 @@ internal val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/** v9: every home layout row gets its home profile (everything there is goes to the first), and "one item
+ *  per cell" holds within a profile. The index statement is the one Room generates for the entity;
+ *  validated by HomeProfileMigrationTest. */
+internal val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE home_items ADD COLUMN homeProfileId INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("DROP INDEX IF EXISTS `index_home_items_containerId_page_cellX_cellY`")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_home_items_homeProfileId_containerId_page_cellX_cellY` " +
+                "ON `home_items` (`homeProfileId`, `containerId`, `page`, `cellX`, `cellY`)",
+        )
+    }
+}
+
+/** Marks the settings file itself. Only the view over it ([ProfiledPreferences]) and the home profile list
+ *  take it: every other reader and writer gets the view, as plain `DataStore<Preferences>`. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MainSettingsFile
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
 
     @Provides
     @Singleton
-    fun provideSettingsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+    @MainSettingsFile
+    fun provideMainSettingsFile(@ApplicationContext context: Context): DataStore<Preferences> =
         context.settingsDataStore
+
+    @Provides
+    @Singleton
+    fun provideHomeProfileFiles(
+        @ApplicationContext context: Context,
+        @ApplicationScope scope: CoroutineScope,
+    ): HomeProfileFiles = DiskHomeProfileFiles(context, scope)
+
+    @Provides
+    @Singleton
+    fun provideProfiledPreferences(
+        @MainSettingsFile main: DataStore<Preferences>,
+        files: HomeProfileFiles,
+    ): ProfiledPreferences = ProfiledPreferences(main, files)
+
+    /** The settings as the launcher reads them: what every home profile shares, with the own values of
+     *  the profile that is on. With one profile this is the settings file itself. */
+    @Provides
+    @Singleton
+    fun provideSettingsDataStore(view: ProfiledPreferences): DataStore<Preferences> = view
+
+    @Provides
+    @Singleton
+    fun provideHomeProfileStore(
+        @MainSettingsFile main: DataStore<Preferences>,
+        view: ProfiledPreferences,
+        files: HomeProfileFiles,
+    ): HomeProfileStore = HomeProfileStore(main, view, files)
+
+    @Provides
+    fun provideActiveHomeProfile(store: HomeProfileStore): ActiveHomeProfile = store
 
     @Provides
     @Singleton
@@ -111,11 +169,14 @@ object DataModule {
             // pre-v5 dev versions (1–4, which never shipped a migration) so an old test install resets
             // instead of crashing; v5 onward is migrated, so the user's home layout survives upgrades.
             .fallbackToDestructiveMigrationFrom(dropAllTables = true, 1, 2, 3, 4)
-            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
 
+    /** The layout rows of the home profile that is on. */
     @Provides
-    fun provideHomeItemDao(database: LauncherDatabase): HomeItemDao = database.homeItemDao()
+    @Singleton
+    fun provideHomeItemDao(database: LauncherDatabase, active: ActiveHomeProfile): HomeItemDao =
+        database.homeItemDao(active)
 
     @Provides
     @Singleton

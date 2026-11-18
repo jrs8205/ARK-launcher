@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -17,13 +18,13 @@ import androidx.room.PrimaryKey
  *  - **App or folder in the dock**: [containerId] = [DOCK], [page] 0, [cellY] 0, [cellX] = the slot
  *    (0..n-1, the dock's order). A dock folder's children point at its id like a home folder's.
  *
- * The unique index on (containerId, page, cellX, cellY) enforces "one item per cell" *within each
- * container* (the home grid, the dock and each folder are independent cell spaces) — see
- * [HomeLayoutRepository].
+ * The unique index on (homeProfileId, containerId, page, cellX, cellY) enforces "one item per cell"
+ * *within each container of each home profile* (the home grid, the dock and each folder are independent
+ * cell spaces, and every profile has its own home grid and dock) — see [HomeLayoutRepository].
  */
 @Entity(
     tableName = "home_items",
-    indices = [Index(value = ["containerId", "page", "cellX", "cellY"], unique = true)],
+    indices = [Index(value = ["homeProfileId", "containerId", "page", "cellX", "cellY"], unique = true)],
 )
 data class HomeItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -45,6 +46,9 @@ data class HomeItemEntity(
     val widgetProvider: String? = null,
     /** Non-null → a built-in launcher widget (see [BUILTIN_SMARTSPACE]) occupying spanX×spanY cells. */
     val builtinType: String? = null,
+    /** The home profile this row belongs to (`HomeProfile.id`); every row of before profiles is in the
+     *  first. The profile-scoped [HomeItemDao] stamps it on insert, whatever the row says. */
+    @ColumnInfo(defaultValue = "1") val homeProfileId: Long = 1,
 ) {
     /** Matches AppItem.key so app entities can be resolved against the live app list. */
     val key: String get() = "$packageName/$className/$userSerial"

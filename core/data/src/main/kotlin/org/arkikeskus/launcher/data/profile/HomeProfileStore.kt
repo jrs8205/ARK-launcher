@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.withLock
 import org.arkikeskus.launcher.data.profile.ProfiledPreferences.Companion.copy
@@ -19,6 +20,14 @@ interface ActiveHomeProfile {
     val id: Flow<Long>
 
     suspend fun current(): Long
+}
+
+/** A launcher with the first profile only: what there was before profiles, and what a test that does not
+ *  care about profiles gets. */
+object FirstHomeProfile : ActiveHomeProfile {
+    override val id: Flow<Long> = flowOf(HomeProfile.FIRST_ID)
+
+    override suspend fun current(): Long = HomeProfile.FIRST_ID
 }
 
 /**

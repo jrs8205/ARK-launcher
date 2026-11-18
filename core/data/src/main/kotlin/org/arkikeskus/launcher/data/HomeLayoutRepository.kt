@@ -7,6 +7,7 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.arkikeskus.launcher.data.local.LauncherDatabase
+import org.arkikeskus.launcher.data.local.inHomeProfile
 import org.arkikeskus.launcher.model.AppItem
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,20 +59,30 @@ class HomeLayoutRepository @Inject constructor(
     private val dao: HomeItemDao,
     private val resolver: AppRowResolver,
 ) {
-    /** All rows (home items, folders, folder children); the ViewModel partitions by container. */
+    /** All rows (home items, folders, folder children) of the home profile that is on; the ViewModel
+     *  partitions by container. */
     val homeItems: Flow<List<HomeItemEntity>> = dao.observeAll()
+
+    /**
+     * One layout operation: one transaction in ONE home profile. The profile is read once, before the work
+     * starts, and named around it, so a profile switch in the middle cannot leave half the work in each.
+     */
+    private suspend fun <T> tx(block: suspend () -> T): T {
+        val profile = dao.resolvedProfile()
+        return inHomeProfile(profile) { db.withTransaction { block() } }
+    }
 
     /** Puts [appItem] at the first free home cell. True when it is on home afterwards (placed now or
      *  already there); false — nothing stored — when every page the pager shows is full. */
     suspend fun addToHome(appItem: AppItem, columns: Int, rows: Int): Boolean =
         // Atomic count-then-insert: without a transaction a fast double call could read "absent" twice
         // and place the same app into two different cells.
-        db.withTransaction {
+        tx {
             if (dao.count(HOME, appItem.packageName, appItem.className, appItem.userSerial) > 0) {
-                return@withTransaction true
+                return@tx true
             }
             val (page, cellX, cellY) = firstFreeCell(dao.getContainer(HOME), columns, rows)
-            if (!isShownPage(page)) return@withTransaction false
+            if (!isShownPage(page)) return@tx false
             dao.insert(homeApp(appItem, HOME, page, cellX, cellY))
             true
         }
@@ -79,9 +90,9 @@ class HomeLayoutRepository @Inject constructor(
     /** Moves/swaps a home item to a target home cell. Returns false if the item is gone OR the target
      *  is inside a widget's rectangle (so the caller rolls its optimistic placement back). */
     suspend fun moveItem(appItem: AppItem, page: Int, cellX: Int, cellY: Int): Boolean =
-        db.withTransaction {
+        tx {
             val source = dao.getByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
-                ?: return@withTransaction false
+                ?: return@tx false
             moveOrSwap(source, page, cellX, cellY)
         }
 
@@ -100,23 +111,23 @@ class HomeLayoutRepository @Inject constructor(
         rows: Int,
         folderName: String,
     ): PlaceResult =
-        db.withTransaction {
+        tx {
             val existing = dao.getByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
             val occupant = if (isShownPage(page)) dao.getAt(HOME, page, cellX, cellY) else null
             if (occupant != null && occupant.id != existing?.id) {
                 when {
                     occupant.isApp -> {
                         foldApps(occupant, existing, appItem, folderName)
-                        return@withTransaction PlaceResult.Placed
+                        return@tx PlaceResult.Placed
                     }
                     occupant.isFolder -> {
                         joinFolder(occupant.id, existing, appItem)
-                        return@withTransaction PlaceResult.Placed
+                        return@tx PlaceResult.Placed
                     }
                 }
             }
             if (existing != null) {
-                return@withTransaction when {
+                return@tx when {
                     !isShownPage(page) -> PlaceResult.HomeFull
                     moveOrSwap(existing, page, cellX, cellY) -> PlaceResult.Placed
                     else -> PlaceResult.Blocked
@@ -130,7 +141,7 @@ class HomeLayoutRepository @Inject constructor(
             } else {
                 firstFreeCell(items, columns, rows)
             }
-            if (!isShownPage(p)) return@withTransaction PlaceResult.HomeFull
+            if (!isShownPage(p)) return@tx PlaceResult.HomeFull
             dao.insert(homeApp(appItem, HOME, p, x, y))
             PlaceResult.Placed
         }
@@ -151,16 +162,16 @@ class HomeLayoutRepository @Inject constructor(
         columns: Int,
         rows: Int,
     ): Long? =
-        db.withTransaction {
+        tx {
             val members = apps.distinctBy { Triple(it.packageName, it.className, it.userSerial) }
-            if (members.isEmpty()) return@withTransaction null
+            if (members.isEmpty()) return@tx null
             val items = dao.getContainer(HOME)
             val (p, x, y) = if (isShownPage(page) && rectFitsForRow(items, NO_ROW, page, cellX, cellY, 1, 1, columns, rows)) {
                 Triple(page, cellX, cellY)
             } else {
                 firstFreeCell(items, columns, rows)
             }
-            if (!isShownPage(p)) return@withTransaction null
+            if (!isShownPage(p)) return@tx null
             val folderId = dao.insert(HomeItemEntity(containerId = HOME, folderName = name, page = p, cellX = x, cellY = y))
             members.forEachIndexed { index, app -> dao.insert(homeApp(app, folderId, 0, index, 0)) }
             folderId
@@ -172,21 +183,21 @@ class HomeLayoutRepository @Inject constructor(
 
     /** Moves/swaps a folder (or any home row, by id) to a target home cell. */
     suspend fun moveFolder(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
-        db.withTransaction {
-            val source = dao.getById(folderId) ?: return@withTransaction false
+        tx {
+            val source = dao.getById(folderId) ?: return@tx false
             moveOrSwap(source, page, cellX, cellY)
         }
 
     /** Pins a deep shortcut at the first free home cell. True when it is on home afterwards (placed
      *  now or already there); false — nothing stored — when every page the pager shows is full. */
     suspend fun addShortcut(packageName: String, shortcutId: String, userSerial: Long, columns: Int, rows: Int): Boolean =
-        db.withTransaction {
+        tx {
             val present = dao.getContainer(HOME).any {
                 it.shortcutId == shortcutId && it.packageName == packageName && it.userSerial == userSerial
             }
-            if (present) return@withTransaction true
+            if (present) return@tx true
             val (page, x, y) = firstFreeCell(dao.getContainer(HOME), columns, rows)
-            if (!isShownPage(page)) return@withTransaction false
+            if (!isShownPage(page)) return@tx false
             dao.insert(
                 HomeItemEntity(
                     containerId = HOME,
@@ -212,14 +223,14 @@ class HomeLayoutRepository @Inject constructor(
     suspend fun insertRequestedShortcut(
         packageName: String, shortcutId: String, userSerial: Long,
         page: Int, cellX: Int, cellY: Int, columns: Int, rows: Int,
-    ): Long? = db.withTransaction {
+    ): Long? = tx {
         val items = dao.getContainer(HOME)
         val (p, x, y) = if (rectFitsForRow(items, NO_ROW, page, cellX, cellY, 1, 1, columns, rows)) {
             Triple(page, cellX, cellY)
         } else {
             firstFreeCell(items, columns, rows)
         }
-        if (!isShownPage(p)) return@withTransaction null
+        if (!isShownPage(p)) return@tx null
         dao.insert(
             HomeItemEntity(
                 containerId = HOME,
@@ -244,7 +255,7 @@ class HomeLayoutRepository @Inject constructor(
     suspend fun insertRequestedWidget(
         appWidgetId: Int, provider: String,
         page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int, rows: Int,
-    ): Long? = db.withTransaction {
+    ): Long? = tx {
         val items = dao.getContainer(HOME)
         val sx = spanX.coerceIn(1, columns.coerceAtLeast(1))
         val sy = spanY.coerceIn(1, rows.coerceAtLeast(1))
@@ -253,7 +264,7 @@ class HomeLayoutRepository @Inject constructor(
         } else {
             firstFreeRect(items, columns, sx, sy, rows)
         }
-        if (!isShownPage(p)) return@withTransaction null
+        if (!isShownPage(p)) return@tx null
         dao.insert(
             HomeItemEntity(
                 containerId = HOME,
@@ -274,9 +285,9 @@ class HomeLayoutRepository @Inject constructor(
 
     /** Removes a pinned-shortcut row; returns the ids still pinned for its (package, user) so the
      *  caller can re-pin the remaining set in the system (pinShortcuts replaces the whole set). */
-    suspend fun removeShortcut(rowId: Long): RemainingPins? = db.withTransaction {
-        val row = dao.getById(rowId) ?: return@withTransaction null
-        if (!row.isShortcut) return@withTransaction null
+    suspend fun removeShortcut(rowId: Long): RemainingPins? = tx {
+        val row = dao.getById(rowId) ?: return@tx null
+        if (!row.isShortcut) return@tx null
         dao.deleteById(rowId)
         val remaining = dao.getContainer(HOME)
             .filter { it.shortcutId != null && it.packageName == row.packageName && it.userSerial == row.userSerial }
@@ -291,9 +302,9 @@ class HomeLayoutRepository @Inject constructor(
      */
     suspend fun reflow(columns: Int, rows: Int) {
         if (columns <= 0 || rows <= 0) return
-        db.withTransaction {
+        tx {
             val items = dao.getContainerOrdered(HOME)
-            if (items.isEmpty()) return@withTransaction
+            if (items.isEmpty()) return@tx
             val plan = reflowPlan(items, columns, rows)
             // Park everything off-grid first (unique temp cells) so the repack can't collide.
             items.forEachIndexed { i, row -> dao.moveById(row.id, HOME, -1, -(i + 1), -1) }
@@ -312,12 +323,12 @@ class HomeLayoutRepository @Inject constructor(
      * Returns the new folder id, or -1 if either app is no longer on the home screen.
      */
     suspend fun createFolder(target: AppItem, dropped: AppItem, name: String): Long =
-        db.withTransaction {
+        tx {
             val targetRow = dao.getByKey(HOME, target.packageName, target.className, target.userSerial)
-                ?: return@withTransaction -1L
+                ?: return@tx -1L
             val droppedRow = dao.getByKey(HOME, dropped.packageName, dropped.className, dropped.userSerial)
-                ?: return@withTransaction -1L
-            if (targetRow.id == droppedRow.id) return@withTransaction -1L
+                ?: return@tx -1L
+            if (targetRow.id == droppedRow.id) return@tx -1L
             foldApps(targetRow, droppedRow, dropped, name)
         }
 
@@ -353,12 +364,12 @@ class HomeLayoutRepository @Inject constructor(
      *  If the folder already contains the app the drop merges: the direct home icon is removed
      *  instead of inserting a duplicate child (duplicate keys crash the folder grid). */
     suspend fun addToFolder(appItem: AppItem, folderId: Long) {
-        db.withTransaction {
+        tx {
             // The folder may have dissolved between the drag's start and the drop (its other apps
             // uninstalled meanwhile): a row moved into a container no folder owns shows nowhere.
-            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+            if (dao.getById(folderId)?.isFolder != true) return@tx
             val row = dao.getByKey(HOME, appItem.packageName, appItem.className, appItem.userSerial)
-                ?: return@withTransaction
+                ?: return@tx
             joinFolder(folderId, row, appItem)
         }
     }
@@ -371,14 +382,14 @@ class HomeLayoutRepository @Inject constructor(
      * in the folder — when it needs a cell and every page the pager shows is full.
      */
     suspend fun removeFromFolder(appItem: AppItem, folderId: Long, columns: Int, rows: Int): Boolean =
-        db.withTransaction {
+        tx {
             val row = dao.getByKey(folderId, appItem.packageName, appItem.className, appItem.userSerial)
-                ?: return@withTransaction true
+                ?: return@tx true
             if (onHome(row)) {
                 dao.deleteById(row.id)
             } else {
                 val (p, x, y) = firstFreeCell(dao.getContainer(HOME), columns, rows)
-                if (!isShownPage(p)) return@withTransaction false
+                if (!isShownPage(p)) return@tx false
                 dao.moveById(row.id, HOME, p, x, y)
             }
             reindexFolder(folderId)
@@ -395,13 +406,13 @@ class HomeLayoutRepository @Inject constructor(
      * the app (it vanished during the drag): nothing changed.
      */
     suspend fun moveWithinFolder(folderId: Long, appItem: AppItem, before: AppItem?): Boolean =
-        db.withTransaction {
+        tx {
             val children = dao.getContainerOrdered(folderId)
-            val moving = children.firstOrNull { it.key == appItem.key } ?: return@withTransaction false
+            val moving = children.firstOrNull { it.key == appItem.key } ?: return@tx false
             val rest = children.filter { it.id != moving.id }
             val insertAt = before?.let { b -> rest.indexOfFirst { it.key == b.key } }?.takeIf { it >= 0 } ?: rest.size
             val order = rest.toMutableList().apply { add(insertAt, moving) }
-            if (order.map { it.id } == children.map { it.id }) return@withTransaction true
+            if (order.map { it.id } == children.map { it.id }) return@tx true
             order.forEachIndexed { i, child -> dao.moveById(child.id, folderId, 0, -1 - i, 0) }
             order.forEachIndexed { i, child -> dao.moveById(child.id, folderId, 0, i, 0) }
             true
@@ -428,16 +439,16 @@ class HomeLayoutRepository @Inject constructor(
         rows: Int,
         folderName: String,
     ): PlaceResult =
-        db.withTransaction {
+        tx {
             val child = dao.getByKey(folderId, appItem.packageName, appItem.className, appItem.userSerial)
-                ?: return@withTransaction PlaceResult.Placed
+                ?: return@tx PlaceResult.Placed
             if (onHome(child)) {
                 dao.deleteById(child.id)
             } else {
-                if (!isShownPage(page)) return@withTransaction PlaceResult.HomeFull
+                if (!isShownPage(page)) return@tx PlaceResult.HomeFull
                 val occupant = dao.getAt(HOME, page, cellX, cellY)
                 when {
-                    occupant?.id == folderId -> return@withTransaction PlaceResult.Placed
+                    occupant?.id == folderId -> return@tx PlaceResult.Placed
                     occupant?.isApp == true -> foldApps(occupant, child, appItem, folderName)
                     occupant?.isFolder == true -> joinFolder(occupant.id, child, appItem)
                     else -> {
@@ -447,7 +458,7 @@ class HomeLayoutRepository @Inject constructor(
                         } else {
                             firstFreeCell(items, columns, rows)
                         }
-                        if (!isShownPage(p)) return@withTransaction PlaceResult.HomeFull
+                        if (!isShownPage(p)) return@tx PlaceResult.HomeFull
                         dao.moveById(child.id, HOME, p, x, y)
                     }
                 }
@@ -461,9 +472,9 @@ class HomeLayoutRepository @Inject constructor(
      *  pill — then re-indexes the rest and dissolves a folder left with one app. No-op when the row
      *  is already gone. */
     suspend fun removeChild(appItem: AppItem, folderId: Long) {
-        db.withTransaction {
+        tx {
             val child = dao.getByKey(folderId, appItem.packageName, appItem.className, appItem.userSerial)
-                ?: return@withTransaction
+                ?: return@tx
             dao.deleteById(child.id)
             reindexFolder(folderId)
             dissolveIfNeeded(folderId)
@@ -478,8 +489,8 @@ class HomeLayoutRepository @Inject constructor(
      * the folder is gone (it dissolved while the list was open).
      */
     suspend fun addAppsToFolder(folderId: Long, apps: List<AppItem>) {
-        db.withTransaction {
-            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+        tx {
+            if (dao.getById(folderId)?.isFolder != true) return@tx
             for (app in apps) {
                 joinFolder(folderId, dao.getByKey(HOME, app.packageName, app.className, app.userSerial), app)
             }
@@ -493,13 +504,13 @@ class HomeLayoutRepository @Inject constructor(
      * [moveWithinFolder], so the unique cell index never trips. Nothing happens when the folder is gone.
      */
     suspend fun sortFolder(folderId: Long, keysInOrder: List<String>) {
-        db.withTransaction {
-            if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+        tx {
+            if (dao.getById(folderId)?.isFolder != true) return@tx
             val children = dao.getContainerOrdered(folderId)
             val rank = keysInOrder.withIndex().associate { (index, key) -> key to index }
             // sortedBy is stable: the unnamed children stay in the order they had.
             val order = children.sortedBy { rank[it.key] ?: Int.MAX_VALUE }
-            if (order.map { it.id } == children.map { it.id }) return@withTransaction
+            if (order.map { it.id } == children.map { it.id }) return@tx
             order.forEachIndexed { i, child -> dao.moveById(child.id, folderId, 0, -1 - i, 0) }
             order.forEachIndexed { i, child -> dao.moveById(child.id, folderId, 0, i, 0) }
         }
@@ -513,8 +524,8 @@ class HomeLayoutRepository @Inject constructor(
      *  resolve (disabled, a paused profile): it renders empty, so no child can be dragged out of it.
      *  No-op when [folderId] is gone or isn't a folder. */
     suspend fun removeFolder(folderId: Long) {
-        db.withTransaction {
-            val folder = dao.getById(folderId)?.takeIf { it.isFolder } ?: return@withTransaction
+        tx {
+            val folder = dao.getById(folderId)?.takeIf { it.isFolder } ?: return@tx
             dao.deleteByContainers(listOf(folderId))
             dao.deleteById(folderId)
             // A dock folder leaves a slot gap; the next append counts the rows for its slot and would
@@ -526,8 +537,8 @@ class HomeLayoutRepository @Inject constructor(
     // --- Dock (Launcher3's hotseat: the [DOCK] container, cellX = slot) ---------------------------
 
     /** Appends [app] to the dock. False (nothing stored) when it already has a dock row. */
-    suspend fun addToDock(app: AppItem): Boolean = db.withTransaction {
-        if (dockRow(app) != null) return@withTransaction false
+    suspend fun addToDock(app: AppItem): Boolean = tx {
+        if (dockRow(app) != null) return@tx false
         // Parked first, numbered after: the row count is not a free slot while the dock has a gap.
         val id = dao.insert(homeApp(app, DOCK, 0, PARKED_SLOT, 0))
         writeDockOrder(dao.getContainerOrdered(DOCK).map { it.id }.filter { it != id } + id)
@@ -541,14 +552,14 @@ class HomeLayoutRepository @Inject constructor(
      * right before the shown row at that position (or right after the last shown one); without it,
      * [index] is a raw slot and hidden rows in between shift the drop.
      */
-    suspend fun addToDockAt(app: AppItem, index: Int, shownKeys: Set<String>? = null) = db.withTransaction {
+    suspend fun addToDockAt(app: AppItem, index: Int, shownKeys: Set<String>? = null) = tx {
         val existing = dockRow(app)
         val row = existing ?: dao.getById(dao.insert(homeApp(app, DOCK, 0, PARKED_SLOT, 0)))!!
         insertDockRow(row, index, shownKeys)
     }
 
     /** Drops [app]'s own dock row (a folder's child is not touched) and closes the gap. */
-    suspend fun removeFromDock(app: AppItem) = db.withTransaction {
+    suspend fun removeFromDock(app: AppItem) = tx {
         dao.deleteByKey(DOCK, app.packageName, app.className, app.userSerial)
         renumberDock()
     }
@@ -558,7 +569,7 @@ class HomeLayoutRepository @Inject constructor(
      * column cap hides keep their relative order after them, so the UI can never overwrite the full
      * list. Ids that are not dock rows are ignored.
      */
-    suspend fun reorderDock(rowIds: List<Long>) = db.withTransaction {
+    suspend fun reorderDock(rowIds: List<Long>) = tx {
         val rows = dao.getContainerOrdered(DOCK)
         val byId = rows.associateBy { it.id }
         val given = rowIds.distinct().mapNotNull { byId[it] }
@@ -570,8 +581,8 @@ class HomeLayoutRepository @Inject constructor(
     suspend fun isDockEmpty(): Boolean = dao.getContainer(DOCK).isEmpty()
 
     /** The first-run default dock: [apps] in order, only while the dock is still empty. */
-    suspend fun seedDock(apps: List<AppItem>) = db.withTransaction {
-        if (dao.getContainer(DOCK).isNotEmpty()) return@withTransaction
+    suspend fun seedDock(apps: List<AppItem>) = tx {
+        if (dao.getContainer(DOCK).isNotEmpty()) return@tx
         apps.distinctBy { it.key }.forEachIndexed { i, app -> dao.insert(homeApp(app, DOCK, 0, i, 0)) }
     }
 
@@ -580,7 +591,7 @@ class HomeLayoutRepository @Inject constructor(
      * ("package/class/userSerial") without a dock row yet is appended, in key order, after the rows
      * already there. Idempotent, so the caller may clear the key only after this returned.
      */
-    suspend fun migrateDockFavorites(keys: List<String>) = db.withTransaction {
+    suspend fun migrateDockFavorites(keys: List<String>) = tx {
         val present = dao.getContainerOrdered(DOCK).mapTo(HashSet()) { it.key }
         var slot = present.size
         for (key in keys.distinct()) {
@@ -602,7 +613,7 @@ class HomeLayoutRepository @Inject constructor(
      *  there does its dock row go (the dock closes the gap). */
     suspend fun moveDockAppToHome(
         app: AppItem, page: Int, cellX: Int, cellY: Int, columns: Int, rows: Int, folderName: String,
-    ): PlaceResult = db.withTransaction {
+    ): PlaceResult = tx {
         val result = placeAt(app, page, cellX, cellY, columns, rows, folderName)
         if (result == PlaceResult.Placed) {
             dao.deleteByKey(DOCK, app.packageName, app.className, app.userSerial)
@@ -613,7 +624,7 @@ class HomeLayoutRepository @Inject constructor(
 
     /** A home icon dropped between dock tiles at [index] (see [addToDockAt]): its home row becomes
      *  the dock row, or just goes when the app is already in the dock. */
-    suspend fun moveHomeAppToDock(app: AppItem, index: Int, shownKeys: Set<String>? = null) = db.withTransaction {
+    suspend fun moveHomeAppToDock(app: AppItem, index: Int, shownKeys: Set<String>? = null) = tx {
         val home = dao.getByKey(HOME, app.packageName, app.className, app.userSerial)
         val existing = dockRow(app)
         val row = when {
@@ -629,9 +640,9 @@ class HomeLayoutRepository @Inject constructor(
      *  already has one, that row takes the slot (as [moveHomeAppToDock] does) and the child just goes;
      *  the folder is re-indexed and dissolves when one app is left. */
     suspend fun moveChildToDock(app: AppItem, folderId: Long, index: Int? = null, shownKeys: Set<String>? = null) =
-        db.withTransaction {
+        tx {
             val child = dao.getByKey(folderId, app.packageName, app.className, app.userSerial)
-                ?: return@withTransaction
+                ?: return@tx
             val existing = dockRow(app)
             val row = if (existing != null) {
                 dao.deleteById(child.id)
@@ -656,13 +667,13 @@ class HomeLayoutRepository @Inject constructor(
      * not a dock app (or is [dropped] itself).
      */
     suspend fun createDockFolder(target: AppItem, dropped: AppItem, fromContainer: Long?, name: String): Long =
-        db.withTransaction {
+        tx {
             // The same app (from the drawer, its home copy, or the dock row itself) never folds with
             // itself: that made a folder of two rows of one app, shown as a folder of one.
-            if (dropped.key == target.key) return@withTransaction -1L
-            val targetRow = dockRow(target) ?: return@withTransaction -1L
+            if (dropped.key == target.key) return@tx -1L
+            val targetRow = dockRow(target) ?: return@tx -1L
             val droppedRow = fromContainer?.let { dao.getByKey(it, dropped.packageName, dropped.className, dropped.userSerial) }
-            if (droppedRow?.id == targetRow.id) return@withTransaction -1L
+            if (droppedRow?.id == targetRow.id) return@tx -1L
             val folderId = foldApps(targetRow, droppedRow, dropped, name)
             repairSourceFolder(fromContainer)
             renumberDock()
@@ -671,9 +682,9 @@ class HomeLayoutRepository @Inject constructor(
 
     /** [app] dropped onto the dock folder [folderId]: joins it at the end (never twice), its row in
      *  [fromContainer] (see [createDockFolder]) moving in. A drop from the folder onto itself does nothing. */
-    suspend fun addToDockFolder(app: AppItem, folderId: Long, fromContainer: Long?) = db.withTransaction {
-        if (fromContainer == folderId) return@withTransaction
-        if (dao.getById(folderId)?.isFolder != true) return@withTransaction
+    suspend fun addToDockFolder(app: AppItem, folderId: Long, fromContainer: Long?) = tx {
+        if (fromContainer == folderId) return@tx
+        if (dao.getById(folderId)?.isFolder != true) return@tx
         val row = fromContainer?.let { dao.getByKey(it, app.packageName, app.className, app.userSerial) }
         joinFolder(folderId, row, app)
         repairSourceFolder(fromContainer)
@@ -683,9 +694,9 @@ class HomeLayoutRepository @Inject constructor(
     /** A home folder dropped between dock tiles at [index] (see [addToDockAt]). False when
      *  [folderId] is not a home folder. */
     suspend fun moveFolderToDock(folderId: Long, index: Int, shownKeys: Set<String>? = null): Boolean =
-        db.withTransaction {
-            val folder = dao.getById(folderId) ?: return@withTransaction false
-            if (!folder.isFolder || folder.containerId != HOME) return@withTransaction false
+        tx {
+            val folder = dao.getById(folderId) ?: return@tx false
+            if (!folder.isFolder || folder.containerId != HOME) return@tx false
             dao.moveById(folderId, DOCK, 0, PARKED_SLOT, 0)
             insertDockRow(dao.getById(folderId)!!, index, shownKeys)
             true
@@ -694,13 +705,13 @@ class HomeLayoutRepository @Inject constructor(
     /** A dock folder dropped on a home cell: moves there only while the cell is free (folders never
      *  merge, and nothing is swapped into the dock); the dock closes the gap. False = nothing changed. */
     suspend fun moveDockFolderToHome(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
-        db.withTransaction {
-            val folder = dao.getById(folderId) ?: return@withTransaction false
-            if (!folder.isFolder || folder.containerId != DOCK) return@withTransaction false
-            if (!isShownPage(page)) return@withTransaction false
+        tx {
+            val folder = dao.getById(folderId) ?: return@tx false
+            if (!folder.isFolder || folder.containerId != DOCK) return@tx false
+            if (!isShownPage(page)) return@tx false
             val items = dao.getContainer(HOME)
             if (dao.getAt(HOME, page, cellX, cellY) != null || cellInWidget(items, -1L, page, cellX, cellY)) {
-                return@withTransaction false
+                return@tx false
             }
             dao.moveById(folderId, HOME, page, cellX, cellY)
             renumberDock()
@@ -851,16 +862,16 @@ class HomeLayoutRepository @Inject constructor(
         placement: org.arkikeskus.launcher.model.WidgetPlacement,
         columns: Int,
         rows: Int,
-    ): Boolean = db.withTransaction {
+    ): Boolean = tx {
         val items = dao.getContainer(HOME)
         // A configuration result may be redelivered after process recreation.
-        if (appWidgetId != null && items.any { it.appWidgetId == appWidgetId }) return@withTransaction true
+        if (appWidgetId != null && items.any { it.appWidgetId == appWidgetId }) return@tx true
         val p = placement
-        if (!isShownPage(p.page)) return@withTransaction false
+        if (!isShownPage(p.page)) return@tx false
         val plan = ReorderPlanner.planFit(
             items.map { ReorderPlanner.Rect(it.id, it.page, it.cellX, it.cellY, it.spanX, it.spanY) },
             Long.MIN_VALUE, p.page, p.cellX, p.cellY, p.spanX, p.spanY, columns, rows,
-        ) ?: return@withTransaction false
+        ) ?: return@tx false
         var temp = -1
         for (id in plan.keys) { dao.moveById(id, HOME, temp, temp, temp); temp-- }
         for ((id, pos) in plan) dao.moveById(id, HOME, p.page, pos.first, pos.second)
@@ -883,7 +894,7 @@ class HomeLayoutRepository @Inject constructor(
      * unique (container, page, cell) index while rows overtake the not-yet-moved ones.
      */
     suspend fun insertPage(at: Int) {
-        db.withTransaction {
+        tx {
             dao.offsetPages(HOME, at, PAGE_SHIFT_HOP)
             dao.offsetPages(HOME, at + PAGE_SHIFT_HOP, 1 - PAGE_SHIFT_HOP)
         }
@@ -897,13 +908,13 @@ class HomeLayoutRepository @Inject constructor(
      * come back by themselves, so they are never purged: the page stays and the result is false.
      * Without [purge], false (and no change) when the page holds anything.
      */
-    suspend fun removeEmptyPage(page: Int, purge: Boolean = false): Boolean = db.withTransaction {
+    suspend fun removeEmptyPage(page: Int, purge: Boolean = false): Boolean = tx {
         if (purge) {
             val folders = dao.folderIdsOnPage(HOME, page)
             val rows = dao.getContainer(HOME).filter { it.page == page } + folders.flatMap { dao.getContainer(it) }
             val owners = rows.filter { it.packageName.isNotEmpty() }.map { it.packageName to it.userSerial }.toSet()
             if (owners.any { (pkg, serial) -> resolver.isTemporarilyUnavailable(pkg, serial) }) {
-                return@withTransaction false
+                return@tx false
             }
             // A pinned shortcut row goes only when the system says the shortcut is gone: while the
             // launcher is not the default home (or the shortcut service is not ready) no shortcut
@@ -914,11 +925,11 @@ class HomeLayoutRepository @Inject constructor(
                     val ids = shortcuts.map { it.shortcutId!! }
                     !resolver.missingShortcuts(owner.first, owner.second, ids).containsAll(ids)
                 }
-            if (unconfirmed) return@withTransaction false
+            if (unconfirmed) return@tx false
             if (folders.isNotEmpty()) dao.deleteByContainers(folders)
             dao.deleteOnPage(HOME, page)
         } else if (dao.countOnPage(HOME, page) > 0) {
-            return@withTransaction false
+            return@tx false
         }
         dao.offsetPages(HOME, page + 1, PAGE_SHIFT_HOP)
         dao.offsetPages(HOME, page + 1 + PAGE_SHIFT_HOP, -1 - PAGE_SHIFT_HOP)
@@ -929,9 +940,9 @@ class HomeLayoutRepository @Inject constructor(
      *  pushing overlapping icons aside before spilling onto a fresh page (see [firstRectWithPush]).
      *  False — nothing stored, nothing moved — when every page the pager shows is full. */
     suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int, rows: Int): Boolean =
-        db.withTransaction {
+        tx {
             val placement = firstRectWithPush(dao.getContainer(HOME), columns, spanX, spanY, rows)
-            if (!isShownPage(placement.page)) return@withTransaction false
+            if (!isShownPage(placement.page)) return@tx false
             applyPush(placement)
             val (page, x, y) = Triple(placement.page, placement.cellX, placement.cellY)
             dao.insert(
@@ -956,7 +967,7 @@ class HomeLayoutRepository @Inject constructor(
      * otherwise render as invisible dead zones on the grid.
      */
     suspend fun unbindStaleWidgets(validIds: Set<Int>) {
-        db.withTransaction {
+        tx {
             dao.getContainer(HOME).forEach { row ->
                 val id = row.appWidgetId
                 if (id != null && id !in validIds) dao.clearWidgetId(row.id)
@@ -966,9 +977,9 @@ class HomeLayoutRepository @Inject constructor(
 
     /** Binds a restored widget placeholder row to a freshly allocated [appWidgetId] on this device,
      *  turning it back into a live widget (its spanX/spanY were preserved from the backup). */
-    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int): Boolean = db.withTransaction {
-        val row = dao.getById(rowId) ?: return@withTransaction false
-        if (row.widgetProvider == null || row.containerId != HOME) return@withTransaction false
+    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int): Boolean = tx {
+        val row = dao.getById(rowId) ?: return@tx false
+        if (row.widgetProvider == null || row.containerId != HOME) return@tx false
         dao.updateWidgetId(rowId, appWidgetId)
         true
     }
@@ -982,24 +993,24 @@ class HomeLayoutRepository @Inject constructor(
      *  arrangement fits. */
     suspend fun setWidgetBounds(
         rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, columns: Int, rows: Int,
-    ): Boolean = db.withTransaction {
-        val row = dao.getById(rowId) ?: return@withTransaction false
-        if (!row.isWidget && !row.isBuiltin) return@withTransaction false
-        if (!isShownPage(page)) return@withTransaction false
+    ): Boolean = tx {
+        val row = dao.getById(rowId) ?: return@tx false
+        if (!row.isWidget && !row.isBuiltin) return@tx false
+        if (!isShownPage(page)) return@tx false
         val sx = spanX.coerceAtLeast(1)
         val sy = spanY.coerceAtLeast(1)
         val items = dao.getContainer(HOME)
         if (rectFitsForRow(items, rowId, page, cellX, cellY, sx, sy, columns, rows)) {
             dao.moveById(rowId, HOME, page, cellX, cellY)
             dao.updateSpans(rowId, sx, sy)
-            return@withTransaction true
+            return@tx true
         }
         // Target is occupied: try to push the overlapping items aside.
         val cols = columns.coerceAtLeast(1)
         val plan = ReorderPlanner.planFit(
             items.map { ReorderPlanner.Rect(it.id, it.page, it.cellX, it.cellY, it.spanX, it.spanY) },
             rowId, page, cellX, cellY, sx, sy, cols, rows.coerceAtLeast(1),
-        ) ?: return@withTransaction false
+        ) ?: return@tx false
         // Park the widget + every displaced item off-grid (unique temp cells) so the unique
         // (page,cellX,cellY) index can't be violated mid-update, then place each at its final cell.
         var temp = -1
@@ -1019,7 +1030,7 @@ class HomeLayoutRepository @Inject constructor(
      * left with one or no apps. Returns the number of rows deleted or re-pointed.
      */
     suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
-        db.withTransaction {
+        tx {
             val plan = planSweep(dao.getAll(), isInstalled, resolver)
             // Re-point first: dissolving a folder checks the home rows' final app keys.
             plan.remap.forEach { (id, className) -> dao.updateClassName(id, className) }
@@ -1038,7 +1049,7 @@ class HomeLayoutRepository @Inject constructor(
      * Built-ins and folder rows are never touched.
      */
     suspend fun removeAppRowsForPackage(packageName: String, userSerial: Long): Int =
-        db.withTransaction {
+        tx {
             val all = dao.getAll()
             val doomed = staleAppRowIds(all) { pkg, serial -> !(pkg == packageName && serial == userSerial) }.toHashSet()
             val widgets = all.filter { it.widgetProvider?.substringBefore('/') == packageName }
@@ -1053,10 +1064,10 @@ class HomeLayoutRepository @Inject constructor(
      * while the launcher runs leaves no invisible but occupied cell until the next launch's sweep.
      */
     suspend fun removeMissingShortcuts(packageName: String, userSerial: Long): Int =
-        db.withTransaction {
+        tx {
             val rows = dao.getContainer(HOME)
                 .filter { it.isShortcut && it.packageName == packageName && it.userSerial == userSerial }
-            if (rows.isEmpty()) return@withTransaction 0
+            if (rows.isEmpty()) return@tx 0
             val missing = resolver.missingShortcuts(packageName, userSerial, rows.mapNotNull { it.shortcutId }.distinct())
             val doomed = rows.filter { it.shortcutId in missing }
             doomed.forEach { dao.deleteById(it.id) }
