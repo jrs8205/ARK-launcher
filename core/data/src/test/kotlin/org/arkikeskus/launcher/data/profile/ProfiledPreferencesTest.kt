@@ -1,0 +1,201 @@
+package org.arkikeskus.launcher.data.profile
+
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.Preferences
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+
+/**
+ * The one settings store the launcher reads is a view: what every home profile shares comes from the
+ * settings file, what a profile has of its own comes from that profile. The profile whose own values
+ * are in the settings file itself (the first one, until it is deleted) needs no other file, so a
+ * launcher with one profile reads and writes exactly the file it always has.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class ProfiledPreferencesTest {
+    private val main = CountingStore()
+    private val files = FakeHomeProfileFiles()
+    private val view = ProfiledPreferences(main, files)
+
+    private val active = longPreferencesKey(HomeProfileKeys.ACTIVE)
+    private val mainStore = longPreferencesKey(HomeProfileKeys.MAIN_STORE)
+    private val list = stringPreferencesKey(HomeProfileKeys.LIST)
+    private val baseColour = stringPreferencesKey("base_colour")
+    private val homeColumns = intPreferencesKey("home_columns")
+    private val longPress = floatPreferencesKey("long_press_scale")
+
+    private fun Preferences.names(): Set<String> = asMap().keys.map { it.name }.toSet()
+
+    @Test fun withOneProfileTheViewIsTheExistingFile() = runTest {
+        view.edit { it[homeColumns] = 5; it[longPress] = 1.5f }
+
+        assertThat(main.now[homeColumns]).isEqualTo(5)
+        assertThat(main.now[longPress]).isEqualTo(1.5f)
+        assertThat(view.data.first()).isEqualTo(main.now)
+        assertThat(files.stores).isEmpty()
+    }
+
+    @Test fun anotherProfileReadsItsOwnLookAndTheSharedBehaviour() = runTest {
+        main.edit { it[baseColour] = "blue"; it[longPress] = 1.5f; it[active] = 2L }
+        files.store(2).edit { it[baseColour] = "green" }
+
+        val seen = view.data.first()
+
+        assertThat(seen[baseColour]).isEqualTo("green")
+        assertThat(seen[longPress]).isEqualTo(1.5f)
+        assertThat(seen[active]).isEqualTo(2L)
+    }
+
+    @Test fun whatTheFirstProfileKeepsInTheSettingsFileDoesNotShowInAnother() = runTest {
+        main.edit { it[baseColour] = "blue"; it[homeColumns] = 6; it[active] = 2L }
+
+        val seen = view.data.first()
+
+        // Profile 2 has set neither: it gets the defaults, not profile 1's choices.
+        assertThat(seen[baseColour]).isNull()
+        assertThat(seen[homeColumns]).isNull()
+    }
+
+    @Test fun aPerProfileEditGoesToTheActiveProfileOnly() = runTest {
+        main.edit { it[baseColour] = "blue"; it[active] = 2L }
+
+        view.edit { it[baseColour] = "green" }
+
+        assertThat(main.now[baseColour]).isEqualTo("blue")
+        assertThat(files.store(2).now[baseColour]).isEqualTo("green")
+        assertThat(view.data.first()[baseColour]).isEqualTo("green")
+    }
+
+    @Test fun aSharedEditIsSeenFromEveryProfile() = runTest {
+        main.edit { it[active] = 2L }
+
+        view.edit { it[longPress] = 0.5f }
+
+        assertThat(main.now[longPress]).isEqualTo(0.5f)
+        assertThat(files.store(2).now.names()).isEmpty()
+        main.edit { it[active] = 1L }
+        assertThat(view.data.first()[longPress]).isEqualTo(0.5f)
+    }
+
+    @Test fun clearingTheViewUnderAnotherProfileKeepsTheFirstProfilesValues() = runTest {
+        main.edit { it[baseColour] = "blue"; it[homeColumns] = 6; it[longPress] = 1.5f; it[active] = 2L; it[list] = "1\t\n2\tWork" }
+        files.store(2).edit { it[baseColour] = "green"; it[homeColumns] = 3 }
+
+        // What a restore does: everything out, then what the backup has.
+        view.edit { it.clear(); it[baseColour] = "red" }
+
+        // Profile 1's own values are untouched, the shared one is gone, the bookkeeping stays.
+        assertThat(main.now[baseColour]).isEqualTo("blue")
+        assertThat(main.now[homeColumns]).isEqualTo(6)
+        assertThat(main.now[longPress]).isNull()
+        assertThat(main.now[active]).isEqualTo(2L)
+        assertThat(main.now[list]).isEqualTo("1\t\n2\tWork")
+        // Profile 2 holds only what was written after the clear.
+        assertThat(files.store(2).now.names()).containsExactly("base_colour")
+        assertThat(files.store(2).now[baseColour]).isEqualTo("red")
+    }
+
+    @Test fun theReservedKeysCannotBeChangedThroughTheView() = runTest {
+        main.edit { it[list] = "1\tHome\n2\tWork" }
+
+        // With one profile on: neither a set nor a clear reaches them.
+        view.edit { it[active] = 7L; it[mainStore] = 7L }
+        assertThat(main.now[active]).isNull()
+        assertThat(main.now[mainStore]).isNull()
+        view.edit { it.clear() }
+        assertThat(main.now[list]).isEqualTo("1\tHome\n2\tWork")
+
+        // And with another profile on.
+        main.edit { it[active] = 2L }
+        view.edit { it[active] = 1L; it.remove(list) }
+        assertThat(main.now[active]).isEqualTo(2L)
+        assertThat(main.now[list]).isEqualTo("1\tHome\n2\tWork")
+        assertThat(files.store(2).now.names()).isEmpty()
+    }
+
+    @Test fun anEditOfOneKeyWritesOneStore() = runTest {
+        main.edit { it[active] = 2L }
+        val mainBefore = main.writes
+        val ownBefore = files.store(2).writes
+
+        view.edit { it[baseColour] = "green" }
+        assertThat(main.writes).isEqualTo(mainBefore)
+        assertThat(files.store(2).writes).isEqualTo(ownBefore + 1)
+
+        view.edit { it[longPress] = 2f }
+        assertThat(main.writes).isEqualTo(mainBefore + 1)
+        assertThat(files.store(2).writes).isEqualTo(ownBefore + 1)
+    }
+
+    @Test fun switchingTheActiveIdSwitchesWhatTheViewEmits() = runTest(UnconfinedTestDispatcher()) {
+        main.edit { it[baseColour] = "blue"; it[longPress] = 1.5f }
+        files.store(2).edit { it[baseColour] = "green" }
+        val seen = mutableListOf<Preferences>()
+        backgroundScope.launch { view.data.collect { seen += it } }
+
+        main.edit { it[active] = 2L }
+        main.edit { it[active] = 1L }
+
+        assertThat(seen.map { it[baseColour] }).containsExactly("blue", "green", "blue").inOrder()
+        // Never the look of one profile under the id of another.
+        for (p in seen) {
+            assertThat(p[baseColour]).isEqualTo(if ((p[active] ?: 1L) == 2L) "green" else "blue")
+            assertThat(p[longPress]).isEqualTo(1.5f)
+        }
+    }
+
+    @Test fun profileValuesAndUpdateProfileReachAProfileThatIsNotActive() = runTest {
+        main.edit { it[baseColour] = "blue"; it[longPress] = 1.5f }
+        files.store(2).edit { it[baseColour] = "green" }
+
+        // Profile 2 while 1 is on.
+        assertThat(view.profileValues(2)[baseColour]).isEqualTo("green")
+        assertThat(view.profileValues(2).names()).containsExactly("base_colour")
+        view.updateProfile(2) { it[homeColumns] = 3; it[longPress] = 9f }
+        assertThat(files.store(2).now[homeColumns]).isEqualTo(3)
+        // Only a profile's own values can be written this way.
+        assertThat(files.store(2).now[longPress]).isNull()
+        assertThat(main.now[longPress]).isEqualTo(1.5f)
+
+        // Profile 1 while 2 is on: its values are the per-profile ones of the settings file.
+        main.edit { it[active] = 2L }
+        assertThat(view.profileValues(1).names()).containsExactly("base_colour")
+        view.updateProfile(1) { it[baseColour] = "red" }
+        assertThat(main.now[baseColour]).isEqualTo("red")
+        assertThat(view.data.first()[baseColour]).isEqualTo("green")
+    }
+
+    @Test fun theProfileInTheSettingsFileNeedNotBeTheFirst() = runTest {
+        // After the first profile was deleted, profile 2's values live in the settings file.
+        main.edit { it[mainStore] = 2L; it[active] = 2L; it[baseColour] = "green" }
+        files.store(3).edit { it[baseColour] = "red" }
+
+        assertThat(view.data.first()[baseColour]).isEqualTo("green")
+        view.edit { it[homeColumns] = 5 }
+        assertThat(main.now[homeColumns]).isEqualTo(5)
+
+        main.edit { it[active] = 3L }
+        assertThat(view.data.first()[baseColour]).isEqualTo("red")
+        assertThat(view.profileValues(2)[baseColour]).isEqualTo("green")
+    }
+
+    @Test fun anUpdateReturnsTheNewView() = runTest {
+        main.edit { it[longPress] = 1.5f; it[active] = 2L }
+
+        val result = view.updateData { p -> p.toMutablePreferences().apply { this[baseColour] = "green" } }
+
+        assertThat(result[baseColour]).isEqualTo("green")
+        assertThat(result[longPress]).isEqualTo(1.5f)
+        assertThat(result[active]).isEqualTo(2L)
+        assertThat(result).isEqualTo(view.data.first())
+    }
+}
