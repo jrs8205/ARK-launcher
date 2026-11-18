@@ -276,24 +276,27 @@ class HomeLayoutRepository @Inject constructor(
         )
     }
 
-    /** The shortcut ids of (package, profile) on home right now — the set the system should hold. */
+    /** The shortcut ids of (package, Android profile) on the home screens of EVERY home profile right now:
+     *  the set the system should hold. It keeps one pinned set per package for the launcher, so a
+     *  shortcut on the home screen of a home profile that is not showing is as pinned as one that is. */
     suspend fun homeShortcutIds(packageName: String, userSerial: Long): List<String> =
-        dao.getContainer(HOME)
-            .filter { it.isShortcut && it.packageName == packageName && it.userSerial == userSerial }
-            .mapNotNull { it.shortcutId }
-            .distinct()
+        dao.shortcutIdsOfEveryProfile(packageName, userSerial).distinct()
 
-    /** Removes a pinned-shortcut row; returns the ids still pinned for its (package, user) so the
-     *  caller can re-pin the remaining set in the system (pinShortcuts replaces the whole set). */
+    /** Removes a pinned-shortcut row; returns the ids still pinned for its (package, user), in every
+     *  home profile, so the caller can re-pin the remaining set in the system (pinShortcuts replaces the
+     *  whole set). */
     suspend fun removeShortcut(rowId: Long): RemainingPins? = tx {
         val row = dao.getById(rowId) ?: return@tx null
         if (!row.isShortcut) return@tx null
         dao.deleteById(rowId)
-        val remaining = dao.getContainer(HOME)
-            .filter { it.shortcutId != null && it.packageName == row.packageName && it.userSerial == row.userSerial }
-            .mapNotNull { it.shortcutId }
+        val remaining = homeShortcutIds(row.packageName, row.userSerial)
         RemainingPins(row.packageName, row.userSerial, remaining, removedShortcutId = row.shortcutId.orEmpty())
     }
+
+    /** Runs [block] once in each home profile that has a row; what each run gave, in the profiles' order.
+     *  For what is true of the phone, not of a profile: an app is uninstalled from every profile. */
+    private suspend fun <T> inEveryProfile(block: suspend () -> T): List<T> =
+        dao.profileIds().map { profile -> inHomeProfile(profile) { block() } }
 
     /**
      * Repacks the top-level home items (apps, folders, widgets) into a [columns]-wide grid via
@@ -964,13 +967,15 @@ class HomeLayoutRepository @Inject constructor(
      * Turns bound widget rows whose device-local id is NOT in [validIds] back into unbound
      * tap-to-set-up placeholders. After a Google Auto Backup / device-to-device restore the Room DB
      * comes back with the OLD device's appWidgetIds — ids this host never allocated — which would
-     * otherwise render as invisible dead zones on the grid.
+     * otherwise render as invisible dead zones on the grid. In every home profile: the host is one.
      */
     suspend fun unbindStaleWidgets(validIds: Set<Int>) {
-        tx {
-            dao.getContainer(HOME).forEach { row ->
-                val id = row.appWidgetId
-                if (id != null && id !in validIds) dao.clearWidgetId(row.id)
+        inEveryProfile {
+            tx {
+                dao.getContainer(HOME).forEach { row ->
+                    val id = row.appWidgetId
+                    if (id != null && id !in validIds) dao.clearWidgetId(row.id)
+                }
             }
         }
     }
@@ -984,8 +989,50 @@ class HomeLayoutRepository @Inject constructor(
         true
     }
 
-    /** Device-local ids of all bound widgets, for reconciling leftover ids in the AppWidgetHost. */
-    suspend fun boundWidgetIds(): Set<Int> = dao.boundWidgetIds().toSet()
+    /** Device-local ids of all bound widgets, for reconciling leftover ids in the AppWidgetHost: those of
+     *  EVERY home profile. A profile that is not showing still owns its widgets, and an id this did not
+     *  name would be freed by the home screen's sweep. */
+    suspend fun boundWidgetIds(): Set<Int> = dao.boundWidgetIdsOfEveryProfile().toSet()
+
+    /**
+     * Makes the layout of the home profile [to] a copy of [from]'s: the same rows at the same cells under
+     * new ids, in place of whatever [to] had. An app widget arrives as a placeholder to set up again: one
+     * widget id shows in one place, and removing or resizing a widget acts on its id, so two rows never
+     * share one. Returns the folder rows' old ids with their new ones (a folder's own icon is filed by
+     * its row id).
+     */
+    suspend fun copyProfile(from: Long, to: Long): Map<Long, Long> = db.withTransaction {
+        val source = inHomeProfile(from) { dao.getAll() }
+        inHomeProfile(to) {
+            dao.clear()
+            val folderIds = HashMap<Long, Long>()
+            // The home screen's and the dock's own rows first: a folder's apps need its new id.
+            val (top, inFolders) = source.partition { it.containerId == HOME || it.containerId == DOCK }
+            for (row in top) {
+                val id = dao.insert(row.copy(id = 0, appWidgetId = null))
+                if (row.isFolder) folderIds[row.id] = id
+            }
+            for (row in inFolders) {
+                val folder = folderIds[row.containerId] ?: continue
+                dao.insert(row.copy(id = 0, containerId = folder))
+            }
+            folderIds
+        }
+    }
+
+    /**
+     * Removes every row of the home profile [profile]. Returns the (package, user) pairs that had a pinned
+     * shortcut there: their pinned sets in the system have changed and the caller pins them again
+     * ([homeShortcutIds]). The widget host's ids its rows held are free at the next sweep.
+     */
+    suspend fun deleteProfile(profile: Long): Set<Pair<String, Long>> = db.withTransaction {
+        val owners = inHomeProfile(profile) { dao.getContainer(HOME) }
+            .filter { it.isShortcut }
+            .map { it.packageName to it.userSerial }
+            .toSet()
+        dao.deleteProfile(profile)
+        owners
+    }
 
     /** Atomically sets a widget row's full grid bounds (used by both move and resize). If the target
      *  rect is occupied, the overlapping items are pushed aside to free cells on the same page
@@ -1027,18 +1074,20 @@ class HomeLayoutRepository @Inject constructor(
      * cells and silently block placement, resizes and moves with no visible reason. [isInstalled]
      * must be fail-safe — answer true when unsure (locked profile, transient error) so a hiccup can
      * never wipe real items. Every folder is repaired afterwards, including ones an older version
-     * left with one or no apps. Returns the number of rows deleted or re-pointed.
+     * left with one or no apps. Returns the number of rows deleted or re-pointed, over every home profile.
      */
     suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
-        tx {
-            val plan = planSweep(dao.getAll(), isInstalled, resolver)
-            // Re-point first: dissolving a folder checks the home rows' final app keys.
-            plan.remap.forEach { (id, className) -> dao.updateClassName(id, className) }
-            plan.delete.forEach { dao.deleteById(it) }
-            repairFolders((dao.getContainer(HOME) + dao.getContainer(DOCK)).filter { it.isFolder }.map { it.id })
-            renumberDock()
-            plan.delete.size + plan.remap.size
-        }
+        inEveryProfile {
+            tx {
+                val plan = planSweep(dao.getAll(), isInstalled, resolver)
+                // Re-point first: dissolving a folder checks the home rows' final app keys.
+                plan.remap.forEach { (id, className) -> dao.updateClassName(id, className) }
+                plan.delete.forEach { dao.deleteById(it) }
+                repairFolders((dao.getContainer(HOME) + dao.getContainer(DOCK)).filter { it.isFolder }.map { it.id })
+                renumberDock()
+                plan.delete.size + plan.remap.size
+            }
+        }.sum()
 
     /**
      * Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
@@ -1046,33 +1095,38 @@ class HomeLayoutRepository @Inject constructor(
      * every widget the package provided. Restored placeholders go as well: an uninstall is a
      * deliberate removal, so the provider is no longer expected back, and a placeholder could never
      * be set up again (its tap would silently do nothing). The host ids are freed by the caller.
-     * Built-ins and folder rows are never touched.
+     * Built-ins and folder rows are never touched. In every home profile: the app is gone from the phone.
      */
     suspend fun removeAppRowsForPackage(packageName: String, userSerial: Long): Int =
-        tx {
-            val all = dao.getAll()
-            val doomed = staleAppRowIds(all) { pkg, serial -> !(pkg == packageName && serial == userSerial) }.toHashSet()
-            val widgets = all.filter { it.widgetProvider?.substringBefore('/') == packageName }
-            if (widgets.isNotEmpty() && userSerial == resolver.ownUserSerial()) widgets.mapTo(doomed) { it.id }
-            deleteAndRepairFolders(all, doomed)
-        }
+        inEveryProfile {
+            tx {
+                val all = dao.getAll()
+                val doomed = staleAppRowIds(all) { pkg, serial -> !(pkg == packageName && serial == userSerial) }.toHashSet()
+                val widgets = all.filter { it.widgetProvider?.substringBefore('/') == packageName }
+                if (widgets.isNotEmpty() && userSerial == resolver.ownUserSerial()) widgets.mapTo(doomed) { it.id }
+                deleteAndRepairFolders(all, doomed)
+            }
+        }.sum()
 
     /**
      * Shortcut-change cleanup for one app in one profile: deletes its home shortcut rows whose shortcut
      * the system definitively no longer has (data cleared, app archived), as Launcher3's
      * `ShortcutsChangedTask` does — the per-package slice of [planSweep], so a shortcut that vanishes
      * while the launcher runs leaves no invisible but occupied cell until the next launch's sweep.
+     * In every home profile.
      */
     suspend fun removeMissingShortcuts(packageName: String, userSerial: Long): Int =
-        tx {
-            val rows = dao.getContainer(HOME)
-                .filter { it.isShortcut && it.packageName == packageName && it.userSerial == userSerial }
-            if (rows.isEmpty()) return@tx 0
-            val missing = resolver.missingShortcuts(packageName, userSerial, rows.mapNotNull { it.shortcutId }.distinct())
-            val doomed = rows.filter { it.shortcutId in missing }
-            doomed.forEach { dao.deleteById(it.id) }
-            doomed.size
-        }
+        inEveryProfile {
+            tx {
+                val rows = dao.getContainer(HOME)
+                    .filter { it.isShortcut && it.packageName == packageName && it.userSerial == userSerial }
+                if (rows.isEmpty()) return@tx 0
+                val missing = resolver.missingShortcuts(packageName, userSerial, rows.mapNotNull { it.shortcutId }.distinct())
+                val doomed = rows.filter { it.shortcutId in missing }
+                doomed.forEach { dao.deleteById(it.id) }
+                doomed.size
+            }
+        }.sum()
 
     /** Deletes [ids] (rows of [all]), repairs the folders they left and closes the dock's gaps. */
     private suspend fun deleteAndRepairFolders(all: List<HomeItemEntity>, ids: Set<Long>): Int {

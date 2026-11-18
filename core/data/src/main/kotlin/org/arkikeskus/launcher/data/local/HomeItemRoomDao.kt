@@ -128,7 +128,8 @@ interface HomeItemRoomDao {
     /** The pinned shortcuts of a package on the home screens of EVERY profile (the system keeps one
      *  pinned set per package for the launcher, not one per profile). */
     @Query(
-        "SELECT shortcutId FROM home_items WHERE shortcutId IS NOT NULL AND packageName = :pkg AND userSerial = :user",
+        "SELECT shortcutId FROM home_items WHERE containerId = ${HomeItemEntity.HOME} AND shortcutId IS NOT NULL " +
+            "AND packageName = :pkg AND userSerial = :user",
     )
     suspend fun shortcutIdsOfEveryProfile(pkg: String, user: Long): List<String>
 
