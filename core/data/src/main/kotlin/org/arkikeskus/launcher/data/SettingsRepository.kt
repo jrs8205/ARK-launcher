@@ -394,6 +394,29 @@ class SettingsRepository @Inject constructor(
         folderIcons.first().values + otherProfiles().flatMap { parseIcons(it[Keys.FOLDER_ICONS]).values }
 
     /**
+     * After the layout of the home profile [profileId] was copied from another: its home folders' own icons,
+     * filed by the row ids of the folders they were copied from, move to the new rows' ids ([newIds], old to
+     * new). An icon of a home folder that is not in [newIds] has no folder here and goes; the drawer's
+     * folders keep their ids and their icons.
+     */
+    suspend fun moveHomeFolderIcons(profileId: Long, newIds: Map<Long, Long>) {
+        val newKeys = newIds.entries.associate { (old, new) -> FolderIconKey.home(old) to FolderIconKey.home(new) }
+        val move: (MutablePreferences) -> Unit = { p ->
+            val icons = parseIcons(p[Keys.FOLDER_ICONS])
+            if (icons.isNotEmpty()) {
+                val moved = LinkedHashMap<String, CustomIcon>()
+                for ((key, icon) in icons) {
+                    val target = if (FolderIconKey.isDrawer(key)) key else newKeys[key] ?: continue
+                    moved[target] = icon
+                }
+                if (moved.isEmpty()) p.remove(Keys.FOLDER_ICONS) else p[Keys.FOLDER_ICONS] = serializeIcons(moved)
+            }
+        }
+        if (profiles == null || profileId == ProfiledPreferences.activeId(dataStore.data.first())) edit(move)
+        else profiles.updateProfile(profileId, move)
+    }
+
+    /**
      * The own values of each home profile that is NOT on (those of the one that is on are in [dataStore],
      * with the shared ones). Empty with one profile, and where this repository was given a plain store.
      */

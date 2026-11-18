@@ -9,10 +9,15 @@ import android.net.Uri
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.di.ApplicationScope
+import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
+import org.arkikeskus.launcher.model.HomeProfile
 import java.io.File
 import java.util.Locale
 import java.util.UUID
@@ -140,9 +145,21 @@ class DrawerWallpaperStore internal constructor(
     /** Where the files are read and written; a test hands in one it can pace. */
     private val io: CoroutineDispatcher,
 ) {
-    @Inject constructor(@ApplicationContext context: Context) : this(context, Dispatchers.IO)
+    /** The launcher's own store: its picture is that of the home profile that is on. */
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        active: ActiveHomeProfile,
+        @ApplicationScope scope: CoroutineScope,
+    ) : this(context, Dispatchers.IO) {
+        scope.launch { active.id.collect { switchTo(it) } }
+    }
 
-    private val dir = File(context.filesDir, "drawer_wallpaper")
+    /** A store that stays with the first home profile until it is told otherwise ([switchTo]). */
+    constructor(context: Context) : this(context, Dispatchers.IO)
+
+    /** The folder of the picture that shows: the first home profile's until [switchTo] says otherwise, which is
+     *  what there was before profiles and what a start comes up with. Changed only under [publishLock]. */
+    @Volatile private var dir = dirOf(HomeProfile.FIRST_ID)
     private val _current = MutableStateFlow(load())
 
     /** The ticket of the user's latest pick or removal, taken the moment it is asked for. A pick publishes only while
@@ -187,6 +204,51 @@ class DrawerWallpaperStore internal constructor(
         }
     }
 
+    /** The folder of the home profile [profile]'s picture: the first profile keeps the one there always was. */
+    private fun dirOf(profile: Long): File =
+        File(context.filesDir, if (profile == HomeProfile.FIRST_ID) "drawer_wallpaper" else "drawer_wallpaper_$profile")
+
+    /**
+     * Shows the picture of the home profile [profile] from now on, and saves and removes there. A pick or a removal
+     * still on its way was for the profile that was on: it loses its ticket and lands nowhere.
+     */
+    suspend fun switchTo(profile: Long) = withContext(io) {
+        synchronized(publishLock) {
+            val next = dirOf(profile)
+            if (next == dir) return@withContext
+            latest.incrementAndGet()
+            dir = next
+            _current.value = load()
+        }
+    }
+
+    /** Gives the home profile [to] a copy of [from]'s picture, when [from] has one: a profile made as a copy. The
+     *  file keeps its name, which carries its lightness. */
+    suspend fun copy(from: Long, to: Long) = withContext(io) {
+        val source = dirOf(from).listFiles()?.filter { it.isFile && it.extension == "jpg" }?.maxByOrNull { it.lastModified() }
+            ?: return@withContext
+        val target = dirOf(to)
+        runCatching {
+            target.mkdirs()
+            source.copyTo(File(target, source.name), overwrite = true)
+            // A picture an older build saved has its lightness in the shared file beside it.
+            File(dirOf(from), LEGACY_LUMINANCE_FILE).takeIf { it.isFile }?.copyTo(File(target, LEGACY_LUMINANCE_FILE), overwrite = true)
+        }
+    }
+
+    /** Removes the picture of the home profile [profile] with its folder: the profile was deleted. */
+    suspend fun delete(profile: Long) = withContext(io) {
+        val gone = dirOf(profile)
+        synchronized(publishLock) {
+            if (gone == dir) {
+                latest.incrementAndGet()
+                _current.value = null
+            }
+            gone.deleteRecursively()
+        }
+        Unit
+    }
+
     /**
      * Encodes [picture] into a part-file (not a picture yet: [load] never takes one), then -- if [ticket] is still the
      * latest action -- renames it under the lock to its final name, which carries its lightness ([pictureFileName]),
@@ -198,6 +260,9 @@ class DrawerWallpaperStore internal constructor(
      * took the launcher down).
      */
     private fun save(picture: Bitmap, ticket: Int): Boolean {
+        // The folder as it is now: a profile switch after this takes a ticket, so a save that still holds the
+        // latest one below was started in the folder that shows.
+        val dir = dir
         dir.mkdirs()
         val part = File(dir, "${UUID.randomUUID()}$PART_SUFFIX")
         val lightness = runCatching {
@@ -244,16 +309,18 @@ class DrawerWallpaperStore internal constructor(
         return DrawerWallpaper(file, luminance.coerceIn(0f, 1f), lightness)
     }
 
-    /** [file] decoded within [LIGHTNESS_DECODE_SIDE] on its long side (the JPEG decoder scales as it reads), or null. */
+    /** [file] decoded within [LIGHTNESS_DECODE_SIDE] on its long side (the JPEG decoder scales as it reads), or null.
+     *  Read through streams closed here: the file may be deleted right after (its profile deleted, a new pick), and
+     *  a reader left open would be in the way of that where an open file cannot be removed. */
     private fun decodeSmall(file: File): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, bounds)
+        file.inputStream().use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         val options = BitmapFactory.Options().apply {
             inSampleSize = sampleSizeFor(bounds.outWidth, bounds.outHeight, LIGHTNESS_DECODE_SIDE)
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
-        return BitmapFactory.decodeFile(file.path, options)
+        return file.inputStream().use { BitmapFactory.decodeStream(it, null, options) }
     }
 
     /** Every published picture on disk: the current one and, after a crash, the one it replaced. */

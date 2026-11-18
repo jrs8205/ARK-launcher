@@ -139,6 +139,83 @@ class DrawerWallpaperStoreTest {
 
     private fun jpgs() = dir.listFiles { f -> f.isFile && f.extension == "jpg" }.orEmpty().toList()
 
+    // --- One picture per home profile -------------------------------------------------------------
+
+    private fun jpgsOf(profile: Long) =
+        File(context.filesDir, "drawer_wallpaper_$profile").listFiles { f -> f.isFile && f.extension == "jpg" }.orEmpty().toList()
+
+    /** The first profile keeps the folder there always was; each further profile has one of its own. */
+    @Test fun eachHomeProfileHasItsOwnPicture() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.WHITE))
+        val first = store.current.value!!
+
+        store.switchTo(2)
+        assertThat(store.current.value).isNull()
+        store.set(picture(Color.BLACK))
+        val second = store.current.value!!
+
+        assertThat(second.luminance).isWithin(0.01f).of(0f)
+        assertThat(jpgsOf(2)).containsExactly(second.file)
+        assertThat(jpgs()).containsExactly(first.file)
+        store.switchTo(1)
+        assertThat(store.current.value).isEqualTo(first)
+        // A fresh start comes up with the first profile's picture, as before profiles.
+        assertThat(DrawerWallpaperStore(context).current.value).isEqualTo(first)
+    }
+
+    @Test fun aClearInOneProfileLeavesTheOthersPicture() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.WHITE))
+        store.switchTo(2)
+        store.set(picture(Color.BLACK))
+
+        store.clear()
+
+        assertThat(store.current.value).isNull()
+        assertThat(jpgsOf(2)).isEmpty()
+        assertThat(jpgs()).hasSize(1)
+        store.switchTo(1)
+        assertThat(store.current.value).isNotNull()
+    }
+
+    @Test fun aCopiedProfileGetsACopyOfThePictureAndADeletedOneLosesIt() = runTest {
+        val store = DrawerWallpaperStore(context)
+        store.set(picture(Color.WHITE))
+
+        store.copy(from = 1, to = 2)
+        // A profile without a picture copies nothing.
+        store.copy(from = 5, to = 6)
+
+        assertThat(jpgsOf(2)).hasSize(1)
+        assertThat(jpgsOf(6)).isEmpty()
+        store.switchTo(2)
+        assertThat(store.current.value!!.luminance).isWithin(0.01f).of(1f)
+        store.switchTo(1)
+
+        store.delete(2)
+
+        assertThat(jpgsOf(2)).isEmpty()
+        assertThat(jpgs()).hasSize(1)
+        assertThat(store.current.value).isNotNull()
+    }
+
+    /** A pick still being saved when the profile changes was for the profile that was on: it lands in neither. */
+    @Test fun aPickOvertakenByAProfileSwitchIsDropped() = runBlocking<Unit> {
+        val io = LastInFirstOutDispatcher()
+        val store = DrawerWallpaperStore(context, io)
+        val pick = launch { store.set(picture(Color.WHITE)) }
+        val switch = launch { store.switchTo(2) }
+        yield()
+        io.runAll()
+        pick.join()
+        switch.join()
+
+        assertThat(store.current.value).isNull()
+        assertThat(jpgsOf(2)).isEmpty()
+        assertThat(jpgs()).isEmpty()
+    }
+
     /** A save that fails half-way (here: a recycled bitmap, which cannot be encoded) is reported, leaves no half-written
      *  picture behind, and keeps the picture that was there -- it must not throw into the caller's coroutine and take
      *  the launcher down. */

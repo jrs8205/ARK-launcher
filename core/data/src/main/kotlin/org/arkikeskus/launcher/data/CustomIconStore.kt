@@ -51,15 +51,20 @@ class CustomIconStore @Inject constructor(
      *  closed mid-import. Only those saved before [savedBefore] (the launcher's start): one saved since
      *  may still be waiting in an open dialog. */
     suspend fun deleteUnusedPictures(savedBefore: Long) {
-        // The folders of EVERY home profile: a profile that is not showing still uses its pictures.
-        val used = (settings.customIcons.first().values + settings.folderIconsOfEveryProfile() + settings.shortcutIcons.first().values)
-            .filterIsInstance<CustomIcon.FromFile>()
-            .mapTo(HashSet()) { it.name }
-        source.files.deleteUnused(used, savedBefore)
+        source.files.deleteUnused(usedPictures(), savedBefore)
     }
 
-    private fun dropReplaced(old: CustomIcon?, new: CustomIcon?) {
-        if (old is CustomIcon.FromFile && old != new) source.files.delete(old)
+    /** The saved pictures some app, shortcut or folder shows: the folders of EVERY home profile, since a
+     *  profile that is not showing still uses its pictures. */
+    private suspend fun usedPictures(): Set<String> =
+        (settings.customIcons.first().values + settings.folderIconsOfEveryProfile() + settings.shortcutIcons.first().values)
+            .filterIsInstance<CustomIcon.FromFile>()
+            .mapTo(HashSet()) { it.name }
+
+    /** Deletes the picture [old] was, once [new] has taken its place, unless something still shows it: a
+     *  home profile made as a copy of another has its folders' pictures in common with it. */
+    private suspend fun dropReplaced(old: CustomIcon?, new: CustomIcon?) {
+        if (old is CustomIcon.FromFile && old != new && old.name !in usedPictures()) source.files.delete(old)
     }
 }
 
