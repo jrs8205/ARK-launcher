@@ -14,6 +14,7 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.profile.HomeProfileStore
 import org.arkikeskus.launcher.data.screensaver.DreamPreferences
 import org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore
 import javax.inject.Inject
@@ -28,6 +29,7 @@ class BackupRepository @Inject constructor(
     private val settings: SettingsRepository,
     private val resolver: AppRowResolver,
     private val screensaver: ScreensaverSettingsStore,
+    private val profiles: HomeProfileStore? = null,
 ) {
     suspend fun exportDocument(createdAt: Long, appVersion: String): BackupDocument =
         BackupDocument(
@@ -86,7 +88,9 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         withContext(NonCancellable) { ShortcutPinLock.withLock {
             val previousSettings = settings.snapshot()
-            val previousLayout = homeItemDao.getAllOnce()
+            // The rows of EVERY home profile: a restore replaces them all (what a backup file describes
+            // is one profile), and the pinned shortcuts they held are released below.
+            val previousLayout = homeItemDao.getAllOfEveryProfile()
             settings.importRaw(restoredSettings)
             val importedSettings = settings.snapshot()
             // The screensaver's settings are a file of their own, written with the launcher's. A file
@@ -95,7 +99,7 @@ class BackupRepository @Inject constructor(
             try {
                 // Throws when its file cannot be saved, having undone itself: the layout is then never touched.
                 screensaverImport = doc.screensaver?.let { screensaver.importRaw(screensaverForThisPhone(it)) }
-                homeItemDao.replaceLayout(entities)
+                homeItemDao.replaceEveryProfile(entities)
             } catch (t: Throwable) {
                 // Take both imports back so a failed write never leaves half a restore. Only what the
                 // imports themselves changed: a setting the user changed meanwhile keeps its newer value.
@@ -103,6 +107,10 @@ class BackupRepository @Inject constructor(
                 screensaverImport?.let { done -> runCatching { screensaver.rollbackImport(done) } }
                 throw t
             }
+            // The layout is the restored profile's alone now; the other profiles' settings go with their
+            // rows. Last, and best effort: until here a failure leaves every profile as it was, and a
+            // profile left listed by a failure here is an empty one the user can delete.
+            runCatching { profiles?.keepOnlyActive() }
             repinShortcuts(previousLayout, entities)
         } }
         return RestoreResult(entities.size, mapping.skipped)

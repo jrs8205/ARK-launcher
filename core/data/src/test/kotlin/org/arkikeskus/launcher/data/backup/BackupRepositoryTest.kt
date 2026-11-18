@@ -102,10 +102,10 @@ class BackupRepositoryTest {
         private val fail: Boolean = false,
         private val beforeReplace: suspend () -> Unit = {},
     ) : HomeItemDao by inner {
-        override suspend fun replaceLayout(items: List<org.arkikeskus.launcher.data.local.HomeItemEntity>) {
+        override suspend fun replaceEveryProfile(items: List<org.arkikeskus.launcher.data.local.HomeItemEntity>) {
             beforeReplace()
             if (fail) throw IllegalStateException("disk full")
-            inner.replaceLayout(items)
+            inner.replaceEveryProfile(items)
         }
     }
 

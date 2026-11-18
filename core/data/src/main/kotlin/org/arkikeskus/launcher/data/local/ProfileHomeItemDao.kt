@@ -108,4 +108,6 @@ class ProfileHomeItemDao(
     override suspend fun profileIds() = rows.profileIds()
 
     override suspend fun deleteProfile(profile: Long) = rows.clear(profile)
+
+    override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) = rows.replaceEveryProfile(resolvedProfile(), items)
 }

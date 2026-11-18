@@ -51,7 +51,8 @@ class CustomIconStore @Inject constructor(
      *  closed mid-import. Only those saved before [savedBefore] (the launcher's start): one saved since
      *  may still be waiting in an open dialog. */
     suspend fun deleteUnusedPictures(savedBefore: Long) {
-        val used = (settings.customIcons.first().values + settings.folderIcons.first().values + settings.shortcutIcons.first().values)
+        // The folders of EVERY home profile: a profile that is not showing still uses its pictures.
+        val used = (settings.customIcons.first().values + settings.folderIconsOfEveryProfile() + settings.shortcutIcons.first().values)
             .filterIsInstance<CustomIcon.FromFile>()
             .mapTo(HashSet()) { it.name }
         source.files.deleteUnused(used, savedBefore)

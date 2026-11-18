@@ -138,4 +138,15 @@ interface HomeItemRoomDao {
 
     @Query("SELECT DISTINCT homeProfileId FROM home_items ORDER BY homeProfileId ASC")
     suspend fun profileIds(): List<Long>
+
+    @Query("DELETE FROM home_items")
+    suspend fun clearEveryProfile()
+
+    /** Replaces the rows of EVERY profile with [items], all of them [profile]'s: what a restore does. The
+     *  rows keep the ids they come with, so every other row must be gone before they go in. */
+    @Transaction
+    suspend fun replaceEveryProfile(profile: Long, items: List<HomeItemEntity>) {
+        clearEveryProfile()
+        for (item in items) insert(item.copy(homeProfileId = profile))
+    }
 }

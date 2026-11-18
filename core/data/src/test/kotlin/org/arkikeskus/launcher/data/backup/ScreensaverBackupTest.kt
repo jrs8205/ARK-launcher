@@ -149,7 +149,7 @@ class ScreensaverBackupTest {
     }
 
     private class FailingDao(private val inner: HomeItemDao, private val before: () -> Unit = {}) : HomeItemDao by inner {
-        override suspend fun replaceLayout(items: List<HomeItemEntity>) {
+        override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) {
             before()
             throw IllegalStateException("disk full")
         }

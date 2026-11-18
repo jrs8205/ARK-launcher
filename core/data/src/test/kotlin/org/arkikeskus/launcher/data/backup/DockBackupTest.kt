@@ -185,7 +185,7 @@ class DockBackupTest {
     fun aFailedLayoutWriteLeavesTheDockRowsAsTheyWere() = runTest {
         dao.insert(HomeItemEntity(containerId = DOCK, packageName = "x", className = "X", page = 0, cellX = 0, cellY = 0))
         val failing = object : HomeItemDao by dao {
-            override suspend fun replaceLayout(items: List<HomeItemEntity>) = throw IllegalStateException("disk full")
+            override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) = throw IllegalStateException("disk full")
         }
         val backup = doc(mapOf("home_columns" to 4), dockApp(1, "a", 0))
 

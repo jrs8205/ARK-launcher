@@ -13,7 +13,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import org.arkikeskus.launcher.data.profile.HomeProfileKeys
+import org.arkikeskus.launcher.data.profile.ProfiledPreferences
 import org.arkikeskus.launcher.model.CustomIcon
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
@@ -55,6 +58,7 @@ object ShortcutIconKey {
 @Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
+    private val profiles: ProfiledPreferences? = null,
 ) {
 
     val settings: Flow<LauncherSettings> = dataStore.data.onStart {
@@ -201,6 +205,7 @@ class SettingsRepository @Inject constructor(
             peopleShowApps = p[Keys.PEOPLE_SHOW_APPS] ?: true,
             homePage = (p[Keys.HOME_PAGE] ?: 0).coerceIn(0, HomeLayoutRepository.MAX_PAGES),
             homePageCount = (p[Keys.HOME_PAGE_COUNT] ?: 0).coerceIn(0, HomeLayoutRepository.MAX_PAGES),
+            homeProfileId = ProfiledPreferences.activeId(p),
             peopleBatchTimes = (p[Keys.PEOPLE_BATCH_TIMES] ?: LauncherSettings.DEFAULT_BATCH_TIMES)
                 .let { BatchSchedule.parse(it) }
                 .let { if (it.isEmpty()) LauncherSettings.DEFAULT_BATCH_TIMES else BatchSchedule.format(it) },
@@ -383,6 +388,24 @@ class SettingsRepository @Inject constructor(
 
     /** Icons the user picked for pinned shortcuts ([ShortcutIconKey] -> icon), shown in place of the
      *  icon the app pinned them with (issue #23: a browser's web shortcuts dressed from an icon pack). */
+    /** The folders' own icons in EVERY home profile (a folder's key says nothing outside its profile, so
+     *  only the icons): what still uses a saved picture, whichever profile is on. */
+    suspend fun folderIconsOfEveryProfile(): List<CustomIcon> =
+        folderIcons.first().values + otherProfiles().flatMap { parseIcons(it[Keys.FOLDER_ICONS]).values }
+
+    /**
+     * The own values of each home profile that is NOT on (those of the one that is on are in [dataStore],
+     * with the shared ones). Empty with one profile, and where this repository was given a plain store.
+     */
+    private suspend fun otherProfiles(): List<Preferences> = otherProfileIds().map { profiles!!.profileValues(it) }
+
+    private suspend fun otherProfileIds(): List<Long> {
+        profiles ?: return emptyList()
+        val now = dataStore.data.first()
+        val active = ProfiledPreferences.activeId(now)
+        return HomeProfile.decode(now[stringPreferencesKey(HomeProfileKeys.LIST)]).map { it.id }.filter { it != active }
+    }
+
     val shortcutIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.SHORTCUT_ICONS]) }
 
     /** Sets (or, for null, clears) the icon picked for the shortcut [key] (see [ShortcutIconKey]). */
@@ -663,26 +686,31 @@ class SettingsRepository @Inject constructor(
      *  the left-swipe and weather apps, both sides of the swipe-up pairings (see [APP_KEY_PREFS]; the
      *  dock is rows since 0.9.7). */
     suspend fun referencedAppKeys(): Set<String> {
-        val prefs = dataStore.data.first()
         val keys = LinkedHashSet<String>()
-        for (name in APP_KEY_PREFS) {
-            val raw = prefs[stringPreferencesKey(name)] ?: continue
-            rewriteAppKeys(name, raw) { keys += it; it }
+        // Of every home profile: an app is the same app whichever profile is on.
+        for (prefs in listOf(dataStore.data.first()) + otherProfiles()) {
+            for (name in APP_KEY_PREFS) {
+                val raw = prefs[stringPreferencesKey(name)] ?: continue
+                rewriteAppKeys(name, raw) { keys += it; it }
+            }
         }
         return keys
     }
 
-    /** Replaces app keys per [renames] in every setting that refers to apps, in one write; a renamed
-     *  entry that meets its new key collapses into it (see [rewriteAppKeys]). */
+    /** Replaces app keys per [renames] in every setting that refers to apps, in one write per home
+     *  profile; a renamed entry that meets its new key collapses into it (see [rewriteAppKeys]). */
     suspend fun renameAppKeys(renames: Map<String, String>) {
         if (renames.isEmpty()) return
-        edit { p ->
+        val rename: (MutablePreferences) -> Unit = { p ->
             for (name in APP_KEY_PREFS) {
                 val key = stringPreferencesKey(name)
                 val raw = p[key] ?: continue
                 p[key] = rewriteAppKeys(name, raw) { renames[it] ?: it }
             }
         }
+        edit(rename)
+        // The profiles that are not on keep their own drawer folders and left-swipe app.
+        for (id in otherProfileIds()) profiles!!.updateProfile(id, rename)
     }
 
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */
@@ -726,6 +754,9 @@ class SettingsRepository @Inject constructor(
     suspend fun exportRaw(): Map<String, Any> =
         dataStore.data.first().asMap().entries
             .filterNot { it.key.name in DEVICE_LOCAL_KEYS || it.key.name == AppUsageRepository.USAGE_KEY }
+            // The list of home profiles and which one is on are this launcher's own bookkeeping: what
+            // is exported is the settings of the profile that is on.
+            .filterNot { it.key.name in HomeProfileKeys.RESERVED }
             .mapNotNull { (k, v) ->
                 // A gallery image is a file on this phone: only icon-pack icons go in the backup.
                 if (k.name in ICON_PREFS && v is String) {
@@ -776,6 +807,8 @@ class SettingsRepository @Inject constructor(
                     // Device-local bookkeeping is excluded from export, but a hand-edited (or old,
                     // ≤0.7.11 Drive-era) file could smuggle a value in — never import these names.
                     name in DEVICE_LOCAL_KEYS || name == AppUsageRepository.USAGE_KEY -> Unit
+                    // Nor the home profile bookkeeping: a file cannot say which profiles this launcher has.
+                    name in HomeProfileKeys.RESERVED -> Unit
                     // Known keys are written ONLY with their registered type — a wrong-typed value
                     // in an edited/corrupted file would otherwise be stored under the same key name
                     // and crash every settings read with a ClassCastException.

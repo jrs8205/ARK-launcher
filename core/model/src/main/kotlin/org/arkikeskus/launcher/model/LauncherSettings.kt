@@ -214,6 +214,8 @@ data class LauncherSettings(
     /** Pages the user added explicitly (0 = none): the home keeps at least this many pages even
      *  when some are empty. Pages that hold an icon or widget exist regardless. */
     val homePageCount: Int = 0,
+    /** The home profile these settings are of: the one that is on (`HomeProfile.id`). */
+    val homeProfileId: Long = HomeProfile.FIRST_ID,
 ) {
     companion object {
         const val COUNT_NUMBER = "number"
