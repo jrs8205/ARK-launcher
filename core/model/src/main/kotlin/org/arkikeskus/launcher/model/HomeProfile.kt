@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.model
 
+import java.text.BreakIterator
+
 /** What a home profile does with an app installed after the profile was made. */
 enum class NewAppsRule(val id: String) {
     /** Shown here wherever it was installed. */
@@ -40,9 +42,22 @@ data class HomeProfile(
 
         private const val MINUTES_IN_DAY = 24 * 60
 
-        /** A name as it is kept: on one line, no tabs, trimmed and at most [MAX_NAME_LENGTH] long. */
+        /**
+         * [text] cut to [MAX_NAME_LENGTH] at most, where a character ends: an emoji (two code units or more,
+         * a flag, several joined into one) and a letter with the marks written after it stay whole or go
+         * whole. A cut by code units left half an emoji, which is no text to show or to store.
+         */
+        fun fitName(text: String): String {
+            if (text.length <= MAX_NAME_LENGTH) return text
+            val characters = BreakIterator.getCharacterInstance().apply { setText(text) }
+            val end = if (characters.isBoundary(MAX_NAME_LENGTH)) MAX_NAME_LENGTH else characters.preceding(MAX_NAME_LENGTH)
+            return text.substring(0, end.coerceAtLeast(0))
+        }
+
+        /** A name as it is kept: on one line, no tabs, trimmed and at most [MAX_NAME_LENGTH] long, cut where a
+         *  character ends ([fitName]). */
         fun cleanName(raw: String): String =
-            raw.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim().take(MAX_NAME_LENGTH).trim()
+            fitName(raw.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ').trim()).trim()
 
         /** One line per profile, the fields apart by tabs: id, name, rule, start minute, weekdays. */
         fun encode(profiles: List<HomeProfile>): String = profiles.joinToString("\n") { p ->

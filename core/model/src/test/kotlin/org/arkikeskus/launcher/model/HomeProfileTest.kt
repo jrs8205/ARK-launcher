@@ -25,6 +25,33 @@ class HomeProfileTest {
         assertThat(HomeProfile.decode(" \n ")).containsExactly(HomeProfile(1, ""))
     }
 
+    /**
+     * A name is cut where a character ends, never inside one. Cut by code units, a name that ran over the
+     * limit in the middle of an emoji kept half of it (a lone surrogate, shown as a box and not valid text to
+     * store), and a letter lost the mark written after it.
+     */
+    @Test fun aNameIsCutBetweenCharactersNeverInsideOne() {
+        val x23 = "x".repeat(23)
+        val grin = "😀" // one emoji, two code units
+        val finland = "🇫🇮" // one flag, four
+        val family = "👨‍👩‍👧" // one emoji of three joined, eight
+        val eAcute = "é" // one letter with its mark, two
+
+        // The limit falls inside the emoji: the whole emoji goes.
+        assertThat(HomeProfile.fitName(x23 + grin + "y")).isEqualTo(x23)
+        assertThat(HomeProfile.fitName("x".repeat(22) + finland)).isEqualTo("x".repeat(22))
+        assertThat(HomeProfile.fitName("x".repeat(20) + family)).isEqualTo("x".repeat(20))
+        assertThat(HomeProfile.fitName(x23 + eAcute)).isEqualTo(x23)
+        // A character that ends at the limit stays whole.
+        assertThat(HomeProfile.fitName("x".repeat(22) + grin + "y")).isEqualTo("x".repeat(22) + grin)
+        assertThat(HomeProfile.fitName("x".repeat(22) + eAcute + "y")).isEqualTo("x".repeat(22) + eAcute)
+        // A name within the limit is not touched.
+        assertThat(HomeProfile.fitName("Work $grin")).isEqualTo("Work $grin")
+        // The kept name goes through the same cut.
+        assertThat(HomeProfile.cleanName(x23 + grin + "y")).isEqualTo(x23)
+        assertThat(HomeProfile.cleanName("x".repeat(40))).isEqualTo("x".repeat(24))
+    }
+
     @Test fun aNameIsCutToItsLimitAndLosesTabsAndNewlines() {
         assertThat(HomeProfile.cleanName("  Wo\trk\nplace  ")).isEqualTo("Wo rk place")
         assertThat(HomeProfile.cleanName("x".repeat(40))).hasLength(HomeProfile.MAX_NAME_LENGTH)

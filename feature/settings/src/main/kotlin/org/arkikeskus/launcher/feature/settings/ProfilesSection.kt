@@ -291,8 +291,9 @@ private fun EditProfileDialog(
 private fun ProfileNameField(name: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = name,
-        // On one line and no longer than a name is kept (HomeProfile.cleanName cuts the same way).
-        onValueChange = { onChange(it.replace('\n', ' ').take(HomeProfile.MAX_NAME_LENGTH)) },
+        // On one line and no longer than a name is kept, cut where a character ends as the kept name is
+        // (HomeProfile.fitName): never half an emoji in the field.
+        onValueChange = { onChange(HomeProfile.fitName(it.replace('\n', ' '))) },
         singleLine = true,
         label = { Text(stringResource(R.string.settings_profile_name_hint)) },
         modifier = Modifier.fillMaxWidth(),
