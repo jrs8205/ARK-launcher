@@ -294,4 +294,21 @@
     <string name="settings_screensaver_battery_full_desc">Ekran koruyucu gösterilirken pil dolduğunda gelen bildirim. Açıldığında bildirim gönderme izni istenir.</string>
     <string name="settings_screensaver_battery_full_denied">ARK-Launcher için bildirimlere izin verilmiyor, bu yüzden bildirim gönderilemiyor. Uygulamanın bildirim ayarlarından izin verin.</string>
     <string name="settings_permission_notifications">Bildirim gönderme</string>
+    <string name="settings_cat_profiles">Profiller</string>
+    <string name="settings_cat_profiles_summary">Kendi uygulamaları ve görünümü olan ayrı ana ekranlar</string>
+    <string name="settings_profile_list">Profilleriniz</string>
+    <string name="settings_profile_default_name">Ev</string>
+    <string name="settings_profile_new">Yeni profil</string>
+    <string name="settings_profile_name_hint">Ad</string>
+    <string name="settings_profile_copy_current">Geçerli profilin kopyası</string>
+    <string name="settings_profile_empty">Boş</string>
+    <string name="settings_profile_explain">Profil, bu başlatıcının bir görünümüdür; Android\'in iş profili değildir. Bir profilin dışında bıraktığı uygulamalar çalışmaya ve bildirim göndermeye devam eder.</string>
+    <string name="settings_profile_limit">8 profil sınırına ulaşıldı</string>
+    <string name="settings_profile_create">Oluştur</string>
+    <string name="settings_profile_edit">%1$s profilini düzenle</string>
+    <string name="settings_profile_delete">Profili sil</string>
+    <string name="settings_profile_delete_confirm">%1$s silinsin mi? Ana ekranı, dock\'u ve widget\'ları kaldırılır.</string>
+    <string name="settings_profile_active">Kullanımda</string>
+    <string name="settings_profile_editing">Düzenlenen: %1$s</string>
+    <string name="settings_profile_row_mark">Her profil için ayrı ayarlanır</string>
 </resources>

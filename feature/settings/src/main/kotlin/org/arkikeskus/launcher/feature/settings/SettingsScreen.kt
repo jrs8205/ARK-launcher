@@ -28,6 +28,7 @@ import org.arkikeskus.launcher.data.DrawerFolder
 import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.feature.backup.BackupScreen
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.component.LocalIconPack
@@ -63,6 +64,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
     val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
     val privateSpaceSeen by viewModel.privateSpaceSeen.collectAsStateWithLifecycle()
+    val homeProfiles by viewModel.homeProfiles.collectAsStateWithLifecycle()
     SettingsWhenRead(
         s = s,
         lists = SettingsLists(
@@ -72,6 +74,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
             iconPacks = iconPacks,
             drawerWallpaper = drawerWallpaper,
             privateSpaceSeen = privateSpaceSeen,
+            homeProfiles = homeProfiles,
         ),
         actions = viewModel,
         modifier = modifier,
@@ -100,8 +103,9 @@ internal fun SettingsWhenRead(
 }
 
 /** What the page shows besides the settings themselves: the apps, what is hidden, the drawer's folders (null while
- *  they load), the installed icon packs, the user's own picture behind the drawer, and whether the launcher sees
- *  a private space on this phone (some rows exist only then). */
+ *  they load), the installed icon packs, the user's own picture behind the drawer, whether the launcher sees
+ *  a private space on this phone (some rows exist only then), and the home profiles in their order (which one is
+ *  in use the settings say themselves, `LauncherSettings.homeProfileId`). */
 internal class SettingsLists(
     val apps: List<AppItem> = emptyList(),
     val hiddenKeys: Set<String> = emptySet(),
@@ -109,6 +113,7 @@ internal class SettingsLists(
     val iconPacks: List<IconPackInfo> = emptyList(),
     val drawerWallpaper: DrawerWallpaper? = null,
     val privateSpaceSeen: Boolean = false,
+    val homeProfiles: List<HomeProfile> = listOf(HomeProfile(HomeProfile.FIRST_ID, "")),
 )
 
 /** The main page, as a screen of [SettingsContent]. */
@@ -195,10 +200,16 @@ internal fun SettingsContent(
         pendingJump = null
     }
     val palette = settingsPalette(currentBasePalette())
+    // With two or more home profiles Settings says which one it is editing, and marks the rows that are its own.
+    val severalProfiles = lists.homeProfiles.size >= 2
+    val editingProfile = lists.homeProfiles.firstOrNull { it.id == s.homeProfileId }
+        ?.takeIf { severalProfiles }
+        ?.let { homeProfileName(it) }
 
     CompositionLocalProvider(
         LocalExpressivePalette provides palette,
         LocalSettingJumps provides jumps,
+        LocalHomeProfileRowMarks provides severalProfiles,
         // So AppIcons in the pickers (left-edge app, hidden apps) match the selected icon pack / themed
         // icons like every other surface.
         LocalIconPack provides s.iconPackPackage,
@@ -227,6 +238,7 @@ internal fun SettingsContent(
                     SCREEN_MAIN -> SettingsMainPage(
                         onOpen = { pageKey = it.key },
                         baseColour = s.baseColour,
+                        editingProfile = editingProfile,
                         scroll = mainScroll,
                         query = query,
                         onQueryChange = { query = it },

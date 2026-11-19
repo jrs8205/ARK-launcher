@@ -109,10 +109,11 @@ class SettingsInventoryTest {
     private val allIds = SettingsIndex.entries.map { it.id }
     private val unconditionalIds = SettingsIndex.entries.filter { it.fallback == null }.map { it.id }
 
-    @Test fun theRegistryIsThe108Inventory() {
+    @Test fun theRegistryIsThe110Inventory() {
         val expected = listOf(
             "T2" to "settings_set_default",
             "AP1" to "settings_base_colour", "AP2" to "settings_charging_animation",
+            "PF1" to "settings_profile_list", "PF2" to "settings_profile_new",
             "H1" to "settings_columns", "H2" to "settings_rows", "H3" to "settings_show_labels",
             "H4" to "settings_two_line_labels",
             "H7" to "settings_glass_panel", "H8" to "settings_glass_strength", "H9" to "settings_page_indicator",

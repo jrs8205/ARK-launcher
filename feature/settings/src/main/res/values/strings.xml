@@ -294,4 +294,21 @@
     <string name="settings_screensaver_battery_full_desc">A notification when the battery becomes full while the screensaver is showing. Turning this on asks for permission to send notifications.</string>
     <string name="settings_screensaver_battery_full_denied">Notifications are not allowed for ARK-Launcher, so none can be sent. Allow them in the app\'s notification settings.</string>
     <string name="settings_permission_notifications">Sending notifications</string>
+    <string name="settings_cat_profiles">Profiles</string>
+    <string name="settings_cat_profiles_summary">Home screens of their own, with their own apps and look</string>
+    <string name="settings_profile_list">Your profiles</string>
+    <string name="settings_profile_default_name">Home</string>
+    <string name="settings_profile_new">New profile</string>
+    <string name="settings_profile_name_hint">Name</string>
+    <string name="settings_profile_copy_current">Copy of the current profile</string>
+    <string name="settings_profile_empty">Empty</string>
+    <string name="settings_profile_explain">A profile is a view of this launcher, not Android\'s work profile. Apps a profile leaves out keep running and notifying.</string>
+    <string name="settings_profile_limit">The limit of 8 profiles is reached</string>
+    <string name="settings_profile_create">Create</string>
+    <string name="settings_profile_edit">Edit %1$s</string>
+    <string name="settings_profile_delete">Delete profile</string>
+    <string name="settings_profile_delete_confirm">Delete %1$s? Its home screen, dock and widgets are removed.</string>
+    <string name="settings_profile_active">In use</string>
+    <string name="settings_profile_editing">Editing: %1$s</string>
+    <string name="settings_profile_row_mark">Set separately for each profile</string>
 </resources>

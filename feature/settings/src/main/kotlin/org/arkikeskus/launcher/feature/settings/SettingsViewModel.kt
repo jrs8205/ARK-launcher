@@ -23,7 +23,9 @@ import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import org.arkikeskus.launcher.model.IconShape
@@ -37,7 +39,24 @@ internal class SettingsViewModel @Inject constructor(
     appRepository: AppRepository,
     private val drawerWallpaper: DrawerWallpaperStore,
     privateSpace: PrivateSpaceRepository,
+    private val homeProfileRepository: HomeProfileRepository,
 ) : ViewModel(), SettingsActions {
+
+    /** The home profiles, in their order: one unnamed profile for a launcher that has made no other. */
+    val homeProfiles: StateFlow<List<HomeProfile>> = homeProfileRepository.profiles.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = listOf(HomeProfile(HomeProfile.FIRST_ID, "")),
+    )
+
+    override fun createHomeProfile(name: String, copyCurrent: Boolean) = update { homeProfileRepository.create(name, copyCurrent) }
+
+    /** Settings is the only place a profile is switched from by hand so far, and it switches at once. */
+    override fun switchHomeProfile(id: Long) = update { homeProfileRepository.switchTo(id) }
+
+    override fun renameHomeProfile(id: Long, name: String) = update { homeProfileRepository.rename(id, name) }
+
+    override fun deleteHomeProfile(id: Long) = update { homeProfileRepository.delete(id) }
 
     /** Whether the launcher sees a private space on this phone: the rows that are about one exist only then. */
     val privateSpaceSeen: StateFlow<Boolean> = privateSpace.state.map { it != null }.stateIn(

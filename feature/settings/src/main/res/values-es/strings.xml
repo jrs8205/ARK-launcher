@@ -298,4 +298,21 @@
     <string name="settings_screensaver_battery_full_desc">Una notificación cuando la batería se llena mientras se muestra el salvapantallas. Al activarlo se pide permiso para enviar notificaciones.</string>
     <string name="settings_screensaver_battery_full_denied">Las notificaciones no están permitidas para ARK-Launcher, así que no se puede enviar ninguna. Permítelas en los ajustes de notificaciones de la aplicación.</string>
     <string name="settings_permission_notifications">Enviar notificaciones</string>
+    <string name="settings_cat_profiles">Perfiles</string>
+    <string name="settings_cat_profiles_summary">Pantallas de inicio propias, con sus aplicaciones y su aspecto</string>
+    <string name="settings_profile_list">Tus perfiles</string>
+    <string name="settings_profile_default_name">Casa</string>
+    <string name="settings_profile_new">Nuevo perfil</string>
+    <string name="settings_profile_name_hint">Nombre</string>
+    <string name="settings_profile_copy_current">Copia del perfil actual</string>
+    <string name="settings_profile_empty">Vacío</string>
+    <string name="settings_profile_explain">Un perfil es una vista de este launcher, no el perfil de trabajo de Android. Las aplicaciones que un perfil deja fuera siguen funcionando y enviando notificaciones.</string>
+    <string name="settings_profile_limit">Se ha alcanzado el límite de 8 perfiles</string>
+    <string name="settings_profile_create">Crear</string>
+    <string name="settings_profile_edit">Editar %1$s</string>
+    <string name="settings_profile_delete">Eliminar perfil</string>
+    <string name="settings_profile_delete_confirm">¿Eliminar %1$s? Se quitarán su pantalla de inicio, su dock y sus widgets.</string>
+    <string name="settings_profile_active">En uso</string>
+    <string name="settings_profile_editing">Editando: %1$s</string>
+    <string name="settings_profile_row_mark">Se ajusta por separado en cada perfil</string>
 </resources>

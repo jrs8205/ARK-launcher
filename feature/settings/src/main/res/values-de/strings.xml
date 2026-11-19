@@ -294,4 +294,21 @@
     <string name="settings_screensaver_battery_full_desc">Eine Benachrichtigung, wenn der Akku voll wird, während der Bildschirmschoner läuft. Beim Einschalten wird die Berechtigung zum Senden von Benachrichtigungen angefragt.</string>
     <string name="settings_screensaver_battery_full_denied">Benachrichtigungen sind für ARK-Launcher nicht erlaubt, daher können keine gesendet werden. Erlaube sie in den Benachrichtigungseinstellungen der App.</string>
     <string name="settings_permission_notifications">Benachrichtigungen senden</string>
+    <string name="settings_cat_profiles">Profile</string>
+    <string name="settings_cat_profiles_summary">Eigene Startbildschirme mit eigenen Apps und eigenem Aussehen</string>
+    <string name="settings_profile_list">Deine Profile</string>
+    <string name="settings_profile_default_name">Zuhause</string>
+    <string name="settings_profile_new">Neues Profil</string>
+    <string name="settings_profile_name_hint">Name</string>
+    <string name="settings_profile_copy_current">Kopie des aktuellen Profils</string>
+    <string name="settings_profile_empty">Leer</string>
+    <string name="settings_profile_explain">Ein Profil ist eine Ansicht dieses Launchers, nicht das Arbeitsprofil von Android. Apps, die ein Profil auslässt, laufen weiter und senden Benachrichtigungen.</string>
+    <string name="settings_profile_limit">Die Höchstzahl von 8 Profilen ist erreicht</string>
+    <string name="settings_profile_create">Erstellen</string>
+    <string name="settings_profile_edit">%1$s bearbeiten</string>
+    <string name="settings_profile_delete">Profil löschen</string>
+    <string name="settings_profile_delete_confirm">%1$s löschen? Startbildschirm, Dock und Widgets des Profils werden entfernt.</string>
+    <string name="settings_profile_active">In Verwendung</string>
+    <string name="settings_profile_editing">Wird bearbeitet: %1$s</string>
+    <string name="settings_profile_row_mark">Für jedes Profil einzeln festgelegt</string>
 </resources>

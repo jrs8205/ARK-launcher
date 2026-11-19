@@ -294,4 +294,21 @@
     <string name="settings_screensaver_battery_full_desc">Ilmoitus, kun akku tulee täyteen näytönsäästäjän ollessa näkyvissä. Päälle kääntäminen kysyy luvan lähettää ilmoituksia.</string>
     <string name="settings_screensaver_battery_full_denied">ARK-Launcherin ilmoituksia ei ole sallittu, joten niitä ei voi lähettää. Salli ne sovelluksen ilmoitusasetuksista.</string>
     <string name="settings_permission_notifications">Ilmoitusten lähettäminen</string>
+    <string name="settings_cat_profiles">Profiilit</string>
+    <string name="settings_cat_profiles_summary">Omat etusivut, joilla on omat sovellukset ja ulkoasu</string>
+    <string name="settings_profile_list">Profiilisi</string>
+    <string name="settings_profile_default_name">Koti</string>
+    <string name="settings_profile_new">Uusi profiili</string>
+    <string name="settings_profile_name_hint">Nimi</string>
+    <string name="settings_profile_copy_current">Kopio nykyisestä profiilista</string>
+    <string name="settings_profile_empty">Tyhjä</string>
+    <string name="settings_profile_explain">Profiili on tämän launcherin näkymä, ei Androidin työprofiili. Profiilista pois jätetyt sovellukset toimivat ja ilmoittavat edelleen.</string>
+    <string name="settings_profile_limit">Profiileja on jo enimmäismäärä, 8</string>
+    <string name="settings_profile_create">Luo</string>
+    <string name="settings_profile_edit">Muokkaa profiilia %1$s</string>
+    <string name="settings_profile_delete">Poista profiili</string>
+    <string name="settings_profile_delete_confirm">Poistetaanko %1$s? Sen etusivu, dockki ja widgetit poistetaan.</string>
+    <string name="settings_profile_active">Käytössä</string>
+    <string name="settings_profile_editing">Muokataan: %1$s</string>
+    <string name="settings_profile_row_mark">Asetetaan erikseen joka profiilille</string>
 </resources>

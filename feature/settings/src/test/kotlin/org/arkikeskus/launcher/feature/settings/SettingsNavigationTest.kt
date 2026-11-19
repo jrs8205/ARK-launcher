@@ -91,7 +91,7 @@ class SettingsNavigationTest {
         show()
         assertThat(tags("category-")).containsExactlyElementsIn(SettingsCategory.entries.map { categoryTag(it.key) }).inOrder()
         assertThat(SettingsCategory.entries.map { it.key }).containsExactly(
-            "appearance", "home", "dock", "drawer", "folders", "widgets", "icons", "gestures", "bars", "notifications",
+            "appearance", "profiles", "home", "dock", "drawer", "folders", "widgets", "icons", "gestures", "bars", "notifications",
             "sounds", "screensaver",
             "permissions", "backup", "about",
         ).inOrder()

@@ -69,6 +69,8 @@ internal fun SettingsMainPage(
     onOpenHit: (SearchHit) -> Unit = {},
     /** The stored base colour, named on the Appearance row. */
     baseColour: String = LauncherSettings.BASE_COLOUR_DEFAULT,
+    /** The name of the home profile these settings are of, while there are two or more; null with one. */
+    editingProfile: String? = null,
 ) {
     val p = LocalExpressivePalette.current
     val context = LocalContext.current
@@ -90,6 +92,14 @@ internal fun SettingsMainPage(
             letterSpacing = (-0.3).sp,
             modifier = Modifier.padding(start = 6.dp, top = 10.dp, bottom = 6.dp),
         )
+        if (editingProfile != null) {
+            Text(
+                text = stringResource(R.string.settings_profile_editing, editingProfile),
+                color = p.dim,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 6.dp, bottom = 6.dp),
+            )
+        }
 
         SettingsSearchField(query = query, onQueryChange = onQueryChange, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
 

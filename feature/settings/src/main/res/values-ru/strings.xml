@@ -302,4 +302,21 @@
     <string name="settings_screensaver_battery_full_desc">Уведомление, когда батарея заряжается полностью во время показа заставки. При включении запрашивается разрешение на отправку уведомлений.</string>
     <string name="settings_screensaver_battery_full_denied">Уведомления для ARK-Launcher не разрешены, поэтому отправить их нельзя. Разрешите их в настройках уведомлений приложения.</string>
     <string name="settings_permission_notifications">Отправка уведомлений</string>
+    <string name="settings_cat_profiles">Профили</string>
+    <string name="settings_cat_profiles_summary">Отдельные главные экраны со своими приложениями и оформлением</string>
+    <string name="settings_profile_list">Ваши профили</string>
+    <string name="settings_profile_default_name">Дом</string>
+    <string name="settings_profile_new">Новый профиль</string>
+    <string name="settings_profile_name_hint">Название</string>
+    <string name="settings_profile_copy_current">Копия текущего профиля</string>
+    <string name="settings_profile_empty">Пустой</string>
+    <string name="settings_profile_explain">Профиль — это вид этого лаунчера, а не рабочий профиль Android. Приложения, не включённые в профиль, продолжают работать и присылать уведомления.</string>
+    <string name="settings_profile_limit">Достигнут предел в 8 профилей</string>
+    <string name="settings_profile_create">Создать</string>
+    <string name="settings_profile_edit">Изменить: %1$s</string>
+    <string name="settings_profile_delete">Удалить профиль</string>
+    <string name="settings_profile_delete_confirm">Удалить «%1$s»? Его главный экран, док-панель и виджеты будут удалены.</string>
+    <string name="settings_profile_active">Используется</string>
+    <string name="settings_profile_editing">Редактируется: %1$s</string>
+    <string name="settings_profile_row_mark">Задаётся отдельно для каждого профиля</string>
 </resources>

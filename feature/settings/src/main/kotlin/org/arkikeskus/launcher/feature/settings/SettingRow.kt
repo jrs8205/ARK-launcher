@@ -35,6 +35,14 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import org.arkikeskus.launcher.ui.expressive.LocalExpressiveGroupRow
 import org.arkikeskus.launcher.ui.expressive.LocalInExpressiveGroup
 import org.arkikeskus.launcher.ui.expressive.expressiveGroupRow
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.LayoutDirection
+import org.arkikeskus.launcher.ui.LauncherIcons
 
 /**
  * The rows that are on screen, and the one a search result has just led to. Every [SettingRow] notes itself in
@@ -66,6 +74,11 @@ private const val MARK_FADE_MS = 1250
 /** The width of the mark: a ring in the accent along the edge of the row's card. */
 private val MARK_RING = 3.dp
 
+/** The sign of a row each home profile sets for itself, and its distance from the row's start edge: inside the
+ *  card's own margin, which is 20 dp. */
+private val PROFILE_SIGN = 10.dp
+private val PROFILE_SIGN_INSET = 5.dp
+
 /**
  * One row of Settings as [SettingsIndex] lists it: [content] under the row's [id], so the page and the list can be
  * held against each other. The frame adds nothing to the look, except for a moment after a search result has led
@@ -83,6 +96,12 @@ internal fun SettingRow(id: String, grouped: Boolean = true, content: @Composabl
     val focus = remember { FocusRequester() }
     val mark = remember { Animatable(0f) }
     val markColor = LocalExpressivePalette.current.accent
+    // With two or more home profiles, a row each profile sets for itself wears a small sign in its start margin
+    // (clear of everything written on the row) and says so to a screen reader.
+    val ofProfile = LocalHomeProfileRowMarks.current && SettingsIndex.isPerProfile(id)
+    val ofProfileText = stringResource(R.string.settings_profile_row_mark)
+    val ofProfileSign = painterResource(LauncherIcons.Person)
+    val ofProfileColor = LocalExpressivePalette.current.dim
 
     if (jumps != null) {
         DisposableEffect(jumps, id) {
@@ -132,8 +151,19 @@ internal fun SettingRow(id: String, grouped: Boolean = true, content: @Composabl
             .bringIntoViewRequester(bringIntoView)
             // Focusable only while it is the target: afterwards the row is the plain frame it was.
             .then(if (isTarget) Modifier.focusRequester(focus).focusable() else Modifier)
+            .then(if (ofProfile) Modifier.semantics { contentDescription = ofProfileText } else Modifier)
             .drawWithContent {
                 drawContent()
+                if (ofProfile) {
+                    val sign = PROFILE_SIGN.toPx()
+                    val inset = PROFILE_SIGN_INSET.toPx()
+                    // A row on its own ends in the gap to the next one; the sign is centred on the card.
+                    val card = if (inGroup) size.height else (size.height - 10.dp.toPx()).coerceAtLeast(sign)
+                    val left = if (layoutDirection == LayoutDirection.Ltr) inset else size.width - inset - sign
+                    translate(left, (card - sign) / 2f) {
+                        with(ofProfileSign) { draw(Size(sign, sign), colorFilter = ColorFilter.tint(ofProfileColor)) }
+                    }
+                }
                 if (!inGroup && mark.value > 0f) {
                     // A ring along the edge of the row's card, inside its padding: nothing is drawn over what is
                     // written on the row, so the text reads as it does without the mark. The frame's last 10 dp

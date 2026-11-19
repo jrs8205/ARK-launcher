@@ -19,6 +19,7 @@ internal enum class SettingsCategory(
     APPEARANCE(
         "appearance", R.string.settings_cat_appearance, R.string.settings_cat_appearance_summary, LauncherIcons.Palette,
     ),
+    PROFILES("profiles", R.string.settings_cat_profiles, R.string.settings_cat_profiles_summary, LauncherIcons.Person),
     HOME("home", R.string.settings_home, R.string.settings_cat_home_summary, LauncherIcons.Home),
     DOCK("dock", R.string.settings_dock, R.string.settings_cat_dock_summary, LauncherIcons.Dock),
     DRAWER("drawer", R.string.settings_drawer, R.string.settings_cat_drawer_summary, LauncherIcons.Apps),
@@ -53,7 +54,9 @@ internal fun categoryTag(key: String): String = "category-$key"
  * [description], and the page it is on ([category]; null = the main page). A row that only shows while something
  * else is on names in [fallback] the row that is always there and controls it. [minSdk] is the Android version the
  * row needs and [maxSdk] the last one that has it; [needsPrivateSpace] says the row exists only where the launcher
- * sees a private space; [keywords] are further words to find it by.
+ * sees a private space; [keywords] are further words to find it by. [perProfile] says the row's setting is one each
+ * home profile has of its own (`HomeProfileKeys.PER_PROFILE`; a test holds the two against each other): with two or
+ * more profiles such a row is marked.
  */
 internal class SettingEntry(
     val id: String,
@@ -65,6 +68,7 @@ internal class SettingEntry(
     val keywords: List<Int> = emptyList(),
     val maxSdk: Int = Int.MAX_VALUE,
     val needsPrivateSpace: Boolean = false,
+    val perProfile: Boolean = false,
 ) {
     /** Whether a phone on Android [sdkInt] has this row at all, given whether the launcher sees a private space
      *  there: the one rule for the page and for the search. */
@@ -91,7 +95,9 @@ internal object SettingsIndex {
             keywords: List<Int> = emptyList(),
             maxSdk: Int = Int.MAX_VALUE,
             needsPrivateSpace: Boolean = false,
-        ) = add(SettingEntry(id, title, description, category, fallback, minSdk, keywords, maxSdk, needsPrivateSpace))
+        ) = add(
+            SettingEntry(id, title, description, category, fallback, minSdk, keywords, maxSdk, needsPrivateSpace, id in PER_PROFILE_ROWS),
+        )
 
         row("T2", null, R.string.settings_set_default)
 
@@ -101,6 +107,10 @@ internal object SettingsIndex {
                 keywords = listOf(R.string.settings_base_colour_keywords),
             )
             row("AP2", c, R.string.settings_charging_animation, R.string.settings_charging_animation_desc)
+        }
+        SettingsCategory.PROFILES.let { c ->
+            row("PF1", c, R.string.settings_profile_list)
+            row("PF2", c, R.string.settings_profile_new)
         }
 
         SettingsCategory.HOME.let { c ->
@@ -293,4 +303,25 @@ internal object SettingsIndex {
 
     /** The row with [id]. */
     fun entry(id: String): SettingEntry = byId.getValue(id)
+
+    /** Whether the row [id] is one each home profile sets for itself; false for an id that is no row of Settings. */
+    fun isPerProfile(id: String): Boolean = byId[id]?.perProfile == true
 }
+
+/**
+ * The rows whose setting each home profile has of its own: what one sees (the grids, the look, the surfaces, the
+ * drawer's content, the desktop lock). Every other row is how the phone behaves, the same in every profile. The
+ * settings behind the rows are sorted in `HomeProfileKeys`, and a test fails when a row here and its setting there
+ * disagree.
+ */
+private val PER_PROFILE_ROWS: Set<String> = setOf(
+    "AP1",
+    "H1", "H2", "H3", "H4", "H7", "H8", "H9", "H10", "H13",
+    "D1", "D2", "D3", "D4", "D5",
+    "A1", "A2", "A3", "A4", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16",
+    "H5", "A5", "H6", "F1", "F2", "F3", "F4", "F5", "A18", "A19", "A20", "A21",
+    "C1", "C2", "C3", "C4", "C5", "H16", "H17",
+    "I1", "I2", "I3", "I4", "I5", "I6", "I7", "I8",
+    "G4",
+    "H14", "H15", "H26", "H27",
+)

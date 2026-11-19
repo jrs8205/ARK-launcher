@@ -294,4 +294,21 @@
     <string name="settings_screensaver_battery_full_desc">En avisering när batteriet blir fullt medan skärmsläckaren visas. När du slår på detta frågas det om behörighet att skicka aviseringar.</string>
     <string name="settings_screensaver_battery_full_denied">Aviseringar är inte tillåtna för ARK-Launcher, så inga kan skickas. Tillåt dem i appens aviseringsinställningar.</string>
     <string name="settings_permission_notifications">Skicka aviseringar</string>
+    <string name="settings_cat_profiles">Profiler</string>
+    <string name="settings_cat_profiles_summary">Egna startskärmar med egna appar och eget utseende</string>
+    <string name="settings_profile_list">Dina profiler</string>
+    <string name="settings_profile_default_name">Hemma</string>
+    <string name="settings_profile_new">Ny profil</string>
+    <string name="settings_profile_name_hint">Namn</string>
+    <string name="settings_profile_copy_current">Kopia av den aktuella profilen</string>
+    <string name="settings_profile_empty">Tom</string>
+    <string name="settings_profile_explain">En profil är en vy i den här startskärmsappen, inte Androids jobbprofil. Appar som en profil utelämnar fortsätter att köras och skicka aviseringar.</string>
+    <string name="settings_profile_limit">Gränsen på 8 profiler är nådd</string>
+    <string name="settings_profile_create">Skapa</string>
+    <string name="settings_profile_edit">Redigera %1$s</string>
+    <string name="settings_profile_delete">Ta bort profil</string>
+    <string name="settings_profile_delete_confirm">Ta bort %1$s? Dess startskärm, dock och widgetar tas bort.</string>
+    <string name="settings_profile_active">Används</string>
+    <string name="settings_profile_editing">Redigerar: %1$s</string>
+    <string name="settings_profile_row_mark">Ställs in separat för varje profil</string>
 </resources>

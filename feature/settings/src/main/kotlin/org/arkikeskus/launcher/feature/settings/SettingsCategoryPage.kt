@@ -55,6 +55,10 @@ internal fun SettingsCategoryPage(
     val context = LocalContext.current
     Column(modifier = modifier.fillMaxSize().safeDrawingPadding()) {
         SettingsPageHeader(title = stringResource(category.title), onBack = onBack)
+        // What the sign on a row means, on a page that has such a row.
+        if (LocalHomeProfileRowMarks.current && SettingsIndex.entries.any { it.category == category && it.perProfile }) {
+            ProfileMarkLegend()
+        }
         // The rows that follow one another form a grouped list; a heading or a preview ends it.
         ExpressiveGroup(
             modifier = Modifier
@@ -65,6 +69,7 @@ internal fun SettingsCategoryPage(
         ) {
             when (category) {
                 SettingsCategory.APPEARANCE -> AppearanceRows(s, actions)
+                SettingsCategory.PROFILES -> ProfilesRows(s, lists, actions)
                 SettingsCategory.HOME -> HomeGridRows(s, actions)
                 SettingsCategory.DOCK -> DockRows(s, actions)
                 SettingsCategory.DRAWER -> DrawerRows(

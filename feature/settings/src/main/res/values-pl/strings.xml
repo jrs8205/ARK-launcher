@@ -302,4 +302,21 @@
     <string name="settings_screensaver_battery_full_desc">Powiadomienie, gdy bateria naładuje się do pełna podczas wyświetlania wygaszacza. Włączenie prosi o uprawnienie do wysyłania powiadomień.</string>
     <string name="settings_screensaver_battery_full_denied">Powiadomienia nie są dozwolone dla ARK-Launcher, więc nie można żadnego wysłać. Zezwól na nie w ustawieniach powiadomień aplikacji.</string>
     <string name="settings_permission_notifications">Wysyłanie powiadomień</string>
+    <string name="settings_cat_profiles">Profile</string>
+    <string name="settings_cat_profiles_summary">Własne ekrany główne, z własnymi aplikacjami i wyglądem</string>
+    <string name="settings_profile_list">Twoje profile</string>
+    <string name="settings_profile_default_name">Dom</string>
+    <string name="settings_profile_new">Nowy profil</string>
+    <string name="settings_profile_name_hint">Nazwa</string>
+    <string name="settings_profile_copy_current">Kopia bieżącego profilu</string>
+    <string name="settings_profile_empty">Pusty</string>
+    <string name="settings_profile_explain">Profil to widok tego launchera, a nie profil służbowy Androida. Aplikacje pominięte w profilu nadal działają i wysyłają powiadomienia.</string>
+    <string name="settings_profile_limit">Osiągnięto limit 8 profili</string>
+    <string name="settings_profile_create">Utwórz</string>
+    <string name="settings_profile_edit">Edytuj: %1$s</string>
+    <string name="settings_profile_delete">Usuń profil</string>
+    <string name="settings_profile_delete_confirm">Usunąć %1$s? Jego ekran główny, dock i widżety zostaną usunięte.</string>
+    <string name="settings_profile_active">W użyciu</string>
+    <string name="settings_profile_editing">Edytowany profil: %1$s</string>
+    <string name="settings_profile_row_mark">Ustawiane osobno dla każdego profilu</string>
 </resources>

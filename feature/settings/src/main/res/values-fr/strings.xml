@@ -298,4 +298,21 @@
     <string name="settings_screensaver_battery_full_desc">Une notification quand la batterie devient pleine pendant l\'affichage de l\'économiseur d\'écran. L\'activation demande l\'autorisation d\'envoyer des notifications.</string>
     <string name="settings_screensaver_battery_full_denied">Les notifications ne sont pas autorisées pour ARK-Launcher : aucune ne peut être envoyée. Autorisez-les dans les paramètres de notification de l\'application.</string>
     <string name="settings_permission_notifications">Envoi de notifications</string>
+    <string name="settings_cat_profiles">Profils</string>
+    <string name="settings_cat_profiles_summary">Des écrans d\'accueil à part, avec leurs applications et leur apparence</string>
+    <string name="settings_profile_list">Vos profils</string>
+    <string name="settings_profile_default_name">Maison</string>
+    <string name="settings_profile_new">Nouveau profil</string>
+    <string name="settings_profile_name_hint">Nom</string>
+    <string name="settings_profile_copy_current">Copie du profil actuel</string>
+    <string name="settings_profile_empty">Vide</string>
+    <string name="settings_profile_explain">Un profil est une vue de ce lanceur, pas le profil professionnel d\'Android. Les applications qu\'un profil laisse de côté continuent de fonctionner et d\'envoyer des notifications.</string>
+    <string name="settings_profile_limit">La limite de 8 profils est atteinte</string>
+    <string name="settings_profile_create">Créer</string>
+    <string name="settings_profile_edit">Modifier %1$s</string>
+    <string name="settings_profile_delete">Supprimer le profil</string>
+    <string name="settings_profile_delete_confirm">Supprimer %1$s ? Son écran d\'accueil, son dock et ses widgets seront supprimés.</string>
+    <string name="settings_profile_active">Utilisé</string>
+    <string name="settings_profile_editing">Modification : %1$s</string>
+    <string name="settings_profile_row_mark">Réglé séparément pour chaque profil</string>
 </resources>
