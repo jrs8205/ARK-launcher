@@ -27,10 +27,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.min
+import kotlin.math.ceil
 import coil3.compose.AsyncImage
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.IconEpochs
@@ -253,6 +255,20 @@ private fun labelLineHeight(labelScale: Float, fontFactor: Float): Dp = (13f * l
 /** Vertical room [AppLabel] takes under an icon (gap + [lines] lines); zero when labels are off. */
 fun labelBlockHeight(showLabel: Boolean, labelScale: Float, fontFactor: Float, lines: Int = 1): Dp =
     if (showLabel) LABEL_GAP + labelLineHeight(labelScale, fontFactor) * lines else 0.dp
+
+/**
+ * The height in pixels of a row of [AppIcon]s of [iconSize] whose labels keep their [lines] lines reserved, with
+ * [verticalPadding] over and under each icon: what a list of whole rows counts its rows in
+ * ([org.arkikeskus.launcher.ui.wholeRows]). Each part is rounded the way the layout rounds it: the icon, the gap
+ * and the paddings to the nearest pixel, a line of text up to a whole one. One rounding of the sum in dp
+ * ([labelBlockHeight]'s budget) came out a pixel under the row at densities such as 1.5 and 2.625.
+ */
+fun Density.appRowHeightPx(
+    iconSize: Dp, showLabel: Boolean, labelScale: Float, fontFactor: Float, lines: Int, verticalPadding: Dp,
+): Int {
+    val label = if (showLabel) LABEL_GAP.roundToPx() + ceil(labelLineHeight(labelScale, fontFactor).toPx()).toInt() * lines else 0
+    return iconSize.roundToPx() + label + 2 * verticalPadding.roundToPx()
+}
 
 /**
  * The label under an app / folder / shortcut icon (emits the gap and the text into the caller's

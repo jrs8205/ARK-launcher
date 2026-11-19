@@ -32,7 +32,7 @@ class WholeRowsTest {
     private fun heightIn(room: Dp, rows: Int): Float {
         compose.setContent {
             Box(Modifier.size(100.dp, room)) {
-                Column(Modifier.testTag("list").wholeRows(100.dp).verticalScroll(rememberScrollState())) {
+                Column(Modifier.testTag("list").wholeRows { 100.dp.roundToPx() }.verticalScroll(rememberScrollState())) {
                     repeat(rows) { Box(Modifier.size(100.dp)) }
                 }
             }
@@ -62,7 +62,7 @@ class WholeRowsTest {
         compose.setContent {
             // The outer list gives its content all the height it asks for.
             Column(Modifier.height(250.dp).verticalScroll(rememberScrollState())) {
-                Column(Modifier.testTag("list").wholeRows(100.dp)) {
+                Column(Modifier.testTag("list").wholeRows { 100.dp.roundToPx() }) {
                     repeat(5) { Box(Modifier.size(100.dp)) }
                 }
             }
@@ -70,5 +70,41 @@ class WholeRowsTest {
         compose.waitForIdle()
 
         assertThat(compose.onNodeWithTag("list").fetchSemanticsNode().size.height / compose.density.density).isEqualTo(500f)
+    }
+
+    /** [rows] rows of [row] in a scrolling list of [maxRows] rows at most with all the room it could want; the
+     *  height the list takes, in pixels. */
+    private fun pixelsOf(row: Dp, rows: Int, maxRows: Int): Int {
+        compose.setContent {
+            Box(Modifier.size(100.dp, 2000.dp)) {
+                Column(
+                    Modifier.testTag("list").wholeRows(maxRows) { row.roundToPx() }.verticalScroll(rememberScrollState()),
+                ) {
+                    repeat(rows) { Box(Modifier.size(100.dp, row)) }
+                }
+            }
+        }
+        compose.waitForIdle()
+        return compose.onNodeWithTag("list").fetchSemanticsNode().size.height
+    }
+
+    @Test fun noMoreRowsShowThanTheMostItMayShow() {
+        assertThat(pixelsOf(row = 100.dp, rows = 10, maxRows = 3)).isEqualTo(300)
+    }
+
+    @Test fun fewerRowsThanTheMostTakeTheirOwnHeight() {
+        assertThat(pixelsOf(row = 100.dp, rows = 2, maxRows = 3)).isEqualTo(200)
+    }
+
+    /**
+     * At a density of 1.5 a row of 100.4 dp is 151 px, and three of them 453. The most was once given as a
+     * height in dp (three times the row = 301.2 dp = 452 px), a pixel short of the third row, and the list of
+     * whole rows then showed two. Counted in rows of pixels, three rows are three rows at every density.
+     */
+    @Config(qualifiers = "en-hdpi")
+    @Test fun threeRowsAreThreeRowsAtAFractionalDensity() {
+        assertThat(compose.density.density).isEqualTo(1.5f)
+
+        assertThat(pixelsOf(row = 100.4.dp, rows = 10, maxRows = 3)).isEqualTo(3 * 151)
     }
 }

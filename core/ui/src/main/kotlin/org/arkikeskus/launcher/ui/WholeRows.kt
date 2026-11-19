@@ -10,23 +10,32 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 /**
- * Keeps a scrolling list of rows, each [rowHeight] tall, to whole rows: where the room it is given ends inside
- * a row, the list takes only the rows that fit whole and leaves the rest of the room. An open folder's apps
- * were cut between an icon and its name, or through the name. A room smaller than one row is used as it is
- * (part of a row is more than nothing), and a list that is given no limit is not limited.
+ * Keeps a scrolling list of rows, each [rowHeightPx] pixels tall, to whole rows: where the room it is given ends
+ * inside a row, the list takes only the rows that fit whole and leaves the rest of the room. An open folder's
+ * apps were cut between an icon and its name, or through the name. A room smaller than one row is used as it
+ * is (part of a row is more than nothing), and a list that is given no limit is not limited.
  *
- * Put it before the scrolling modifier, or on the lazy list itself.
+ * [maxRows] is the most rows the list shows, however much room it has. It is counted here, in rows of pixels:
+ * given as a height in dp (so many times the row's height) it came out a pixel short of the last row at a
+ * density of 1.5, and a list that may show three rows showed two.
+ *
+ * [rowHeightPx] is the row's own height in pixels, and never less than it: with a lower one the list is that
+ * much shorter than its rows and cuts the last. Put the modifier before the scrolling modifier, or on the lazy
+ * list itself.
  */
-fun Modifier.wholeRows(rowHeight: Dp): Modifier = layout { measurable, constraints ->
-    val row = rowHeight.roundToPx()
+fun Modifier.wholeRows(maxRows: Int = Int.MAX_VALUE, rowHeightPx: Density.() -> Int): Modifier = layout { measurable, constraints ->
+    val row = rowHeightPx()
     val room = constraints.maxHeight
     val whole = if (constraints.hasBoundedHeight && row in 1..room) room / row * row else room
-    val placeable = measurable.measure(constraints.copy(minHeight = minOf(constraints.minHeight, whole), maxHeight = whole))
+    val most = if (row > 0) (row.toLong() * maxRows.coerceAtLeast(1)).coerceAtMost(Constraints.Infinity.toLong()).toInt() else Constraints.Infinity
+    val height = minOf(whole, most)
+    val placeable = measurable.measure(constraints.copy(minHeight = minOf(constraints.minHeight, height), maxHeight = height))
     layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 

@@ -90,4 +90,20 @@ class DrawerFolderMembersTest {
 
         assertThreeWholeRows()
     }
+
+    /** At a density of 1.5 three times the row's height in dp is a pixel short of three rows of pixels, and
+     *  the editor showed two rows. The rows are counted in pixels. */
+    @Config(qualifiers = "en-w360dp-h640dp-hdpi")
+    @Test fun threeWholeRowsShowAtADensityOfOneAndAHalf() {
+        show(labelLines = 1, labelScale = 1f)
+
+        assertThreeWholeRows()
+    }
+
+    @Config(qualifiers = "en-w360dp-h640dp-hdpi")
+    @Test fun threeWholeRowsShowAtADensityOfOneAndAHalfWithNamesOnTwoLines() {
+        show(labelLines = 2, labelScale = 1.15f)
+
+        assertThreeWholeRows()
+    }
 }

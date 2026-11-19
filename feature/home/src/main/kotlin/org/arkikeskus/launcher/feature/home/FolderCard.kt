@@ -122,8 +122,8 @@ import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconScale
+import org.arkikeskus.launcher.ui.component.appRowHeightPx
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
-import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
 import org.arkikeskus.launcher.ui.scrollThumb
 import org.arkikeskus.launcher.ui.wholeRows
@@ -319,15 +319,20 @@ internal fun FolderCard(
             } else {
                 nominalIconSize
             }
-            val rowHeight = iconSize +
-                labelBlockHeight(showLabel = style.showLabels, labelScale = labelScale, fontFactor = labelFontFactor(density.fontScale), lines = 2) +
-                20.dp * style.spacing
-            // Up to four rows without scrolling when the screen allows; taller folders scroll. Whatever height
-            // the grid gets in the end (this, or less of it by an icon in the middle rows), it shows whole
-            // rows only ([wholeRows] on the grid): never an icon without its name.
-            val gridMaxHeight: Dp = min(rowHeight * 4, with(density) { windowHeightPx.toDp() } * 0.6f)
+            // A row's own height in pixels: what the grid counts its whole rows in.
+            val rowHeightPx = with(density) {
+                appRowHeightPx(
+                    iconSize, showLabel = style.showLabels, labelScale = labelScale, fontFactor = labelFontFactor(fontScale),
+                    lines = 2, verticalPadding = 10.dp * style.spacing,
+                )
+            }
+            // Up to four rows without scrolling when the screen allows ([GRID_MAX_ROWS], counted by the grid in
+            // rows of pixels); taller folders scroll. Whatever height the grid gets in the end (this room, or
+            // less of it by an icon in the middle rows), it shows whole rows only ([wholeRows] on the grid):
+            // never an icon without its name.
+            val gridRoom: Dp = with(density) { windowHeightPx.toDp() } * 0.6f
             // The least of the grid the card asks for: a whole row of apps, where there is one.
-            val gridMinHeight = if (shown.isEmpty()) 0.dp else min(rowHeight, gridMaxHeight)
+            val gridMinHeight = if (shown.isEmpty()) 0.dp else min(with(density) { rowHeightPx.toDp() }, gridRoom)
             FolderCardColumn(minGridHeight = gridMinHeight, modifier = Modifier.padding(8.dp)) {
                 var name by remember(folder.id) { mutableStateOf(folder.name) }
                 // The home tile's see-through backing vanishes on the card: give the preview one.
@@ -422,7 +427,7 @@ internal fun FolderCard(
                 Box(
                     modifier = Modifier
                         // The grid takes what the header above it and the editor's buttons under it leave
-                        // ([FolderCardColumn] measures those first), up to [gridMaxHeight]. Measured in its
+                        // ([FolderCardColumn] measures those first), up to [gridRoom] and four rows. Measured in its
                         // turn it took its share of the window first, and on a low window the buttons under
                         // a full folder were cut.
                         .layoutId(FOLDER_GRID_SLOT)
@@ -556,8 +561,8 @@ internal fun FolderCard(
                         userScrollEnabled = !lifted,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = gridMaxHeight)
-                            .wholeRows(rowHeight)
+                            .heightIn(max = gridRoom)
+                            .wholeRows(maxRows = GRID_MAX_ROWS) { rowHeightPx }
                             // Whole rows give no sign of the rows under them: the thumb does.
                             .scrollThumb(gridState, columns, cardColors.content.copy(alpha = 0.35f)),
                     ) {
@@ -569,7 +574,7 @@ internal fun FolderCard(
                                 showLabel = style.showLabels,
                                 maxLabelLines = 2,
                                 // Every slot reserves both label lines, as the home grid's do: the
-                                // rows stay one height (the one [gridMaxHeight] counts) whether or
+                                // rows stay one height (the one the grid counts its rows in) whether or
                                 // not a name wraps, and the icons line up across rows.
                                 reserveLabelLines = true,
                                 badgeCount = badges[app.badgeKey] ?: 0,
@@ -707,6 +712,9 @@ internal fun FolderCard(
 
 /** The layout id of the child of [FolderCardColumn] that scrolls: the grid of apps. */
 private const val FOLDER_GRID_SLOT = "folderGrid"
+
+/** The most rows of apps the open folder shows before it scrolls. */
+private const val GRID_MAX_ROWS = 4
 
 /**
  * The card's column. What does not scroll (the header above the grid, the editor's buttons under it) keeps its

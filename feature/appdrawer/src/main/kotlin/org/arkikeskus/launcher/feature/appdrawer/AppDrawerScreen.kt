@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -130,8 +129,8 @@ import org.arkikeskus.launcher.ui.R as UiR
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.PickedIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
+import org.arkikeskus.launcher.ui.component.appRowHeightPx
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
-import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
 import org.arkikeskus.launcher.ui.scrollThumb
 import org.arkikeskus.launcher.ui.wholeRows
@@ -1202,9 +1201,11 @@ internal fun DrawerFolderCard(
     val palette = LocalExpressivePalette.current
     // Every row is one height (a name's lines are reserved whether it wraps or not), so the list can show
     // whole rows only: never an icon without its name at the card's edge.
-    val rowHeight = iconSize +
-        labelBlockHeight(style.showLabels, LocalAppLabelScale.current, labelFontFactor(LocalDensity.current.fontScale), LocalAppLabelLines.current) +
-        20.dp * style.spacing
+    val labelScale = LocalAppLabelScale.current
+    val labelLines = LocalAppLabelLines.current
+    val rowHeightPx = with(LocalDensity.current) {
+        appRowHeightPx(iconSize, style.showLabels, labelScale, labelFontFactor(fontScale), labelLines, verticalPadding = 10.dp * style.spacing)
+    }
     val scroll = rememberScrollState()
     // The card is a window of its own: the long-press delay setting is applied again for its apps' hold.
     AnchoredPopupCard(
@@ -1238,7 +1239,7 @@ internal fun DrawerFolderCard(
                 Modifier
                     .testTag(DRAWER_FOLDER_ROWS_TAG)
                     .weight(1f, fill = false)
-                    .wholeRows(rowHeight)
+                    .wholeRows { rowHeightPx }
                     // Whole rows give no sign of the rows under them: the thumb does.
                     .scrollThumb(scroll, palette.dim)
                     .verticalScroll(scroll),
@@ -1296,9 +1297,11 @@ internal fun DrawerFolderMembers(
     // Every row is one height (a name's lines are reserved whether it wraps or not) and the grid is three
     // of them tall at most, whatever the text size: it never ends between an icon and its name.
     val iconSize = 56.dp
-    val rowHeight = iconSize +
-        labelBlockHeight(true, LocalAppLabelScale.current, labelFontFactor(LocalDensity.current.fontScale), LocalAppLabelLines.current) +
-        20.dp
+    val labelScale = LocalAppLabelScale.current
+    val labelLines = LocalAppLabelLines.current
+    val rowHeightPx = with(LocalDensity.current) {
+        appRowHeightPx(iconSize, showLabel = true, labelScale, labelFontFactor(fontScale), labelLines, verticalPadding = 10.dp)
+    }
     val gridState = rememberLazyGridState()
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
@@ -1306,8 +1309,9 @@ internal fun DrawerFolderMembers(
         modifier = Modifier
             .testTag(DRAWER_FOLDER_MEMBERS_TAG)
             .fillMaxWidth()
-            .heightIn(max = rowHeight * 3)
-            .wholeRows(rowHeight)
+            // Three rows, counted in rows of pixels: as a height in dp it was a pixel short of the third at a
+            // density of 1.5, and two rows showed.
+            .wholeRows(maxRows = 3) { rowHeightPx }
             // Whole rows give no sign of the rows under them: the thumb does.
             .scrollThumb(gridState, columns, MaterialTheme.colorScheme.onSurfaceVariant),
     ) {

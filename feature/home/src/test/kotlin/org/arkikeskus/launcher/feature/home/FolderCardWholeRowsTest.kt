@@ -102,6 +102,16 @@ class FolderCardWholeRowsTest {
         assertWholeRows()
     }
 
+    /** A window with the room for the card's four rows, at a density of 1.5: four whole rows show, not three.
+     *  (The four rows were once a height in dp, which at such a density can be a pixel short of four rows.) */
+    @Config(qualifiers = "en-w360dp-h800dp-hdpi")
+    @Test fun fourWholeRowsShowAtADensityOfOneAndAHalf() {
+        show()
+
+        assertWholeRows()
+        assertThat(cells().filter { it.boundsInRoot.height > 0f }).hasSize(16)
+    }
+
     @Test fun theEditorOfAFullFolderShowsWholeRows() {
         show()
         compose.onNodeWithContentDescription("Edit folder").performClick()
