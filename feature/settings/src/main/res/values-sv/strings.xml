@@ -41,6 +41,7 @@
     <string name="settings_weather_icon">Väderikon</string>
     <string name="settings_weather_icon_standard">Standard</string>
     <string name="settings_weather_icon_large">Stor</string>
+    <string name="settings_weather_icon_xlarge">Mycket stor</string>
     <string name="settings_weather_icon_color">Färgglad</string>
     <string name="settings_weather_icon_animated">Animerad</string>
     <string name="settings_weather_icon_size">Väderikonens storlek</string>

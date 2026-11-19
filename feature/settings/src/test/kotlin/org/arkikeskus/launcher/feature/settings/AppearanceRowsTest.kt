@@ -73,16 +73,20 @@ class AppearanceRowsTest {
     }
 
     /** The size beside the style (the owner's note: a moving icon that is large too). */
-    @Test fun theWeatherIconSizeRowOffersStandardAndLarge() {
-        val picked = mutableListOf<Boolean>()
-        compose.setContent { WeatherIconSizeRow(large = false, onPick = { picked += it }) }
+    @Test fun theWeatherIconSizeRowOffersThreeSizes() {
+        val picked = mutableListOf<String>()
+        compose.setContent { WeatherIconSizeRow(size = LauncherSettings.WEATHER_SIZE_STANDARD, onPick = { picked += it }) }
         compose.waitForIdle()
 
         compose.onNodeWithText(res.getString(R.string.settings_weather_icon_size)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.settings_weather_icon_standard)).assertIsSelected()
-        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_large)).assertIsNotSelected().performClick()
-        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_standard)).performClick()
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_large)).assertIsNotSelected().performScrollTo().performClick()
+        // The third size (the owner's word, 2026-11-19).
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_xlarge)).assertIsNotSelected().performScrollTo().performClick()
+        compose.onNodeWithText(res.getString(R.string.settings_weather_icon_standard)).performScrollTo().performClick()
 
-        assertThat(picked).containsExactly(true, false).inOrder()
+        assertThat(picked).containsExactly(
+            LauncherSettings.WEATHER_SIZE_LARGE, LauncherSettings.WEATHER_SIZE_XLARGE, LauncherSettings.WEATHER_SIZE_STANDARD,
+        ).inOrder()
     }
 }

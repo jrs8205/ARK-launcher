@@ -42,7 +42,7 @@ object HomeProfileKeys {
         "folder_background_color", "folder_background_opacity", "home_glass_panel", "home_glass_opacity",
         "show_status_bar", "status_bar_scrim", "hide_system_status_bar", "hide_system_navigation_bar",
         "show_page_indicator", "home_page_marker", "smartspace_background_color", "smartspace_background_opacity",
-        "smartspace_text_scale", "weather_icon_style", "weather_icon_large", "widget_tonal_background",
+        "smartspace_text_scale", "weather_icon_style", "weather_icon_large", "weather_icon_size", "widget_tonal_background",
         "widget_inset_like_icons",
         // The lock: one profile can be locked while the others are free.
         "desktop_locked",

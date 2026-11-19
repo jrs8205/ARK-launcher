@@ -41,6 +41,7 @@
     <string name="settings_weather_icon">Icône météo</string>
     <string name="settings_weather_icon_standard">Standard</string>
     <string name="settings_weather_icon_large">Grande</string>
+    <string name="settings_weather_icon_xlarge">Très grande</string>
     <string name="settings_weather_icon_color">En couleur</string>
     <string name="settings_weather_icon_animated">Animée</string>
     <string name="settings_weather_icon_size">Taille de l’icône météo</string>

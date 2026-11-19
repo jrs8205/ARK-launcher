@@ -318,7 +318,7 @@ internal fun SmartspaceContent(
                     if (detail != null) TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = detailTap) {
                         val detailStyle = MaterialTheme.typography.bodySmall.scaledBy(look.textScale)
                         if (hasPermission && event == null && weather != null) {
-                            WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink.copy(alpha = 0.85f), textStyle = detailStyle)
+                            WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, iconSize = look.weatherIconSize, color = ink.copy(alpha = 0.85f), textStyle = detailStyle)
                         } else {
                             Text(detail, color = ink.copy(alpha = 0.85f), style = detailStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -407,13 +407,14 @@ internal fun SmartspaceContent(
             val density = LocalDensity.current
             val roomPx = constraints.maxWidth - with(density) { (44 * scale).dp.roundToPx() }
             val fahrenheit = weatherInFahrenheit()
-            val rowDate = remember(dateText, dateShortText, alarmText, w?.temperatureC, fahrenheit, rowStyle, roomPx, density) {
+            val iconRoom = maxOf(2f, weatherIconFactor(look.weatherIconSize))
+            val rowDate = remember(dateText, dateShortText, alarmText, w?.temperatureC, fahrenheit, iconRoom, rowStyle, roomPx, density) {
                 fun widthOf(text: String) = measurer.measure(text, rowStyle, maxLines = 1, softWrap = false).size.width
                 with(density) {
                     val dot = widthOf("·") + (10 * scale).dp.roundToPx()
                     val alarm = if (alarmText != null) dot + (17 * scale).dp.roundToPx() + widthOf(alarmText) else 0
                     // The least the weather takes: the temperature and its icon (the place gives way first).
-                    val weatherLeast = if (w != null) dot + widthOf("${shownTemperature(w.temperatureC, fahrenheit)}°") + (2 * rowStyle.fontSize.toPx()).roundToInt() else 0
+                    val weatherLeast = if (w != null) dot + widthOf("${shownTemperature(w.temperatureC, fahrenheit)}°") + (iconRoom * rowStyle.fontSize.toPx()).roundToInt() else 0
                     if (widthOf(dateText) + alarm + weatherLeast <= roomPx) dateText else dateShortText
                 }
             }
@@ -426,7 +427,7 @@ internal fun SmartspaceContent(
                     if (w != null) {
                         TapTarget(onTap = openWeather, fillWidth = false, fillHeight = true, interactionSource = noIndication,
                             modifier = Modifier.weight(1f, fill = false)) {
-                            WeatherLine(w, withCity = true, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink, textStyle = rowStyle)
+                            WeatherLine(w, withCity = true, iconStyle = look.weatherIcon, iconSize = look.weatherIconSize, color = ink, textStyle = rowStyle)
                         }
                         MiddleDot(scale, shadow, ink)
                     }
@@ -462,7 +463,7 @@ internal fun SmartspaceContent(
             if (w != null) {
                 TapTarget(onTap = openWeather, interactionSource = noIndication) {
                     WeatherLine(
-                        w, withCity = true, iconStyle = look.weatherIcon, large = look.weatherIconLarge, color = ink,
+                        w, withCity = true, iconStyle = look.weatherIcon, iconSize = look.weatherIconSize, color = ink,
                         textStyle = themedTextStyle(TextStyle(fontSize = (16 * scale).sp, shadow = shadow)),
                     )
                 }
@@ -588,15 +589,15 @@ private fun TextStyle.scaledBy(scale: Float): TextStyle =
 /**
  * The weather line: the temperature, the weather's icon and, [withCity], the place. With the standard
  * icon at the standard size it is the one text it has always been (the emoji in the text); every other
- * style, and the [large] size of any, draws the icon beside the temperature ([WeatherGlyph]), and the
+ * style, and every size of any above the standard one, draws the icon beside the temperature ([WeatherGlyph]), and the
  * place alone gives way when the line runs out of width.
  */
 @Composable
-private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String, large: Boolean, color: Color, textStyle: TextStyle) {
+private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String, iconSize: String, color: Color, textStyle: TextStyle) {
     val city = if (withCity) w.city else null
     // In the unit the phone's region uses; the degree sign alone, as before.
     val temperature = "${shownTemperature(w.temperatureC, weatherInFahrenheit())}°"
-    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI && !large) {
+    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI && iconSize == LauncherSettings.WEATHER_SIZE_STANDARD) {
         Text(
             text = "$temperature ${WeatherCodes.emoji(w.weatherCode, w.isDay)}" + city?.let { " $it" }.orEmpty(),
             color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -606,7 +607,7 @@ private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String,
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(temperature, color = color, style = textStyle, maxLines = 1)
         Spacer(Modifier.width(4.dp))
-        WeatherGlyph(w.weatherCode, w.isDay, iconStyle, large, textStyle.fontSize)
+        WeatherGlyph(w.weatherCode, w.isDay, iconStyle, iconSize, textStyle.fontSize)
         if (city != null) {
             Spacer(Modifier.width(4.dp))
             Text(city, color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))

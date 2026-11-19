@@ -67,7 +67,7 @@ internal fun WeatherIconRows(s: LauncherSettings, actions: SettingsActions) {
             WeatherIconRow(selected = s.weatherIconStyle, onPick = actions::setWeatherIconStyle)
         }
         SettingRow("C5") {
-            WeatherIconSizeRow(large = s.weatherIconLarge, onPick = actions::setWeatherIconLarge)
+            WeatherIconSizeRow(size = s.weatherIconSize, onPick = actions::setWeatherIconSize)
         }
     }
 }
@@ -104,9 +104,16 @@ internal fun WeatherIconRow(selected: String, onPick: (String) -> Unit) {
     }
 }
 
-/** The weather icon's size, for every style: standard or large (the owner's note: a moving icon that is large too). */
+/** The weather icon's size, for every style: standard, large (the owner's note: a moving icon that is large too)
+ *  or extra large (his word of 2026-11-19: larger still). */
 @Composable
-internal fun WeatherIconSizeRow(large: Boolean, onPick: (Boolean) -> Unit) {
+internal fun WeatherIconSizeRow(size: String, onPick: (String) -> Unit) {
+    val sizes = listOf(
+        LauncherSettings.WEATHER_SIZE_STANDARD to R.string.settings_weather_icon_standard,
+        LauncherSettings.WEATHER_SIZE_LARGE to R.string.settings_weather_icon_large,
+        LauncherSettings.WEATHER_SIZE_XLARGE to R.string.settings_weather_icon_xlarge,
+    )
+    val selected = size.takeIf { known -> sizes.any { it.first == known } } ?: LauncherSettings.WEATHER_SIZE_STANDARD
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
@@ -117,17 +124,19 @@ internal fun WeatherIconSizeRow(large: Boolean, onPick: (Boolean) -> Unit) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             RowLabel(stringResource(R.string.settings_weather_icon_size))
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(
-                    selected = !large,
-                    onClick = { onPick(false) },
-                    label = { Text(stringResource(R.string.settings_weather_icon_standard)) },
-                )
-                FilterChip(
-                    selected = large,
-                    onClick = { onPick(true) },
-                    label = { Text(stringResource(R.string.settings_weather_icon_large)) },
-                )
+            // Three chips do not fit a narrow screen in every language: the row scrolls, as the style's does.
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                for ((size, label) in sizes) {
+                    FilterChip(
+                        selected = size == selected,
+                        onClick = { onPick(size) },
+                        label = { Text(stringResource(label)) },
+                    )
+                }
             }
         }
     }

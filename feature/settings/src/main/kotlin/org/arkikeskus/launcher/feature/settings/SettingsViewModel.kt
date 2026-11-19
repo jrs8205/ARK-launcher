@@ -205,7 +205,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setSmartspaceBackgroundOpacity(value: Float) = update { repository.setSmartspaceBackgroundOpacity(value) }
     override fun setSmartspaceTextScale(value: Float) = update { repository.setSmartspaceTextScale(value) }
     override fun setWeatherIconStyle(value: String) = update { repository.setWeatherIconStyle(value) }
-    override fun setWeatherIconLarge(value: Boolean) = update { repository.setWeatherIconLarge(value) }
+    override fun setWeatherIconSize(value: String) = update { repository.setWeatherIconSize(value) }
     override fun setHomeGlassPanel(value: Boolean) = update { repository.setHomeGlassPanel(value) }
     override fun setHomeGlassOpacity(value: Float) = update { repository.setHomeGlassOpacity(value) }
     override fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }

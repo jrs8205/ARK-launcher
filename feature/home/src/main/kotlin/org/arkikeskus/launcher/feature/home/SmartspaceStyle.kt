@@ -73,8 +73,8 @@ data class SmartspaceStyle(
     val backgroundOpacity: Float = LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND,
     val textScale: Float = 1f,
     val weatherIcon: String = LauncherSettings.WEATHER_ICON_EMOJI,
-    /** The large icon: a choice of its own, for every style. */
-    val weatherIconLarge: Boolean = false,
+    /** The icon's size, a choice of its own for every style: one of [LauncherSettings.WEATHER_SIZES]. */
+    val weatherIconSize: String = LauncherSettings.WEATHER_SIZE_STANDARD,
 )
 
 /** The widget's look as the settings have it. */
@@ -83,7 +83,7 @@ fun LauncherSettings.smartspaceStyle(): SmartspaceStyle = SmartspaceStyle(
     backgroundOpacity = smartspaceBackgroundOpacity,
     textScale = smartspaceTextScale,
     weatherIcon = weatherIconStyle,
-    weatherIconLarge = weatherIconLarge,
+    weatherIconSize = weatherIconSize,
 )
 
 val LocalSmartspaceStyle = staticCompositionLocalOf { SmartspaceStyle() }
@@ -306,24 +306,35 @@ internal fun weatherInFahrenheit(): Boolean {
     return remember(configuration) { runCatching { isFahrenheit(LocalePreferences.getTemperatureUnit()) }.getOrDefault(false) }
 }
 
-/** The drawn icon's side as a multiple of the line's font size: about an emoji's, and the large one. */
-internal const val WEATHER_ICON_STANDARD = 1.4f
-internal const val WEATHER_ICON_LARGE = 2f
+/** The drawn icon's side as a multiple of the line's font size: about an emoji's, the large one, and the
+ *  largest. An unknown size is the standard one. */
+internal fun weatherIconFactor(size: String): Float = when (size) {
+    LauncherSettings.WEATHER_SIZE_LARGE -> 2f
+    LauncherSettings.WEATHER_SIZE_XLARGE -> 2.8f
+    else -> 1.4f
+}
+
+/** The emoji as an icon of its own beside the text, as a multiple of the line's font size: the drawn icon's
+ *  side less the room an emoji's glyph leaves around itself. */
+private fun weatherEmojiFactor(size: String): Float = weatherIconFactor(size) * 0.85f
 
 /**
  * The weather icon beside the temperature whenever it is not the standard emoji in the text: the emoji
- * [large], or an icon drawn in colour, still or moving, at the standard size or [large]. Sized from the
+ * above the standard [size], or an icon drawn in colour, still or moving, at any size. Sized from the
  * line's [fontSize].
  */
 @Composable
 internal fun WeatherGlyph(
-    code: Int, isDay: Boolean, iconStyle: String, large: Boolean, fontSize: TextUnit, modifier: Modifier = Modifier,
+    code: Int, isDay: Boolean, iconStyle: String, iconSize: String, fontSize: TextUnit, modifier: Modifier = Modifier,
 ) {
     if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI) {
-        Text(WeatherCodes.emoji(code, isDay), fontSize = fontSize * 1.7f, maxLines = 1, modifier = modifier.testTag(WEATHER_GLYPH_TAG))
+        Text(
+            WeatherCodes.emoji(code, isDay), fontSize = fontSize * weatherEmojiFactor(iconSize), maxLines = 1,
+            modifier = modifier.testTag(WEATHER_GLYPH_TAG),
+        )
         return
     }
-    val size = with(LocalDensity.current) { (fontSize * (if (large) WEATHER_ICON_LARGE else WEATHER_ICON_STANDARD)).toDp() }
+    val size = with(LocalDensity.current) { (fontSize * weatherIconFactor(iconSize)).toDp() }
     val phase = rememberWeatherPhase(animated = iconStyle == LauncherSettings.WEATHER_ICON_ANIMATED)
     val kind = WeatherCodes.kind(code)
     // The drawing says nothing to a screen reader by itself: it is named as the emoji was.

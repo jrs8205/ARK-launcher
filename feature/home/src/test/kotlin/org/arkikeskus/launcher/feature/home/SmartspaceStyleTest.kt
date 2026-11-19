@@ -92,11 +92,11 @@ class SmartspaceStyleTest {
 
     @Test fun everyOtherStyleShowsAnIconOfItsOwnAndTheLineStillOpensTheWeatherApp() {
         val looks = listOf(
-            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI, weatherIconLarge = true),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE),
             SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR),
             SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED),
-            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR, weatherIconLarge = true),
-            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconLarge = true),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_COLOR, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE),
+            SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE),
         )
         looks.forEachIndexed { i, look ->
             style = look
@@ -119,7 +119,7 @@ class SmartspaceStyleTest {
         val standard = glyphs().single().size.height
 
         for (icon in listOf(LauncherSettings.WEATHER_ICON_COLOR, LauncherSettings.WEATHER_ICON_ANIMATED)) {
-            style = SmartspaceStyle(weatherIcon = icon, weatherIconLarge = true)
+            style = SmartspaceStyle(weatherIcon = icon, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE)
             compose.waitForIdle()
             assertThat(glyphs().single().size.height).isGreaterThan(standard)
         }
@@ -127,7 +127,7 @@ class SmartspaceStyleTest {
         compose.waitForIdle()
         assertThat(glyphs().single().size.height).isEqualTo(standard)
 
-        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI, weatherIconLarge = true)
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE)
         compose.waitForIdle()
         assertThat(glyphs()).hasSize(1)
         style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI)
@@ -137,8 +137,8 @@ class SmartspaceStyleTest {
 
     @Test fun theSettingsCarryTheStyleAndTheSize() {
         assertThat(LauncherSettings().smartspaceStyle()).isEqualTo(SmartspaceStyle())
-        assertThat(LauncherSettings(weatherIconStyle = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconLarge = true).smartspaceStyle())
-            .isEqualTo(SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconLarge = true))
+        assertThat(LauncherSettings(weatherIconStyle = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE).smartspaceStyle())
+            .isEqualTo(SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_ANIMATED, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE))
     }
 
     @Test fun theIconShowsInTheCompactAndTheShortLayoutToo() {
@@ -439,5 +439,27 @@ class SmartspaceStyleTest {
         show(height = 280)
 
         compose.onNodeWithText("12°", substring = true, useUnmergedTree = true).assertExists()
+    }
+
+    /** The third size (the owner's word, 2026-11-19): larger than large, for the emoji and the drawn icons alike. */
+    @Test fun theExtraLargeIconIsLargerThanTheLargeOne() {
+        for (icon in LauncherSettings.WEATHER_ICON_STYLES) {
+            style = SmartspaceStyle(weatherIcon = icon, weatherIconSize = LauncherSettings.WEATHER_SIZE_LARGE)
+            if (icon == LauncherSettings.WEATHER_ICON_STYLES.first()) show(height = 320) else compose.waitForIdle()
+            val large = glyphs().single().size.height
+
+            style = SmartspaceStyle(weatherIcon = icon, weatherIconSize = LauncherSettings.WEATHER_SIZE_XLARGE)
+            compose.waitForIdle()
+
+            assertThat(glyphs().single().size.height).isGreaterThan(large)
+        }
+    }
+
+    @Test fun theIconsSidesAreInTheOrderOfTheirNames() {
+        assertThat(weatherIconFactor(LauncherSettings.WEATHER_SIZE_STANDARD)).isEqualTo(1.4f)
+        assertThat(weatherIconFactor(LauncherSettings.WEATHER_SIZE_LARGE)).isEqualTo(2f)
+        assertThat(weatherIconFactor(LauncherSettings.WEATHER_SIZE_XLARGE)).isEqualTo(2.8f)
+        // Anything else is the standard one.
+        assertThat(weatherIconFactor("gigantic")).isEqualTo(1.4f)
     }
 }

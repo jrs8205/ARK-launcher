@@ -47,20 +47,20 @@ class AppearanceSettingsTest {
         assertThat(defaults.smartspaceBackgroundOpacity).isEqualTo(LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND)
         assertThat(defaults.smartspaceTextScale).isEqualTo(1f)
         assertThat(defaults.weatherIconStyle).isEqualTo(LauncherSettings.WEATHER_ICON_EMOJI)
-        assertThat(defaults.weatherIconLarge).isFalse()
+        assertThat(defaults.weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_STANDARD)
 
         repo.setSmartspaceBackgroundColor(blue)
         repo.setSmartspaceBackgroundOpacity(2f)
         repo.setSmartspaceTextScale(9f)
         repo.setWeatherIconStyle(LauncherSettings.WEATHER_ICON_ANIMATED)
-        repo.setWeatherIconLarge(true)
+        repo.setWeatherIconSize(LauncherSettings.WEATHER_SIZE_LARGE)
         val set = repo.settings.first()
         assertThat(set.smartspaceBackgroundColor).isEqualTo(blue)
         assertThat(set.smartspaceBackgroundOpacity).isEqualTo(1f)
         assertThat(set.smartspaceTextScale).isEqualTo(SettingsRepository.MAX_SMARTSPACE_TEXT_SCALE)
         assertThat(set.weatherIconStyle).isEqualTo(LauncherSettings.WEATHER_ICON_ANIMATED)
         // The size is its own setting: the moving icon can be large too.
-        assertThat(set.weatherIconLarge).isTrue()
+        assertThat(set.weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_LARGE)
         assertThat(LauncherSettings.WEATHER_ICON_STYLES).containsExactly(
             LauncherSettings.WEATHER_ICON_EMOJI, LauncherSettings.WEATHER_ICON_COLOR, LauncherSettings.WEATHER_ICON_ANIMATED,
         )
@@ -93,7 +93,7 @@ class AppearanceSettingsTest {
         repo.setSmartspaceBackgroundColor(blue)
         repo.setSmartspaceTextScale(1.2f)
         repo.setWeatherIconStyle(LauncherSettings.WEATHER_ICON_COLOR)
-        repo.setWeatherIconLarge(true)
+        repo.setWeatherIconSize(LauncherSettings.WEATHER_SIZE_LARGE)
         repo.setHomeGlassPanel(true)
         repo.setHideSystemNavigationBar(true)
 
@@ -121,5 +121,31 @@ class AppearanceSettingsTest {
         assertThat(read.smartspaceBackgroundColor).isEqualTo(blue)
         assertThat(read.smartspaceBackgroundOpacity).isEqualTo(1f)
         assertThat(read.homeGlassOpacity).isEqualTo(0.3f)
+    }
+
+    /** The owner's word, 2026-11-19: the weather can be made larger still. A third size beside standard and
+     *  large; what an older version stored (large or not, as a flag) is kept, and the flag stays in step. */
+    @Test fun `the weather icon has three sizes and an older choice of large is kept`() = runTest {
+        val repo = newRepository()
+        repo.setWeatherIconSize(LauncherSettings.WEATHER_SIZE_XLARGE)
+        assertThat(repo.settings.first().weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_XLARGE)
+        // The flag an older version reads: large there for anything above standard.
+        assertThat(repo.exportRaw()["weather_icon_large"]).isEqualTo(true)
+        assertThat(repo.exportRaw()["weather_icon_size"]).isEqualTo(LauncherSettings.WEATHER_SIZE_XLARGE)
+
+        repo.setWeatherIconSize(LauncherSettings.WEATHER_SIZE_STANDARD)
+        assertThat(repo.exportRaw()["weather_icon_large"]).isEqualTo(false)
+
+        // An unknown size (a newer version's backup, a typo) reads as the standard one.
+        repo.setWeatherIconSize("gigantic")
+        assertThat(repo.settings.first().weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_STANDARD)
+
+        // A backup of an older version has only the flag.
+        val older = newRepository()
+        older.importRaw(mapOf("weather_icon_large" to true))
+        assertThat(older.settings.first().weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_LARGE)
+        assertThat(LauncherSettings.WEATHER_SIZES).containsExactly(
+            LauncherSettings.WEATHER_SIZE_STANDARD, LauncherSettings.WEATHER_SIZE_LARGE, LauncherSettings.WEATHER_SIZE_XLARGE,
+        ).inOrder()
     }
 }

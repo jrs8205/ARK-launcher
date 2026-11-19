@@ -96,7 +96,7 @@ internal interface SettingsActions {
     fun setSmartspaceBackgroundOpacity(value: Float)
     fun setSmartspaceTextScale(value: Float)
     fun setWeatherIconStyle(value: String)
-    fun setWeatherIconLarge(value: Boolean)
+    fun setWeatherIconSize(value: String)
     fun setHomeGlassPanel(value: Boolean)
     fun setHomeGlassOpacity(value: Float)
     fun setStatusBarScrimOpacity(value: Float)

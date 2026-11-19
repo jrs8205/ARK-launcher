@@ -41,6 +41,7 @@
     <string name="settings_weather_icon">Значок погоды</string>
     <string name="settings_weather_icon_standard">Обычный</string>
     <string name="settings_weather_icon_large">Крупный</string>
+    <string name="settings_weather_icon_xlarge">Очень крупный</string>
     <string name="settings_weather_icon_color">Цветной</string>
     <string name="settings_weather_icon_animated">Анимированный</string>
     <string name="settings_weather_icon_size">Размер значка погоды</string>
