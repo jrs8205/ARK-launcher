@@ -29,4 +29,5 @@
     <string name="icon_search">Szukaj ikon</string>
     <string name="icon_suggested">Sugerowana</string>
     <string name="icon_picture_failed">Tego obrazu nie można użyć jako ikony.</string>
+    <string name="profile_default_name">Dom</string>
 </resources>

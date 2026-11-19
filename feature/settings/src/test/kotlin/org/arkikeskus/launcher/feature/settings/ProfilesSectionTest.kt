@@ -75,7 +75,7 @@ class ProfilesSectionTest {
         show(listOf(unnamed))
 
         compose.onNodeWithTag(profileRowTag(1)).assertIsSelected()
-        compose.onNode(hasTestTag(profileRowTag(1)) and hasAnyDescendant(hasText(text(R.string.settings_profile_default_name))), useUnmergedTree = true)
+        compose.onNode(hasTestTag(profileRowTag(1)) and hasAnyDescendant(hasText(text(org.arkikeskus.launcher.ui.R.string.profile_default_name))), useUnmergedTree = true)
             .assertExists()
     }
 
@@ -219,7 +219,7 @@ class ProfilesSectionTest {
     @Test fun anUnnamedFirstProfileIsEditedUnderItsDefaultName() {
         show(listOf(unnamed, work), active = 1, page = null)
 
-        compose.onNodeWithText(text(R.string.settings_profile_editing, text(R.string.settings_profile_default_name))).assertExists()
+        compose.onNodeWithText(text(R.string.settings_profile_editing, text(org.arkikeskus.launcher.ui.R.string.profile_default_name))).assertExists()
     }
 
     /**

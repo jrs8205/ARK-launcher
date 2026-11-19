@@ -297,7 +297,6 @@
     <string name="settings_cat_profiles">Profiller</string>
     <string name="settings_cat_profiles_summary">Kendi uygulamaları ve görünümü olan ayrı ana ekranlar</string>
     <string name="settings_profile_list">Profilleriniz</string>
-    <string name="settings_profile_default_name">Ev</string>
     <string name="settings_profile_new">Yeni profil</string>
     <string name="settings_profile_name_hint">Ad</string>
     <string name="settings_profile_copy_current">Geçerli profilin kopyası</string>

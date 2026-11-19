@@ -29,4 +29,5 @@
     <string name="icon_search">Hae kuvakkeita</string>
     <string name="icon_suggested">Ehdotus</string>
     <string name="icon_picture_failed">Kuvaa ei voi käyttää kuvakkeena.</string>
+    <string name="profile_default_name">Koti</string>
 </resources>

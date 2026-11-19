@@ -301,7 +301,6 @@
     <string name="settings_cat_profiles">Perfis</string>
     <string name="settings_cat_profiles_summary">Telas iniciais próprias, com seus apps e sua aparência</string>
     <string name="settings_profile_list">Seus perfis</string>
-    <string name="settings_profile_default_name">Casa</string>
     <string name="settings_profile_new">Novo perfil</string>
     <string name="settings_profile_name_hint">Nome</string>
     <string name="settings_profile_copy_current">Cópia do perfil atual</string>

@@ -32,11 +32,18 @@ internal class StoredProfilesLostInRestore @Inject constructor(
 internal fun profilesARestoreDeletes(profiles: List<HomeProfile>, activeId: Long): List<String> =
     profiles.filter { it.id != activeId }.map { it.name }
 
-/** What the restore's question says: what it always said, and which profiles go ([deletedProfiles]) if any do. */
+/**
+ * What the restore's question says: what it always said, and which profiles go ([deletedProfiles]) if any do.
+ * A profile without a name of its own (the first one, until the user names it) goes under the name it is
+ * shown with everywhere, not under its empty stored one.
+ */
 internal fun restoreConfirmText(resources: Resources, deletedProfiles: List<String>): String {
     val question = resources.getString(R.string.backup_restore_confirm_msg)
     if (deletedProfiles.isEmpty()) return question
-    return question + "\n\n" + resources.getString(R.string.backup_restore_confirm_profiles, deletedProfiles.joinToString(", "))
+    val names = deletedProfiles.joinToString(", ") { name ->
+        name.ifBlank { resources.getString(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
+    }
+    return question + "\n\n" + resources.getString(R.string.backup_restore_confirm_profiles, names)
 }
 
 /**

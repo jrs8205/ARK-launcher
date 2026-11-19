@@ -59,6 +59,17 @@ class RestoreConfirmTest {
         assertThat(text).endsWith("This also deletes every other profile: Work, Evening.")
     }
 
+    /**
+     * The first profile has no name of its own until the user gives it one: everywhere it is shown as "Home",
+     * in the user's language. The question names it the same way. With its stored name, which is empty, the
+     * question ended "every other profile: ." (seen on a device, with the second profile on).
+     */
+    @Test fun anUnnamedProfileIsNamedAsItIsShownEverywhere() {
+        assertThat(restoreConfirmText(res, listOf(""))).endsWith("This also deletes every other profile: Home.")
+        assertThat(restoreConfirmText(res, listOf("", "Evening"))).endsWith("every other profile: Home, Evening.")
+        assertThat(restoreConfirmText(resourcesIn("fi"), listOf(""))).endsWith("muut profiilit: Koti.")
+    }
+
     /** A translation that lost the placeholder would warn without saying which profiles go. */
     @Test fun everyLanguageNamesTheDeletedProfiles() {
         for (language in listOf("de", "es", "fi", "fr", "pl", "pt", "ru", "sv", "tr")) {

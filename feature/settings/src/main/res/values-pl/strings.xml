@@ -305,7 +305,6 @@
     <string name="settings_cat_profiles">Profile</string>
     <string name="settings_cat_profiles_summary">Własne ekrany główne, z własnymi aplikacjami i wyglądem</string>
     <string name="settings_profile_list">Twoje profile</string>
-    <string name="settings_profile_default_name">Dom</string>
     <string name="settings_profile_new">Nowy profil</string>
     <string name="settings_profile_name_hint">Nazwa</string>
     <string name="settings_profile_copy_current">Kopia bieżącego profilu</string>

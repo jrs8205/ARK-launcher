@@ -301,7 +301,6 @@
     <string name="settings_cat_profiles">Perfiles</string>
     <string name="settings_cat_profiles_summary">Pantallas de inicio propias, con sus aplicaciones y su aspecto</string>
     <string name="settings_profile_list">Tus perfiles</string>
-    <string name="settings_profile_default_name">Casa</string>
     <string name="settings_profile_new">Nuevo perfil</string>
     <string name="settings_profile_name_hint">Nombre</string>
     <string name="settings_profile_copy_current">Copia del perfil actual</string>

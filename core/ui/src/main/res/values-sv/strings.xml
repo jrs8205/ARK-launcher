@@ -29,4 +29,5 @@
     <string name="icon_search">Sök ikoner</string>
     <string name="icon_suggested">Förslag</string>
     <string name="icon_picture_failed">Den bilden kan inte användas som ikon.</string>
+    <string name="profile_default_name">Hemma</string>
 </resources>

@@ -29,4 +29,5 @@
     <string name="icon_search">Simge ara</string>
     <string name="icon_suggested">Öneri</string>
     <string name="icon_picture_failed">Bu resim simge olarak kullanılamaz.</string>
+    <string name="profile_default_name">Ev</string>
 </resources>

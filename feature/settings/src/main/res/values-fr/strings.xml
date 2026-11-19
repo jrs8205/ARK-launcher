@@ -301,7 +301,6 @@
     <string name="settings_cat_profiles">Profils</string>
     <string name="settings_cat_profiles_summary">Des écrans d\'accueil à part, avec leurs applications et leur apparence</string>
     <string name="settings_profile_list">Vos profils</string>
-    <string name="settings_profile_default_name">Maison</string>
     <string name="settings_profile_new">Nouveau profil</string>
     <string name="settings_profile_name_hint">Nom</string>
     <string name="settings_profile_copy_current">Copie du profil actuel</string>

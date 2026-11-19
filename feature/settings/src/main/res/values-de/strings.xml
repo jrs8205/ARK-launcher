@@ -297,7 +297,6 @@
     <string name="settings_cat_profiles">Profile</string>
     <string name="settings_cat_profiles_summary">Eigene Startbildschirme mit eigenen Apps und eigenem Aussehen</string>
     <string name="settings_profile_list">Deine Profile</string>
-    <string name="settings_profile_default_name">Zuhause</string>
     <string name="settings_profile_new">Neues Profil</string>
     <string name="settings_profile_name_hint">Name</string>
     <string name="settings_profile_copy_current">Kopie des aktuellen Profils</string>

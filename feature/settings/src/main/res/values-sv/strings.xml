@@ -297,7 +297,6 @@
     <string name="settings_cat_profiles">Profiler</string>
     <string name="settings_cat_profiles_summary">Egna startskärmar med egna appar och eget utseende</string>
     <string name="settings_profile_list">Dina profiler</string>
-    <string name="settings_profile_default_name">Hemma</string>
     <string name="settings_profile_new">Ny profil</string>
     <string name="settings_profile_name_hint">Namn</string>
     <string name="settings_profile_copy_current">Kopia av den aktuella profilen</string>

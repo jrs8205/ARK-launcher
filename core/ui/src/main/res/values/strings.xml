@@ -29,4 +29,5 @@
     <string name="icon_search">Search icons</string>
     <string name="icon_suggested">Suggested</string>
     <string name="icon_picture_failed">That picture can\'t be used as an icon.</string>
+    <string name="profile_default_name">Home</string>
 </resources>

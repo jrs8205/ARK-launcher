@@ -29,4 +29,5 @@
     <string name="icon_search">Поиск значков</string>
     <string name="icon_suggested">Предложение</string>
     <string name="icon_picture_failed">Это изображение нельзя использовать как значок.</string>
+    <string name="profile_default_name">Дом</string>
 </resources>

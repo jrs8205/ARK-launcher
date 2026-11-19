@@ -297,7 +297,6 @@
     <string name="settings_cat_profiles">Profiles</string>
     <string name="settings_cat_profiles_summary">Home screens of their own, with their own apps and look</string>
     <string name="settings_profile_list">Your profiles</string>
-    <string name="settings_profile_default_name">Home</string>
     <string name="settings_profile_new">New profile</string>
     <string name="settings_profile_name_hint">Name</string>
     <string name="settings_profile_copy_current">Copy of the current profile</string>

@@ -29,4 +29,5 @@
     <string name="icon_search">Pesquisar ícones</string>
     <string name="icon_suggested">Sugerido</string>
     <string name="icon_picture_failed">Essa imagem não pode ser usada como ícone.</string>
+    <string name="profile_default_name">Casa</string>
 </resources>

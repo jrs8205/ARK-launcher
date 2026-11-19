@@ -62,7 +62,7 @@ internal val LocalHomeProfileRowMarks = compositionLocalOf { false }
 /** The name [profile] goes by: its own, or for a first profile nobody has named yet, the default one. */
 @Composable
 internal fun homeProfileName(profile: HomeProfile): String =
-    profile.name.ifBlank { stringResource(R.string.settings_profile_default_name) }
+    profile.name.ifBlank { stringResource(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
 
 /**
  * The Profiles page: the home profiles in their order, the one in use marked; a tap on another switches to it

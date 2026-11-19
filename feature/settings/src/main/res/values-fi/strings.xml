@@ -297,7 +297,6 @@
     <string name="settings_cat_profiles">Profiilit</string>
     <string name="settings_cat_profiles_summary">Omat etusivut, joilla on omat sovellukset ja ulkoasu</string>
     <string name="settings_profile_list">Profiilisi</string>
-    <string name="settings_profile_default_name">Koti</string>
     <string name="settings_profile_new">Uusi profiili</string>
     <string name="settings_profile_name_hint">Nimi</string>
     <string name="settings_profile_copy_current">Kopio nykyisestä profiilista</string>

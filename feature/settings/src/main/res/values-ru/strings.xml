@@ -305,7 +305,6 @@
     <string name="settings_cat_profiles">Профили</string>
     <string name="settings_cat_profiles_summary">Отдельные главные экраны со своими приложениями и оформлением</string>
     <string name="settings_profile_list">Ваши профили</string>
-    <string name="settings_profile_default_name">Дом</string>
     <string name="settings_profile_new">Новый профиль</string>
     <string name="settings_profile_name_hint">Название</string>
     <string name="settings_profile_copy_current">Копия текущего профиля</string>

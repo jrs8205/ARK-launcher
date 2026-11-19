@@ -29,4 +29,5 @@
     <string name="icon_search">Symbole suchen</string>
     <string name="icon_suggested">Vorschlag</string>
     <string name="icon_picture_failed">Dieses Bild kann nicht als Symbol verwendet werden.</string>
+    <string name="profile_default_name">Zuhause</string>
 </resources>
