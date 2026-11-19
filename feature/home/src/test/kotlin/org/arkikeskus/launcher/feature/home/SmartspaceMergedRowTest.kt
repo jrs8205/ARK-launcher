@@ -53,9 +53,12 @@ class SmartspaceMergedRowTest {
     private val fullDate = DateUtils.formatDateTime(context, now, dateFlags)
     private val shortDate = DateUtils.formatDateTime(context, now, dateFlags or DateUtils.FORMAT_ABBREV_MONTH)
 
-    /** Tomorrow at 6:30 by the test's own clock: never "today", so the alarm's text carries its weekday. */
+    /** The day after tomorrow at 6:30 by the test's own clock: never "today", so the alarm's text carries its
+     *  weekday, and always the same one ("Wed"). Counted from the day the test runs on, the weekday changed
+     *  with the calendar, and with a narrow one ("Fri") the full date fitted where the test needs it not to. */
     private val alarmAt = Calendar.getInstance().apply {
-        add(Calendar.DAY_OF_YEAR, 1)
+        timeInMillis = now
+        add(Calendar.DAY_OF_YEAR, 2)
         set(Calendar.HOUR_OF_DAY, 6)
         set(Calendar.MINUTE, 30)
         set(Calendar.SECOND, 0)
