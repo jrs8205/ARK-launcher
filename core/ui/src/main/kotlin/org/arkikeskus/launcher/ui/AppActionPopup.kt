@@ -105,6 +105,12 @@ internal val SHORTCUT_ICON_SIZE = 24.dp
 private val POPUP_ROWS_MAX_HEIGHT = 520.dp
 private val CARET_HEIGHT = 10.dp
 
+/** An action row's side padding, its icon and the room between the icon and the label: what is left of the
+ *  card's width is the label's, which the count of the rows' heights measures it in. */
+private val POPUP_ROW_SIDE = 20.dp
+private val POPUP_ROW_ICON = 20.dp
+private val POPUP_ROW_ICON_GAP = 16.dp
+
 /**
  * True where a menu's rows are drawn closer: the rows at their usual height would not fit the menu's room, and
  * a menu that has to be scrolled hides its last rows (issue #30, a follow-up). Read by the rows themselves.
@@ -117,21 +123,23 @@ private fun popupRowMinHeight(compact: Boolean): Dp = if (compact) 44.dp else 48
 /** The room over and under a row's text. */
 private fun popupRowPadding(compact: Boolean): Dp = if (compact) 10.dp else 12.dp
 
-/** How tall a row is whose one [line] of text is this tall. */
-internal fun popupRowHeight(line: Dp, compact: Boolean): Dp =
-    maxOf(popupRowMinHeight(compact), line + popupRowPadding(compact) * 2)
+/** How tall a row is whose text is [text] tall (one line, or more where a label wraps). */
+internal fun popupRowHeight(text: Dp, compact: Boolean): Dp =
+    maxOf(popupRowMinHeight(compact), text + popupRowPadding(compact) * 2)
 
-/** How tall [rows] rows in [groups] groups are together, with the gaps a grouped list puts between them. */
-internal fun popupRowsHeight(rows: Int, groups: Int, line: Dp, compact: Boolean): Dp =
-    if (rows <= 0) {
+/** How tall rows are together whose texts are [texts] tall, one height per row, in [groups] groups: with the
+ *  gaps a grouped list puts between them. */
+internal fun popupRowsHeight(texts: List<Dp>, groups: Int, compact: Boolean): Dp =
+    if (texts.isEmpty()) {
         0.dp
     } else {
-        popupRowHeight(line, compact) * rows + ROW_GAP * (rows - groups) + END_GAP * (groups - 1).coerceAtLeast(0)
+        texts.fold(0.dp) { sum, text -> sum + popupRowHeight(text, compact) } +
+            ROW_GAP * (texts.size - groups) + END_GAP * (groups - 1).coerceAtLeast(0)
     }
 
 /** Whether a menu draws its rows closer: only when they are taller than its [room] at their usual height. */
-internal fun popupRowsCompact(rows: Int, groups: Int, line: Dp, room: Dp): Boolean =
-    popupRowsHeight(rows, groups, line, compact = false) > room
+internal fun popupRowsCompact(texts: List<Dp>, groups: Int, room: Dp): Boolean =
+    popupRowsHeight(texts, groups, compact = false) > room
 
 /** How wide a folder's card is, in the app drawer and on the home screen (the window less 16 dp at most). */
 val FOLDER_CARD_WIDTH = 328.dp
@@ -206,11 +214,24 @@ fun AppActionPopup(
     val density = LocalDensity.current
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
     val lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+    val rowStyle = MaterialTheme.typography.bodyLarge
+    val measurer = rememberTextMeasurer()
+    val widgetsLabel = stringResource(R.string.popup_widgets)
     val compact = with(density) {
+        val line = (if (lineHeight.isSp) lineHeight else 24.sp).toDp()
+        // A row's text as tall as it is drawn: a shortcut's is one line (it never wraps), an action's label
+        // wraps in the width its row leaves it, and a wrapped one is a line taller. Counted as one line each,
+        // a menu with a long label was taken to fit and its last row was cut.
+        fun labelHeight(label: String, hasIcon: Boolean): Dp {
+            val width = CARD_WIDTH - POPUP_ROW_SIDE * 2 - if (hasIcon) POPUP_ROW_ICON + POPUP_ROW_ICON_GAP else 0.dp
+            return measurer.measure(label, rowStyle, constraints = Constraints(maxWidth = width.roundToPx())).size.height.toDp()
+        }
+        val texts = List(shortcutRows) { line } +
+            (if (showsWidgets) listOf(labelHeight(widgetsLabel, hasIcon = true)) else emptyList()) +
+            actions.map { labelHeight(it.label, hasIcon = it.icon != null) }
         popupRowsCompact(
-            rows = shortcutRows + otherRows,
+            texts = texts,
             groups = (if (shortcutRows > 0) 1 else 0) + (if (otherRows > 0) 1 else 0),
-            line = (if (lineHeight.isSp) lineHeight else 24.sp).toDp(),
             // What the window leaves between its margins beside the caret, and never more than the menu's own cap.
             room = minOf(POPUP_ROWS_MAX_HEIGHT, (windowHeightPx - 2 * POPUP_MARGIN_PX).toDp() - CARET_HEIGHT),
         )
@@ -239,7 +260,7 @@ fun AppActionPopup(
         // The app's shortcuts are a group of their own above the launcher's actions.
         if (!shortcuts.isNullOrEmpty()) ExpressiveGroupBreak()
         if (showsWidgets) {
-            PopupMenuRow(stringResource(R.string.popup_widgets), LauncherIcons.Widgets) {
+            PopupMenuRow(widgetsLabel, LauncherIcons.Widgets) {
                 onWidgets?.invoke()
                 onDismiss()
             }
@@ -620,7 +641,7 @@ internal fun PopupMenuRow(text: String, @DrawableRes icon: Int?, onClick: () -> 
             .background(palette.container)
             .clickable(onClick = onClick)
             .heightIn(min = popupRowMinHeight(compact))
-            .padding(horizontal = 20.dp, vertical = popupRowPadding(compact)),
+            .padding(horizontal = POPUP_ROW_SIDE, vertical = popupRowPadding(compact)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -628,14 +649,14 @@ internal fun PopupMenuRow(text: String, @DrawableRes icon: Int?, onClick: () -> 
                 painter = painterResource(icon),
                 contentDescription = null,
                 tint = palette.onContainer,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(POPUP_ROW_ICON),
             )
         }
         Text(
             text = text,
             style = MaterialTheme.typography.bodyLarge,
             color = palette.onContainer,
-            modifier = Modifier.padding(start = if (icon != null) 16.dp else 0.dp),
+            modifier = Modifier.padding(start = if (icon != null) POPUP_ROW_ICON_GAP else 0.dp),
         )
     }
 }

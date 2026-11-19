@@ -33,13 +33,14 @@ class AppActionPopupDenseTest {
 
     private val app = AppItem("com.example", "Main", Process.myUserHandle(), 0L, "Example")
 
-    private fun show(rows: Int) {
+    private fun show(rows: Int, wrapped: Int? = null) {
         compose.setContent {
             AppActionPopup(
                 app = app,
                 anchor = IntOffset(200, 40),
                 preferAbove = false,
-                actions = (1..rows).map { PopupAction("Row $it") {} },
+                // [wrapped] is the row whose label is too long for one line (German for "Add to home").
+                actions = (1..rows).map { PopupAction(if (it == wrapped) "Zum Startbildschirm hinzufügen" else "Row $it") {} },
                 onDismiss = {},
             )
         }
@@ -72,5 +73,25 @@ class AppActionPopupDenseTest {
         val last = compose.onNodeWithText("Row 11")
         assertThat(last.getBoundsInRoot().height).isEqualTo(last.getUnclippedBoundsInRoot().height)
         assertThat(last.getUnclippedBoundsInRoot().height).isEqualTo(44.dp)
+    }
+
+    /**
+     * Review round 2: ten rows fit their room at the usual height, ten rows of which one has its label on two
+     * lines do not. Counted as one line each they stayed at the usual height and the last row was cut by the
+     * menu's edge. The label's real height is counted: the rows are drawn closer and the last one is whole.
+     */
+    @Test fun aLabelOnTwoLinesIsCountedWithBothLines() {
+        show(rows = 10, wrapped = 3)
+
+        assertThat(pitch()).isEqualTo(44.dp + 2.dp)
+        val last = compose.onNodeWithText("Row 10")
+        last.assertIsDisplayed()
+        assertThat(last.getBoundsInRoot().height).isEqualTo(last.getUnclippedBoundsInRoot().height)
+    }
+
+    @Test fun tenRowsOfOneLineKeepTheirUsualHeight() {
+        show(rows = 10)
+
+        assertThat(pitch()).isEqualTo(48.dp + 2.dp)
     }
 }
