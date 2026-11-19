@@ -406,13 +406,14 @@ internal fun SmartspaceContent(
             val measurer = rememberTextMeasurer()
             val density = LocalDensity.current
             val roomPx = constraints.maxWidth - with(density) { (44 * scale).dp.roundToPx() }
-            val rowDate = remember(dateText, dateShortText, alarmText, w?.temperatureC, rowStyle, roomPx, density) {
+            val fahrenheit = weatherInFahrenheit()
+            val rowDate = remember(dateText, dateShortText, alarmText, w?.temperatureC, fahrenheit, rowStyle, roomPx, density) {
                 fun widthOf(text: String) = measurer.measure(text, rowStyle, maxLines = 1, softWrap = false).size.width
                 with(density) {
                     val dot = widthOf("·") + (10 * scale).dp.roundToPx()
                     val alarm = if (alarmText != null) dot + (17 * scale).dp.roundToPx() + widthOf(alarmText) else 0
                     // The least the weather takes: the temperature and its icon (the place gives way first).
-                    val weatherLeast = if (w != null) dot + widthOf("${w.temperatureC.roundToInt()}°") + (2 * rowStyle.fontSize.toPx()).roundToInt() else 0
+                    val weatherLeast = if (w != null) dot + widthOf("${shownTemperature(w.temperatureC, fahrenheit)}°") + (2 * rowStyle.fontSize.toPx()).roundToInt() else 0
                     if (widthOf(dateText) + alarm + weatherLeast <= roomPx) dateText else dateShortText
                 }
             }
@@ -593,10 +594,11 @@ private fun TextStyle.scaledBy(scale: Float): TextStyle =
 @Composable
 private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String, large: Boolean, color: Color, textStyle: TextStyle) {
     val city = if (withCity) w.city else null
-    val temperature = "${w.temperatureC.roundToInt()}°"
+    // In the unit the phone's region uses; the degree sign alone, as before.
+    val temperature = "${shownTemperature(w.temperatureC, weatherInFahrenheit())}°"
     if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI && !large) {
         Text(
-            text = "$temperature ${WeatherCodes.emoji(w.weatherCode)}" + city?.let { " $it" }.orEmpty(),
+            text = "$temperature ${WeatherCodes.emoji(w.weatherCode, w.isDay)}" + city?.let { " $it" }.orEmpty(),
             color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
         )
         return
@@ -604,7 +606,7 @@ private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String,
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(temperature, color = color, style = textStyle, maxLines = 1)
         Spacer(Modifier.width(4.dp))
-        WeatherGlyph(w.weatherCode, iconStyle, large, textStyle.fontSize)
+        WeatherGlyph(w.weatherCode, w.isDay, iconStyle, large, textStyle.fontSize)
         if (city != null) {
             Spacer(Modifier.width(4.dp))
             Text(city, color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))

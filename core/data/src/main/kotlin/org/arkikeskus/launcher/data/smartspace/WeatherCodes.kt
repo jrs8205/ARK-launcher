@@ -16,7 +16,14 @@ object WeatherCodes {
         else -> WeatherKind.CLOUDY
     }
 
-    fun emoji(code: Int): String = when (code) {
+    /** The glyph of [code]. By night ([isDay] false) a clear or partly clear sky is a moon: the other kinds have
+     *  no sun in them and are the same. */
+    fun emoji(code: Int, isDay: Boolean = true): String = when {
+        !isDay && kind(code).let { it == WeatherKind.CLEAR || it == WeatherKind.PARTLY_CLOUDY } -> "🌙"
+        else -> dayEmoji(code)
+    }
+
+    private fun dayEmoji(code: Int): String = when (code) {
         0 -> "☀️"
         1, 2 -> "🌤️"
         45, 48 -> "🌫️"

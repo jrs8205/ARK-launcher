@@ -16,6 +16,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -24,16 +26,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -41,6 +46,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.core.text.util.LocalePreferences
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import org.arkikeskus.launcher.data.smartspace.WeatherCodes
 import org.arkikeskus.launcher.data.smartspace.WeatherKind
@@ -220,41 +226,84 @@ internal fun weatherKindName(kind: WeatherKind): Int = when (kind) {
     WeatherKind.THUNDER -> R.string.weather_thunder
 }
 
-/** How long the moving weather icon moves after the home screen comes back, then it rests (battery).
- *  Every motion's period divides it, so the icon comes to rest exactly in its still pose. */
-internal const val WEATHER_ANIMATION_MS = 8_000L
+/** The length of the moving weather icon's loop: every motion's period divides it, so the drawing's clock
+ *  starts over here without a jump, and the icon comes to rest exactly in its still pose. */
+internal const val WEATHER_LOOP_MS = 8_000L
 
-/** Whether the icon is still moving [elapsedMs] after the home screen came back. The system's
- *  "Remove animations" ([systemAnimations] false) stills it altogether. */
-internal fun weatherAnimationRunning(elapsedMs: Long, animated: Boolean, systemAnimations: Boolean): Boolean =
-    animated && systemAnimations && elapsedMs < WEATHER_ANIMATION_MS
+/** The least time between two drawings of the moving icon: thirty a second. Weather moves slowly, and every
+ *  frame drawn is the battery's. */
+internal const val WEATHER_FRAME_MS = 33L
 
-/** Seconds into the current run of the animation; 0 at rest. Read in the draw phase only. */
+/**
+ * Whether the moving icon moves: for as long as it is [shown] (the home screen in front and not under the app
+ * drawer; the widget's own page on screen). It used to move for eight seconds after the home screen came back
+ * and then rest, which read as a fault (the owner, 2026-11-19). The system's "Remove animations"
+ * ([systemAnimations] false) stills it altogether.
+ */
+internal fun weatherAnimationRunning(animated: Boolean, systemAnimations: Boolean, shown: Boolean): Boolean =
+    animated && systemAnimations && shown
+
+/** Seconds into the loop [elapsedMs] after the icon started moving. */
+internal fun weatherPhaseSeconds(elapsedMs: Long): Float = (elapsedMs % WEATHER_LOOP_MS) / 1000f
+
+/** Whether the icon is drawn again at [nowMs], having been drawn at [lastMs]. */
+internal fun weatherFrameDue(lastMs: Long, nowMs: Long): Boolean = nowMs - lastMs >= WEATHER_FRAME_MS
+
+/** False where the home screen is covered by the launcher's own app drawer: nothing on it needs to move. */
+val LocalHomeScreenShown = compositionLocalOf { true }
+
+/** Seconds into the animation's loop; 0 at rest. Read in the draw phase only. */
 @Composable
 private fun rememberWeatherPhase(animated: Boolean): FloatState {
     val phase = remember { mutableFloatStateOf(0f) }
     val context = LocalContext.current
-    var run by remember { mutableIntStateOf(0) }
-    LifecycleResumeEffect(animated) {
-        run++
-        onPauseOrDispose { }
+    var resumed by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        resumed = true
+        onPauseOrDispose { resumed = false }
     }
-    LaunchedEffect(animated, run) {
+    val shown = resumed && LocalHomeScreenShown.current
+    LaunchedEffect(animated, shown) {
         try {
-            if (!animated) return@LaunchedEffect
             val systemAnimations =
                 Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+            if (!weatherAnimationRunning(animated, systemAnimations, shown)) return@LaunchedEffect
             val start = withFrameMillis { it }
+            var drawn = start
             while (true) {
-                val elapsed = withFrameMillis { it } - start
-                if (!weatherAnimationRunning(elapsed, animated, systemAnimations)) break
-                phase.floatValue = elapsed / 1000f
+                val now = withFrameMillis { it }
+                if (!weatherFrameDue(drawn, now)) continue
+                drawn = now
+                phase.floatValue = weatherPhaseSeconds(now - start)
             }
         } finally {
             phase.floatValue = 0f
         }
     }
     return phase
+}
+
+/** The region's temperature unit as a test tells the widget; null = as the phone has it ([weatherInFahrenheit]). */
+val LocalWeatherInFahrenheit = staticCompositionLocalOf<Boolean?> { null }
+
+/** Whether [unit], Android's name of a temperature unit, is Fahrenheit. Kelvin, which the regional preferences
+ *  also offer, is shown as Celsius: nobody reads the weather in it. */
+internal fun isFahrenheit(unit: String): Boolean = unit == LocalePreferences.TemperatureUnit.FAHRENHEIT
+
+/** [celsius] as the widget shows it: whole degrees, in Fahrenheit where the phone's region uses it. */
+internal fun shownTemperature(celsius: Double, fahrenheit: Boolean): Int =
+    (if (fahrenheit) celsius * 9.0 / 5.0 + 32.0 else celsius).roundToInt()
+
+/**
+ * Whether temperatures are shown in Fahrenheit: by the phone's regional preference (Android 14 on) or else by
+ * what its region uses, as the system's own apps show them. The service answers in Celsius.
+ */
+@Composable
+internal fun weatherInFahrenheit(): Boolean {
+    LocalWeatherInFahrenheit.current?.let { return it }
+    // Read again when the language or the region changes.
+    val configuration = LocalConfiguration.current
+    return remember(configuration) { runCatching { isFahrenheit(LocalePreferences.getTemperatureUnit()) }.getOrDefault(false) }
 }
 
 /** The drawn icon's side as a multiple of the line's font size: about an emoji's, and the large one. */
@@ -267,9 +316,11 @@ internal const val WEATHER_ICON_LARGE = 2f
  * line's [fontSize].
  */
 @Composable
-internal fun WeatherGlyph(code: Int, iconStyle: String, large: Boolean, fontSize: TextUnit, modifier: Modifier = Modifier) {
+internal fun WeatherGlyph(
+    code: Int, isDay: Boolean, iconStyle: String, large: Boolean, fontSize: TextUnit, modifier: Modifier = Modifier,
+) {
     if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI) {
-        Text(WeatherCodes.emoji(code), fontSize = fontSize * 1.7f, maxLines = 1, modifier = modifier.testTag(WEATHER_GLYPH_TAG))
+        Text(WeatherCodes.emoji(code, isDay), fontSize = fontSize * 1.7f, maxLines = 1, modifier = modifier.testTag(WEATHER_GLYPH_TAG))
         return
     }
     val size = with(LocalDensity.current) { (fontSize * (if (large) WEATHER_ICON_LARGE else WEATHER_ICON_STANDARD)).toDp() }
@@ -278,7 +329,7 @@ internal fun WeatherGlyph(code: Int, iconStyle: String, large: Boolean, fontSize
     // The drawing says nothing to a screen reader by itself: it is named as the emoji was.
     val name = stringResource(weatherKindName(kind))
     Canvas(modifier.size(size).testTag(WEATHER_GLYPH_TAG).semantics { contentDescription = name }) {
-        drawWeather(kind, phase.floatValue)
+        drawWeather(kind, phase.floatValue, night = !isDay)
     }
 }
 
@@ -286,6 +337,8 @@ internal fun WeatherGlyph(code: Int, iconStyle: String, large: Boolean, fontSize
 private val SunCentre = Color(0xFFFFEA00)
 private val SunEdge = Color(0xFFFF9100)
 private val SunRay = Color(0xFFFF6D00)
+private val MoonLight = Color(0xFFFFF59D)
+private val MoonShade = Color(0xFFFFB300)
 private val FairCloud = listOf(Color(0xFFE3F2FD), Color(0xFF42A5F5))
 private val BackCloud = listOf(Color(0xFF90CAF9), Color(0xFF1565C0))
 private val FogCloud = listOf(Color(0xFFE0F7FA), Color(0xFF26C6DA))
@@ -302,13 +355,17 @@ private val BoltBottom = Color(0xFFFF9100)
 private fun wave(t: Float, periodSeconds: Float): Float = sin(2f * PI.toFloat() * t / periodSeconds)
 private fun cycle(t: Float, periodSeconds: Float, offset: Float = 0f): Float = (t / periodSeconds + offset).mod(1f)
 
-/** One weather icon in the square of the canvas, [t] seconds into its animation (0 = the still pose). */
-private fun DrawScope.drawWeather(kind: WeatherKind, t: Float) {
+/** One weather icon in the square of the canvas, [t] seconds into its animation (0 = the still pose). By
+ *  [night] the sun of a clear or partly clear sky is a moon; the other kinds have no sun in them. */
+private fun DrawScope.drawWeather(kind: WeatherKind, t: Float, night: Boolean = false) {
     val s = size.minDimension
     when (kind) {
-        WeatherKind.CLEAR -> sun(Offset(s * 0.5f, s * 0.5f), s * 0.22f, t)
+        WeatherKind.CLEAR ->
+            if (night) moon(Offset(s * 0.46f, s * 0.52f), s * 0.30f, t, stars = true)
+            else sun(Offset(s * 0.5f, s * 0.5f), s * 0.22f, t)
         WeatherKind.PARTLY_CLOUDY -> {
-            sun(Offset(s * 0.36f, s * 0.36f), s * 0.16f, t)
+            if (night) moon(Offset(s * 0.36f, s * 0.36f), s * 0.20f, t, stars = false)
+            else sun(Offset(s * 0.36f, s * 0.36f), s * 0.16f, t)
             cloud(Offset(s * 0.56f + wave(t, 4f) * s * 0.03f, s * 0.62f), s * 0.62f, FairCloud)
         }
         WeatherKind.CLOUDY -> {
@@ -378,6 +435,23 @@ private fun DrawScope.sun(center: Offset, radius: Float, t: Float) {
         }
     }
     drawCircle(Brush.radialGradient(listOf(SunCentre, SunEdge), center = center, radius = radius), radius, center)
+}
+
+/**
+ * A crescent moon: a disc with another one cut out of its side. It rocks a little, once in eight seconds, and
+ * with [stars] two small ones beside it twinkle. At rest ([t] 0) it is the still icon.
+ */
+private fun DrawScope.moon(center: Offset, radius: Float, t: Float, stars: Boolean) {
+    rotate(degrees = -24f + wave(t, 8f) * 4f, pivot = center) {
+        val disc = Path().apply { addOval(Rect(center, radius)) }
+        val bite = Path().apply { addOval(Rect(center + Offset(radius * 0.48f, -radius * 0.22f), radius * 0.86f)) }
+        val crescent = Path().apply { op(disc, bite, PathOperation.Difference) }
+        drawPath(crescent, Brush.linearGradient(listOf(MoonLight, MoonShade), start = center - Offset(radius, radius), end = center + Offset(radius, radius)))
+    }
+    if (stars) {
+        drawCircle(MoonLight.copy(alpha = 0.75f + 0.25f * wave(t, 2f)), radius * 0.13f, center + Offset(radius * 1.25f, -radius * 0.95f))
+        drawCircle(MoonLight.copy(alpha = 0.75f - 0.25f * wave(t, 4f)), radius * 0.09f, center + Offset(radius * 1.45f, radius * 0.35f))
+    }
 }
 
 /** A cloud [width] wide around [center]: a rounded base under two bumps, shaded from [colors]' first at its

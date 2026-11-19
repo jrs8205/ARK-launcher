@@ -30,7 +30,35 @@ data class CurrentWeather(
     val fetchedAt: Long,
     /** [city] came from the BigDataCloud fallback — dropped the moment the user turns it off. */
     val cityFromNetwork: Boolean = false,
+    /** Whether it is day at the place (the service's word): a clear night is drawn as a moon. */
+    val isDay: Boolean = true,
 )
+
+/** How long a reading is shown before the next visit to the home screen asks again: a quarter of an hour, the
+ *  step in which the service itself renews its current conditions. */
+internal const val WEATHER_REFRESH_MS = 15L * 60 * 1000
+
+/** Whether [cached] is still new enough at [now] not to ask again; a clock set back never makes it stale. */
+internal fun weatherFresh(cached: CurrentWeather, now: Long): Boolean = now - cached.fetchedAt < WEATHER_REFRESH_MS
+
+/** The service's address for the current weather at [lat], [lon]: the temperature, what the sky is doing, and
+ *  whether it is day there. Written with a decimal point whatever the phone's language. */
+internal fun weatherUrl(lat: Double, lon: Double): String =
+    "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&current=temperature_2m,weather_code,is_day"
+        .format(Locale.US, lat, lon)
+
+/** The service's answer [body] as a reading taken at [now]. An answer that does not say whether it is day is
+ *  taken for day. */
+internal fun parseCurrentWeather(body: String, now: Long): CurrentWeather {
+    val current = JSONObject(body).getJSONObject("current")
+    return CurrentWeather(
+        temperatureC = current.getDouble("temperature_2m"),
+        weatherCode = current.getInt("weather_code"),
+        city = null,
+        fetchedAt = now,
+        isDay = current.optInt("is_day", 1) != 0,
+    )
+}
 
 /** How old a reading may get while every refresh fails before it is dropped: morning weather is
  *  not the evening's. */
@@ -42,7 +70,7 @@ internal fun weatherExpired(cached: CurrentWeather, now: Long): Boolean = now - 
 /**
  * Current weather from the keyless Open-Meteo API for the smartspace widget. Needs a (coarse)
  * location permission; without one it emits null and never touches the network. Results are cached
- * in memory and re-fetched at most every [REFRESH_INTERVAL_MS] (the widget refreshes on home resume).
+ * in memory and re-fetched at most every [WEATHER_REFRESH_MS] (the widget refreshes on home resume).
  */
 @Singleton
 class WeatherRepository @Inject constructor(
@@ -96,7 +124,7 @@ class WeatherRepository @Inject constructor(
         val locale = Locale.getDefault()
         val language = locale.toLanguageTag()
         if (cached != null &&
-            System.currentTimeMillis() - cached.fetchedAt < REFRESH_INTERVAL_MS &&
+            weatherFresh(cached, System.currentTimeMillis()) &&
             networkPlaceNames == resolvedWithNetworkPlaceNames &&
             language == resolvedLanguage
         ) return
@@ -135,23 +163,13 @@ class WeatherRepository @Inject constructor(
     }
 
     private fun fetch(lat: Double, lon: Double): CurrentWeather? {
-        val url = URL(
-            "https://api.open-meteo.com/v1/forecast?latitude=%.2f&longitude=%.2f&current=temperature_2m,weather_code"
-                .format(Locale.US, lat, lon),
-        )
-        val connection = url.openConnection() as HttpURLConnection
+        val connection = URL(weatherUrl(lat, lon)).openConnection() as HttpURLConnection
         return try {
             connection.setRequestProperty("User-Agent", userAgent)
             connection.connectTimeout = 10_000
             connection.readTimeout = 10_000
             val body = connection.inputStream.bufferedReader().use { it.readText() }
-            val current = JSONObject(body).getJSONObject("current")
-            CurrentWeather(
-                temperatureC = current.getDouble("temperature_2m"),
-                weatherCode = current.getInt("weather_code"),
-                city = null,
-                fetchedAt = System.currentTimeMillis(),
-            )
+            parseCurrentWeather(body, now = System.currentTimeMillis())
         } finally {
             connection.disconnect()
         }
@@ -201,7 +219,7 @@ class WeatherRepository @Inject constructor(
      *  (the Samsung A40 symptom): BigDataCloud's keyless client API. Client-side calls with the
      *  device's own current fix are exactly its permitted use. Sends only the SAME 2-decimal
      *  rounded coordinates the weather query already sends — the exact fix never leaves the device.
-     *  Reached only when the user turned the setting on, at most once per 30-min weather refresh,
+     *  Reached only when the user turned the setting on, at most once per weather refresh,
      *  and only when the local geocoder failed. */
     private fun networkCityName(roundedLat: Double, roundedLon: Double, locale: Locale): String? {
         val url = URL(
@@ -226,7 +244,6 @@ class WeatherRepository @Inject constructor(
     }
 
     companion object {
-        private const val REFRESH_INTERVAL_MS = 30L * 60 * 1000
         private const val CITY_CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000
         private const val TAG = "WeatherRepo"
     }

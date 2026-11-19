@@ -187,6 +187,8 @@ fun HomeScreen(
     // One home profile at a time: nothing of a profile that is not on is drawn, and what the screen has
     // open or remembers does not pass from one profile to the next.
     val activeProfile by viewModel.activeHomeProfileId.collectAsStateWithLifecycle()
+    // Under the launcher's own app drawer nothing on the home screen needs to move (the weather icon rests).
+    CompositionLocalProvider(LocalHomeScreenShown provides !drawerOpen) {
     HomeOfActiveProfile(active = activeProfile, uiState = uiState) { shown ->
         HomeScreenOfProfile(
             uiState = shown,
@@ -203,6 +205,7 @@ fun HomeScreen(
             onShowWidgetsHandled = onShowWidgetsHandled,
             viewModel = viewModel,
         )
+    }
     }
 }
 

@@ -79,4 +79,20 @@ class WeatherCodesTest {
             assertThat(WeatherCodes.emoji(code)).isEqualTo(expected)
         }
     }
+
+    /** By night a clear or mostly clear sky is a moon, not the sun (the owner's request, 2026-11-19). */
+    @Test
+    fun a_clear_night_is_a_moon() {
+        assertThat(WeatherCodes.emoji(0, isDay = false)).isEqualTo("🌙")
+        assertThat(WeatherCodes.emoji(1, isDay = false)).isEqualTo("🌙")
+        assertThat(WeatherCodes.emoji(2, isDay = false)).isEqualTo("🌙")
+    }
+
+    /** Cloud, fog, rain, snow and thunder have no sun in them: they are the same by night. */
+    @Test
+    fun the_rest_of_the_night_is_as_by_day() {
+        for (code in intArrayOf(3, 45, 48, 55, 61, 71, 82, 95, 99, 1234)) {
+            assertThat(WeatherCodes.emoji(code, isDay = false)).isEqualTo(WeatherCodes.emoji(code))
+        }
+    }
 }

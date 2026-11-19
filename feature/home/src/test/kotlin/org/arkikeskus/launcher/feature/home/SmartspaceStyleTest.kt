@@ -24,6 +24,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -54,7 +55,10 @@ class SmartspaceStyleTest {
     @get:Rule val compose = createComposeRule()
 
     private val weatherApp = AppItem("com.weather", "com.weather.Main", Process.myUserHandle(), 0L, "Weather")
-    private val weather = CurrentWeather(temperatureC = 12.4, weatherCode = 61, city = "Oulu", fetchedAt = 0L)
+    private var weather = CurrentWeather(temperatureC = 12.4, weatherCode = 61, city = "Oulu", fetchedAt = 0L)
+    /** The region's unit as the widget is told it (Celsius here, whatever the test machine's region); null = as
+     *  the phone has it. */
+    private var fahrenheit: Boolean? = false
     private var opened = 0
     private var style by mutableStateOf(SmartspaceStyle())
 
@@ -64,7 +68,11 @@ class SmartspaceStyleTest {
             showWeather = true, weather = weather, weatherApp = weatherApp,
         )
         compose.setContent {
-            CompositionLocalProvider(LocalSmartspaceStyle provides style) {
+            // The home screen as it is under the app drawer: the moving icon at rest. It moves for as long as
+            // it is shown, and a test that waits for the screen to settle would wait for good.
+            CompositionLocalProvider(
+                LocalSmartspaceStyle provides style, LocalWeatherInFahrenheit provides fahrenheit, LocalHomeScreenShown provides false,
+            ) {
                 Box(Modifier.size(360.dp, height.dp)) {
                     SmartspaceContent(state, onRefresh = {}, onOpenWeatherApp = { opened++ }, modifier = Modifier.fillMaxSize())
                 }
@@ -234,14 +242,16 @@ class SmartspaceStyleTest {
         assertThat(names.toSet()).hasSize(WeatherKind.entries.size)
     }
 
-    /** The moving icon moves for a while after the home screen comes back, then rests (battery). */
-    @Test fun theAnimationRunsForABoundedTime() {
-        assertThat(weatherAnimationRunning(elapsedMs = 0, animated = true, systemAnimations = true)).isTrue()
-        assertThat(weatherAnimationRunning(elapsedMs = WEATHER_ANIMATION_MS - 1, animated = true, systemAnimations = true)).isTrue()
-        assertThat(weatherAnimationRunning(elapsedMs = WEATHER_ANIMATION_MS, animated = true, systemAnimations = true)).isFalse()
-        assertThat(weatherAnimationRunning(elapsedMs = 0, animated = false, systemAnimations = true)).isFalse()
-        // "Remove animations" in the system's accessibility settings stills it.
-        assertThat(weatherAnimationRunning(elapsedMs = 0, animated = true, systemAnimations = false)).isFalse()
+    /** The moving icon moves for as long as it is shown. */
+    @Test fun theMovingIconKeepsMovingWhileItIsShown() {
+        // The owner's word, 2026-11-19: the moving icon keeps moving. It moved for eight seconds after the
+        // home screen came back and then rested, which read as a fault.
+        assertThat(weatherAnimationRunning(animated = true, systemAnimations = true, shown = true)).isTrue()
+        // Not where nobody sees it: behind another app, behind the app drawer, with the screen off.
+        assertThat(weatherAnimationRunning(animated = true, systemAnimations = true, shown = false)).isFalse()
+        assertThat(weatherAnimationRunning(animated = false, systemAnimations = true, shown = true)).isFalse()
+        // The system's "Remove animations" stills it altogether.
+        assertThat(weatherAnimationRunning(animated = true, systemAnimations = false, shown = true)).isFalse()
     }
 
     /** What is behind the home screen's cards is the wallpaper, and the glass panel over it when it is on:
@@ -354,5 +364,80 @@ class SmartspaceStyleTest {
         val empty = WallpaperColorState()
         empty.onFirstRead(null)
         assertThat(empty.color).isEqualTo(WALLPAPER_COLOR_UNKNOWN)
+    }
+
+    /** Every motion's period divides eight seconds, so the drawing's clock can start over there without a jump:
+     *  it never grows without end however long the home screen stays up. */
+    @Test fun theMovingIconsClockStartsOverEveryEightSeconds() {
+        assertThat(weatherPhaseSeconds(0)).isEqualTo(0f)
+        assertThat(weatherPhaseSeconds(2_500)).isEqualTo(2.5f)
+        assertThat(weatherPhaseSeconds(8_000)).isEqualTo(0f)
+        assertThat(weatherPhaseSeconds(3_600_000L + 1_000)).isEqualTo(1f)
+    }
+
+    /** It is drawn thirty times a second at most: weather moves slowly, and every frame is the battery's. */
+    @Test fun theMovingIconIsDrawnThirtyTimesASecondAtMost() {
+        assertThat(weatherFrameDue(lastMs = 1_000, nowMs = 1_016)).isFalse()
+        assertThat(weatherFrameDue(lastMs = 1_000, nowMs = 1_033)).isTrue()
+    }
+
+    /** The owner's word, 2026-11-19: Fahrenheit where the phone's region uses it, as its other apps show it. */
+    @Test fun theTemperatureIsShownInTheRegionsUnit() {
+        assertThat(shownTemperature(celsius = 22.4, fahrenheit = false)).isEqualTo(22)
+        assertThat(shownTemperature(celsius = 22.4, fahrenheit = true)).isEqualTo(72)
+        assertThat(shownTemperature(celsius = -0.4, fahrenheit = false)).isEqualTo(0)
+        assertThat(shownTemperature(celsius = -40.0, fahrenheit = true)).isEqualTo(-40)
+        assertThat(shownTemperature(celsius = 0.0, fahrenheit = true)).isEqualTo(32)
+    }
+
+    @Test fun onlyFahrenheitIsNotCelsius() {
+        assertThat(isFahrenheit("fahrenhe")).isTrue()
+        assertThat(isFahrenheit("celsius")).isFalse()
+        // Kelvin can be chosen in Android's regional preferences; nobody reads the weather in it.
+        assertThat(isFahrenheit("kelvin")).isFalse()
+        assertThat(isFahrenheit("")).isFalse()
+    }
+
+    @Test fun theWidgetShowsFahrenheitWhereTheRegionUsesIt() {
+        fahrenheit = true
+        show(height = 280)
+
+        // 12.4 degrees Celsius.
+        compose.onNodeWithText("54°", substring = true, useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("12°", substring = true, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test fun theWidgetShowsCelsiusElsewhere() {
+        fahrenheit = false
+        show(height = 280)
+
+        compose.onNodeWithText("12°", substring = true, useUnmergedTree = true).assertExists()
+    }
+
+    /** A clear night: the emoji is a moon, and a drawn icon is still named for the sky it shows. */
+    @Test fun aClearNightShowsAMoon() {
+        weather = CurrentWeather(temperatureC = 2.0, weatherCode = 0, city = "Oulu", fetchedAt = 0L, isDay = false)
+        style = SmartspaceStyle(weatherIcon = LauncherSettings.WEATHER_ICON_EMOJI)
+        show(height = 280)
+
+        compose.onNodeWithText("🌙", substring = true, useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("☀️", substring = true, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    /** Told nothing, the widget asks the phone: an American phone shows Fahrenheit, a Finnish one Celsius. */
+    @Config(qualifiers = "en-rUS")
+    @Test fun anAmericanPhoneShowsFahrenheit() {
+        fahrenheit = null
+        show(height = 280)
+
+        compose.onNodeWithText("54°", substring = true, useUnmergedTree = true).assertExists()
+    }
+
+    @Config(qualifiers = "fi-rFI")
+    @Test fun aFinnishPhoneShowsCelsius() {
+        fahrenheit = null
+        show(height = 280)
+
+        compose.onNodeWithText("12°", substring = true, useUnmergedTree = true).assertExists()
     }
 }

@@ -31,7 +31,8 @@ import org.robolectric.annotation.Config
  * spacious widget's own weather row. Without a chosen (and installed) app the line stays plain text.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class, qualifiers = "en")
+// A British phone: the widget shows the region's unit, and these tests find the weather by "12°" (Celsius).
+@Config(sdk = [35], application = Application::class, qualifiers = "en-rGB")
 class SmartspaceWeatherTapTest {
     @get:Rule val compose = createComposeRule()
 
