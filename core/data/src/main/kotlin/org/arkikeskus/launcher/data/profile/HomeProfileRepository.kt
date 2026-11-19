@@ -123,9 +123,11 @@ class HomeProfileRepository @Inject constructor(
             // Its folders' pictures, if no other profile shows them, go with the unused pictures at the next start.
             val deleted = store.delete(id)
             // Its widgets: no home screen shows them, so none would free their ids before the next start, and
-            // their providers would go on updating them. An id a row of another profile holds stays.
+            // their providers would go on updating them. An id a row of another profile holds stays. Off the
+            // caller's thread, as the pins above: each id is a call into the system, and Settings asks from
+            // the main thread.
             val held = layout.boundWidgetIds()
-            gone.widgetIds.filter { it !in held }.forEach(widgetIds::release)
+            withContext(Dispatchers.IO) { gone.widgetIds.filter { it !in held }.forEach(widgetIds::release) }
             deleted
         }
     }

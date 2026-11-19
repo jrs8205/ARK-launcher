@@ -56,19 +56,20 @@ class HomeProfileRepositoryTest {
     private lateinit var layout: HomeLayoutRepository
     private val drawerPictures = DrawerWallpaperStore(context)
     private val released = mutableListOf<Int>()
+    private val releaseThreads = mutableListOf<Thread>()
     private lateinit var profiles: HomeProfileRepository
 
     /** The repository over a layout that reads and writes through [homeItemDao]: the way to do something in
      *  the middle of its work. */
     private fun repositoryOver(homeItemDao: HomeItemDao) = HomeProfileRepository(
         store, HomeLayoutRepository(db, homeItemDao, resolver), settings, resolver, drawerPictures,
-    ) { released += it }
+    ) { released += it; releaseThreads += Thread.currentThread() }
 
     @Before fun setUp() {
         db = Room.inMemoryDatabaseBuilder(context, LauncherDatabase::class.java).allowMainThreadQueries().build()
         dao = db.homeItemDao(store)
         layout = HomeLayoutRepository(db, dao, resolver)
-        profiles = HomeProfileRepository(store, layout, settings, resolver, drawerPictures) { released += it }
+        profiles = HomeProfileRepository(store, layout, settings, resolver, drawerPictures) { released += it; releaseThreads += Thread.currentThread() }
     }
 
     @After fun tearDown() = db.close()
@@ -333,6 +334,22 @@ class HomeProfileRepositoryTest {
 
         // At once, not at the next start: their providers would go on updating widgets nobody shows.
         assertThat(released).containsExactly(12, 13)
+    }
+
+    /** Review round 2: freeing a widget id is a call into the system for every id, and Settings deletes a
+     *  profile from the main thread. With several widgets that held the screen still. */
+    @Test fun aDeletedProfilesWidgetIdsAreFreedOffTheCallersThread() = runTest {
+        val work = created("Work", copyCurrent = false)
+        inHomeProfile(work.id) {
+            dao.insert(widget("com.cal", 12, cellX = 0))
+            dao.insert(widget("com.news", 13, cellX = 2))
+        }
+        val caller = Thread.currentThread()
+
+        assertThat(profiles.delete(work.id)).isTrue()
+
+        assertThat(released).containsExactly(12, 13)
+        assertThat(releaseThreads).doesNotContain(caller)
     }
 
     @Test fun theSystemsPinnedSetsAreWrittenOffTheCallersThread() = runTest {
