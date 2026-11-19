@@ -5,12 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -95,12 +98,64 @@ class HomeOfActiveProfileTest {
         compose.onNodeWithText("home of 2").assertIsDisplayed()
     }
 
+    /** A start does not know its profile at once. Nothing is drawn for a guessed one: the screen of the first
+     *  profile, shown for a moment where another is on, would start without what the real one had saved. */
+    @Test fun nothingIsDrawnBeforeTheProfileIsKnown() {
+        active.value = null
+        state.value = HomeUiState()
+        show()
+
+        compose.onNodeWithText("placeholder").assertDoesNotExist()
+        compose.onNodeWithText("folder closed").assertDoesNotExist()
+
+        active.value = 1
+        compose.onNodeWithText("placeholder").assertIsDisplayed()
+    }
+
+    /**
+     * The process died while a widget was being added in the second profile (its id asked for, the system's
+     * question still open) and the screen comes back from its saved state. What the screen starts with is
+     * what it saved: a first moment as the first profile's screen saw nothing pending, and the start-up
+     * sweep, which keeps only the pending widget's id, freed it under the question.
+     */
+    @Test fun aRestoredScreenNeverStartsWithoutWhatItsProfileSaved() {
+        val startedWith = mutableListOf<String>()
+        // What a process knows of the profile that is on: not saved, so a new process starts with [atStart].
+        var atStart: Long? = 2
+        lateinit var inProcess: MutableState<Long?>
+        val tester = StateRestorationTester(compose)
+        tester.setContent {
+            val known = remember { mutableStateOf(atStart) }.also { inProcess = it }
+            val profile = known.value
+            HomeOfActiveProfile(active = profile, uiState = if (profile == null) HomeUiState() else loaded(profile)) {
+                var pending by rememberSaveable { mutableStateOf("nothing pending") }
+                // What a start acts on: the value its first composition has.
+                remember { startedWith += pending }
+                Text(pending, Modifier.clickable { pending = "widget 7 pending" })
+            }
+        }
+        compose.onNodeWithText("nothing pending").performClick()
+        compose.onNodeWithText("widget 7 pending").assertIsDisplayed()
+        startedWith.clear()
+
+        // The new process: the saved state is there at once, the profile that is on is read a moment later.
+        atStart = null
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        compose.onNodeWithText("widget 7 pending").assertDoesNotExist()
+        inProcess.value = 2
+        compose.waitForIdle()
+
+        compose.onNodeWithText("widget 7 pending").assertIsDisplayed()
+        assertThat(startedWith).containsExactly("widget 7 pending")
+    }
+
     @Test fun aStartKeepsWhatItHasWhenTheLayoutArrives() {
         // A start with the second profile on: first nothing is known, then which profile, then its layout.
         active.value = null
         state.value = HomeUiState()
         show()
-        compose.onNodeWithText("placeholder").assertIsDisplayed()
+        compose.onNodeWithText("placeholder").assertDoesNotExist()
 
         active.value = 2
         compose.onNodeWithText("placeholder").assertIsDisplayed()
