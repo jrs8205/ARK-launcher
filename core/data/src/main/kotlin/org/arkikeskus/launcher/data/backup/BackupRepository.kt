@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRowResolver
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.ShortcutPinLock
@@ -30,8 +31,14 @@ class BackupRepository @Inject constructor(
     private val resolver: AppRowResolver,
     private val screensaver: ScreensaverSettingsStore,
     private val profiles: HomeProfileStore? = null,
+    private val drawerPictures: DrawerWallpaperStore? = null,
 ) {
-    suspend fun exportDocument(createdAt: Long, appVersion: String): BackupDocument =
+    /** Runs [work] while the home profile that is on stays on (a switch asked for meanwhile waits). */
+    private suspend fun <T> whileProfileStays(work: suspend () -> T): T = profiles?.whileActiveStays { work() } ?: work()
+
+    /** The settings and the rows of the profile that is on: of ONE profile, so the two are read while it
+     *  stays on (a switch between them gave one profile's grid with another's rows). */
+    suspend fun exportDocument(createdAt: Long, appVersion: String): BackupDocument = whileProfileStays {
         BackupDocument(
             format = BackupCodec.FORMAT,
             appVersion = appVersion,
@@ -41,6 +48,7 @@ class BackupRepository @Inject constructor(
             mainUserSerial = mainUserSerial(),
             screensaver = screensaver.exportRaw(),
         )
+    }
 
     /** Restores [doc] against the launchable apps on this device ([installedApps]: AppItem keys,
      *  "package/class/userSerial", from every profile). Blocking system queries: call off the main
@@ -86,7 +94,9 @@ class BackupRepository @Inject constructor(
         // mid-restore, and a cancelled coroutine could neither write the layout nor roll back.
         // Under the pin lock: the re-pin below replaces whole system pin sets, so a shortcut pinned
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
-        withContext(NonCancellable) { ShortcutPinLock.withLock {
+        // While the profile that is on stays on: the settings, the rows and the list of profiles this
+        // leaves are of one profile, and a switch in the middle put the rows in one and left another.
+        withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
             val previousSettings = settings.snapshot()
             // The rows of EVERY home profile: a restore replaces them all (what a backup file describes
             // is one profile), and the pinned shortcuts they held are released below.
@@ -110,9 +120,12 @@ class BackupRepository @Inject constructor(
             // The layout is the restored profile's alone now; the other profiles' settings go with their
             // rows. Last, and best effort: until here a failure leaves every profile as it was, and a
             // profile left listed by a failure here is an empty one the user can delete.
-            runCatching { profiles?.keepOnlyActive() }
+            val removed = runCatching { profiles?.keepOnlyActive() }.getOrNull().orEmpty()
+            // Their own pictures behind the app drawer go with them: nothing in the launcher could remove
+            // the picture of a profile that is not there any more.
+            for (id in removed) runCatching { drawerPictures?.delete(id) }
             repinShortcuts(previousLayout, entities)
-        } }
+        } } }
         return RestoreResult(entities.size, mapping.skipped)
     }
 

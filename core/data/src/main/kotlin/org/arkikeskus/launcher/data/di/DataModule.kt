@@ -23,6 +23,8 @@ import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.CustomIconFetcher
 import org.arkikeskus.launcher.data.CustomIconKeyer
 import org.arkikeskus.launcher.data.CustomIconSource
+import org.arkikeskus.launcher.data.HostWidgetIdReleaser
+import org.arkikeskus.launcher.data.WidgetIdReleaser
 import org.arkikeskus.launcher.data.IconChoicesSource
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.ProfileSystem
@@ -184,6 +186,9 @@ object DataModule {
 
     @Provides
     fun provideAppRowResolver(source: LauncherAppsSource): AppRowResolver = source
+
+    @Provides
+    fun provideWidgetIdReleaser(impl: HostWidgetIdReleaser): WidgetIdReleaser = impl
 
     @Provides
     fun provideProfileSystem(impl: AndroidProfileSystem): ProfileSystem = impl

@@ -10,9 +10,10 @@ import android.os.Build
 import androidx.compose.runtime.staticCompositionLocalOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.arkikeskus.launcher.data.HomeLayoutRepository
+import org.arkikeskus.launcher.data.LAUNCHER_APPWIDGET_HOST_ID
 
-/** App-unique id for our single AppWidgetHost ("ARK1"). */
-const val APPWIDGET_HOST_ID = 0x41524B31
+/** App-unique id for our single AppWidgetHost ("ARK1"): one value, kept where the data layer reaches it too. */
+const val APPWIDGET_HOST_ID = LAUNCHER_APPWIDGET_HOST_ID
 
 /** The Activity-owned AppWidgetHost (start/stop tied to the Activity lifecycle); null outside the launcher. */
 val LocalAppWidgetHost = staticCompositionLocalOf<AppWidgetHost?> { null }

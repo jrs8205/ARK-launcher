@@ -6,9 +6,12 @@ import android.graphics.Color
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.FakeAppRowResolver
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.IconPackRepository
@@ -32,6 +35,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.io.IOException
 
 /**
  * A restore replaces everything, and what a backup file describes is one home profile: after it the
@@ -59,8 +63,8 @@ class BackupProfilesTest {
 
     @After fun tearDown() = db.close()
 
-    private fun repo(homeItemDao: HomeItemDao = dao) =
-        BackupRepository(context, homeItemDao, settings, resolver, ScreensaverSettingsStore(context), store)
+    private fun repo(homeItemDao: HomeItemDao = dao, drawerPictures: DrawerWallpaperStore? = null) =
+        BackupRepository(context, homeItemDao, settings, resolver, ScreensaverSettingsStore(context), store, drawerPictures)
 
     private fun app(pkg: String, cellX: Int) =
         HomeItemEntity(packageName = pkg, className = "Main", page = 0, cellX = cellX, cellY = 0)
@@ -175,5 +179,80 @@ class BackupProfilesTest {
         assertThat(source.drawable(home)).isNotNull()
         assertThat(source.drawable(work)).isNotNull()
         assertThat(source.drawable(orphan)).isNull()
+    }
+
+    // The profile that is on must be one and the same for everything a restore or an export does.
+
+    @Test fun aSwitchAskedForDuringARestoreWaitsForIt() = runTest {
+        twoProfiles()
+        // The profile is changed while the restore is between its rows and the list of profiles.
+        val switching = object : HomeItemDao by dao {
+            override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) {
+                dao.replaceEveryProfile(items)
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(1) }
+            }
+        }
+
+        repo(switching).restoreDocument(backup, installed)
+
+        // What was restored and what is left to show are one profile: not the rows in one and the list in another.
+        val left = store.list().single()
+        assertThat(store.current()).isEqualTo(left.id)
+        assertThat(inHomeProfile(left.id) { dao.getAll() }.map { it.packageName }).containsExactly("com.mail", "com.maps")
+        assertThat(settings.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test fun anExportIsOfOneProfileThoughASwitchIsAskedForMeanwhile() = runTest {
+        twoProfiles()
+        // The profile is changed between the export's settings and its rows.
+        val switching = object : HomeItemDao by dao {
+            override suspend fun getAllOnce(): List<HomeItemEntity> {
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(1) }
+                return dao.getAllOnce()
+            }
+        }
+
+        val doc = repo(switching).exportDocument(createdAt = 0L, appVersion = "test")
+
+        assertThat(doc.settings["base_colour"]).isEqualTo("green")
+        assertThat(doc.settings["home_columns"]).isEqualTo(3)
+        assertThat(doc.homeItems.map { it.packageName }).containsExactly("com.work", "com.chat")
+    }
+
+    @Test fun aRestoreRemovesTheDrawerPicturesOfTheProfilesThatWent() = runTest {
+        fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+        val pictures = DrawerWallpaperStore(context)
+        pictures.set(picture(Color.WHITE))
+        val ofTheFirst = pictures.current.value!!.file
+        twoProfiles()
+        pictures.switchTo(2)
+        pictures.set(picture(Color.RED))
+        val ofTheOneThatIsOn = pictures.current.value!!.file
+
+        repo(drawerPictures = pictures).restoreDocument(backup, installed)
+
+        // The first profile is gone, and nothing in the launcher could remove its picture any more.
+        assertThat(ofTheFirst.exists()).isFalse()
+        assertThat(ofTheOneThatIsOn.exists()).isTrue()
+        assertThat(pictures.current.value?.file).isEqualTo(ofTheOneThatIsOn)
+    }
+
+    @Test fun aRestoreWhoseSettingsCannotBeSavedChangesNothing() = runTest {
+        twoProfiles()
+        // The profile that is on keeps its own values in a file of its own: that write fails, after the
+        // shared ones went into the settings file.
+        files.store(2).failWrites = IOException("no space left")
+
+        assertThrows(IOException::class.java) {
+            kotlinx.coroutines.runBlocking { repo().restoreDocument(backup, installed) }
+        }
+        files.store(2).failWrites = null
+
+        // Not half a restore: what every profile shares (the backup's press delay) is as it was, and so is the rest.
+        assertThat(settings.settings.first().longPressScale).isEqualTo(1f)
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L).inOrder()
+        assertThat(dao.getAll().map { it.packageName }).containsExactly("com.work", "com.chat")
+        assertThat(inHomeProfile(1) { dao.getAll() }.map { it.packageName }).containsExactly("com.first", "com.chat")
     }
 }

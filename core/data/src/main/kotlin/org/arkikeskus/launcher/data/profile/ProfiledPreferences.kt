@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.HomeProfile
 
 /**
@@ -62,8 +64,20 @@ class ProfiledPreferences(
             copy(next) { !isPerProfile(it) && it !in HomeProfileKeys.RESERVED }
         }.toPreferences()
         val nextOwn = mutablePreferencesOf().apply { copy(next, ::isPerProfile) }.toPreferences()
-        if (nextShared != shared) main.updateData { nextShared }
-        if (nextOwn != perProfileOf(own)) store.updateData { nextOwn }
+        val sharedChanged = nextShared != shared
+        if (sharedChanged) main.updateData { nextShared }
+        if (nextOwn != perProfileOf(own)) {
+            try {
+                store.updateData { nextOwn }
+            } catch (failed: Throwable) {
+                // The two files share no transaction. One change is not half saved: what went into the
+                // settings file is taken back (nobody else wrote meanwhile, the mutex is held), so a change
+                // that cannot be saved changes nothing. A restore that failed here had already changed the
+                // press delay and the apps' names for every profile.
+                if (sharedChanged) withContext(NonCancellable) { runCatching { main.updateData { shared } } }
+                throw failed
+            }
+        }
         viewOf(nextShared, nextOwn)
     }
 

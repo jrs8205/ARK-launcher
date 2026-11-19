@@ -403,7 +403,8 @@ class SettingsRepository @Inject constructor(
     /** The folders' own icons in EVERY home profile (a folder's key says nothing outside its profile, so
      *  only the icons): what still uses a saved picture, whichever profile is on. */
     suspend fun folderIconsOfEveryProfile(): List<CustomIcon> =
-        folderIcons.first().values + otherProfiles().flatMap { parseIcons(it[Keys.FOLDER_ICONS]).values }
+        if (profiles == null) folderIcons.first().values.toList()
+        else ownValuesOfEveryProfile().flatMap { parseIcons(it[Keys.FOLDER_ICONS]).values }
 
     /**
      * After the layout of the home profile [profileId] was copied from another: its home folders' own icons,
@@ -424,21 +425,21 @@ class SettingsRepository @Inject constructor(
                 if (moved.isEmpty()) p.remove(Keys.FOLDER_ICONS) else p[Keys.FOLDER_ICONS] = serializeIcons(moved)
             }
         }
-        if (profiles == null || profileId == ProfiledPreferences.activeId(dataStore.data.first())) edit(move)
-        else profiles.updateProfile(profileId, move)
+        // By its id, whichever profile is on: "the one that is on" can be another one a moment later.
+        if (profiles == null) edit(move) else profiles.updateProfile(profileId, move)
     }
 
     /**
-     * The own values of each home profile that is NOT on (those of the one that is on are in [dataStore],
-     * with the shared ones). Empty with one profile, and where this repository was given a plain store.
+     * The own values of EVERY home profile, each read by its id from ONE reading of the list. Not "the one
+     * that is on, then the others": the profile that is on can change between two readings, and then one
+     * profile was read twice and another not at all (its folder pictures were deleted as unused). Empty where
+     * this repository was given a plain store.
      */
-    private suspend fun otherProfiles(): List<Preferences> = otherProfileIds().map { profiles!!.profileValues(it) }
+    private suspend fun ownValuesOfEveryProfile(): List<Preferences> = everyProfileId().map { profiles!!.profileValues(it) }
 
-    private suspend fun otherProfileIds(): List<Long> {
+    private suspend fun everyProfileId(): List<Long> {
         profiles ?: return emptyList()
-        val now = dataStore.data.first()
-        val active = ProfiledPreferences.activeId(now)
-        return HomeProfile.decode(now[stringPreferencesKey(HomeProfileKeys.LIST)]).map { it.id }.filter { it != active }
+        return HomeProfile.decode(dataStore.data.first()[stringPreferencesKey(HomeProfileKeys.LIST)]).map { it.id }
     }
 
     /** Icons the user picked for pinned shortcuts ([ShortcutIconKey] -> icon), shown in place of the
@@ -724,8 +725,9 @@ class SettingsRepository @Inject constructor(
      *  dock is rows since 0.9.7). */
     suspend fun referencedAppKeys(): Set<String> {
         val keys = LinkedHashSet<String>()
-        // Of every home profile: an app is the same app whichever profile is on.
-        for (prefs in listOf(dataStore.data.first()) + otherProfiles()) {
+        // Of every home profile: an app is the same app whichever profile is on. The shared settings come
+        // with the first reading; each profile's own with its own.
+        for (prefs in listOf(dataStore.data.first()) + ownValuesOfEveryProfile()) {
             for (name in APP_KEY_PREFS) {
                 val raw = prefs[stringPreferencesKey(name)] ?: continue
                 rewriteAppKeys(name, raw) { keys += it; it }
@@ -745,9 +747,11 @@ class SettingsRepository @Inject constructor(
                 p[key] = rewriteAppKeys(name, raw) { renames[it] ?: it }
             }
         }
+        // What every profile shares (and, through the view, the own values of the profile that is on).
         edit(rename)
-        // The profiles that are not on keep their own drawer folders and left-swipe app.
-        for (id in otherProfileIds()) profiles!!.updateProfile(id, rename)
+        // Then each profile's own drawer folders and left-swipe app, by its id: also the one that was on a
+        // moment ago, for which this is the same change again.
+        for (id in everyProfileId()) profiles!!.updateProfile(id, rename)
     }
 
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */

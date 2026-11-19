@@ -226,4 +226,30 @@ class HomeProfileStoreTest {
             HomeProfile(2, "Work", NewAppsRule.INSTALLED_HERE, startMinutes = 480, weekdays = setOf(1, 2, 3, 4, 5)),
         ).inOrder()
     }
+
+    @Test fun anEmptyProfileIsEmptyThoughAnInterruptedCopyLeftAFileUnderItsId() = runTest {
+        // A copy that died after its values were written and before it was listed: the id is given again.
+        files.store(2).edit { it[baseColour] = "blue"; it[homeColumns] = 6 }
+
+        val made = store.create("Evening", copyOf = null)!!
+
+        assertThat(made.id).isEqualTo(2L)
+        assertThat(view.profileValues(2).asMap()).isEmpty()
+    }
+
+    @Test fun aSwitchWaitsWhileSomeoneNeedsTheProfileToStay() = runTest {
+        store.create("Work", copyOf = null)
+        var onDuringTheWork = 0L
+
+        store.whileActiveStays { active ->
+            assertThat(active).isEqualTo(1L)
+            // Asked for in the middle of the work.
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(2) }
+            onDuringTheWork = store.current()
+        }
+
+        assertThat(onDuringTheWork).isEqualTo(1L)
+        // And honoured once the work is done.
+        assertThat(store.current()).isEqualTo(2L)
+    }
 }

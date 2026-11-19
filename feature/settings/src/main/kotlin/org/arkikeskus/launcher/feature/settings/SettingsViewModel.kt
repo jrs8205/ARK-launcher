@@ -9,7 +9,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -18,7 +17,6 @@ import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.DrawerFolder
-import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackInfo
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.SettingsRepository
@@ -33,7 +31,6 @@ import org.arkikeskus.launcher.model.IconShape
 @HiltViewModel
 internal class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
-    private val homeLayoutRepository: HomeLayoutRepository,
     private val iconPackRepository: IconPackRepository,
     private val customIcons: CustomIconStore,
     appRepository: AppRepository,
@@ -137,20 +134,12 @@ internal class SettingsViewModel @Inject constructor(
     override fun setBaseColour(colour: String) = update { repository.setBaseColour(colour) }
     override fun setThemeAllIcons(value: Boolean) = update { repository.setThemeAllIcons(value) }
     override fun setFolderColumns(value: Int) = update { repository.setFolderColumns(value) }
-    override fun setHomeColumns(value: Int) = update {
-        // Shrinking the grid can leave shortcuts at an out-of-range cellX; repack them back on-screen
-        // before the new (smaller) column count reaches the home screen, so nothing draws off-grid.
-        val s = repository.settings.first()
-        if (value < s.homeColumns) homeLayoutRepository.reflow(value, s.homeRows)
-        repository.setHomeColumns(value)
-    }
+    // Shrinking the grid can leave shortcuts at an out-of-range cell; they are packed back on-screen before
+    // the new (smaller) size reaches the home screen, so nothing draws off-grid. The packing and the new size
+    // are one home profile's (HomeProfileRepository.setHomeColumns).
+    override fun setHomeColumns(value: Int) = update { homeProfileRepository.setHomeColumns(value) }
 
-    override fun setHomeRows(value: Int) = update {
-        // Same off-grid guard as the column stepper, on the vertical axis.
-        val s = repository.settings.first()
-        if (value < s.homeRows) homeLayoutRepository.reflow(s.homeColumns, value)
-        repository.setHomeRows(value)
-    }
+    override fun setHomeRows(value: Int) = update { homeProfileRepository.setHomeRows(value) }
     override fun setShowDockLabels(value: Boolean) = update { repository.setShowDockLabels(value) }
     override fun setShowHomeLabels(value: Boolean) = update { repository.setShowHomeLabels(value) }
     override fun setShowDrawerLabels(value: Boolean) = update { repository.setShowDrawerLabels(value) }

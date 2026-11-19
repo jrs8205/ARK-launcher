@@ -124,7 +124,7 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         PrivateSpaceRepository(noProfiles, workProfileRepository, source, settingsRepository, appScope), appScope,
     )
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
-    val homeProfiles = HomeProfileRepository(profileStore, homeLayoutRepository, settingsRepository, source, DrawerWallpaperStore(context))
+    val homeProfiles = HomeProfileRepository(profileStore, homeLayoutRepository, settingsRepository, source, DrawerWallpaperStore(context)) { }
 
     suspend fun pinOnHome(shortcutId: String): Long = dao.insert(
         HomeItemEntity(packageName = context.packageName, shortcutId = shortcutId, page = 0, cellX = 0, cellY = 0),

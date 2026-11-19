@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.arkikeskus.launcher.data.profile.ProfiledPreferences.Companion.copy
 import org.arkikeskus.launcher.model.HomeProfile
@@ -62,11 +64,11 @@ class HomeProfileStore(
         if (list.size >= HomeProfile.MAX_PROFILES) return@withLock null
         val id = maxOf(now[LAST_ID] ?: 0L, list.maxOf { it.id }) + 1
         val profile = HomeProfile(id, HomeProfile.cleanName(name))
-        // Its values before its place in the list: a profile that is listed always has what it shows.
-        if (copyOf != null && list.any { it.id == copyOf }) {
-            val source = view.profileValues(copyOf)
-            files.store(id).updateData { source }
-        }
+        // Its values before its place in the list: a profile that is listed always has what it shows. An
+        // empty one's file is written too: a copy that died between its values and its place in the list
+        // left a file under this very id, which an empty profile would otherwise show as its own.
+        val source = if (copyOf != null && list.any { it.id == copyOf }) view.profileValues(copyOf) else emptyPreferences()
+        files.store(id).updateData { source }
         main.edit {
             it[LIST] = HomeProfile.encode(list + profile)
             it[LAST_ID] = id
@@ -91,8 +93,27 @@ class HomeProfileStore(
         list.toMutableList().apply { add(to, removeAt(from)) }
     }
 
-    /** Switches to [id]; an id that is not in the list is ignored. */
-    suspend fun setActive(id: Long) = view.mutex.withLock {
+    /**
+     * Held by a switch, and by any work that is about "the profile that is on" from its first step to its
+     * last: a restore (its settings, its rows and the list it leaves), an export, making a copy, deleting a
+     * profile, a change of the grid with the rows it moves. Without it a tap on another profile in the
+     * middle put the rows in one profile and the rest in another. Taken before [ShortcutPinLock] by
+     * whoever needs both; never the other way round.
+     */
+    private val steady = Mutex()
+
+    /**
+     * Runs [work] with the profile that is on, which stays on until [work] returns: a switch asked for
+     * meanwhile waits and happens after it. Not re-entrant: inside, switch with [setActiveLocked].
+     */
+    suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = steady.withLock { work(current()) }
+
+    /** Switches to [id]; an id that is not in the list is ignored. Waits for work that needs the profile to
+     *  stay ([whileActiveStays]). */
+    suspend fun setActive(id: Long) = steady.withLock { setActiveLocked(id) }
+
+    /** [setActive] for a caller inside [whileActiveStays]. */
+    internal suspend fun setActiveLocked(id: Long) = view.mutex.withLock {
         val now = main.data.first()
         if (profilesIn(now).none { it.id == id } || ProfiledPreferences.activeId(now) == id) return@withLock
         main.edit { it[ACTIVE] = id }

@@ -26,7 +26,11 @@ class FakeAppRowResolver : AppRowResolver {
     /** The last pin set written per (package, profile). */
     val pins = LinkedHashMap<Pair<String, Long>, List<String>>()
 
+    /** The thread each pin set was written on. */
+    val pinThreads = mutableListOf<Thread>()
+
     override fun pinShortcuts(packageName: String, userSerial: Long, shortcutIds: List<String>): Boolean {
+        pinThreads += Thread.currentThread()
         pins[packageName to userSerial] = shortcutIds
         return true
     }

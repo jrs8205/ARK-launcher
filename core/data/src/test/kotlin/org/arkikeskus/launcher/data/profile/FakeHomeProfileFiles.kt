@@ -5,7 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.onEach
 
 /** An in-memory preferences store that counts its writes. */
 class CountingStore : DataStore<Preferences> {
@@ -17,11 +17,19 @@ class CountingStore : DataStore<Preferences> {
      *  of someone's work. */
     var afterWrite: ((Preferences) -> Unit)? = null
 
-    override val data: Flow<Preferences> = state.asStateFlow()
+    /** Runs once, as the next reader is handed what the store holds: the way to change something between
+     *  two reads of someone's work (the reader still gets what it was being handed). */
+    var onNextRead: (suspend () -> Unit)? = null
+
+    /** While set, every write fails with it, as a full disk makes it fail. */
+    var failWrites: Throwable? = null
+
+    override val data: Flow<Preferences> = state.onEach { onNextRead?.also { onNextRead = null }?.invoke() }
 
     val now: Preferences get() = state.value
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        failWrites?.let { throw it }
         writes++
         return transform(state.value).also {
             state.value = it

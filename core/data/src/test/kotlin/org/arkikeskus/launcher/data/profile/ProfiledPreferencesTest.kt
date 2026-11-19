@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.io.IOException
 
 /**
  * The one settings store the launcher reads is a view: what every home profile shares comes from the
@@ -63,6 +64,20 @@ class ProfiledPreferencesTest {
         // Profile 2 has set neither: it gets the defaults, not profile 1's choices.
         assertThat(seen[baseColour]).isNull()
         assertThat(seen[homeColumns]).isNull()
+    }
+
+    @Test fun aChangeThatCannotBeSavedInTheProfileIsNotSavedInTheSharedPartEither() = runTest {
+        main.edit { it[longPress] = 1f; it[active] = 2L }
+        files.store(2).edit { it[baseColour] = "green" }
+        val before = main.now
+        files.store(2).failWrites = IOException("no space left")
+
+        val failure = runCatching { view.edit { it[longPress] = 1.5f; it[baseColour] = "blue" } }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(IOException::class.java)
+        // Half of one change is no change: the press delay did not move for every profile while the look stayed.
+        assertThat(main.now).isEqualTo(before)
+        assertThat(files.store(2).now[baseColour]).isEqualTo("green")
     }
 
     @Test fun aPerProfileEditGoesToTheActiveProfileOnly() = runTest {

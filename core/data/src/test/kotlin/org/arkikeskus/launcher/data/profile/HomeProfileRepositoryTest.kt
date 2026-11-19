@@ -4,11 +4,13 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.room.Room
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
@@ -53,19 +55,31 @@ class HomeProfileRepositoryTest {
     private val resolver = FakeAppRowResolver()
     private lateinit var layout: HomeLayoutRepository
     private val drawerPictures = DrawerWallpaperStore(context)
+    private val released = mutableListOf<Int>()
     private lateinit var profiles: HomeProfileRepository
+
+    /** The repository over a layout that reads and writes through [homeItemDao]: the way to do something in
+     *  the middle of its work. */
+    private fun repositoryOver(homeItemDao: HomeItemDao) = HomeProfileRepository(
+        store, HomeLayoutRepository(db, homeItemDao, resolver), settings, resolver, drawerPictures,
+    ) { released += it }
 
     @Before fun setUp() {
         db = Room.inMemoryDatabaseBuilder(context, LauncherDatabase::class.java).allowMainThreadQueries().build()
         dao = db.homeItemDao(store)
         layout = HomeLayoutRepository(db, dao, resolver)
-        profiles = HomeProfileRepository(store, layout, settings, resolver, drawerPictures)
+        profiles = HomeProfileRepository(store, layout, settings, resolver, drawerPictures) { released += it }
     }
 
     @After fun tearDown() = db.close()
 
     private fun app(pkg: String, cellX: Int, container: Long = HomeItemEntity.HOME) =
         HomeItemEntity(containerId = container, packageName = pkg, className = "Main", page = 0, cellX = cellX, cellY = 0)
+
+    private fun widget(pkg: String, id: Int, cellX: Int) = HomeItemEntity(
+        packageName = pkg, className = "", page = 0, cellX = cellX, cellY = 1, spanX = 2, spanY = 1,
+        appWidgetId = id, widgetProvider = "$pkg/.Widget",
+    )
 
     private fun shortcut(pkg: String, id: String, cellX: Int) =
         HomeItemEntity(packageName = pkg, className = "", page = 0, cellX = cellX, cellY = 2, shortcutId = id)
@@ -228,13 +242,109 @@ class HomeProfileRepositoryTest {
                 caller.cancel()
             }
         }
-        val asked = HomeProfileRepository(store, HomeLayoutRepository(db, leaving, resolver), settings, resolver, drawerPictures)
+        val asked = repositoryOver(leaving)
         caller = launch { asked.delete(work.id) }
         caller.join()
 
         assertThat(rowsOf(work.id)).isEmpty()
         // Not left behind as a profile with an empty home screen.
         assertThat(store.list()).containsExactly(HomeProfile(1, ""))
+    }
+
+    // The profile that is on must not change under work that is about "the profile that is on" from its first
+    // step to its last: a tap on another profile waits for it.
+
+    @Test fun aProfileBeingDeletedCannotBeSwitchedTo() = runTest {
+        dao.insert(app("com.mail", 0))
+        val work = created("Work", copyCurrent = true)
+        // The user taps the profile again while its rows are going.
+        val tapped = object : HomeItemDao by dao {
+            override suspend fun deleteProfile(profile: Long) {
+                dao.deleteProfile(profile)
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(work.id) }
+            }
+        }
+
+        assertThat(repositoryOver(tapped).delete(work.id)).isTrue()
+
+        // Not a profile that is on, listed, and has lost its home screen.
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""))
+        assertThat(store.current()).isEqualTo(1L)
+    }
+
+    @Test fun aCopyCannotBeSwitchedToBeforeItIsWhole() = runTest {
+        dao.insert(app("com.mail", 0))
+        dao.insert(app("com.maps", 1))
+        // The user taps the new profile the moment it is listed.
+        main.afterWrite = { now ->
+            if (HomeProfile.decode(now[stringPreferencesKey(HomeProfileKeys.LIST)]).size == 2) {
+                main.afterWrite = null
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(2) }
+            }
+        }
+        val onWhileTheRowsWereCopied = mutableListOf<Long>()
+        val watching = object : HomeItemDao by dao {
+            override suspend fun insert(item: HomeItemEntity): Long {
+                onWhileTheRowsWereCopied += store.current()
+                return dao.insert(item)
+            }
+        }
+
+        repositoryOver(watching).create("Work", copyCurrent = true)
+
+        assertThat(onWhileTheRowsWereCopied).containsExactly(1L, 1L)
+        // The tap is honoured once the copy is whole.
+        assertThat(store.current()).isEqualTo(2L)
+        assertThat(rowsOf(2)).hasSize(2)
+    }
+
+    @Test fun aSmallerGridAndTheRowsItMovesAreOneProfiles() = runTest {
+        val columns = intPreferencesKey("home_columns")
+        settings.setHomeColumns(5)
+        dao.insert(app("com.mail", 4))
+        val work = created("Work", copyCurrent = true)
+        // Another profile is tapped while the rows are being packed into the smaller grid.
+        val tapped = object : HomeItemDao by dao {
+            override suspend fun getContainerOrdered(containerId: Long): List<HomeItemEntity> {
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(work.id) }
+                return dao.getContainerOrdered(containerId)
+            }
+        }
+
+        repositoryOver(tapped).setHomeColumns(4)
+
+        // The profile that was on: four columns, and its icon inside them.
+        assertThat(view.profileValues(1)[columns]).isEqualTo(4)
+        assertThat(rowsOf(1).single().cellX).isLessThan(4)
+        // The other one keeps its grid and its icon in the fifth column.
+        assertThat(view.profileValues(work.id)[columns]).isEqualTo(5)
+        assertThat(rowsOf(work.id).single().cellX).isEqualTo(4)
+    }
+
+    @Test fun deletingAProfileFreesTheWidgetIdsItHeld() = runTest {
+        dao.insert(widget("com.clock", 11, cellX = 0))
+        val work = created("Work", copyCurrent = false)
+        inHomeProfile(work.id) {
+            dao.insert(widget("com.cal", 12, cellX = 0))
+            dao.insert(widget("com.news", 13, cellX = 2))
+        }
+
+        assertThat(profiles.delete(work.id)).isTrue()
+
+        // At once, not at the next start: their providers would go on updating widgets nobody shows.
+        assertThat(released).containsExactly(12, 13)
+    }
+
+    @Test fun theSystemsPinnedSetsAreWrittenOffTheCallersThread() = runTest {
+        dao.insert(shortcut("com.chat", "home-only", cellX = 1))
+        val work = created("Work", copyCurrent = true)
+        val caller = Thread.currentThread()
+
+        assertThat(profiles.delete(work.id)).isTrue()
+
+        // Settings asks from the main thread, and these are calls into the system that can be slow.
+        assertThat(resolver.pinThreads).isNotEmpty()
+        assertThat(resolver.pinThreads).doesNotContain(caller)
     }
 
     @Test fun aRenameReachesTheList() = runTest {

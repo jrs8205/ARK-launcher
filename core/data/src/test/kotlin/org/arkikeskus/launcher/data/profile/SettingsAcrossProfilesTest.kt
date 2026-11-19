@@ -1,7 +1,10 @@
 package org.arkikeskus.launcher.data.profile
 
 import com.google.common.truth.Truth.assertThat
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeFolderIcons
@@ -152,5 +155,60 @@ class SettingsAcrossProfilesTest {
         assertThat(plain.folderIconsOfEveryProfile()).containsExactly(CustomIcon.FromFile("home.png"))
         assertThat(plain.referencedAppKeys()).containsExactly("one/one.M/0")
         assertThat(plain.settings.first().homeProfileId).isEqualTo(HomeProfile.FIRST_ID)
+    }
+
+    // What is read or changed in EVERY profile goes by the list of profiles, one profile at a time: not by
+    // "the one that is on, and then the others", which misses a profile when the one that is on changes between.
+
+    @Test fun theFolderIconsOfEveryProfileAreKnownThoughTheProfileChangesBetweenTheReads() = runTest {
+        val home = CustomIcon.FromFile("home.png")
+        val work = CustomIcon.FromFile("work.png")
+        settings.setFolderIcon(FolderIconKey.home(4), home)
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setFolderIcon(FolderIconKey.home(9), work)
+        store.setActive(1)
+        main.onNextRead = { store.setActive(2) }
+
+        // A picture missing from this list is deleted as unused.
+        assertThat(settings.folderIconsOfEveryProfile()).containsExactly(home, work)
+    }
+
+    @Test fun aRenamedAppKeyReachesEveryProfileThoughTheProfileChangesMeanwhile() = runTest {
+        val leftSwipe = stringPreferencesKey("left_swipe_app_key")
+        settings.setLeftSwipeAppKey("old/old.M/0")
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setLeftSwipeAppKey("old/old.M/0")
+        store.setActive(1)
+        // The profile changes right after the first write of the repair.
+        main.afterWrite = {
+            main.afterWrite = null
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(2) }
+        }
+
+        settings.renameAppKeys(mapOf("old/old.M/0" to "old/new.M/0"))
+
+        assertThat(view.profileValues(1)[leftSwipe]).isEqualTo("old/new.M/0")
+        assertThat(view.profileValues(2)[leftSwipe]).isEqualTo("old/new.M/0")
+    }
+
+    @Test fun aCopysFolderIconsMoveInThatProfileThoughTheProfileChangesMeanwhile() = runTest {
+        val home = CustomIcon.FromFile("home.png")
+        val work = CustomIcon.FromFile("work.png")
+        settings.setFolderIcon(FolderIconKey.home(4), home)
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setFolderIcon(FolderIconKey.home(9), work)
+        store.setActive(1)
+        // Another profile is tapped as the move begins. (Asked for beside the reader, not inside its read:
+        // a switch needs the lock the move holds, so it happens before the move or after it.)
+        main.onNextRead = { backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { store.setActive(2) } }
+
+        settings.moveHomeFolderIcons(profileId = 1, newIds = mapOf(4L to 40L))
+
+        assertThat(settings.folderIcons.first()).containsExactly(FolderIconKey.home(9), work)
+        store.setActive(1)
+        assertThat(settings.folderIcons.first()).containsExactly(FolderIconKey.home(40), home)
     }
 }

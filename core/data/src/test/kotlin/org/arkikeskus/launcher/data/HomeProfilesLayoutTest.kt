@@ -218,7 +218,8 @@ class HomeProfilesLayoutTest {
 
         val changed = repo.deleteProfile(2)
 
-        assertThat(changed).containsExactly("com.chat" to 0L, "com.maps" to 0L)
+        assertThat(changed.shortcutOwners).containsExactly("com.chat" to 0L, "com.maps" to 0L)
+        assertThat(changed.widgetIds).containsExactly(12)
         assertThat(rowsOf(2)).isEmpty()
         assertThat(rowsOf(1)).hasSize(2)
         // Its widget's id is no longer held, so the next sweep frees it; its shortcuts left the sets.
