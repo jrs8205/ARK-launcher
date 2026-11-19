@@ -20,6 +20,7 @@
     <string name="backup_restoring">Restoring…</string>
     <string name="backup_restore_confirm_title">Restore backup?</string>
     <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets are restored as tap-to-set-up placeholders.</string>
+    <string name="backup_restore_confirm_profiles">This also deletes every other profile: %1$s.</string>
     <string name="backup_restore_confirm_ok">Restore</string>
     <string name="backup_cancel">Cancel</string>
     <string name="backup_last_time">Last: %1$s</string>

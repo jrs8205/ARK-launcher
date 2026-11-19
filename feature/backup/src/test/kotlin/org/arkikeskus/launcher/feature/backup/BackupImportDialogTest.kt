@@ -4,6 +4,7 @@ import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -32,8 +33,8 @@ class BackupImportDialogTest {
     /** A scroll container that holds [text], on itself or on a child. */
     private fun scrollableWith(text: String) = hasScrollAction() and (hasText(text) or hasAnyDescendant(hasText(text)))
 
-    private fun show(state: BackupImportState) = compose.setContent {
-        BackupImportDialog(state = state, onRestore = { restores++ }, onLeave = { leaves++ })
+    private fun show(state: BackupImportState, deletedProfiles: List<String>? = emptyList()) = compose.setContent {
+        BackupImportDialog(state = state, deletedProfiles = deletedProfiles, onRestore = { restores++ }, onLeave = { leaves++ })
     }
 
     @Test fun asksTheSameQuestionAsTheBackupScreen() {
@@ -41,6 +42,24 @@ class BackupImportDialogTest {
 
         compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_title)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_msg)).assertIsDisplayed()
+    }
+
+    /** A restore leaves one home profile: the question names the others, which it deletes. */
+    @Test fun theQuestionNamesTheProfilesTheRestoreDeletes() {
+        show(BackupImportState.Confirm, deletedProfiles = listOf("Work", "Evening"))
+
+        compose.onNodeWithText(restoreConfirmText(res, listOf("Work", "Evening"))).assertIsDisplayed()
+    }
+
+    /** Before the profiles have been read the question cannot say what goes: Restore waits, Cancel does not. */
+    @Test fun restoreWaitsUntilTheProfilesAreKnown() {
+        show(BackupImportState.Confirm, deletedProfiles = null)
+
+        compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).assertIsNotEnabled()
+        compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).performClick()
+        assertThat(restores).isEqualTo(0)
+        compose.onNodeWithText(res.getString(R.string.backup_cancel)).performClick()
+        assertThat(leaves).isEqualTo(1)
     }
 
     @Test fun restoreRestores() {

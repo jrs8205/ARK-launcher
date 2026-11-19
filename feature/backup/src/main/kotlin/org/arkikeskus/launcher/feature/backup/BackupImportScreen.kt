@@ -36,8 +36,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -79,7 +81,14 @@ sealed interface BackupImportState {
 }
 
 @HiltViewModel
-class BackupImportViewModel @Inject constructor(private val restorer: BackupRestorer) : ViewModel() {
+class BackupImportViewModel @Inject constructor(
+    private val restorer: BackupRestorer,
+    lost: ProfilesLostInRestore,
+) : ViewModel() {
+    /** The home profiles a restore deletes, for the question to name; null until they have been read. */
+    val deletedProfiles: StateFlow<List<String>?> =
+        lost.names().stateIn<List<String>?>(viewModelScope, SharingStarted.Eagerly, null)
+
     private val _state = MutableStateFlow<BackupImportState>(BackupImportState.Confirm)
     val state: StateFlow<BackupImportState> = _state.asStateFlow()
     private var job: Job? = null
@@ -117,8 +126,10 @@ fun BackupImportScreen(
     viewModel: BackupImportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deletedProfiles by viewModel.deletedProfiles.collectAsStateWithLifecycle()
     BackupImportDialog(
         state = state,
+        deletedProfiles = deletedProfiles,
         onRestore = { viewModel.restore(uri) },
         onLeave = { if (viewModel.leave()) onFinish() },
     )
@@ -127,6 +138,8 @@ fun BackupImportScreen(
 @Composable
 internal fun BackupImportDialog(
     state: BackupImportState,
+    /** The home profiles the restore deletes, named in the question; null until they have been read. */
+    deletedProfiles: List<String>?,
     onRestore: () -> Unit,
     onLeave: () -> Unit,
 ) {
@@ -134,9 +147,13 @@ internal fun BackupImportDialog(
         BackupImportState.Confirm -> AlertDialog(
             onDismissRequest = onLeave,
             title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
-            text = { DialogText(stringResource(R.string.backup_restore_confirm_msg)) },
+            // A restore leaves one home profile: the others it deletes are named. Restore waits until they
+            // have been read, so the question is never answered before it says what goes.
+            text = { DialogText(restoreConfirmText(LocalResources.current, deletedProfiles.orEmpty())) },
             confirmButton = {
-                TextButton(onClick = onRestore) { Text(stringResource(R.string.backup_restore_confirm_ok)) }
+                TextButton(onClick = onRestore, enabled = deletedProfiles != null) {
+                    Text(stringResource(R.string.backup_restore_confirm_ok))
+                }
             },
             dismissButton = {
                 TextButton(onClick = onLeave) { Text(stringResource(R.string.backup_cancel)) }

@@ -22,6 +22,7 @@
     <string name="backup_restoring">Przywracanie…</string>
     <string name="backup_restore_confirm_title">Przywrócić kopię zapasową?</string>
     <string name="backup_restore_confirm_msg">Twój obecny ekran główny i ustawienia zostaną zastąpione. Widżety zostaną przywrócone jako elementy zastępcze, które skonfigurujesz dotknięciem.</string>
+    <string name="backup_restore_confirm_profiles">Usunięte zostaną też wszystkie pozostałe profile: %1$s.</string>
     <string name="backup_restore_confirm_ok">Przywróć</string>
     <string name="backup_cancel">Anuluj</string>
     <string name="backup_last_time">Ostatnio: %1$s</string>

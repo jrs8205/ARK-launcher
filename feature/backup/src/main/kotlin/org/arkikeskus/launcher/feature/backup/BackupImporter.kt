@@ -66,4 +66,6 @@ internal class BackupImporter @Inject constructor(
 @InstallIn(SingletonComponent::class)
 internal abstract class BackupModule {
     @Binds abstract fun restorer(impl: BackupImporter): BackupRestorer
+
+    @Binds abstract fun profilesLostInRestore(impl: StoredProfilesLostInRestore): ProfilesLostInRestore
 }

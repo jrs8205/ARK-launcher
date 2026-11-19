@@ -10,7 +10,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -43,10 +45,15 @@ class BackupViewModel @Inject constructor(
     private val backupRepository: BackupRepository,
     private val restorer: BackupRestorer,
     private val settings: SettingsRepository,
+    lost: ProfilesLostInRestore,
 ) : ViewModel() {
 
     private val _events = MutableSharedFlow<BackupEvent>(extraBufferCapacity = 4)
     val events = _events.asSharedFlow()
+
+    /** The home profiles a restore deletes, for the question to name; null until they have been read. */
+    val deletedProfiles: StateFlow<List<String>?> =
+        lost.names().stateIn<List<String>?>(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Epoch-ms timestamp of the last successful local file export (0 = never), for the file card. */
     private val _localLastBackupMs = MutableStateFlow(0L)

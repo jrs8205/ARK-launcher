@@ -124,18 +124,11 @@ fun BackupScreen(
 
     // --- File import confirm dialog ---
     pendingImport?.let { uri ->
-        AlertDialog(
-            onDismissRequest = { pendingImport = null },
-            title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
-            text = { Text(stringResource(R.string.backup_restore_confirm_msg)) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.importFrom(uri); pendingImport = null }) {
-                    Text(stringResource(R.string.backup_restore_confirm_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingImport = null }) { Text(stringResource(R.string.backup_cancel)) }
-            },
+        val deletedProfiles by viewModel.deletedProfiles.collectAsStateWithLifecycle()
+        RestoreConfirmDialog(
+            deletedProfiles = deletedProfiles,
+            onConfirm = { viewModel.importFrom(uri); pendingImport = null },
+            onDismiss = { pendingImport = null },
         )
     }
 }

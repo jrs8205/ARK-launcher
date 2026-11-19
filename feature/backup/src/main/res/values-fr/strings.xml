@@ -21,6 +21,7 @@
     <string name="backup_restoring">Restauration…</string>
     <string name="backup_restore_confirm_title">Restaurer la sauvegarde ?</string>
     <string name="backup_restore_confirm_msg">Votre écran d\'accueil et vos paramètres actuels seront remplacés. Les widgets seront restaurés sous forme d\'espaces réservés : appuyez dessus pour les configurer.</string>
+    <string name="backup_restore_confirm_profiles">Tous les autres profils seront également supprimés : %1$s.</string>
     <string name="backup_restore_confirm_ok">Restaurer</string>
     <string name="backup_cancel">Annuler</string>
     <string name="backup_last_time">Dernière sauvegarde : %1$s</string>
