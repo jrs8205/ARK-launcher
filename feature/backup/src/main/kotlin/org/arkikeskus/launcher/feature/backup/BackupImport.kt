@@ -8,6 +8,7 @@ import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.backup.BackupFormatException
+import org.arkikeskus.launcher.data.backup.ProfilesChangedException
 import org.json.JSONException
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicReference
@@ -96,5 +97,6 @@ internal fun importFailureEvent(error: Throwable): BackupEvent = when (error) {
     is BackupReadTimeoutException -> BackupEvent.ReadTimedOut
     is BackupTooLargeException -> BackupEvent.TooLarge
     is BackupFormatException, is JSONException -> BackupEvent.InvalidFile
+    is ProfilesChangedException -> BackupEvent.ProfilesChanged
     else -> BackupEvent.Failed(error.message.orEmpty())
 }

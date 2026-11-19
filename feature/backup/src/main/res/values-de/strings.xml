@@ -21,6 +21,7 @@
     <string name="backup_restore_confirm_title">Sicherung wiederherstellen?</string>
     <string name="backup_restore_confirm_msg">Dein aktueller Startbildschirm und deine Einstellungen werden ersetzt. Widgets werden als Platzhalter wiederhergestellt – tippe darauf, um sie einzurichten.</string>
     <string name="backup_restore_confirm_profiles">Dabei werden auch alle anderen Profile gelöscht: %1$s.</string>
+    <string name="backup_restore_profiles_changed">Deine Profile haben sich geändert, während die Sicherung gelesen wurde. Es wurde nichts wiederhergestellt. Importiere die Datei erneut, um zu sehen, was sie ersetzen würde.</string>
     <string name="backup_restore_confirm_ok">Wiederherstellen</string>
     <string name="backup_cancel">Abbrechen</string>
     <string name="backup_last_time">Zuletzt: %1$s</string>

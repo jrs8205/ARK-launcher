@@ -13,6 +13,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.arkikeskus.launcher.data.backup.ConfirmedProfiles
+import org.arkikeskus.launcher.model.HomeProfile
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -32,17 +34,20 @@ class BackupImportViewModelTest {
     private val file = Uri.parse("content://org.telegram.messenger.provider/media/backup.json")
 
     /** A launcher with the one profile: a restore deletes none. */
-    private val oneProfile = ProfilesLostInRestore { flowOf(emptyList()) }
+    private val shown = RestoreProfiles(activeId = 1, deleted = emptyList())
+    private val oneProfile = ProfilesLostInRestore { flowOf(shown) }
 
     /** Reads until [read] completes, then writes until [result] completes. */
     private class FakeRestorer : BackupRestorer {
         val restored = mutableListOf<Uri>()
+        val agreedTo = mutableListOf<ConfirmedProfiles>()
         val read = CompletableDeferred<Unit>()
         val result = CompletableDeferred<BackupEvent>()
         var cancelledWhileReading = false
 
-        override suspend fun restoreFrom(uri: Uri, onWriting: () -> Unit): BackupEvent {
+        override suspend fun restoreFrom(uri: Uri, confirmed: ConfirmedProfiles, onWriting: () -> Unit): BackupEvent {
             restored += uri
+            agreedTo += confirmed
             try {
                 read.await()
             } catch (e: CancellationException) {
@@ -71,7 +76,7 @@ class BackupImportViewModelTest {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
 
-        vm.restore(file)
+        vm.restore(file, shown)
         advanceUntilIdle()
         assertThat(vm.state.value).isEqualTo(BackupImportState.Reading)
         assertThat(restorer.restored).containsExactly(file)
@@ -89,7 +94,7 @@ class BackupImportViewModelTest {
     @Test fun leavingWhileTheFileIsReadStopsTheImport() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
-        vm.restore(file)
+        vm.restore(file, shown)
         advanceUntilIdle()
 
         assertThat(vm.leave()).isTrue()
@@ -102,7 +107,7 @@ class BackupImportViewModelTest {
     @Test fun leavingWhileTheLayoutIsReplacedIsRefused() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
-        vm.restore(file)
+        vm.restore(file, shown)
         restorer.read.complete(Unit)
         advanceUntilIdle()
 
@@ -119,7 +124,7 @@ class BackupImportViewModelTest {
         val vm = BackupImportViewModel(restorer, oneProfile)
 
         assertThat(vm.leave()).isTrue()
-        vm.restore(file)
+        vm.restore(file, shown)
         advanceUntilIdle()
 
         assertThat(restorer.restored).isEmpty()
@@ -130,13 +135,13 @@ class BackupImportViewModelTest {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
 
-        vm.restore(file)
-        vm.restore(file)
+        vm.restore(file, shown)
+        vm.restore(file, shown)
         restorer.read.complete(Unit)
         advanceUntilIdle()
         restorer.result.complete(BackupEvent.ReadBlocked)
         advanceUntilIdle()
-        vm.restore(file)
+        vm.restore(file, shown)
         advanceUntilIdle()
 
         assertThat(restorer.restored).containsExactly(file)
@@ -146,21 +151,37 @@ class BackupImportViewModelTest {
     /** A restore deletes every home profile but the one that is on: the question names them. Until they have
      *  been read there is nothing to name, and the screen keeps Restore back. */
     @Test fun theProfilesARestoreDeletesAreUnknownUntilTheyAreRead() = runTest(dispatcher) {
-        val profiles = MutableSharedFlow<List<String>>()
+        val profiles = MutableSharedFlow<RestoreProfiles>()
         val vm = BackupImportViewModel(FakeRestorer(), ProfilesLostInRestore { profiles })
         advanceUntilIdle()
-        assertThat(vm.deletedProfiles.value).isNull()
+        assertThat(vm.restoreProfiles.value).isNull()
 
-        profiles.emit(listOf("Work", "Evening"))
+        profiles.emit(RestoreProfiles(1, listOf(HomeProfile(2, "Work"), HomeProfile(3, "Evening"))))
         advanceUntilIdle()
 
-        assertThat(vm.deletedProfiles.value).containsExactly("Work", "Evening").inOrder()
+        assertThat(vm.restoreProfiles.value?.names).containsExactly("Work", "Evening").inOrder()
     }
 
     @Test fun withOneProfileARestoreDeletesNone() = runTest(dispatcher) {
         val vm = BackupImportViewModel(FakeRestorer(), oneProfile)
         advanceUntilIdle()
 
-        assertThat(vm.deletedProfiles.value).isEmpty()
+        assertThat(vm.restoreProfiles.value?.names).isEmpty()
+    }
+
+    /**
+     * The restore is asked for with the profiles its question showed: which one is on, and which ones it
+     * deletes. The file is read after the question, and the profiles can change meanwhile (one made in the
+     * launcher's Settings while the file was still coming); the restore itself then refuses, by these.
+     */
+    @Test fun theRestoreCarriesTheProfilesItsQuestionShowed() = runTest(dispatcher) {
+        val restorer = FakeRestorer()
+        val vm = BackupImportViewModel(restorer, oneProfile)
+        val asked = RestoreProfiles(activeId = 2, deleted = listOf(HomeProfile(1, ""), HomeProfile(3, "Evening")))
+
+        vm.restore(file, asked)
+        advanceUntilIdle()
+
+        assertThat(restorer.agreedTo).containsExactly(ConfirmedProfiles(activeId = 2, otherIds = setOf(1L, 3L)))
     }
 }

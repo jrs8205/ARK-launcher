@@ -255,4 +255,43 @@ class BackupProfilesTest {
         assertThat(dao.getAll().map { it.packageName }).containsExactly("com.work", "com.chat")
         assertThat(inHomeProfile(1) { dao.getAll() }.map { it.packageName }).containsExactly("com.first", "com.chat")
     }
+
+    /**
+     * Review round 2: the restore's question names the profiles it deletes, and the file is read after the
+     * answer. A profile made meanwhile was deleted with the rest, without a word. The restore is given the
+     * profiles the question showed and writes nothing when they are not the profiles there are.
+     */
+    @Test fun aRestoreAgreedToBeforeAProfileWasMadeChangesNothing() = runTest {
+        twoProfiles()
+        // The question was answered when the profile that is on was the only one.
+        val agreed = ConfirmedProfiles(activeId = 2, otherIds = emptySet())
+
+        val failure = runCatching { repo().restoreDocument(backup, installed, agreed) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ProfilesChangedException::class.java)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L)
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+        assertThat(dao.getAllOfEveryProfile().map { it.packageName }).containsExactly("com.first", "com.chat", "com.work", "com.chat")
+    }
+
+    @Test fun aRestoreAgreedToInAnotherProfileThanTheOneThatIsOnChangesNothing() = runTest {
+        twoProfiles()
+        // The question showed the first profile as the one that stays; the second is on now.
+        val agreed = ConfirmedProfiles(activeId = 1, otherIds = setOf(2L))
+
+        val failure = runCatching { repo().restoreDocument(backup, installed, agreed) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ProfilesChangedException::class.java)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L)
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+    }
+
+    @Test fun aRestoreAgreedToWithTheProfilesThereAreGoesThrough() = runTest {
+        twoProfiles()
+
+        repo().restoreDocument(backup, installed, ConfirmedProfiles(activeId = 2, otherIds = setOf(1L)))
+
+        assertThat(store.list()).containsExactly(HomeProfile(2, "Work"))
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+    }
 }

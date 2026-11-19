@@ -33,10 +33,14 @@ sealed interface BackupEvent {
 
     /** The picked file did not arrive in time ([BackupReadTimeoutException]). */
     data object ReadTimedOut : BackupEvent
+
+    /** The home profiles were no longer the ones the question named when the file had been read: nothing
+     *  was restored, and importing again asks with the profiles there are. */
+    data object ProfilesChanged : BackupEvent
     data class Failed(val message: String) : BackupEvent
 
     /** A message too long to read in a short snackbar: it stays until dismissed or timed out long. */
-    val needsTimeToRead: Boolean get() = this is ReadBlocked
+    val needsTimeToRead: Boolean get() = this is ReadBlocked || this is ProfilesChanged
 }
 
 @HiltViewModel
@@ -51,9 +55,9 @@ class BackupViewModel @Inject constructor(
     private val _events = MutableSharedFlow<BackupEvent>(extraBufferCapacity = 4)
     val events = _events.asSharedFlow()
 
-    /** The home profiles a restore deletes, for the question to name; null until they have been read. */
-    val deletedProfiles: StateFlow<List<String>?> =
-        lost.names().stateIn<List<String>?>(viewModelScope, SharingStarted.Eagerly, null)
+    /** The home profiles a restore would meet now, for its question; null until they have been read. */
+    val restoreProfiles: StateFlow<RestoreProfiles?> =
+        lost.profiles().stateIn<RestoreProfiles?>(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Epoch-ms timestamp of the last successful local file export (0 = never), for the file card. */
     private val _localLastBackupMs = MutableStateFlow(0L)
@@ -88,8 +92,9 @@ class BackupViewModel @Inject constructor(
             }
     }
 
-    fun importFrom(uri: Uri) = viewModelScope.launch {
-        _events.emit(restorer.restoreFrom(uri) {})
+    /** Restores [uri], held to the profiles its question showed ([asked]). */
+    fun importFrom(uri: Uri, asked: RestoreProfiles) = viewModelScope.launch {
+        _events.emit(restorer.restoreFrom(uri, asked.confirmed) {})
     }
 
     internal companion object {

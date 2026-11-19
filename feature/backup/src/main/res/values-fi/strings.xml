@@ -21,6 +21,7 @@
     <string name="backup_restore_confirm_title">Palauta varmuuskopio?</string>
     <string name="backup_restore_confirm_msg">Nykyinen kotinäyttö ja asetukset korvataan. Widgetit palautetaan napautettavina paikkamerkkeinä.</string>
     <string name="backup_restore_confirm_profiles">Samalla poistetaan kaikki muut profiilit: %1$s.</string>
+    <string name="backup_restore_profiles_changed">Profiilisi muuttuivat varmuuskopiota luettaessa, joten mitään ei palautettu. Tuo tiedosto uudelleen, niin näet, mitä se korvaisi.</string>
     <string name="backup_restore_confirm_ok">Palauta</string>
     <string name="backup_cancel">Peruuta</string>
     <string name="backup_last_time">Viimeksi: %1$s</string>

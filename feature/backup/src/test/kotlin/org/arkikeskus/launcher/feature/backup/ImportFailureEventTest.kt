@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.backup
 
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.data.backup.BackupFormatException
+import org.arkikeskus.launcher.data.backup.ProfilesChangedException
 import org.json.JSONException
 import org.junit.Test
 
@@ -29,5 +30,10 @@ class ImportFailureEventTest {
         assertThat(importFailureEvent(JSONException("bad"))).isEqualTo(BackupEvent.InvalidFile)
         assertThat(importFailureEvent(IllegalStateException("App list unavailable")))
             .isEqualTo(BackupEvent.Failed("App list unavailable"))
+    }
+
+    /** The profiles are no longer the ones the question named: nothing was written, and the screen says why. */
+    @Test fun profilesThatChangedSinceTheQuestionAreTheirOwnEvent() {
+        assertThat(importFailureEvent(ProfilesChangedException())).isEqualTo(BackupEvent.ProfilesChanged)
     }
 }

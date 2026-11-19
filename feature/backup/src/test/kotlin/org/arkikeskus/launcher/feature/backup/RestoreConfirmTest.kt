@@ -5,11 +5,15 @@ import android.content.res.Resources
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import org.arkikeskus.launcher.data.backup.ConfirmedProfiles
 import org.arkikeskus.launcher.model.HomeProfile
 import org.junit.Rule
 import org.junit.Test
@@ -44,8 +48,11 @@ class RestoreConfirmTest {
     @Test fun theProfilesARestoreDeletesAreAllButTheOneThatIsOn() {
         val profiles = listOf(HomeProfile(1, "Home"), HomeProfile(2, "Work"), HomeProfile(3, "Evening"))
 
-        assertThat(profilesARestoreDeletes(profiles, activeId = 2)).containsExactly("Home", "Evening").inOrder()
-        assertThat(profilesARestoreDeletes(listOf(HomeProfile(1, "Home")), activeId = 1)).isEmpty()
+        val lost = profilesARestoreDeletes(profiles, activeId = 2)
+        assertThat(lost.names).containsExactly("Home", "Evening").inOrder()
+        // What the restore is held to: the profile that is on and the ones that go, by id.
+        assertThat(lost.confirmed).isEqualTo(ConfirmedProfiles(activeId = 2, otherIds = setOf(1L, 3L)))
+        assertThat(profilesARestoreDeletes(listOf(HomeProfile(1, "Home")), activeId = 1).names).isEmpty()
     }
 
     @Test fun withOneProfileTheQuestionIsWhatItAlwaysWas() {
@@ -108,5 +115,18 @@ class RestoreConfirmTest {
         compose.onNodeWithText(res.getString(R.string.backup_cancel)).performClick()
         assertThat(dismissals).isEqualTo(1)
         assertThat(restores).isEqualTo(0)
+    }
+
+    /**
+     * Review round 2: with many profiles to delete, on a small window at a large font, the question is taller
+     * than its dialog. A text that does not scroll was cut there, and Restore could be tapped without the last
+     * names ever having been on screen. The question scrolls, as the "Open with" import's does.
+     */
+    @Test fun theBackupScreensQuestionCanBeScrolledToItsLastName() {
+        val seven = listOf("Work", "Evening", "Morning", "Weekend", "Travel", "Gym", "Night shift")
+        showOnTheBackupScreen(seven)
+
+        val text = restoreConfirmText(res, seven)
+        compose.onNode(hasScrollAction() and (hasText(text) or hasAnyDescendant(hasText(text)))).assertExists()
     }
 }

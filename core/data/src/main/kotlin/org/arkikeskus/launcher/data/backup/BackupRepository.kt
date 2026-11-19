@@ -23,6 +23,15 @@ import javax.inject.Singleton
 
 data class RestoreResult(val restored: Int, val skipped: Int)
 
+/**
+ * The home profiles as a restore's question showed them: the one that is on ([activeId]), which the restore
+ * fills with the backup, and the others ([otherIds]), which it deletes.
+ */
+data class ConfirmedProfiles(val activeId: Long, val otherIds: Set<Long>)
+
+/** The profiles are not the ones the restore was agreed to with ([ConfirmedProfiles]): nothing was written. */
+class ProfilesChangedException : Exception("The home profiles changed after the restore was confirmed")
+
 @Singleton
 class BackupRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -52,8 +61,13 @@ class BackupRepository @Inject constructor(
 
     /** Restores [doc] against the launchable apps on this device ([installedApps]: AppItem keys,
      *  "package/class/userSerial", from every profile). Blocking system queries: call off the main
-     *  thread. */
-    suspend fun restoreDocument(doc: BackupDocument, installedApps: Collection<String>): RestoreResult {
+     *  thread. [confirmed] is what the user agreed to: with other profiles than those there are when the
+     *  restore comes to write, it writes nothing and throws [ProfilesChangedException]. */
+    suspend fun restoreDocument(
+        doc: BackupDocument,
+        installedApps: Collection<String>,
+        confirmed: ConfirmedProfiles? = null,
+    ): RestoreResult {
         val ownSerial = mainUserSerial()
         // Rows restore into the launcher's own profile, so only that profile's apps count.
         val installed = BackupMapper.installedInProfile(installedApps, ownSerial)
@@ -97,6 +111,14 @@ class BackupRepository @Inject constructor(
         // While the profile that is on stays on: the settings, the rows and the list of profiles this
         // leaves are of one profile, and a switch in the middle put the rows in one and left another.
         withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
+            // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
+            // was read after the question, and a profile made meanwhile would go without a word. Under the
+            // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
+            if (confirmed != null && profiles != null) {
+                val active = profiles.current()
+                val others = profiles.list().map { it.id }.toSet() - active
+                if (active != confirmed.activeId || others != confirmed.otherIds) throw ProfilesChangedException()
+            }
             val previousSettings = settings.snapshot()
             // The rows of EVERY home profile: a restore replaces them all (what a backup file describes
             // is one profile), and the pinned shortcuts they held are released below.

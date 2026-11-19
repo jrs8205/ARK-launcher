@@ -85,21 +85,22 @@ class BackupImportViewModel @Inject constructor(
     private val restorer: BackupRestorer,
     lost: ProfilesLostInRestore,
 ) : ViewModel() {
-    /** The home profiles a restore deletes, for the question to name; null until they have been read. */
-    val deletedProfiles: StateFlow<List<String>?> =
-        lost.names().stateIn<List<String>?>(viewModelScope, SharingStarted.Eagerly, null)
+    /** The home profiles a restore would meet now, for its question; null until they have been read. */
+    val restoreProfiles: StateFlow<RestoreProfiles?> =
+        lost.profiles().stateIn<RestoreProfiles?>(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _state = MutableStateFlow<BackupImportState>(BackupImportState.Confirm)
     val state: StateFlow<BackupImportState> = _state.asStateFlow()
     private var job: Job? = null
 
     /** Restores [uri] once: a second tap, or one after the outcome, does nothing. The state lives here,
-     *  so a rotation mid-restore shows the same step again instead of asking anew. */
-    fun restore(uri: Uri) {
+     *  so a rotation mid-restore shows the same step again instead of asking anew. [asked] is the
+     *  profiles the question showed: the restore is held to them. */
+    fun restore(uri: Uri, asked: RestoreProfiles) {
         if (_state.value != BackupImportState.Confirm) return
         _state.value = BackupImportState.Reading
         job = viewModelScope.launch {
-            val event = restorer.restoreFrom(uri) { _state.value = BackupImportState.Restoring }
+            val event = restorer.restoreFrom(uri, asked.confirmed) { _state.value = BackupImportState.Restoring }
             _state.value = BackupImportState.Done(event)
         }
     }
@@ -126,11 +127,12 @@ fun BackupImportScreen(
     viewModel: BackupImportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val deletedProfiles by viewModel.deletedProfiles.collectAsStateWithLifecycle()
+    val profiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
     BackupImportDialog(
         state = state,
-        deletedProfiles = deletedProfiles,
-        onRestore = { viewModel.restore(uri) },
+        deletedProfiles = profiles?.names,
+        // The profiles on screen when Restore is tapped are the ones the restore is held to.
+        onRestore = { profiles?.let { viewModel.restore(uri, it) } },
         onLeave = { if (viewModel.leave()) onFinish() },
     )
 }

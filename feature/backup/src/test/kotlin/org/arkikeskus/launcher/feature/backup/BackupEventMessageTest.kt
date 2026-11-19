@@ -42,4 +42,14 @@ class BackupEventMessageTest {
         assertThat(backupEventMessage(res, BackupEvent.Failed("disk full")))
             .isEqualTo(res.getString(R.string.backup_failed) + ": disk full")
     }
+
+    /** Nothing was restored because the profiles changed under the question: the text says so and what to do,
+     *  and it is long enough to need its time. */
+    @Test fun changedProfilesSayThatNothingWasRestored() {
+        val text = backupEventMessage(res, BackupEvent.ProfilesChanged)
+
+        assertThat(text).isEqualTo(res.getString(R.string.backup_restore_profiles_changed))
+        assertThat(text).contains("nothing was restored")
+        assertThat(BackupEvent.ProfilesChanged.needsTimeToRead).isTrue()
+    }
 }
