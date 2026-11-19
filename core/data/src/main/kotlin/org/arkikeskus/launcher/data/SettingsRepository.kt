@@ -217,6 +217,7 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setPeopleBatchEnabled(value: Boolean) = edit { it[Keys.PEOPLE_BATCH_ENABLED] = value }
+
     /** The home profile that is on, as these settings see it: the one whose own values they show. */
     val homeProfileId: Flow<Long> = dataStore.data.map { ProfiledPreferences.activeId(it) }.distinctUntilChanged()
 
@@ -399,8 +400,6 @@ class SettingsRepository @Inject constructor(
         })
     }
 
-    /** Icons the user picked for pinned shortcuts ([ShortcutIconKey] -> icon), shown in place of the
-     *  icon the app pinned them with (issue #23: a browser's web shortcuts dressed from an icon pack). */
     /** The folders' own icons in EVERY home profile (a folder's key says nothing outside its profile, so
      *  only the icons): what still uses a saved picture, whichever profile is on. */
     suspend fun folderIconsOfEveryProfile(): List<CustomIcon> =
@@ -442,6 +441,8 @@ class SettingsRepository @Inject constructor(
         return HomeProfile.decode(now[stringPreferencesKey(HomeProfileKeys.LIST)]).map { it.id }.filter { it != active }
     }
 
+    /** Icons the user picked for pinned shortcuts ([ShortcutIconKey] -> icon), shown in place of the
+     *  icon the app pinned them with (issue #23: a browser's web shortcuts dressed from an icon pack). */
     val shortcutIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.SHORTCUT_ICONS]) }
 
     /** Sets (or, for null, clears) the icon picked for the shortcut [key] (see [ShortcutIconKey]). */

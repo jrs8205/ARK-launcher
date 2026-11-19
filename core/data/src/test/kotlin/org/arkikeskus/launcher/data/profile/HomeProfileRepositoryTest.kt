@@ -4,8 +4,11 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.room.Room
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
@@ -193,6 +196,45 @@ class HomeProfileRepositoryTest {
 
         assertThat(store.list()).containsExactly(HomeProfile(1, ""))
         assertThat(rowsOf(1)).hasSize(1)
+    }
+
+    // Settings asks for a profile and can be left the same moment: whoever asked is gone, and the work, which
+    // is several stores' writes one after another, must still run to its end.
+
+    @Test fun aCopyIsFinishedThoughItsCallerGoesAwayHalfWay() = runTest {
+        dao.insert(app("com.mail", 0))
+        lateinit var caller: Job
+        // The caller goes away the moment the new profile is listed: its rows are not copied yet.
+        main.afterWrite = { now ->
+            if (HomeProfile.decode(now[stringPreferencesKey(HomeProfileKeys.LIST)]).size == 2) caller.cancel()
+        }
+        caller = launch { profiles.create("Work", copyCurrent = true) }
+        caller.join()
+        main.afterWrite = null
+
+        assertThat(store.list().map { it.name }).containsExactly("", "Work").inOrder()
+        // Listed as a copy, it has the copy's home screen: not the source's look over an empty one.
+        assertThat(rowsOf(2).map { it.packageName }).containsExactly("com.mail")
+    }
+
+    @Test fun aDeleteIsFinishedThoughItsCallerGoesAwayHalfWay() = runTest {
+        dao.insert(app("com.mail", 0))
+        val work = created("Work", copyCurrent = true)
+        lateinit var caller: Job
+        // The caller goes away the moment the profile's rows are gone: it is still in the list.
+        val leaving = object : HomeItemDao by dao {
+            override suspend fun deleteProfile(profile: Long) {
+                dao.deleteProfile(profile)
+                caller.cancel()
+            }
+        }
+        val asked = HomeProfileRepository(store, HomeLayoutRepository(db, leaving, resolver), settings, resolver, drawerPictures)
+        caller = launch { asked.delete(work.id) }
+        caller.join()
+
+        assertThat(rowsOf(work.id)).isEmpty()
+        // Not left behind as a profile with an empty home screen.
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""))
     }
 
     @Test fun aRenameReachesTheList() = runTest {

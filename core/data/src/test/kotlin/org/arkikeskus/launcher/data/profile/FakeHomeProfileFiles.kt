@@ -13,13 +13,20 @@ class CountingStore : DataStore<Preferences> {
     var writes = 0
         private set
 
+    /** Runs after each write, with what the store then holds: the way to do something between two writes
+     *  of someone's work. */
+    var afterWrite: ((Preferences) -> Unit)? = null
+
     override val data: Flow<Preferences> = state.asStateFlow()
 
     val now: Preferences get() = state.value
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
         writes++
-        return transform(state.value).also { state.value = it }
+        return transform(state.value).also {
+            state.value = it
+            afterWrite?.invoke(it)
+        }
     }
 }
 
