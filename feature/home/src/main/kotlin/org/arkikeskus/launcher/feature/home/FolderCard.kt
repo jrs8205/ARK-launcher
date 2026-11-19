@@ -124,6 +124,8 @@ import org.arkikeskus.launcher.ui.component.LocalIconScale
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
 import org.arkikeskus.launcher.ui.component.labelBlockHeight
 import org.arkikeskus.launcher.ui.component.labelFontFactor
+import org.arkikeskus.launcher.ui.scrollThumb
+import org.arkikeskus.launcher.ui.wholeRows
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -319,7 +321,9 @@ internal fun FolderCard(
             val rowHeight = iconSize +
                 labelBlockHeight(showLabel = style.showLabels, labelScale = labelScale, fontFactor = labelFontFactor(density.fontScale), lines = 2) +
                 20.dp * style.spacing
-            // Up to four rows without scrolling when the screen allows; taller folders scroll.
+            // Up to four rows without scrolling when the screen allows; taller folders scroll. Whatever height
+            // the grid gets in the end (this, or less of it by an icon in the middle rows), it shows whole
+            // rows only ([wholeRows] on the grid): never an icon without its name.
             val gridMaxHeight: Dp = min(rowHeight * 4, with(density) { windowHeightPx.toDp() } * 0.6f)
             // The least of the grid the card asks for: a whole row of apps, where there is one.
             val gridMinHeight = if (shown.isEmpty()) 0.dp else min(rowHeight, gridMaxHeight)
@@ -544,7 +548,10 @@ internal fun FolderCard(
                         userScrollEnabled = !lifted,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = gridMaxHeight),
+                            .heightIn(max = gridMaxHeight)
+                            .wholeRows(rowHeight)
+                            // Whole rows give no sign of the rows under them: the thumb does.
+                            .scrollThumb(gridState, columns, cardColors.content.copy(alpha = 0.35f)),
                     ) {
                         items(items = shown, key = { it.key }) { app ->
                             AppIcon(

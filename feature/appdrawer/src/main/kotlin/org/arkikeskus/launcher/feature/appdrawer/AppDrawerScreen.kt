@@ -133,6 +133,10 @@ import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.PickedIcon
 import org.arkikeskus.launcher.ui.component.ContactAvatar
 import org.arkikeskus.launcher.ui.component.iconSizeForCell
+import org.arkikeskus.launcher.ui.component.labelBlockHeight
+import org.arkikeskus.launcher.ui.component.labelFontFactor
+import org.arkikeskus.launcher.ui.scrollThumb
+import org.arkikeskus.launcher.ui.wholeRows
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
 import org.arkikeskus.launcher.ui.component.LocalAppLabelScale
 import org.arkikeskus.launcher.ui.component.LocalIconScale
@@ -506,6 +510,9 @@ fun AppDrawerScreen(
 
 /** The test tag of the card a tap opens a drawer folder as. */
 internal const val DRAWER_FOLDER_CARD_TAG = "drawer-folder-card"
+
+/** The test tag of the scrolling list of apps on that card. */
+internal const val DRAWER_FOLDER_ROWS_TAG = "drawer-folder-rows"
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1168,7 +1175,7 @@ private fun FolderSlot(app: AppItem?, size: Dp) {
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DrawerFolderCard(
+internal fun DrawerFolderCard(
     folder: DrawerFolderUi,
     bounds: Rect,
     /** Icons per row (Settings > Folders > Folder columns, shared with the home screen's folders). */
@@ -1196,8 +1203,18 @@ private fun DrawerFolderCard(
     // The drawer's palette (the user's colour) for the card AND its texts: the popup is its own window, where the
     // system palette would otherwise paint a light card under this palette's light text (round 11).
     val palette = LocalExpressivePalette.current
+    // Every row is one height (a name's lines are reserved whether it wraps or not), so the list can show
+    // whole rows only: never an icon without its name at the card's edge.
+    val rowHeight = iconSize +
+        labelBlockHeight(style.showLabels, LocalAppLabelScale.current, labelFontFactor(LocalDensity.current.fontScale), LocalAppLabelLines.current) +
+        20.dp * style.spacing
+    val scroll = rememberScrollState()
     // The card is a window of its own: the long-press delay setting is applied again for its apps' hold.
-    AnchoredPopupCard(anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width, palette = palette) { LongPressDelay {
+    AnchoredPopupCard(
+        anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, width = width, palette = palette,
+        // The title stays in place and the apps scroll under it.
+        scrolls = false,
+    ) { LongPressDelay {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1220,6 +1237,15 @@ private fun DrawerFolderCard(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
             }
+            Column(
+                Modifier
+                    .testTag(DRAWER_FOLDER_ROWS_TAG)
+                    .weight(1f, fill = false)
+                    .wholeRows(rowHeight)
+                    // Whole rows give no sign of the rows under them: the thumb does.
+                    .scrollThumb(scroll, palette.dim)
+                    .verticalScroll(scroll),
+            ) {
             folder.apps.chunked(columns).forEach { row ->
                 Row(Modifier.fillMaxWidth()) {
                     row.forEach { app ->
@@ -1229,6 +1255,7 @@ private fun DrawerFolderCard(
                             labelColor = palette.text,
                             iconSize = iconSize,
                             showLabel = style.showLabels,
+                            reserveLabelLines = true,
                             badgeCount = badges[app.badgeKey] ?: 0,
                             badgeShowCount = badgeShowCount,
                             badgeScale = badgeScale,
@@ -1251,8 +1278,63 @@ private fun DrawerFolderCard(
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
+            }
         }
     } }
+}
+
+/** The test tag of the grid of apps in a drawer folder's editor. */
+internal const val DRAWER_FOLDER_MEMBERS_TAG = "drawer-folder-members"
+
+/** The apps of a drawer folder in its editor: a tap opens one, a hold takes it out of the folder. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun DrawerFolderMembers(
+    apps: List<AppItem>,
+    columns: Int,
+    badges: Map<String, Int>,
+    badgeShowCount: Boolean,
+    badgeScale: Float,
+    onAppClick: (AppItem) -> Unit,
+    onRemoveApp: (AppItem) -> Unit,
+) {
+    // Every row is one height (a name's lines are reserved whether it wraps or not) and the grid is three
+    // of them tall at most, whatever the text size: it never ends between an icon and its name.
+    val iconSize = 56.dp
+    val rowHeight = iconSize +
+        labelBlockHeight(true, LocalAppLabelScale.current, labelFontFactor(LocalDensity.current.fontScale), LocalAppLabelLines.current) +
+        20.dp
+    val gridState = rememberLazyGridState()
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columns),
+        state = gridState,
+        modifier = Modifier
+            .testTag(DRAWER_FOLDER_MEMBERS_TAG)
+            .fillMaxWidth()
+            .heightIn(max = rowHeight * 3)
+            .wholeRows(rowHeight)
+            // Whole rows give no sign of the rows under them: the thumb does.
+            .scrollThumb(gridState, columns, MaterialTheme.colorScheme.onSurfaceVariant),
+    ) {
+        items(items = apps, key = { it.key }) { app ->
+            AppIcon(
+                appItem = app,
+                labelColor = MaterialTheme.colorScheme.onSurface,
+                iconSize = iconSize,
+                showLabel = true,
+                reserveLabelLines = true,
+                badgeCount = badges[app.badgeKey] ?: 0,
+                badgeShowCount = badgeShowCount,
+                badgeScale = badgeScale,
+                modifier = Modifier
+                    .combinedClickable(
+                        onClick = { onAppClick(app) },
+                        onLongClick = { onRemoveApp(app) },
+                    )
+                    .padding(vertical = 10.dp, horizontal = 4.dp),
+            )
+        }
+    }
 }
 
 /**
@@ -1363,29 +1445,7 @@ private fun DrawerFolderSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 280.dp),
-                ) {
-                    items(items = folder.apps, key = { it.key }) { app ->
-                        AppIcon(
-                            appItem = app,
-                            labelColor = MaterialTheme.colorScheme.onSurface,
-                            showLabel = true,
-                            badgeCount = badges[app.badgeKey] ?: 0,
-                            badgeShowCount = badgeShowCount,
-                            badgeScale = badgeScale,
-                            modifier = Modifier
-                                .combinedClickable(
-                                    onClick = { onAppClick(app) },
-                                    onLongClick = { onRemoveApp(app) },
-                                )
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                        )
-                    }
-                }
+                DrawerFolderMembers(folder.apps, columns, badges, badgeShowCount, badgeScale, onAppClick, onRemoveApp)
             }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

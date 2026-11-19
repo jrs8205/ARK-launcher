@@ -229,10 +229,13 @@ fun AnchoredPopupCard(
     /** The palette the card and its content take: the caller's own (the drawer's, following the user's colour);
      *  null = the theme root's base colour, which reaches the popup's window by itself. */
     palette: ExpressivePalette? = null,
+    /** False for a content that scrolls a part of itself (a folder's apps under its title): the card then does
+     *  not scroll as a whole, and its content is given the card's height to share out. */
+    scrolls: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     AnchoredPopupWindow(anchor, preferAbove, onDismiss, palette) { windowWidthPx ->
-        PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, width, content)
+        PopupCardContent(anchor, preferAbove, windowWidthPx, showCaret, blockTouches, width, scrolls, content)
     }
 }
 
@@ -367,6 +370,7 @@ internal fun PopupCardContent(
     showCaret: Boolean = true,
     blockTouches: Boolean = false,
     width: Dp = CARD_WIDTH,
+    scrolls: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val cardColor = LocalExpressivePalette.current.surfaceHi
@@ -381,7 +385,7 @@ internal fun PopupCardContent(
             Column(
                 modifier = Modifier
                     .heightIn(max = 520.dp)
-                    .verticalScroll(rememberScrollState())
+                    .then(if (scrolls) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                     .padding(vertical = 8.dp),
                 content = content,
             )

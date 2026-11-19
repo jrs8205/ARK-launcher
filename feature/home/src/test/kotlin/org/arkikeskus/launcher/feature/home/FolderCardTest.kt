@@ -661,6 +661,9 @@ class FolderCardTest {
      *  of a slot in the third row, which the first icon's height as the row height put in the second. */
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE) // real text measurement: a long name wraps
+    // A window with room for the folder's three rows: the card shows whole rows only, and the default test
+    // window has room for two (the third used to show in part, which was enough to find its apps).
+    @Config(qualifiers = "en-w360dp-h640dp")
     fun aReorderTargetsTheRowUnderTheFingerWhenRowsDifferInHeight() {
         val apps = (1..12).map { AppItem("com.a$it", "Main", user, 0L, "a$it") }.toMutableList()
         apps[0] = AppItem("com.a1", "Main", user, 0L, "An application name that wraps")
