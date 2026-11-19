@@ -430,12 +430,13 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
-     * The own values of EVERY home profile, each read by its id from ONE reading of the list. Not "the one
-     * that is on, then the others": the profile that is on can change between two readings, and then one
-     * profile was read twice and another not at all (its folder pictures were deleted as unused). Empty where
-     * this repository was given a plain store.
+     * The own values of EVERY home profile, by the list of profiles and under the lock that changes it
+     * ([ProfiledPreferences.valuesOfEveryProfile]). Not "the one that is on, then the others": the profile that
+     * is on can change between two readings, and then one profile was read twice and another not at all. And
+     * not one profile at a time: a profile's values can move while the list is gone through (its folder
+     * pictures were deleted as unused either way). Empty where this repository was given a plain store.
      */
-    private suspend fun ownValuesOfEveryProfile(): List<Preferences> = everyProfileId().map { profiles!!.profileValues(it) }
+    private suspend fun ownValuesOfEveryProfile(): List<Preferences> = profiles?.valuesOfEveryProfile().orEmpty()
 
     private suspend fun everyProfileId(): List<Long> {
         profiles ?: return emptyList()

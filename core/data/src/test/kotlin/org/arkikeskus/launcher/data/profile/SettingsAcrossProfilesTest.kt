@@ -11,6 +11,8 @@ import org.arkikeskus.launcher.data.HomeFolderIcons
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.HomeProfile
+import com.google.common.truth.Truth.assertWithMessage
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Test
 
 /**
@@ -160,7 +162,8 @@ class SettingsAcrossProfilesTest {
     // What is read or changed in EVERY profile goes by the list of profiles, one profile at a time: not by
     // "the one that is on, and then the others", which misses a profile when the one that is on changes between.
 
-    @Test fun theFolderIconsOfEveryProfileAreKnownThoughTheProfileChangesBetweenTheReads() = runTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun theFolderIconsOfEveryProfileAreKnownThoughTheProfileChangesBetweenTheReads() = runTest(UnconfinedTestDispatcher()) {
         val home = CustomIcon.FromFile("home.png")
         val work = CustomIcon.FromFile("work.png")
         settings.setFolderIcon(FolderIconKey.home(4), home)
@@ -168,7 +171,9 @@ class SettingsAcrossProfilesTest {
         store.setActive(2)
         settings.setFolderIcon(FolderIconKey.home(9), work)
         store.setActive(1)
-        main.onNextRead = { store.setActive(2) }
+        // Asked for beside the reader, as a tap in Settings is: the reading holds the list's lock, and a
+        // switch made from inside it (as this hook once did) would wait for itself.
+        main.onNextRead = { launch { store.setActive(2) } }
 
         // A picture missing from this list is deleted as unused.
         assertThat(settings.folderIconsOfEveryProfile()).containsExactly(home, work)
@@ -210,5 +215,37 @@ class SettingsAcrossProfilesTest {
         assertThat(settings.folderIcons.first()).containsExactly(FolderIconKey.home(9), work)
         store.setActive(1)
         assertThat(settings.folderIcons.first()).containsExactly(FolderIconKey.home(40), home)
+    }
+
+    /**
+     * Review round 2. Deleting the profile whose values the settings file holds moves a surviving profile's
+     * values INTO that file and drops the survivor's own store. A reader that had just looked up where the
+     * survivor's values are (its own store) then read that store after it was gone, got nothing, and the
+     * picture clean-up deleted a picture the survivor's folder still shows. The list and every profile's
+     * values are read under the lock the delete holds. The delete is asked for as each of the first readers
+     * in turn is handed the settings file; without the lock it is the third one that loses the icons.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun aSurvivingProfilesFolderIconsAreKnownWhileTheProfileBesideItIsDeleted() = runTest(UnconfinedTestDispatcher()) {
+        val work = CustomIcon.FromFile("work.png")
+        for (nth in 1..4) {
+            val main = CountingStore()
+            val files = FakeHomeProfileFiles()
+            val view = ProfiledPreferences(main, files)
+            val store = HomeProfileStore(main, view, files)
+            val settings = SettingsRepository(view, view)
+            store.create("Work", copyOf = null)
+            store.setActive(2)
+            settings.setFolderIcon(FolderIconKey.home(9), work)
+            var reads = 0
+            fun arm() {
+                main.onNextRead = { if (++reads == nth) launch { store.delete(1) } else arm() }
+            }
+            arm()
+
+            assertWithMessage("the first profile deleted at read %s of the settings file", nth)
+                .that(settings.folderIconsOfEveryProfile()).contains(work)
+            main.onNextRead = null
+        }
     }
 }

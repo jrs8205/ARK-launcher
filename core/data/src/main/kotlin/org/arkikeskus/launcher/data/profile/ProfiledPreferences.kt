@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
@@ -87,6 +88,22 @@ class ProfiledPreferences(
         return perProfileOf(if (profileId == mainStoreId(shared)) shared else files.store(profileId).data.first())
     }
 
+    /**
+     * The own values of every profile the list names, in the list's order, from ONE reading of the settings
+     * file and under [mutex]. Where a profile's values are can change: deleting the profile that lives in the
+     * settings file moves another one's values into it and drops that one's own store, under this lock. Read
+     * one profile at a time without it, a reader looked a profile up in its own store, the delete went by,
+     * and the store it then read was gone: no values, and the pictures those values name were taken for unused.
+     * Not for a caller that holds [mutex].
+     */
+    suspend fun valuesOfEveryProfile(): List<Preferences> = mutex.withLock {
+        val shared = main.data.first()
+        val inMain = mainStoreId(shared)
+        HomeProfile.decode(shared[LIST]).map { profile ->
+            perProfileOf(if (profile.id == inMain) shared else files.store(profile.id).data.first())
+        }
+    }
+
     /** Runs [transform] on the own values of [profileId] alone, whether it is on or not; anything it sets
      *  that is not a profile's own is dropped. */
     suspend fun updateProfile(profileId: Long, transform: (MutablePreferences) -> Unit) = mutex.withLock {
@@ -125,6 +142,7 @@ class ProfiledPreferences(
     companion object {
         private val ACTIVE = longPreferencesKey(HomeProfileKeys.ACTIVE)
         private val MAIN_STORE = longPreferencesKey(HomeProfileKeys.MAIN_STORE)
+        private val LIST = stringPreferencesKey(HomeProfileKeys.LIST)
 
         /** The profile that is on according to the settings file's values. */
         fun activeId(shared: Preferences): Long = shared[ACTIVE] ?: HomeProfile.FIRST_ID
