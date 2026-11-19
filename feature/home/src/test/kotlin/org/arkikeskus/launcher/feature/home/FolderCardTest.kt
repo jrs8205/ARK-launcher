@@ -57,8 +57,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * The open folder as a card in the home window. A tap launches and closes; a still long-press lifts
- * the icon and, released still, opens the same menu as on the home screen; a locked desktop ignores
- * the long-press altogether; the scrim and Back close the card; the semantics actions keep working
+ * the icon and, released still, opens the same menu as on the home screen; on a locked desktop the
+ * long-press lifts nothing and opens the menu's short form; the scrim and Back close the card; the semantics actions keep working
  * for users who cannot make the pointer gesture.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -383,16 +383,50 @@ class FolderCardTest {
         assertThat(renamed).containsExactly(maps)
     }
 
-    @Test fun aLockedDesktopIgnoresTheLongPressButStillLaunchesOnTap() {
+    /** Issue #30 (a follow-up): the lock keeps the folder as it is, not the menu shut. A hold lifts nothing and
+     *  opens the menu with the rows that change nothing here; the release is no tap. */
+    @Test fun onALockedDesktopAHoldOpensTheMenuWithoutLiftingTheIcon() {
         show(locked = true)
 
         hold("Mail")
         assertThat(drag.isDragging).isFalse()
+        awaitMenu()
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        compose.onNodeWithText("Uninstall").assertIsDisplayed()
+        compose.onNodeWithText("Edit").assertDoesNotExist()
+        compose.onNodeWithText("Remove from folder").assertDoesNotExist()
+
         release("Mail")
-        compose.onNodeWithText("App info").assertDoesNotExist()
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        assertThat(launched).isEmpty()
+        assertThat(dismissed).isEqualTo(0)
+        assertNothingDropped()
+    }
+
+    /** Nothing was lifted, so a pull after the hold reorders nothing and leaves the menu open. */
+    @Test fun onALockedDesktopAPullAfterTheHoldMovesNothing() {
+        show(locked = true)
+        val mailCenter = rootCenter("Mail")
+        val notesCenter = rootCenter("Notes")
+
+        hold("Notes")
+        awaitMenu()
+        moveTo((notesCenter + mailCenter) / 2f)
+        moveTo(mailCenter)
+
+        assertThat(drag.moving).isFalse()
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        release("Notes")
+        assertNothingDropped()
+        assertThat(launched).isEmpty()
+    }
+
+    @Test fun onALockedDesktopATapStillLaunches() {
+        show(locked = true)
 
         compose.onNodeWithText("Maps").performClick()
         compose.waitForIdle()
+
         assertThat(launched).containsExactly(maps)
         assertNothingDropped()
     }
@@ -483,11 +517,18 @@ class FolderCardTest {
         assertThat(launched).isEmpty()
     }
 
-    @Test fun aLockedDesktopExposesNoLongClickAction() {
+    /** The same menu for a screen reader's long click on a locked desktop: the rows that change nothing. */
+    @Test fun onALockedDesktopTheSemanticsLongClickOpensTheSameShortMenu() {
         show(locked = true)
 
-        compose.onNodeWithText("Mail").assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnLongClick))
         compose.onNodeWithText("Mail").assert(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
+        compose.onNodeWithText("Mail").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.waitForIdle()
+
+        awaitMenu()
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        compose.onNodeWithText("Remove from folder").assertDoesNotExist()
+        assertThat(launched).isEmpty()
     }
 
     private fun composeView(): ViewRootForTest {

@@ -5,12 +5,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -403,8 +401,12 @@ fun AppDrawerScreen(
             preferAbove = preferAbove,
             // The menu is its own window: handed the drawer's palette so it agrees with the drawer around it.
             palette = LocalExpressivePalette.current,
+            // A locked desktop keeps the two rows that change nothing on it, the app's page and its uninstall.
+            locked = uiState.desktopLocked,
             actions = listOfNotNull(
-                PopupAction(stringResource(R.string.app_info), LauncherIcons.Info) { AppActions.openAppInfo(context, app) },
+                PopupAction(stringResource(R.string.app_info), LauncherIcons.Info, keptWhenLocked = true) {
+                    AppActions.openAppInfo(context, app)
+                },
                 PopupAction(stringResource(R.string.rename), LauncherIcons.Edit) { renameTarget = app },
                 PopupAction(
                     stringResource(if (inHome) R.string.remove_from_home else R.string.add_to_home),
@@ -426,7 +428,9 @@ fun AppDrawerScreen(
                     null
                 },
                 PopupAction(stringResource(R.string.hide_app), LauncherIcons.VisibilityOff) { viewModel.hideApp(app) },
-                PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete) { AppActions.uninstall(context, app) },
+                PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete, keptWhenLocked = true) {
+                    AppActions.uninstall(context, app)
+                },
             ),
             onDismiss = { menuTarget = null },
             onPinShortcut = { item -> viewModel.pinShortcut(item) },
@@ -463,13 +467,9 @@ fun AppDrawerScreen(
             badgeShowCount = uiState.notificationDotCount,
             badgeScale = uiState.notificationDotScale,
             onAppClick = { if (openApp(it)) folderCard = null },
-            // A locked desktop: a hold opens no menu here either, as in the grid (DrawerAppCell). The menu is
-            // how an app is put on the home screen or the dock, and nothing in it asks the lock again.
-            onAppLongClick = if (uiState.desktopLocked) {
-                null
-            } else {
-                { app, bounds -> if (drawerOpen) menuTarget = app to bounds }
-            },
+            // The menu asks the desktop's lock itself (AppActionPopup): locked, it puts no app on the home
+            // screen or the dock from here either.
+            onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = app to bounds },
             onDismiss = { folderCard = null },
         )
     }
@@ -709,9 +709,7 @@ private fun AppDrawerContent(
                                 showLabels = showLabels,
                                 iconSize = drawerIconSize,
                                 onAppClick = onAppClick,
-                                // A locked desktop: no menu from this card either (the grid's tiles ask the
-                                // lock themselves).
-                                onAppLongClick = if (locked) null else onAppLongClick,
+                                onAppLongClick = onAppLongClick,
                             )
                         }
                     }
@@ -1168,7 +1166,7 @@ private fun FolderSlot(app: AppItem?, size: Dp) {
 /**
  * A tapped folder: its apps in a card by its tile, as the home screen opens a folder — the thumb
  * stays where it was instead of travelling to a sheet at the bottom. A tap launches the app and a hold
- * opens the app's own menu, as in the grid (issue #31; none on a locked desktop, as in the grid); nothing
+ * opens the app's own menu, as in the grid (issue #31; its short form on a locked desktop, as in the grid); nothing
  * on the card changes the folder, that is
  * the editor's (a long-press on the tile away), so ordinary use cannot rename, empty or delete a folder
  * by accident.
@@ -1186,9 +1184,8 @@ internal fun DrawerFolderCard(
     badgeShowCount: Boolean,
     badgeScale: Float,
     onAppClick: (AppItem) -> Unit,
-    /** A held app with its bounds in the root of the launcher's own window, where its menu is placed. Null on a
-     *  locked desktop: a hold then does nothing and is offered to no screen reader, as in the grid. */
-    onAppLongClick: ((AppItem, Rect) -> Unit)?,
+    /** A held app with its bounds in the root of the launcher's own window, where its menu is placed. */
+    onAppLongClick: (AppItem, Rect) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val windowSize = LocalWindowInfo.current.containerSize
@@ -1262,14 +1259,12 @@ internal fun DrawerFolderCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .onGloballyPositioned { placed.value = it }
-                                .cardAppPress(
+                                .combinedClickable(
                                     onClick = { onAppClick(app) },
                                     // Where the app is at the hold, not where it was laid out: the card scrolls.
-                                    onLongClick = onAppLongClick?.let { open ->
-                                        {
-                                            placed.value?.takeIf { it.isAttached }
-                                                ?.let { open(app, it.boundsInRootOf(hostView)) }
-                                        }
+                                    onLongClick = {
+                                        placed.value?.takeIf { it.isAttached }
+                                            ?.let { onAppLongClick(app, it.boundsInRootOf(hostView)) }
                                     },
                                 )
                                 .padding(vertical = 10.dp * style.spacing, horizontal = 4.dp),
@@ -1333,41 +1328,6 @@ internal fun DrawerFolderMembers(
                     )
                     .padding(vertical = 10.dp, horizontal = 4.dp),
             )
-        }
-    }
-}
-
-/**
- * The press of an app on one of the drawer's cards (a folder's, the most used): a tap is [onClick] and a hold is
- * [onLongClick], the app's menu. Without one (a locked desktop, where the menu would put the app on the home
- * screen or the dock) a hold does nothing, as on an app of the grid: no menu, no long-press for a screen reader, no
- * haptic, and no tap at its release.
- */
-@OptIn(ExperimentalFoundationApi::class)
-private fun Modifier.cardAppPress(onClick: () -> Unit, onLongClick: (() -> Unit)?): Modifier =
-    if (onLongClick != null) {
-        combinedClickable(onClick = onClick, onLongClick = onLongClick)
-    } else {
-        clickable(onClick = onClick).heldPressIsNoClick()
-    }
-
-/**
- * After a clickable: a press held past the long-press time is no click when it is released. The moves and the
- * release of such a press are consumed here first (the later modifier is asked first), so the clickable, which
- * takes any release for a tap however long the press was, sees none.
- */
-private fun Modifier.heldPressIsNoClick(): Modifier = pointerInput(Unit) {
-    awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false)
-        val ended = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-            waitForUpOrCancellation()
-            true
-        }
-        if (ended == null) {
-            do {
-                val event = awaitPointerEvent()
-                event.changes.forEach { it.consume() }
-            } while (event.changes.any { it.pressed })
         }
     }
 }
@@ -1520,8 +1480,8 @@ internal fun FrequentAppsCard(
     showLabels: Boolean,
     iconSize: Dp,
     onAppClick: (AppItem) -> Unit,
-    /** A held app and its bounds, for its menu; null on a locked desktop, where a hold does nothing. */
-    onAppLongClick: ((AppItem, Rect) -> Unit)?,
+    /** A held app and its bounds, for its menu. */
+    onAppLongClick: (AppItem, Rect) -> Unit,
 ) {
     val p = LocalExpressivePalette.current
     Surface(
@@ -1555,9 +1515,9 @@ internal fun FrequentAppsCard(
                         modifier = Modifier
                             .weight(1f)
                             .onGloballyPositioned { bounds = it.boundsInRoot() }
-                            .cardAppPress(
+                            .combinedClickable(
                                 onClick = { onAppClick(app) },
-                                onLongClick = onAppLongClick?.let { open -> { open(app, bounds) } },
+                                onLongClick = { onAppLongClick(app, bounds) },
                             )
                             .padding(vertical = 4.dp, horizontal = 2.dp),
                     )
@@ -1708,10 +1668,10 @@ private fun DrawerAppCell(
                         }
                         2 -> return@awaitEachGesture
                     }
-                    // Desktop locked: long-press does nothing (no menu, no drag-out); tap still launches.
-                    if (locked) return@awaitEachGesture
-                    // An app that stays where it is (a private one): the hold only opens its menu.
-                    if (!liftable) {
+                    // An app that stays where it is: the hold only opens its menu. A private one always; on a
+                    // locked desktop every app (no drag-out; the menu has the rows that change nothing on the
+                    // desktop, issue #30, a follow-up).
+                    if (locked || !liftable) {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onAppLongClick(currentApp, bounds)
                         return@awaitEachGesture

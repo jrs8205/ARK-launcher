@@ -372,10 +372,42 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
     }
 
-    /** A locked desktop takes nothing new, and the menu is how an app is put on the home screen or the dock from
-     *  here: a hold on an app of the card opens none, as a hold on an app of the grid opens none. The lock used
-     *  to be asked only in the grid, and "Add to home" on the card's menu went through. */
-    @Test fun onALockedDesktopAHoldOnAnAppOfTheFolderCardOpensNoMenu() {
+    /** The menu of a locked desktop: the rows that change nothing on it. What puts an app on the home screen or
+     *  the dock, renames it or hides it is not offered (the lock used to be asked only in the grid, and "Add to
+     *  home" on a card's menu went through). */
+    private fun assertTheLockedMenu() {
+        awaitText(appInfo())
+        compose.onNodeWithText(context.getString(R.string.uninstall)).assertExists()
+        listOf(R.string.add_to_home, R.string.add_to_dock, R.string.rename, R.string.hide_app).forEach {
+            compose.onNodeWithText(context.getString(it)).assertDoesNotExist()
+        }
+    }
+
+    /** Issue #30 (a follow-up): the lock keeps the home screen as it is, not the menu shut. A hold on an app of
+     *  the grid opens the menu's short form and lifts nothing, so a pull afterwards drags nothing out. */
+    @Test fun onALockedDesktopAHoldOnAnAppOfTheGridOpensTheShortMenuAndLiftsNothing() {
+        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        show()
+        awaitState("the app is listed, on a locked desktop") { s -> s.desktopLocked && s.apps.any { it.packageName == mailApp } }
+        settle()
+
+        compose.onNodeWithText(mailApp).performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(1_000)
+        settle()
+
+        assertTheLockedMenu()
+        assertThat(drag.isDragging).isFalse()
+        compose.onNodeWithText(mailApp).performTouchInput { repeat(8) { moveBy(Offset(0f, 40f)) } }
+        settle()
+        assertThat(drag.moving).isFalse()
+        assertThat(dragOuts).isEqualTo(0)
+        compose.onNodeWithText(mailApp).performTouchInput { up() }
+        settle()
+        compose.onNodeWithText(appInfo()).assertExists()
+    }
+
+    /** The same on a folder's card: the short menu, and the card stays under it (the release is no tap). */
+    @Test fun onALockedDesktopAHoldOnAnAppOfTheFolderCardOpensTheShortMenu() {
         runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
         showWithFilledFolder()
         awaitState("the lock reached the drawer") { it.desktopLocked }
@@ -385,17 +417,8 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
 
         compose.onNodeWithText(mailApp).performTouchInput { longClick() }
-        // The menu waits for the app's shortcuts for up to 400 ms before it shows.
-        compose.mainClock.advanceTimeBy(1_000)
-        settle()
 
-        compose.onNodeWithText(appInfo()).assertDoesNotExist()
-        compose.onNodeWithText(context.getString(R.string.add_to_home)).assertDoesNotExist()
-        // Nor is a hold offered to a screen reader, which would open the same menu.
-        compose.onNodeWithText(mailApp).assert(
-            SemanticsMatcher("no long-press action") { it.config.getOrNull(SemanticsActions.OnLongClick) == null },
-        )
-        // The hold's release is no tap either: the app is not launched, so the card is still open.
+        assertTheLockedMenu()
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
     }
 
@@ -417,7 +440,7 @@ class AppDrawerScreenTest {
 
     /** The same on the "most used" card, the drawer's third way to an app's menu: it never asked the lock (older
      *  than the folder card's menu), and "Add to home" went through from there too. */
-    @Test fun onALockedDesktopAHoldOnAMostUsedAppOpensNoMenu() {
+    @Test fun onALockedDesktopAHoldOnAMostUsedAppOpensTheShortMenu() {
         runBlocking {
             wiring.settingsRepository.setDesktopLocked(true)
             wiring.settingsRepository.setShowFrequentApps(true)
@@ -431,13 +454,8 @@ class AppDrawerScreenTest {
 
         // The card leads the grid: its tile is the first of the two "com.mail" on screen.
         compose.onAllNodesWithText(mailApp).onFirst().performTouchInput { longClick() }
-        compose.mainClock.advanceTimeBy(1_000)
-        settle()
 
-        compose.onNodeWithText(appInfo()).assertDoesNotExist()
-        compose.onAllNodesWithText(mailApp).onFirst().assert(
-            SemanticsMatcher("no long-press action") { it.config.getOrNull(SemanticsActions.OnLongClick) == null },
-        )
+        assertTheLockedMenu()
     }
 
     /** The drawer's folder "Tools" holding Mail and Maps, on screen. */

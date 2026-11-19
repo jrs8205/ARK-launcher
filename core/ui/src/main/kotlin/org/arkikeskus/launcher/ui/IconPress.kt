@@ -102,3 +102,12 @@ suspend fun AwaitPointerEventScope.dragPointer(
         if (change.positionChangedIgnoreConsumed()) onDrag(change)
     }
 }
+
+/**
+ * The rest of a hold that lifted nothing: on a locked desktop the menu has opened and the icon stays where it
+ * is. Until the pointer [pointerId] rises its moves are consumed, so nothing behind the icon (the pager, a
+ * grid's scroll) follows the finger under the open menu, and the release is no tap.
+ */
+suspend fun AwaitPointerEventScope.awaitHoldRelease(pointerId: PointerId) {
+    dragPointer(pointerId) { it.consume() }
+}

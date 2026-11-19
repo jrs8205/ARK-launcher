@@ -113,6 +113,7 @@ import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.AddAppsDialog
 import org.arkikeskus.launcher.ui.FolderIconButton
 import org.arkikeskus.launcher.ui.HomeDragController
+import org.arkikeskus.launcher.ui.awaitHoldRelease
 import org.arkikeskus.launcher.ui.dragPointer
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
@@ -162,8 +163,8 @@ internal fun folderActionColor(colors: FolderCardColors, themeText: Color, accen
  * One gesture detector on the grid's container owns every icon touch — the icons publish their
  * bounds and the container hit-tests the DOWN. A tap launches the app and closes the folder; a
  * still hold lifts the icon into the shared [HomeDragController] (haptic) and, released still, opens
- * the same menu as on the home screen. On a locked desktop a hold does nothing, as on every other
- * surface. The press phase follows the drawer's rules: a vertical pull before the hold completes is
+ * the same menu as on the home screen. On a locked desktop a hold lifts nothing and opens the menu's
+ * short form (the rows that change nothing), as on every other surface. The press phase follows the drawer's rules: a vertical pull before the hold completes is
  * the grid's scroll and is never consumed.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -448,8 +449,15 @@ internal fun FolderCard(
                                     IconPressOutcome.Cancelled -> return@awaitEachGesture
                                     is IconPressOutcome.Held -> outcome.position
                                 }
-                                // Desktop locked: a hold does nothing (no lift, no menu); a tap still launches.
-                                if (locked) return@awaitEachGesture
+                                // Desktop locked: nothing lifts and nothing moves, but the menu still opens, with
+                                // the rows that change nothing here (issue #30, a follow-up). The held finger's
+                                // moves are taken until it rises, so the grid does not scroll under the menu.
+                                if (locked) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    menu = app to itemRect
+                                    awaitHoldRelease(down.id)
+                                    return@awaitEachGesture
+                                }
                                 val token = Any()
                                 if (!dragController.start(app, DragSource.Folder, coords.localToRoot(holdPos), token)) {
                                     return@awaitEachGesture
@@ -572,7 +580,7 @@ internal fun FolderCard(
                                     // accessibility actions a clickable icon would have had.
                                     .semantics(mergeDescendants = true) {
                                         onClick { currentOnAppClick(app); currentOnDismiss(); true }
-                                        if (!locked) onLongClick { menu = app to (itemRootBounds(app.key) ?: Rect.Zero); true }
+                                        onLongClick { menu = app to (itemRootBounds(app.key) ?: Rect.Zero); true }
                                     }
                                     .animateItem()
                                     // The moving icon's slot stays reserved and shows a faint copy —
@@ -678,16 +686,21 @@ internal fun FolderCard(
             anchor = IntOffset(bounds.center.x.roundToInt(), anchorY),
             preferAbove = preferAbove,
             actions = listOf(
-                PopupAction(stringResource(R.string.app_info), LauncherIcons.Info) { AppActions.openAppInfo(context, app) },
+                PopupAction(stringResource(R.string.app_info), LauncherIcons.Info, keptWhenLocked = true) {
+                    AppActions.openAppInfo(context, app)
+                },
                 PopupAction(stringResource(R.string.rename), LauncherIcons.Edit) { onRenameApp(app) },
                 PopupAction(stringResource(R.string.folder_remove_app), LauncherIcons.Close) { onRemoveFromFolder(app) },
-                PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete) { AppActions.uninstall(context, app) },
+                PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete, keptWhenLocked = true) {
+                    AppActions.uninstall(context, app)
+                },
             ),
             onDismiss = { menu = null },
             onPinShortcut = onPinShortcut,
             onWidgets = onWidgets?.let { { it(app) } },
             // Opened at the lift, under the still-held finger (issue #12).
             held = dragController.isDragging,
+            locked = locked,
         )
     }
 }

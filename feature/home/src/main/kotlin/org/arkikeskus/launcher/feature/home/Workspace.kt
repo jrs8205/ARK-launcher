@@ -116,6 +116,7 @@ import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.appLaunchTouch
+import org.arkikeskus.launcher.ui.awaitHoldRelease
 import org.arkikeskus.launcher.ui.awaitIconPress
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.AppLabel
@@ -1203,7 +1204,7 @@ internal fun Workspace(
                                     .appLaunchTouch(placed.app, launchOrigin)
                                     .pointerInput(
                                         placed.app.key, placed.page, placed.cellX, placed.cellY,
-                                        cellW, cellH, columns, rows, pageLocked,
+                                        cellW, cellH, columns, rows, pageLocked, isTailCopy,
                                     ) {
                                         awaitEachGesture {
                                             val down = awaitFirstDown(requireUnconsumed = false)
@@ -1230,8 +1231,38 @@ internal fun Workspace(
                                             }
                                             if (press !is IconPressOutcome.Held) return@awaitEachGesture
                                             val holdPos = press.position
-                                            // Desktop locked: long-press does nothing (no menu, no drag); tap still launches.
-                                            if (pageLocked) return@awaitEachGesture
+                                            // Anchor at the icon's TOP edge when it's in the lower half (popup
+                                            // flips above) and its BOTTOM edge otherwise, so the popup never
+                                            // covers the icon; only icons in the top ~45% open downward, so a
+                                            // tall popup never covers the dock.
+                                            val openMenu = {
+                                                val cellTop = dragController.gridBounds.top + placed.cellY * cellH
+                                                val above = cellTop + cellH / 2f > windowHeightPx * 0.45f
+                                                val anchorX = dragController.gridBounds.left + placed.cellX * cellW + cellW / 2f
+                                                val anchorY = if (above) cellTop else cellTop + cellH
+                                                onAppMenu(
+                                                    currentPlaced.app,
+                                                    IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
+                                                    above,
+                                                )
+                                            }
+                                            // The copy of page 0 at the tail takes taps only.
+                                            if (isTailCopy) return@awaitEachGesture
+                                            // Desktop locked: nothing lifts and nothing moves, but the menu still
+                                            // opens, with the rows that change nothing here (issue #30, a
+                                            // follow-up). The held finger stays the icon's until it rises, so a
+                                            // pull scrolls no page and opens no drawer under the menu.
+                                            if (pageLocked) {
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                openMenu()
+                                                dragController.localGestureActive = true
+                                                try {
+                                                    awaitHoldRelease(down.id)
+                                                } finally {
+                                                    dragController.localGestureActive = false
+                                                }
+                                                return@awaitEachGesture
+                                            }
                                             // PICK UP — lift into the shared controller (not yet
                                             // "moving"); refused while another finger holds a lift.
                                             val token = Any()
@@ -1251,22 +1282,8 @@ internal fun Workspace(
                                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                             // The menu opens now, under the still-held finger (issue #12);
                                             // pulling the icon on closes it (DismissWhenDragMoves in
-                                            // HomeScreen) and the drag goes on. Anchor at the icon's TOP
-                                            // edge when it's in the lower half (popup flips above) and its
-                                            // BOTTOM edge otherwise, so the popup never covers the icon;
-                                            // only icons in the top ~45% open downward, so a tall popup
-                                            // never covers the dock.
-                                            run {
-                                                val cellTop = dragController.gridBounds.top + placed.cellY * cellH
-                                                val above = cellTop + cellH / 2f > windowHeightPx * 0.45f
-                                                val anchorX = dragController.gridBounds.left + placed.cellX * cellW + cellW / 2f
-                                                val anchorY = if (above) cellTop else cellTop + cellH
-                                                onAppMenu(
-                                                    currentPlaced.app,
-                                                    IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
-                                                    above,
-                                                )
-                                            }
+                                            // HomeScreen) and the drag goes on.
+                                            openMenu()
                                             val dragStartPx = IconPress.DragStartThreshold.toPx()
                                             try {
                                                 // DRAG — dragPointer reports every pixel, so a lifted icon only

@@ -96,8 +96,6 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.folderStyle
-import org.arkikeskus.launcher.ui.AppActionPopup
-import org.arkikeskus.launcher.ui.AppActions
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.DockTarget
@@ -111,7 +109,6 @@ import org.arkikeskus.launcher.ui.IconMenuItem
 import org.arkikeskus.launcher.ui.IconMenuPopup
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.LocalAppLaunchSources
-import org.arkikeskus.launcher.ui.PopupAction
 import org.arkikeskus.launcher.ui.R as UiR
 import org.arkikeskus.launcher.ui.rememberHomeDragController
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
@@ -1020,32 +1017,27 @@ private fun HomeScreenOfProfile(
 
     val menu = menuTarget
     if (menu != null) {
-        AppActionPopup(
+        HomeAppMenu(
             app = menu.app,
             anchor = menu.anchor,
             // Flip the popup above the icon when it's in the lower half (e.g. dock or a bottom-row
             // icon), so it never runs off the bottom of the screen. Decided where the anchor is built.
             preferAbove = menu.preferAbove,
-            actions = listOf(
-                PopupAction(stringResource(R.string.app_info), LauncherIcons.Info) { AppActions.openAppInfo(context, menu.app) },
-                PopupAction(stringResource(R.string.rename), LauncherIcons.Edit) { renameTarget = menu.app },
-                PopupAction(
-                    stringResource(if (menu.source == DragSource.Dock) R.string.dock_remove else R.string.home_remove),
-                    LauncherIcons.Close,
-                ) {
-                    if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app)
-                    else viewModel.removeFromHome(menu.app)
-                },
-                PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete) { AppActions.uninstall(context, menu.app) },
-            ),
-            onDismiss = { menuTarget = null },
-            onPinShortcut = { item -> viewModel.pinShortcut(item) },
-            onWidgets = if (settings.desktopLocked) null else ({
-                widgetPickerPackage = menu.app.packageName
-                showWidgetPicker = true
-            }),
+            inDock = menu.source == DragSource.Dock,
+            locked = settings.desktopLocked,
             // Opened at the lift, under the still-held finger (issue #12).
             held = dragController.isDragging,
+            onRename = { renameTarget = menu.app },
+            onRemove = {
+                if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app)
+                else viewModel.removeFromHome(menu.app)
+            },
+            onPinShortcut = { item -> viewModel.pinShortcut(item) },
+            onWidgets = {
+                widgetPickerPackage = menu.app.packageName
+                showWidgetPicker = true
+            },
+            onDismiss = { menuTarget = null },
         )
     }
 
@@ -1477,7 +1469,7 @@ private data class AppMenuTarget(
     val preferAbove: Boolean,
 )
 
-/** The long-press menu is the shared [org.arkikeskus.launcher.ui.AppActionPopup] (core/ui). */
+/** The long-press menu is [HomeAppMenu], the shared [org.arkikeskus.launcher.ui.AppActionPopup] (core/ui). */
 
 /** The card on the home screen while ARK-Launcher is not the default home app. */
 @Composable

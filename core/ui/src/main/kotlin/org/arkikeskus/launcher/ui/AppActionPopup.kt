@@ -75,8 +75,17 @@ import org.arkikeskus.launcher.ui.expressive.GroupPosition
 import org.arkikeskus.launcher.ui.expressive.expressiveGroupRow
 import org.arkikeskus.launcher.ui.expressive.groupShape
 
-/** One action row in the long-press popup (e.g. "App info", "Remove from home"); optional leading icon. */
-data class PopupAction(val label: String, @DrawableRes val icon: Int? = null, val onClick: () -> Unit)
+/**
+ * One action row in the long-press popup (e.g. "App info", "Remove from home"); optional leading icon.
+ * [keptWhenLocked] marks a row that changes nothing on the desktop (the app's page in Android's settings, its
+ * uninstall): it is the only kind a locked desktop's popup shows. A row is left out there unless it says so.
+ */
+data class PopupAction(
+    val label: String,
+    @DrawableRes val icon: Int? = null,
+    val keptWhenLocked: Boolean = false,
+    val onClick: () -> Unit,
+)
 
 /** One icon+label row in a generic [IconMenuPopup] (e.g. "Launcher", "Wallpaper"). */
 data class IconMenuItem(@DrawableRes val icon: Int, val label: String, val onClick: () -> Unit)
@@ -105,6 +114,9 @@ val FOLDER_CARD_WIDTH = 328.dp
  * [held] is true while the finger that lifted the icon is still down — the menu opens at the lift
  * (issue #12). A second finger's tap on a row does nothing then: the row would act on an icon that is
  * still being held. Once the finger lifts the menu works as usual.
+ *
+ * On a [locked] desktop the popup still opens, with what changes nothing there: the app's shortcuts (to start,
+ * not to pin) and the [actions] marked [PopupAction.keptWhenLocked]; no Widgets row.
  */
 @Composable
 fun AppActionPopup(
@@ -117,11 +129,17 @@ fun AppActionPopup(
     onWidgets: (() -> Unit)? = null,
     hasWidgets: (suspend (AppItem) -> Boolean)? = null,
     held: Boolean = false,
+    locked: Boolean = false,
     /** The palette of the surface the menu opens from when that is not the theme root's (the app drawer with the
      *  user's own colour); null = the theme root's. */
     palette: ExpressivePalette? = null,
 ) {
     val context = LocalContext.current
+    // The lock is asked here, once for every surface that opens this popup: what adds to the desktop (a
+    // shortcut's pin, the Widgets row) or changes it (a row not marked as kept) is not offered.
+    @Suppress("NAME_SHADOWING") val onPinShortcut = onPinShortcut.takeUnless { locked }
+    @Suppress("NAME_SHADOWING") val onWidgets = onWidgets.takeUnless { locked }
+    @Suppress("NAME_SHADOWING") val actions = if (locked) actions.filter { it.keptWhenLocked } else actions
     // Null = still being asked for; the card waits for both (or the wait below) before it shows.
     var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>?>(null) }
     LaunchedEffect(app.key) {

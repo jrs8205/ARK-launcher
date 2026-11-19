@@ -55,6 +55,7 @@ import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
 import org.arkikeskus.launcher.ui.IconPressOutcome
 import org.arkikeskus.launcher.ui.appLaunchTouch
+import org.arkikeskus.launcher.ui.awaitHoldRelease
 import org.arkikeskus.launcher.ui.awaitIconPress
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalAppLabelLines
@@ -394,24 +395,38 @@ private fun RowScope.DockAppSlot(
                         return@awaitEachGesture
                     }
                     if (abandoned) return@awaitEachGesture
-                    // Desktop locked: long-press does nothing (no menu, no lift); tap still launches.
-                    if (locked) return@awaitEachGesture
+                    val itemRoot = itemRoots[index] ?: Offset.Zero
+                    // The menu opens above the item.
+                    val openMenu = {
+                        val slotW = if (slotCount > 0) rowWidthPx().toFloat() / slotCount else 0f
+                        val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
+                        onAppMenu(currentApp, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
+                    }
+                    // Desktop locked: nothing lifts and nothing moves, but the menu still opens, with the rows
+                    // that change nothing here (issue #30, a follow-up). The held finger stays the icon's until
+                    // it rises, so a pull opens no drawer under the menu.
+                    if (locked) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        openMenu()
+                        dragController.localGestureActive = true
+                        try {
+                            awaitHoldRelease(down.id)
+                        } finally {
+                            dragController.localGestureActive = false
+                        }
+                        return@awaitEachGesture
+                    }
                     // LONG PRESS → lift (refused while another finger holds one)
                     val token = Any()
-                    val itemRoot = itemRoots[index] ?: Offset.Zero
                     if (!dragController.start(currentApp, DragSource.Dock, itemRoot + holdPos, token)) {
                         return@awaitEachGesture
                     }
                     onLift(token)
                     val dragStartPx = IconPress.DragStartThreshold.toPx()
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    // The menu opens now, above the item, under the still-held finger (issue #12);
-                    // pulling the icon on closes it and the drag goes on.
-                    run {
-                        val slotW = if (slotCount > 0) rowWidthPx().toFloat() / slotCount else 0f
-                        val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
-                        onAppMenu(currentApp, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
-                    }
+                    // The menu opens now, under the still-held finger (issue #12); pulling the icon on closes
+                    // it and the drag goes on.
+                    openMenu()
                     try {
                         val completed = dragPointer(down.id) { change ->
                             // Accumulate the delta BEFORE consuming: positionChange() returns

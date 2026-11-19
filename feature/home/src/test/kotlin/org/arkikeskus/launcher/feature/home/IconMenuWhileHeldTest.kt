@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
@@ -159,12 +160,69 @@ class IconMenuWhileHeldTest {
         assertThat(homeMenus).containsExactly(mail)
     }
 
-    @Test fun aLockedDesktopOpensNoMenu() {
+    /** Issue #30 (a follow-up): the lock keeps the icons where they are, not the menu shut. The hold opens the
+     *  menu and lifts nothing, so a pull afterwards moves no icon and closes no menu, and the release is no tap. */
+    @Test fun onALockedDesktopAHomeIconsMenuOpensAndNothingLifts() {
+        show(locked = true)
+        val start = compose.onNodeWithText("Mail").fetchSemanticsNode().boundsInRoot.center
+
+        hold("Mail")
+
+        assertThat(homeMenus).containsExactly(mail)
+        assertThat(drag.isDragging).isFalse()
+        moveTo(start + Offset(40f, 0f))
+        moveTo(start + Offset(160f, 0f))
+        assertThat(drag.moving).isFalse()
+        assertThat(dismissals).isEqualTo(0)
+        release()
+        assertThat(homeMenus).containsExactly(mail)
+        assertThat(moves).isEmpty()
+        assertThat(launches).isEqualTo(0)
+    }
+
+    @Test fun onALockedDesktopADockIconsMenuOpensAndNothingLifts() {
+        show(locked = true)
+        val start = compose.onNodeWithText("Maps").fetchSemanticsNode().boundsInRoot.center
+
+        hold("Maps")
+
+        assertThat(dockMenus).containsExactly(maps)
+        assertThat(drag.isDragging).isFalse()
+        moveTo(start + Offset(0f, -40f))
+        moveTo(start + Offset(0f, -160f))
+        assertThat(drag.moving).isFalse()
+        assertThat(dismissals).isEqualTo(0)
+        release()
+        assertThat(dockMenus).containsExactly(maps)
+        assertThat(launches).isEqualTo(0)
+    }
+
+    /** The finger that opened the menu is still down: until it rises the gesture stays the icon's, so the swipe
+     *  up for the app drawer (the root detector, which yields to a local gesture) cannot start under the menu. */
+    @Test fun onALockedDesktopTheHoldStaysTheIconsUntilTheFingerRises() {
         show(locked = true)
 
         hold("Mail")
+        assertThat(drag.localGestureActive).isTrue()
         release()
+        assertThat(drag.localGestureActive).isFalse()
 
+        hold("Maps")
+        assertThat(drag.localGestureActive).isTrue()
+        release()
+        assertThat(drag.localGestureActive).isFalse()
+    }
+
+    /** A tap is still a launch on a locked desktop, on the home screen and in the dock. */
+    @Test fun onALockedDesktopATapStillLaunches() {
+        show(locked = true)
+
+        compose.onNodeWithText("Mail").performTouchInput { click() }
+        compose.onNodeWithText("Maps").performTouchInput { click() }
+        compose.waitForIdle()
+
+        assertThat(launches).isEqualTo(2)
         assertThat(homeMenus).isEmpty()
+        assertThat(dockMenus).isEmpty()
     }
 }
