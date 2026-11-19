@@ -130,7 +130,7 @@ class HomeOfActiveProfileTest {
             HomeOfActiveProfile(active = profile, uiState = if (profile == null) HomeUiState() else loaded(profile)) {
                 var pending by rememberSaveable { mutableStateOf("nothing pending") }
                 // What a start acts on: the value its first composition has.
-                remember { startedWith += pending }
+                remember { pending.also { startedWith += it } }
                 Text(pending, Modifier.clickable { pending = "widget 7 pending" })
             }
         }
