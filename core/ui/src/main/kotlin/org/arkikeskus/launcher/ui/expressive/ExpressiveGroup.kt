@@ -44,10 +44,10 @@ private val OUTER_CORNER = 24.dp
 private val INNER_CORNER = 6.dp
 
 /** The room between two rows of a group. */
-private val ROW_GAP = 2.dp
+internal val ROW_GAP = 2.dp
 
 /** The room under a group's last row, and under a card on its own. */
-private val END_GAP = 10.dp
+internal val END_GAP = 10.dp
 
 /** A row's card by its [position]: outer corners 24 dp, corners between rows 6 dp. */
 fun groupShape(position: GroupPosition): RoundedCornerShape {

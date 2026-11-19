@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
@@ -70,7 +72,9 @@ import org.arkikeskus.launcher.ui.expressive.ExpressiveTheme
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import androidx.compose.foundation.background
 import org.arkikeskus.launcher.ui.expressive.ExpressiveGroup
+import org.arkikeskus.launcher.ui.expressive.END_GAP
 import org.arkikeskus.launcher.ui.expressive.ExpressiveGroupBreak
+import org.arkikeskus.launcher.ui.expressive.ROW_GAP
 import org.arkikeskus.launcher.ui.expressive.GroupPosition
 import org.arkikeskus.launcher.ui.expressive.expressiveGroupRow
 import org.arkikeskus.launcher.ui.expressive.groupShape
@@ -96,6 +100,38 @@ private const val POPUP_MARGIN_PX = 24
 internal const val POPUP_ROWS_WAIT_MS = 400L
 private val CARD_WIDTH = 232.dp
 internal val SHORTCUT_ICON_SIZE = 24.dp
+
+/** The most of the window's height a menu's rows take; more of them scroll. */
+private val POPUP_ROWS_MAX_HEIGHT = 520.dp
+private val CARET_HEIGHT = 10.dp
+
+/**
+ * True where a menu's rows are drawn closer: the rows at their usual height would not fit the menu's room, and
+ * a menu that has to be scrolled hides its last rows (issue #30, a follow-up). Read by the rows themselves.
+ */
+internal val LocalPopupRowsCompact = compositionLocalOf { false }
+
+/** The least height of a row: a full touch target either way (48 dp, and WCAG's 44 dp for the compact one). */
+private fun popupRowMinHeight(compact: Boolean): Dp = if (compact) 44.dp else 48.dp
+
+/** The room over and under a row's text. */
+private fun popupRowPadding(compact: Boolean): Dp = if (compact) 10.dp else 12.dp
+
+/** How tall a row is whose one [line] of text is this tall. */
+internal fun popupRowHeight(line: Dp, compact: Boolean): Dp =
+    maxOf(popupRowMinHeight(compact), line + popupRowPadding(compact) * 2)
+
+/** How tall [rows] rows in [groups] groups are together, with the gaps a grouped list puts between them. */
+internal fun popupRowsHeight(rows: Int, groups: Int, line: Dp, compact: Boolean): Dp =
+    if (rows <= 0) {
+        0.dp
+    } else {
+        popupRowHeight(line, compact) * rows + ROW_GAP * (rows - groups) + END_GAP * (groups - 1).coerceAtLeast(0)
+    }
+
+/** Whether a menu draws its rows closer: only when they are taller than its [room] at their usual height. */
+internal fun popupRowsCompact(rows: Int, groups: Int, line: Dp, room: Dp): Boolean =
+    popupRowsHeight(rows, groups, line, compact = false) > room
 
 /** How wide a folder's card is, in the app drawer and on the home screen (the window less 16 dp at most). */
 val FOLDER_CARD_WIDTH = 328.dp
@@ -163,7 +199,24 @@ fun AppActionPopup(
         return
     }
 
-    AnchoredPopupMenu(
+    // Counted before the card shows (the rows are known by now), so the card never changes its rows on screen.
+    val showsWidgets = widgets == true && onWidgets != null
+    val shortcutRows = shortcuts.orEmpty().size
+    val otherRows = actions.size + if (showsWidgets) 1 else 0
+    val density = LocalDensity.current
+    val windowHeightPx = LocalWindowInfo.current.containerSize.height
+    val lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+    val compact = with(density) {
+        popupRowsCompact(
+            rows = shortcutRows + otherRows,
+            groups = (if (shortcutRows > 0) 1 else 0) + (if (otherRows > 0) 1 else 0),
+            line = (if (lineHeight.isSp) lineHeight else 24.sp).toDp(),
+            // What the window leaves between its margins beside the caret, and never more than the menu's own cap.
+            room = minOf(POPUP_ROWS_MAX_HEIGHT, (windowHeightPx - 2 * POPUP_MARGIN_PX).toDp() - CARET_HEIGHT),
+        )
+    }
+
+    CompositionLocalProvider(LocalPopupRowsCompact provides compact) { AnchoredPopupMenu(
         anchor = anchor, preferAbove = preferAbove, onDismiss = onDismiss, blockTouches = held, palette = palette,
     ) {
         shortcuts.orEmpty().forEach { shortcut ->
@@ -185,9 +238,9 @@ fun AppActionPopup(
         }
         // The app's shortcuts are a group of their own above the launcher's actions.
         if (!shortcuts.isNullOrEmpty()) ExpressiveGroupBreak()
-        if (widgets == true && onWidgets != null) {
+        if (showsWidgets) {
             PopupMenuRow(stringResource(R.string.popup_widgets), LauncherIcons.Widgets) {
-                onWidgets()
+                onWidgets?.invoke()
                 onDismiss()
             }
         }
@@ -197,7 +250,7 @@ fun AppActionPopup(
                 onDismiss()
             }
         }
-    }
+    } }
 }
 
 /**
@@ -426,7 +479,7 @@ internal fun PopupMenuContent(
         caretColor = LocalExpressivePalette.current.container,
     ) {
         ExpressiveGroup(
-            modifier = Modifier.width(CARD_WIDTH).heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+            modifier = Modifier.width(CARD_WIDTH).heightIn(max = POPUP_ROWS_MAX_HEIGHT).verticalScroll(rememberScrollState()),
             // The caret sits against the last row; the rows float over the home screen and need the menu's shadow.
             trailingGap = false,
             shadow = 10.dp,
@@ -494,12 +547,13 @@ internal fun ShortcutPopupRow(
     onPin: (() -> Unit)?,
 ) {
     val palette = LocalExpressivePalette.current
+    val compact = LocalPopupRowsCompact.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .expressiveGroupRow()
             .background(palette.container)
-            .heightIn(min = 48.dp),
+            .heightIn(min = popupRowMinHeight(compact)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
@@ -507,7 +561,10 @@ internal fun ShortcutPopupRow(
                 .weight(1f)
                 .clickable(onClick = onClick)
                 // Tighter than an action row: the long label should fit as often as on Pixel.
-                .padding(start = 16.dp, end = if (onPin == null) 16.dp else 0.dp, top = 12.dp, bottom = 12.dp),
+                .padding(
+                    start = 16.dp, end = if (onPin == null) 16.dp else 0.dp,
+                    top = popupRowPadding(compact), bottom = popupRowPadding(compact),
+                ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // The slot stays when an icon is missing, so the labels of one popup line up.
@@ -555,14 +612,15 @@ internal fun ShortcutPopupRow(
 @Composable
 internal fun PopupMenuRow(text: String, @DrawableRes icon: Int?, onClick: () -> Unit) {
     val palette = LocalExpressivePalette.current
+    val compact = LocalPopupRowsCompact.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .expressiveGroupRow()
             .background(palette.container)
             .clickable(onClick = onClick)
-            .heightIn(min = 48.dp)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .heightIn(min = popupRowMinHeight(compact))
+            .padding(horizontal = 20.dp, vertical = popupRowPadding(compact)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {

@@ -1,0 +1,76 @@
+package org.arkikeskus.launcher.ui
+
+import android.app.Application
+import android.os.Process
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
+import com.google.common.truth.Truth.assertThat
+import org.arkikeskus.launcher.model.AppItem
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/**
+ * Issue #30 (a follow-up): a menu with many rows had to be scrolled. A menu whose rows do not fit its room at
+ * their usual height (48 dp) draws them closer (44 dp, still a full touch target), so that the longest menu the
+ * launcher has is on screen whole. A menu that fits keeps its usual rows.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "en-w411dp-h891dp")
+@GraphicsMode(GraphicsMode.Mode.NATIVE) // a row's height is its line of text: the real font's, not the stand-in's
+class AppActionPopupDenseTest {
+    @get:Rule val compose = createComposeRule()
+
+    private val app = AppItem("com.example", "Main", Process.myUserHandle(), 0L, "Example")
+
+    private fun show(rows: Int) {
+        compose.setContent {
+            AppActionPopup(
+                app = app,
+                anchor = IntOffset(200, 40),
+                preferAbove = false,
+                actions = (1..rows).map { PopupAction("Row $it") {} },
+                onDismiss = {},
+            )
+        }
+        // The card shows once its shortcut query (off the main thread) has answered.
+        compose.waitUntil(5_000) { compose.onAllNodesWithText("Row 1").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    /** From one row's top to the next one's: the row's height and the 2 dp between the rows of a group. */
+    private fun pitch() = top("Row 2") - top("Row 1")
+
+    private fun top(text: String) = compose.onNodeWithText(text).getUnclippedBoundsInRoot().top
+
+    @Test fun aMenuThatFitsKeepsItsUsualRows() {
+        show(rows = 9)
+
+        assertThat(pitch()).isEqualTo(48.dp + 2.dp)
+    }
+
+    @Test fun aMenuTooTallForItsRoomDrawsItsRowsCloser() {
+        show(rows = 11)
+
+        assertThat(pitch()).isEqualTo(44.dp + 2.dp)
+    }
+
+    /** And with that it is on screen whole: the last row is not cut by the menu's edge, so nothing scrolls. */
+    @Test fun theCloserRowsAreAllOnScreen() {
+        show(rows = 11)
+
+        compose.onNodeWithText("Row 11").assertIsDisplayed()
+        val last = compose.onNodeWithText("Row 11")
+        assertThat(last.getBoundsInRoot().height).isEqualTo(last.getUnclippedBoundsInRoot().height)
+        assertThat(last.getUnclippedBoundsInRoot().height).isEqualTo(44.dp)
+    }
+}
