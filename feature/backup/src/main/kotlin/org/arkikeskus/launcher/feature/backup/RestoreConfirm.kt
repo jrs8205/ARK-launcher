@@ -61,11 +61,17 @@ internal fun restoreConfirmText(resources: Resources, deletedProfiles: List<Stri
 }
 
 /**
- * The backup screen's question before a restore. [deletedProfiles] is null until the profiles have been read:
- * the question cannot be answered with Restore before it can say what goes.
+ * The backup screen's question before a restore. [profiles] is null until the profiles have been read: the
+ * question cannot be answered with Restore before it can say what goes.
+ *
+ * Restore hands [onConfirm] the very profiles this question names. The caller used to read "the profiles now"
+ * when the button was tapped: a profile made a moment before the tap was in that reading and not yet in the
+ * text, so it was deleted without having been named, and the restore's own check passed (it was among the
+ * confirmed ones). The text and the button take the one value of this composition.
  */
 @Composable
-internal fun RestoreConfirmDialog(deletedProfiles: List<String>?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+internal fun RestoreConfirmDialog(profiles: RestoreProfiles?, onConfirm: (RestoreProfiles) -> Unit, onDismiss: () -> Unit) {
+    val deletedProfiles = profiles?.names
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
@@ -78,7 +84,7 @@ internal fun RestoreConfirmDialog(deletedProfiles: List<String>?, onConfirm: () 
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = deletedProfiles != null) {
+            TextButton(onClick = { profiles?.let(onConfirm) }, enabled = profiles != null) {
                 Text(stringResource(R.string.backup_restore_confirm_ok))
             }
         },

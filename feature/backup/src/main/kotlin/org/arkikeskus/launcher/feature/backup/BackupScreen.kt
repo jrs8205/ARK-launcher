@@ -126,9 +126,9 @@ fun BackupScreen(
     pendingImport?.let { uri ->
         val profiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
         RestoreConfirmDialog(
-            deletedProfiles = profiles?.names,
-            // The profiles on screen when Restore is tapped are the ones the restore is held to.
-            onConfirm = { profiles?.let { viewModel.importFrom(uri, it); pendingImport = null } },
+            profiles = profiles,
+            // The profiles the question names are the ones the restore is held to: the dialog hands them over.
+            onConfirm = { shown -> viewModel.importFrom(uri, shown); pendingImport = null },
             onDismiss = { pendingImport = null },
         )
     }

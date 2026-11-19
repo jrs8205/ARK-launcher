@@ -130,9 +130,9 @@ fun BackupImportScreen(
     val profiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
     BackupImportDialog(
         state = state,
-        deletedProfiles = profiles?.names,
-        // The profiles on screen when Restore is tapped are the ones the restore is held to.
-        onRestore = { profiles?.let { viewModel.restore(uri, it) } },
+        profiles = profiles,
+        // The profiles the question names are the ones the restore is held to: the dialog hands them over.
+        onRestore = { shown -> viewModel.restore(uri, shown) },
         onLeave = { if (viewModel.leave()) onFinish() },
     )
 }
@@ -140,11 +140,13 @@ fun BackupImportScreen(
 @Composable
 internal fun BackupImportDialog(
     state: BackupImportState,
-    /** The home profiles the restore deletes, named in the question; null until they have been read. */
-    deletedProfiles: List<String>?,
-    onRestore: () -> Unit,
+    /** The home profiles as the restore would meet them, its deleted ones named in the question; null until
+     *  they have been read. Restore hands [onRestore] this very value (see [RestoreConfirmDialog]). */
+    profiles: RestoreProfiles?,
+    onRestore: (RestoreProfiles) -> Unit,
     onLeave: () -> Unit,
 ) {
+    val deletedProfiles = profiles?.names
     when (state) {
         BackupImportState.Confirm -> AlertDialog(
             onDismissRequest = onLeave,
@@ -153,7 +155,7 @@ internal fun BackupImportDialog(
             // have been read, so the question is never answered before it says what goes.
             text = { DialogText(restoreConfirmText(LocalResources.current, deletedProfiles.orEmpty())) },
             confirmButton = {
-                TextButton(onClick = onRestore, enabled = deletedProfiles != null) {
+                TextButton(onClick = { profiles?.let(onRestore) }, enabled = profiles != null) {
                     Text(stringResource(R.string.backup_restore_confirm_ok))
                 }
             },

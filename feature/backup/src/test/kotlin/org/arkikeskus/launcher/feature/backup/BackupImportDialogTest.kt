@@ -9,6 +9,12 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
+import org.arkikeskus.launcher.model.HomeProfile
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
@@ -34,7 +40,12 @@ class BackupImportDialogTest {
     private fun scrollableWith(text: String) = hasScrollAction() and (hasText(text) or hasAnyDescendant(hasText(text)))
 
     private fun show(state: BackupImportState, deletedProfiles: List<String>? = emptyList()) = compose.setContent {
-        BackupImportDialog(state = state, deletedProfiles = deletedProfiles, onRestore = { restores++ }, onLeave = { leaves++ })
+        BackupImportDialog(
+            state = state,
+            profiles = deletedProfiles?.let { names -> RestoreProfiles(1, names.mapIndexed { i, name -> HomeProfile(i + 2L, name) }) },
+            onRestore = { restores++ },
+            onLeave = { leaves++ },
+        )
     }
 
     @Test fun asksTheSameQuestionAsTheBackupScreen() {
@@ -180,5 +191,27 @@ class BackupImportDialogTest {
 
         assertThat(leaves).isEqualTo(1)
         assertThat(restores).isEqualTo(0)
+    }
+
+    /**
+     * Review round 3. A profile is made a moment before Restore is tapped: the list of profiles has changed and
+     * the question has not been drawn again yet. The restore is handed the profiles the question SHOWS, so the
+     * new one is not among the confirmed and the restore refuses (it would have been deleted unnamed).
+     */
+    @Test fun theRestoreIsHeldToTheProfilesTheQuestionShows() {
+        val shown = RestoreProfiles(activeId = 1, deleted = listOf(HomeProfile(2, "Work")))
+        var profiles by mutableStateOf<RestoreProfiles?>(shown)
+        val handed = mutableListOf<RestoreProfiles>()
+        compose.setContent { BackupImportDialog(state = BackupImportState.Confirm, profiles = profiles, onRestore = { handed += it }, onLeave = {}) }
+        compose.waitForIdle()
+        compose.onNodeWithText(restoreConfirmText(res, listOf("Work"))).assertIsDisplayed()
+
+        // The list changes and the tap lands before the next frame. (The button's action is called as it
+        // is: a tap made of touch events would run a frame of its own between its down and its up.)
+        compose.mainClock.autoAdvance = false
+        profiles = RestoreProfiles(activeId = 1, deleted = listOf(HomeProfile(2, "Work"), HomeProfile(3, "")))
+        compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).performSemanticsAction(SemanticsActions.OnClick)
+
+        assertThat(handed).containsExactly(shown)
     }
 }

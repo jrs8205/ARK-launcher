@@ -9,6 +9,11 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
@@ -88,8 +93,12 @@ class RestoreConfirmTest {
         }
     }
 
+    /** A launcher whose first profile is on and whose others have these names. */
+    private fun profilesNamed(names: List<String>) =
+        RestoreProfiles(activeId = 1, deleted = names.mapIndexed { i, name -> HomeProfile(i + 2L, name) })
+
     private fun showOnTheBackupScreen(deleted: List<String>?) = compose.setContent {
-        RestoreConfirmDialog(deletedProfiles = deleted, onConfirm = { restores++ }, onDismiss = { dismissals++ })
+        RestoreConfirmDialog(profiles = deleted?.let(::profilesNamed), onConfirm = { restores++ }, onDismiss = { dismissals++ })
     }
 
     @Test fun theBackupScreensQuestionNamesTheDeletedProfiles() {
@@ -128,5 +137,27 @@ class RestoreConfirmTest {
 
         val text = restoreConfirmText(res, seven)
         compose.onNode(hasScrollAction() and (hasText(text) or hasAnyDescendant(hasText(text)))).assertExists()
+    }
+
+    /**
+     * Review round 3. A profile is made a moment before Restore is tapped: the list of profiles has changed and
+     * the question has not been drawn again yet. The restore is handed the profiles the question SHOWS, so the
+     * new one is not among the confirmed and the restore refuses (it would have been deleted unnamed).
+     */
+    @Test fun theBackupScreensRestoreIsHeldToTheProfilesTheQuestionShows() {
+        val shown = RestoreProfiles(activeId = 1, deleted = listOf(HomeProfile(2, "Work")))
+        var profiles by mutableStateOf<RestoreProfiles?>(shown)
+        val handed = mutableListOf<RestoreProfiles>()
+        compose.setContent { RestoreConfirmDialog(profiles = profiles, onConfirm = { handed += it }, onDismiss = {}) }
+        compose.waitForIdle()
+        compose.onNodeWithText(restoreConfirmText(res, listOf("Work"))).assertIsDisplayed()
+
+        // The list changes and the tap lands before the next frame. (The button's action is called as it
+        // is: a tap made of touch events would run a frame of its own between its down and its up.)
+        compose.mainClock.autoAdvance = false
+        profiles = RestoreProfiles(activeId = 1, deleted = listOf(HomeProfile(2, "Work"), HomeProfile(3, "")))
+        compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).performSemanticsAction(SemanticsActions.OnClick)
+
+        assertThat(handed).containsExactly(shown)
     }
 }
