@@ -98,7 +98,9 @@ class LaunchZoomCellTest {
         compose.waitForIdle()
     }
 
-    private fun icon(app: AppItem): Rect = compose.onNodeWithContentDescription(app.label).fetchSemanticsNode().boundsInRoot
+    /** The icon picture itself: the cell around it is one node for a screen reader, so the picture is found unmerged. */
+    private fun icon(app: AppItem): Rect =
+        compose.onNodeWithContentDescription(app.label, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
 
     private fun assertZoomsFrom(app: AppItem, icon: Rect) {
         val (launched, launch) = launches.single()

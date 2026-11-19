@@ -76,6 +76,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.customActions
@@ -1176,6 +1178,18 @@ internal fun Workspace(
                             val currentPlaced by rememberUpdatedState(placed)
                             // The whole cell takes the tap; the launch zooms from the icon in it.
                             val launchOrigin = rememberAppLaunchOrigin()
+                            // Where the app's menu opens: at the icon's TOP edge when it is in the lower
+                            // half (the popup flips above) and at its BOTTOM edge otherwise, so the popup
+                            // never covers the icon; only icons in the top ~45% open downward, so a tall
+                            // popup never covers the dock. The pointer's hold and a screen reader's long
+                            // click open the same menu.
+                            val openMenu = {
+                                val cellTop = dragController.gridBounds.top + placed.cellY * cellH
+                                val above = cellTop + cellH / 2f > windowHeightPx * 0.45f
+                                val anchorX = dragController.gridBounds.left + placed.cellX * cellW + cellW / 2f
+                                val anchorY = if (above) cellTop else cellTop + cellH
+                                onAppMenu(currentPlaced.app, IntOffset(anchorX.roundToInt(), anchorY.roundToInt()), above)
+                            }
                             Box(
                                 modifier = Modifier
                                     .offset {
@@ -1200,6 +1214,13 @@ internal fun Workspace(
                                         alpha = if (dragging?.app?.key == placed.app.key &&
                                             dragController.moving
                                         ) 0f else 1f
+                                    }
+                                    // The tap and the menu as actions too, for whoever cannot make the
+                                    // pointer gesture: a screen reader lists them, and nothing else told it
+                                    // that the icon has a menu. The copy of page 0 at the tail takes taps only.
+                                    .semantics(mergeDescendants = true) {
+                                        onClick { onAppClick(currentPlaced.app); true }
+                                        if (!isTailCopy) onLongClick { openMenu(); true }
                                     }
                                     .appLaunchTouch(placed.app, launchOrigin)
                                     .pointerInput(
@@ -1231,21 +1252,6 @@ internal fun Workspace(
                                             }
                                             if (press !is IconPressOutcome.Held) return@awaitEachGesture
                                             val holdPos = press.position
-                                            // Anchor at the icon's TOP edge when it's in the lower half (popup
-                                            // flips above) and its BOTTOM edge otherwise, so the popup never
-                                            // covers the icon; only icons in the top ~45% open downward, so a
-                                            // tall popup never covers the dock.
-                                            val openMenu = {
-                                                val cellTop = dragController.gridBounds.top + placed.cellY * cellH
-                                                val above = cellTop + cellH / 2f > windowHeightPx * 0.45f
-                                                val anchorX = dragController.gridBounds.left + placed.cellX * cellW + cellW / 2f
-                                                val anchorY = if (above) cellTop else cellTop + cellH
-                                                onAppMenu(
-                                                    currentPlaced.app,
-                                                    IntOffset(anchorX.roundToInt(), anchorY.roundToInt()),
-                                                    above,
-                                                )
-                                            }
                                             // The copy of page 0 at the tail takes taps only.
                                             if (isTailCopy) return@awaitEachGesture
                                             // Desktop locked: nothing lifts and nothing moves, but the menu still

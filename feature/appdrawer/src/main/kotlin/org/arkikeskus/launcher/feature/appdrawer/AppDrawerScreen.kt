@@ -121,6 +121,7 @@ import org.arkikeskus.launcher.ui.EditAppDialog
 import org.arkikeskus.launcher.ui.FolderIconButton
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.IconPress
+import org.arkikeskus.launcher.ui.awaitHoldRelease
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.LongPressDelay
@@ -1618,6 +1619,12 @@ private fun DrawerAppCell(
         privateMark = if (privateMark) stringResource(R.string.private_space_entry) else null,
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
+            // The tap and the menu as actions too, for whoever cannot make the pointer gesture: a screen
+            // reader lists them, and nothing else told it that the app has a menu.
+            .semantics(mergeDescendants = true) {
+                onClick { onAppClick(currentApp); true }
+                onLongClick { onAppLongClick(currentApp, bounds); true }
+            }
             // One unified gesture (like Workspace/Dock) but non-consuming until the
             // long-press fires, so a quick drag still scrolls the grid: quick tap
             // launches; a still long-press lifts → drag out to home/dock, or with no
@@ -1678,6 +1685,9 @@ private fun DrawerAppCell(
                     if (locked || !liftable) {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onAppLongClick(currentApp, bounds)
+                        // The finger that opened the menu is still down: its moves are taken until it
+                        // rises, or the grid scrolled under the menu, away from where the menu points.
+                        awaitHoldRelease(down.id)
                         return@awaitEachGesture
                     }
                     // LONG PRESS → lift into the shared controller (drawer source).

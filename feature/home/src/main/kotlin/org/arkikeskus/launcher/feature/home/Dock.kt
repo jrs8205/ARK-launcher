@@ -44,6 +44,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -338,8 +339,20 @@ private fun RowScope.DockAppSlot(
     val currentApp by rememberUpdatedState(app)
     val currentOnDropped by rememberUpdatedState(onDropped)
     val slotCount = latestEntries().size
+    // The menu opens above the item. The pointer's hold and a screen reader's long click open the same one.
+    val openMenu = {
+        val itemRoot = itemRoots[index] ?: Offset.Zero
+        val slotW = if (slotCount > 0) rowWidthPx().toFloat() / slotCount else 0f
+        onAppMenu(currentApp, IntOffset((itemRoot.x + slotW / 2f).roundToInt(), itemRoot.y.roundToInt()))
+    }
     Box(
         modifier = slot
+            // The tap and the menu as actions too, for whoever cannot make the pointer gesture: a screen
+            // reader lists them, and nothing else told it that the icon has a menu.
+            .semantics(mergeDescendants = true) {
+                onClick { onAppClick(currentApp); true }
+                onLongClick { openMenu(); true }
+            }
             .appLaunchTouch(app, launchOrigin)
             // One unified gesture (like Workspace): quick tap launches; a still long-press lifts →
             // drag (reorder / drop onto home) or, with no movement, opens the menu. A single
@@ -396,12 +409,6 @@ private fun RowScope.DockAppSlot(
                     }
                     if (abandoned) return@awaitEachGesture
                     val itemRoot = itemRoots[index] ?: Offset.Zero
-                    // The menu opens above the item.
-                    val openMenu = {
-                        val slotW = if (slotCount > 0) rowWidthPx().toFloat() / slotCount else 0f
-                        val anchor = Offset(itemRoot.x + slotW / 2f, itemRoot.y)
-                        onAppMenu(currentApp, IntOffset(anchor.x.roundToInt(), anchor.y.roundToInt()))
-                    }
                     // Desktop locked: nothing lifts and nothing moves, but the menu still opens, with the rows
                     // that change nothing here (issue #30, a follow-up). The held finger stays the icon's until
                     // it rises, so a pull opens no drawer under the menu.

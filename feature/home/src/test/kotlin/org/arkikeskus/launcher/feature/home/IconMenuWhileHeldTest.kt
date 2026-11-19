@@ -11,6 +11,8 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
@@ -224,5 +226,48 @@ class IconMenuWhileHeldTest {
         assertThat(launches).isEqualTo(2)
         assertThat(homeMenus).isEmpty()
         assertThat(dockMenus).isEmpty()
+    }
+
+    /**
+     * Review round 2. An app's menu on the home screen and in the dock could be opened by the pointer gesture
+     * alone: nothing told a screen reader that the icon has one (an app on a folder's card did). The icon
+     * offers its tap and its hold as actions. The hold opens the menu and lifts nothing.
+     */
+    @Test fun aHomeIconOffersItsTapAndItsMenuToAScreenReader() {
+        show()
+
+        compose.onNodeWithText("Mail").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.waitForIdle()
+        assertThat(homeMenus).containsExactly(mail)
+        assertThat(drag.isDragging).isFalse()
+
+        compose.onNodeWithText("Mail").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        assertThat(launches).isEqualTo(1)
+    }
+
+    @Test fun aDockIconOffersItsTapAndItsMenuToAScreenReader() {
+        show()
+
+        compose.onNodeWithText("Maps").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.waitForIdle()
+        assertThat(dockMenus).containsExactly(maps)
+        assertThat(drag.isDragging).isFalse()
+
+        compose.onNodeWithText("Maps").performSemanticsAction(SemanticsActions.OnClick)
+        compose.waitForIdle()
+        assertThat(launches).isEqualTo(1)
+    }
+
+    /** The same on a locked desktop, where the menu is its short form. */
+    @Test fun onALockedDesktopTheIconsStillOfferTheirMenuToAScreenReader() {
+        show(locked = true)
+
+        compose.onNodeWithText("Mail").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.onNodeWithText("Maps").performSemanticsAction(SemanticsActions.OnLongClick)
+        compose.waitForIdle()
+
+        assertThat(homeMenus).containsExactly(mail)
+        assertThat(dockMenus).containsExactly(maps)
     }
 }

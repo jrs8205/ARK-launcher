@@ -270,6 +270,9 @@ internal fun FolderCard(
     var gridWidthPx by remember { mutableIntStateOf(0) }
     // An icon is lifted: the grid stops scrolling until the gesture ends.
     var lifted by remember { mutableStateOf(false) }
+    // On a locked desktop a hold lifts nothing, and the finger that opened the menu is still down: the grid
+    // does not scroll under the menu while it is.
+    var lockedHold by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onDismiss)
 
@@ -455,12 +458,19 @@ internal fun FolderCard(
                                     is IconPressOutcome.Held -> outcome.position
                                 }
                                 // Desktop locked: nothing lifts and nothing moves, but the menu still opens, with
-                                // the rows that change nothing here (issue #30, a follow-up). The held finger's
-                                // moves are taken until it rises, so the grid does not scroll under the menu.
+                                // the rows that change nothing here (issue #30, a follow-up). Until the held
+                                // finger rises the grid does not scroll ([lockedHold]: the grid is this
+                                // container's child and has the finger's moves BEFORE the container can take
+                                // them), and the release is no tap.
                                 if (locked) {
                                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     menu = app to itemRect
-                                    awaitHoldRelease(down.id)
+                                    lockedHold = true
+                                    try {
+                                        awaitHoldRelease(down.id)
+                                    } finally {
+                                        lockedHold = false
+                                    }
                                     return@awaitEachGesture
                                 }
                                 val token = Any()
@@ -558,7 +568,7 @@ internal fun FolderCard(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columns),
                         state = gridState,
-                        userScrollEnabled = !lifted,
+                        userScrollEnabled = !lifted && !lockedHold,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = gridRoom)

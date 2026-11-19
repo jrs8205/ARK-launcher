@@ -6,10 +6,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -41,7 +48,7 @@ class FolderCardWholeRowsTest {
     private val apps = (1..24).map { AppItem("com.app$it", "Main", user, 0L, "App $it") }
     private val folder = PlacedFolder(id = 7, name = "Tools", apps = apps, page = 0, cellX = 0, cellY = 0)
 
-    private fun show(anchorBounds: Rect? = null) {
+    private fun show(anchorBounds: Rect? = null, locked: Boolean = false) {
         compose.setContent {
             LauncherTheme {
                 Box(Modifier.fillMaxSize()) {
@@ -50,7 +57,7 @@ class FolderCardWholeRowsTest {
                         badges = emptyMap(),
                         badgeShowCount = false,
                         badgeScale = 1f,
-                        locked = false,
+                        locked = locked,
                         dragController = HomeDragController(),
                         onRename = {},
                         onAppClick = {},
@@ -118,5 +125,46 @@ class FolderCardWholeRowsTest {
         compose.waitForIdle()
 
         assertWholeRows()
+    }
+
+    private fun root() = compose.onAllNodes(isRoot()).onFirst()
+
+    private fun topOf(label: String) = compose.onNodeWithText(label).fetchSemanticsNode().positionInRoot.y
+
+    /**
+     * Review round 2. On a locked desktop a hold on an app of the card opens its menu and lifts nothing, and
+     * the finger is still down. The card's gesture took its moves, but only after the grid inside it had had
+     * them: the grid scrolled under the open menu. The grid does not scroll while that finger is down.
+     */
+    @Test fun onALockedDesktopTheGridStaysPutUnderTheFingerThatOpenedTheMenu() {
+        show(locked = true)
+        val before = topOf("App 1")
+
+        compose.onNodeWithText("App 6").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+        compose.onNodeWithText("App info").assertExists()
+        root().performTouchInput { repeat(6) { moveBy(Offset(0f, -20f)) } }
+        compose.waitForIdle()
+
+        assertThat(topOf("App 1")).isEqualTo(before)
+        root().performTouchInput { up() }
+    }
+
+    /** A pull that starts before the hold completes is the folder's scroll, locked or not. */
+    @Test fun onALockedDesktopAPullBeforeTheHoldStillScrollsTheFolder() {
+        show(locked = true)
+        val before = topOf("App 1")
+
+        compose.onNodeWithText("App 6").performTouchInput {
+            down(center)
+            repeat(6) { moveBy(Offset(0f, -20f)) }
+            up()
+        }
+        compose.waitForIdle()
+
+        // Scrolled: the first app is somewhere else, or out of the card altogether.
+        val now = compose.onAllNodesWithText("App 1").fetchSemanticsNodes().firstOrNull()?.positionInRoot?.y
+        assertThat(now).isNotEqualTo(before)
     }
 }
