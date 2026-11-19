@@ -35,6 +35,8 @@ import org.arkikeskus.launcher.data.smartspace.WeatherKind
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.argbLuminance
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -375,10 +377,33 @@ class SmartspaceStyleTest {
         assertThat(weatherPhaseSeconds(3_600_000L + 1_000)).isEqualTo(1f)
     }
 
-    /** It is drawn thirty times a second at most: weather moves slowly, and every frame is the battery's. */
-    @Test fun theMovingIconIsDrawnThirtyTimesASecondAtMost() {
-        assertThat(weatherFrameDue(lastMs = 1_000, nowMs = 1_016)).isFalse()
-        assertThat(weatherFrameDue(lastMs = 1_000, nowMs = 1_033)).isTrue()
+    /**
+     * It is drawn thirty times a second at most: weather moves slowly, and every frame is the battery's. Review
+     * round 3: it asked the display for EVERY frame and threw the early ones away after waking for them, 120
+     * wake-ups a second on a 120 Hz display for 30 drawings. It waits first and asks for a frame only when it
+     * will draw one.
+     */
+    @Test fun theMovingIconAsksForAFrameOnlyWhenItWillDrawOne() = runTest {
+        // A display of 120 frames a second, and a clock the test moves (in microseconds: whole numbers, so
+        // the next frame is always later than now).
+        val frameUs = 8_333L
+        var clockUs = 0L
+        var framesAsked = 0
+        val drawn = mutableListOf<Long>()
+
+        val job = launch {
+            weatherFrames(
+                awaitFrame = { framesAsked++; clockUs = (clockUs / frameUs + 1) * frameUs; clockUs / 1_000 },
+                wait = { clockUs += it * 1_000 },
+                draw = { drawn += it; if (clockUs >= 1_000_000) throw kotlinx.coroutines.CancellationException("a second has passed") },
+            )
+        }
+        job.join()
+
+        // A second of it: about thirty drawings, and one frame asked for each (the first starts the clock).
+        assertThat(drawn.size).isAtLeast(25)
+        assertThat(drawn.size).isAtMost(31)
+        assertThat(framesAsked).isEqualTo(drawn.size + 1)
     }
 
     /** The owner's word, 2026-11-19: Fahrenheit where the phone's region uses it, as its other apps show it. */

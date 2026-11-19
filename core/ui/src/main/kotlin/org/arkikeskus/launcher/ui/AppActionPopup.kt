@@ -213,6 +213,7 @@ fun AppActionPopup(
     val otherRows = actions.size + if (showsWidgets) 1 else 0
     val density = LocalDensity.current
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
+    val windowWidthPx = LocalWindowInfo.current.containerSize.width
     val lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
     val rowStyle = MaterialTheme.typography.bodyLarge
     val measurer = rememberTextMeasurer()
@@ -223,7 +224,9 @@ fun AppActionPopup(
         // wraps in the width its row leaves it, and a wrapped one is a line taller. Counted as one line each,
         // a menu with a long label was taken to fit and its last row was cut.
         fun labelHeight(label: String, hasIcon: Boolean): Dp {
-            val width = CARD_WIDTH - POPUP_ROW_SIDE * 2 - if (hasIcon) POPUP_ROW_ICON + POPUP_ROW_ICON_GAP else 0.dp
+            // The menu is as wide as its window where that is narrower than the menu (a split screen).
+            val card = minOf(CARD_WIDTH, windowWidthPx.toDp())
+            val width = card - POPUP_ROW_SIDE * 2 - if (hasIcon) POPUP_ROW_ICON + POPUP_ROW_ICON_GAP else 0.dp
             return measurer.measure(label, rowStyle, constraints = Constraints(maxWidth = width.roundToPx())).size.height.toDp()
         }
         val texts = List(shortcutRows) { line } +

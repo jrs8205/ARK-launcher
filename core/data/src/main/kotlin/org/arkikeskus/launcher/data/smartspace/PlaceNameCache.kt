@@ -16,8 +16,13 @@ data class PlaceName(val name: String, val fromNetwork: Boolean)
  */
 internal class PlaceNameCache(
     private val maxAgeMs: Long,
+    /** The least time between two questions put to the network, answered or not. */
+    private val networkIntervalMs: Long = NETWORK_PLACE_NAME_INTERVAL_MS,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    /** When the network was last asked; null = never. */
+    private var networkAskedAtMs: Long? = null
+
     private var name: String? = null
     private var areaKey: String? = null
     private var atMs = 0L
@@ -26,11 +31,21 @@ internal class PlaceNameCache(
     /** [network] is null while the network fallback is turned off; it is never called then. */
     fun resolve(areaKey: String, local: () -> String?, network: (() -> String?)?): PlaceName? {
         local()?.let { return remember(it, areaKey, fromNetwork = false) }
-        network?.invoke()?.let { return remember(it, areaKey, fromNetwork = true) }
+        // By its own half hour, not the weather's quarter: the privacy statement promises the network is asked
+        // at most once in thirty minutes. In between the last name stands (below).
+        if (network != null && networkDue()) {
+            networkAskedAtMs = now()
+            network()?.let { return remember(it, areaKey, fromNetwork = true) }
+        }
         val alive = now() - atMs < maxAgeMs
         val allowed = network != null || !fromNetwork
         val cached = name
         return if (cached != null && areaKey == this.areaKey && alive && allowed) PlaceName(cached, fromNetwork) else null
+    }
+
+    private fun networkDue(): Boolean {
+        val asked = networkAskedAtMs ?: return true
+        return now() - asked >= networkIntervalMs
     }
 
     private fun remember(name: String, areaKey: String, fromNetwork: Boolean): PlaceName {
@@ -41,6 +56,10 @@ internal class PlaceNameCache(
         return PlaceName(name, fromNetwork)
     }
 }
+
+/** How often the network is asked for a place name at most: the half hour the privacy statement names. The
+ *  weather itself is renewed more often. */
+internal const val NETWORK_PLACE_NAME_INTERVAL_MS = 30L * 60 * 1000
 
 /** The cache key for a rounded location in one UI language: a language switch (Android 13+ app
  *  language or the system language) must re-geocode instead of reusing "London" on a Finnish screen. */

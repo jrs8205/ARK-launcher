@@ -55,6 +55,7 @@ import org.arkikeskus.launcher.model.compositeOver
 import org.arkikeskus.launcher.model.contentIsDarkOn
 import org.arkikeskus.launcher.model.glassTint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.abs
@@ -230,8 +231,8 @@ internal fun weatherKindName(kind: WeatherKind): Int = when (kind) {
  *  starts over here without a jump, and the icon comes to rest exactly in its still pose. */
 internal const val WEATHER_LOOP_MS = 8_000L
 
-/** The least time between two drawings of the moving icon: thirty a second. Weather moves slowly, and every
- *  frame drawn is the battery's. */
+/** The time between two drawings of the moving icon: thirty a second. Weather moves slowly, and every frame
+ *  asked for is the battery's. */
 internal const val WEATHER_FRAME_MS = 33L
 
 /**
@@ -246,8 +247,19 @@ internal fun weatherAnimationRunning(animated: Boolean, systemAnimations: Boolea
 /** Seconds into the loop [elapsedMs] after the icon started moving. */
 internal fun weatherPhaseSeconds(elapsedMs: Long): Float = (elapsedMs % WEATHER_LOOP_MS) / 1000f
 
-/** Whether the icon is drawn again at [nowMs], having been drawn at [lastMs]. */
-internal fun weatherFrameDue(lastMs: Long, nowMs: Long): Boolean = nowMs - lastMs >= WEATHER_FRAME_MS
+/**
+ * The moving icon's frames: [draw] with the time since the first frame, about thirty times a second, for good.
+ * It waits [WEATHER_FRAME_MS] BEFORE it asks for the next frame ([awaitFrame], which answers the frame's time).
+ * Asking for every frame and leaving the early ones undrawn woke the launcher 120 times a second on a 120 Hz
+ * display for the whole time the home screen was up.
+ */
+internal suspend fun weatherFrames(awaitFrame: suspend () -> Long, wait: suspend (ms: Long) -> Unit, draw: (elapsedMs: Long) -> Unit) {
+    val start = awaitFrame()
+    while (true) {
+        wait(WEATHER_FRAME_MS)
+        draw(awaitFrame() - start)
+    }
+}
 
 /** False where the home screen is covered by the launcher's own app drawer: nothing on it needs to move. */
 val LocalHomeScreenShown = compositionLocalOf { true }
@@ -268,13 +280,8 @@ private fun rememberWeatherPhase(animated: Boolean): FloatState {
             val systemAnimations =
                 Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
             if (!weatherAnimationRunning(animated, systemAnimations, shown)) return@LaunchedEffect
-            val start = withFrameMillis { it }
-            var drawn = start
-            while (true) {
-                val now = withFrameMillis { it }
-                if (!weatherFrameDue(drawn, now)) continue
-                drawn = now
-                phase.floatValue = weatherPhaseSeconds(now - start)
+            weatherFrames(awaitFrame = { withFrameMillis { it } }, wait = { delay(it) }) { elapsed ->
+                phase.floatValue = weatherPhaseSeconds(elapsed)
             }
         } finally {
             phase.floatValue = 0f

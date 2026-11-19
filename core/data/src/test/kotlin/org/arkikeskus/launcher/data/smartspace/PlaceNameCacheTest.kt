@@ -68,4 +68,39 @@ class PlaceNameCacheTest {
 
         assertThat(cache.resolve("60.21,24.87", local = { null }, network = null)).isNull()
     }
+
+    /**
+     * Review round 3. The weather is renewed every quarter of an hour now, and the privacy statement promises
+     * that the place name is asked of the network "at most once per 30 minutes". The network is asked by its
+     * own half hour, whatever the weather's step: in between the last name stands.
+     */
+    @Test fun theNetworkIsAskedAtMostOnceInHalfAnHour() {
+        var nowMs = 0L
+        var asked = 0
+        val cache = PlaceNameCache(maxAgeMs = 24 * 60 * 60_000L, now = { nowMs })
+        val network = { asked++; "Oulu" }
+
+        assertThat(cache.resolve("65.01,25.47@fi", local = { null }, network = network)).isEqualTo(PlaceName("Oulu", fromNetwork = true))
+        nowMs = 15 * 60_000L
+        assertThat(cache.resolve("65.01,25.47@fi", local = { null }, network = network)).isEqualTo(PlaceName("Oulu", fromNetwork = true))
+        assertThat(asked).isEqualTo(1)
+
+        nowMs = 30 * 60_000L
+        cache.resolve("65.01,25.47@fi", local = { null }, network = network)
+        assertThat(asked).isEqualTo(2)
+    }
+
+    /** A question the network did not answer counts as asked: it is not put again a quarter of an hour later. */
+    @Test fun anUnansweredQuestionIsNotPutAgainWithinTheHalfHour() {
+        var nowMs = 0L
+        var asked = 0
+        val cache = PlaceNameCache(maxAgeMs = 24 * 60 * 60_000L, now = { nowMs })
+        val network = { asked++; null }
+
+        cache.resolve("65.01,25.47@fi", local = { null }, network = network)
+        nowMs = 29 * 60_000L
+        cache.resolve("65.01,25.47@fi", local = { null }, network = network)
+
+        assertThat(asked).isEqualTo(1)
+    }
 }

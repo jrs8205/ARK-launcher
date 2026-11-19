@@ -33,14 +33,14 @@ class AppActionPopupDenseTest {
 
     private val app = AppItem("com.example", "Main", Process.myUserHandle(), 0L, "Example")
 
-    private fun show(rows: Int, wrapped: Int? = null) {
+    private fun show(rows: Int, wrapped: Int? = null, wrappedLabel: String = "Zum Startbildschirm hinzufügen") {
         compose.setContent {
             AppActionPopup(
                 app = app,
                 anchor = IntOffset(200, 40),
                 preferAbove = false,
                 // [wrapped] is the row whose label is too long for one line (German for "Add to home").
-                actions = (1..rows).map { PopupAction(if (it == wrapped) "Zum Startbildschirm hinzufügen" else "Row $it") {} },
+                actions = (1..rows).map { PopupAction(if (it == wrapped) wrappedLabel else "Row $it") {} },
                 onDismiss = {},
             )
         }
@@ -91,6 +91,27 @@ class AppActionPopupDenseTest {
 
     @Test fun tenRowsOfOneLineKeepTheirUsualHeight() {
         show(rows = 10)
+
+        assertThat(pitch()).isEqualTo(48.dp + 2.dp)
+    }
+
+    /**
+     * Review round 3. In a window narrower than the menu (a split screen) the menu is as wide as the window,
+     * and a label that fits one line in the full menu takes two. It was measured in the full width all the
+     * same: ten rows were taken to fit and the last was cut. The label is measured in the width the menu has.
+     */
+    @Config(qualifiers = "en-w200dp-h891dp")
+    @Test fun inANarrowWindowALabelIsMeasuredInTheWidthTheMenuHas() {
+        show(rows = 10, wrapped = 3, wrappedLabel = "Add to the home screen")
+
+        assertThat(pitch()).isEqualTo(44.dp + 2.dp)
+        val last = compose.onNodeWithText("Row 10")
+        assertThat(last.getBoundsInRoot().height).isEqualTo(last.getUnclippedBoundsInRoot().height)
+    }
+
+    /** The same label in a window with room for the whole menu fits its line, and ten rows keep their height. */
+    @Test fun theSameLabelFitsOneLineInAWideWindow() {
+        show(rows = 10, wrapped = 3, wrappedLabel = "Add to the home screen")
 
         assertThat(pitch()).isEqualTo(48.dp + 2.dp)
     }
