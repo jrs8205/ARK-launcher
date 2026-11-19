@@ -22,6 +22,10 @@ interface ActiveHomeProfile {
     val id: Flow<Long>
 
     suspend fun current(): Long
+
+    /** Runs [work], told which profile is on, while that profile stays on: a switch asked for meanwhile waits.
+     *  Where there is one profile and no switching, [work] simply runs. */
+    suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = work(current())
 }
 
 /** A launcher with the first profile only: what there was before profiles, and what a test that does not
@@ -106,7 +110,7 @@ class HomeProfileStore(
      * Runs [work] with the profile that is on, which stays on until [work] returns: a switch asked for
      * meanwhile waits and happens after it. Not re-entrant: inside, switch with [setActiveLocked].
      */
-    suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = steady.withLock { work(current()) }
+    override suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = steady.withLock { work(current()) }
 
     /** Switches to [id]; an id that is not in the list is ignored. Waits for work that needs the profile to
      *  stay ([whileActiveStays]). */

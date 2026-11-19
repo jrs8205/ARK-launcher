@@ -410,4 +410,19 @@ class HomeProfileRepositoryTest {
         assertThat(copied.file.exists()).isFalse()
         assertThat(drawerPictures.current.value!!.file.exists()).isTrue()
     }
+
+    /** Review round 3: what a screen asks of the layout it shows runs only while that profile is the one that
+     *  is on, and the profile stays on for as long as it runs. */
+    @Test fun whatAScreenAsksOfItsProfileRunsOnlyWhileThatProfileIsOn() = runTest {
+        val work = created("Work", copyCurrent = false)
+        var ran = 0
+
+        assertThat(layout.whileProfileIsOn(work.id) { ran++ }).isNull()
+        assertThat(ran).isEqualTo(0)
+        assertThat(layout.isProfileOn(work.id)).isFalse()
+
+        assertThat(layout.whileProfileIsOn(1L) { ran++; "done" }).isEqualTo("done")
+        assertThat(ran).isEqualTo(1)
+        assertThat(layout.isProfileOn(1L)).isTrue()
+    }
 }

@@ -117,4 +117,30 @@ class WorkspacePageOperationsTest {
         assertThat(store.occupied).containsExactly(0, 1)
         assertThat(store.settings.homePageCount).isEqualTo(0)
     }
+
+    /** Review round 3: a page operation of a screen whose home profile is not the one that is on does nothing:
+     *  no row moves and no counter is written. */
+    @Test fun `an operation asked of another profile than the one that is on does nothing`() = runTest {
+        var settings = LauncherSettings(homePage = 0, homePageCount = 3)
+        var rowChanges = 0
+        var saves = 0
+        val on = 2L
+        val operations = WorkspacePageOperations(
+            settings = { settings }, occupiedPages = { setOf(0) },
+            insertRows = { rowChanges++ }, removeRows = { _, _ -> rowChanges++; true },
+            save = { home, count -> saves++; settings = settings.copy(homePage = home, homePageCount = count) },
+            inProfile = { profile, work -> if (profile == on) work() else null },
+        )
+
+        assertThat(operations.remove(1, purge = true, profile = 1L)).isNull()
+        assertThat(operations.insert(1, profile = 1L)).isNull()
+        operations.setHome(2, profile = 1L)
+        assertThat(rowChanges).isEqualTo(0)
+        assertThat(saves).isEqualTo(0)
+
+        // Asked of the profile that is on, they work as ever.
+        assertThat(operations.insert(1, profile = on)).isEqualTo(1)
+        assertThat(operations.remove(1, purge = true, profile = on)).isEqualTo(1)
+        assertThat(rowChanges).isEqualTo(2)
+    }
 }

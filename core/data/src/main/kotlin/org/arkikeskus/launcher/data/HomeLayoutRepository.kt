@@ -86,6 +86,19 @@ class HomeLayoutRepository @Inject constructor(
      * One layout operation: one transaction in ONE home profile. The profile is read once, before the work
      * starts, and named around it, so a profile switch in the middle cannot leave half the work in each.
      */
+    /**
+     * Runs [work] while the home profile [profileId] is the one that is on, and stays on: null, with nothing
+     * run, when another one is. For what a screen asks of the layout it SHOWS: a screen can ask a moment after
+     * the profile was switched behind it, and what it decided from its own profile's rows (that a page is
+     * empty, that a cell is free) is not true of the profile its call would then reach. Not for a caller that
+     * already holds the profile ([ActiveHomeProfile.whileActiveStays] does not nest).
+     */
+    suspend fun <T> whileProfileIsOn(profileId: Long, work: suspend () -> T): T? =
+        dao.whileActiveStays { active -> if (active == profileId) work() else null }
+
+    /** Whether [profileId] is the home profile that is on right now. */
+    suspend fun isProfileOn(profileId: Long): Boolean = dao.resolvedProfile() == profileId
+
     private suspend fun <T> tx(block: suspend () -> T): T {
         val profile = dao.resolvedProfile()
         return inHomeProfile(profile) { db.withTransaction { block() } }

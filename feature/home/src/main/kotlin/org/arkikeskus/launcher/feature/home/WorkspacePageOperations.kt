@@ -6,6 +6,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.HomeProfile
 
 /** Serializes the page menu, including reads from storage. UI flows may lag behind a write. */
 internal class WorkspacePageOperations(
@@ -14,15 +15,20 @@ internal class WorkspacePageOperations(
     private val insertRows: suspend (Int) -> Unit,
     private val removeRows: suspend (page: Int, purge: Boolean) -> Boolean,
     private val save: suspend (home: Int, count: Int) -> Unit,
+    /** Runs the work while the home profile [profile] is the one that is on and stays on; null, with nothing
+     *  run, when another one is (the screen that asked shows a profile that was switched away from). */
+    private val inProfile: suspend (profile: Long, work: suspend () -> Int?) -> Int? = { _, work -> work() },
 ) {
     private val mutex = Mutex()
 
     private suspend fun pageCount(s: LauncherSettings): Int = permanentPageCount(occupiedPages(), s.homePageCount)
 
-    suspend fun insert(at: Int): Int = mutex.withLock {
+    /** The new page's index, -1 at the page limit, or null when [profile], the one the asking screen shows, is
+     *  not the one that is on (nothing is done). */
+    suspend fun insert(at: Int, profile: Long = HomeProfile.FIRST_ID): Int? = mutex.withLock { inProfile(profile) {
         val s = settings()
         val count = pageCount(s)
-        if (count >= HomeLayoutRepository.MAX_PAGES) return@withLock -1
+        if (count >= HomeLayoutRepository.MAX_PAGES) return@inProfile -1
         val index = at.coerceIn(0, count)
         val home = s.homePage.coerceIn(0, count - 1)
         // A disappearing UI coroutine must not abandon the counters after shifting the rows, and a
@@ -37,14 +43,16 @@ internal class WorkspacePageOperations(
             }
         }
         index
-    }
+    } }
 
     /** Returns the destination calculated from this operation's snapshot, or null on rejection.
-     *  [purge] deletes rows the caller knows the home screen cannot show; see removeEmptyPage. */
-    suspend fun remove(page: Int, purge: Boolean = false): Int? = mutex.withLock {
+     *  [purge] deletes rows the caller knows the home screen cannot show; see removeEmptyPage. The caller
+     *  knows it of [profile], the one its screen shows: when another profile is on, nothing is done (null).
+     *  The check, the rows and the counters are all of that one profile, which stays on throughout. */
+    suspend fun remove(page: Int, purge: Boolean = false, profile: Long = HomeProfile.FIRST_ID): Int? = mutex.withLock { inProfile(profile) {
         val s = settings()
         val count = pageCount(s)
-        if (count <= 1 || page !in 0 until count) return@withLock null
+        if (count <= 1 || page !in 0 until count) return@inProfile null
         val target = page.coerceAtMost(count - 2)
         val home = s.homePage.coerceIn(0, count - 1)
         withContext(NonCancellable) {
@@ -65,10 +73,13 @@ internal class WorkspacePageOperations(
             }
             target
         }
-    }
+    } }
 
-    suspend fun setHome(page: Int) = mutex.withLock {
-        val s = settings()
-        save(page.coerceIn(0, pageCount(s) - 1), s.homePageCount)
+    suspend fun setHome(page: Int, profile: Long = HomeProfile.FIRST_ID) = mutex.withLock {
+        inProfile(profile) {
+            val s = settings()
+            save(page.coerceIn(0, pageCount(s) - 1), s.homePageCount)
+            page
+        }
     }
 }

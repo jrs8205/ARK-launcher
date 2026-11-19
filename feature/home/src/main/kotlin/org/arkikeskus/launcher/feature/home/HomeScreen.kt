@@ -1070,6 +1070,7 @@ private fun HomeScreenOfProfile(
                 val page = dragController.currentPage.coerceIn(0, uiState.pageCount - 1)
                 fun showInsertedPage(at: Int) = when {
                     at >= 0 -> { pageRequests.tryEmit(at); Unit }
+                    at == PAGE_NOT_SHOWN -> Unit
                     at == PAGE_FAILED -> widgetMessage(R.string.home_options_page_failed)
                     else -> widgetMessage(R.string.home_options_page_limit)
                 }
@@ -1091,6 +1092,7 @@ private fun HomeScreenOfProfile(
                         widgetScope.launch {
                             when (val target = viewModel.removeEmptyPage(page)) {
                                 null -> widgetMessage(R.string.home_options_page_not_empty)
+                                PAGE_NOT_SHOWN -> Unit
                                 PAGE_FAILED -> widgetMessage(R.string.home_options_page_failed)
                                 else -> pageRequests.tryEmit(target)
                             }

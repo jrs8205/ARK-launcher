@@ -33,6 +33,8 @@ class ProfileHomeItemDao(
 
     override suspend fun resolvedProfile(): Long = coroutineContext[HomeProfileScope]?.id ?: active.current()
 
+    override suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = active.whileActiveStays(work)
+
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeAll(): Flow<List<HomeItemEntity>> = active.id.flatMapLatest { rows.observeAll(it) }
 

@@ -81,6 +81,10 @@ const val PEOPLE_MIN_SPAN_X = 2
 /** A page-menu operation's result when storage refused it (the layout is left as it was). */
 internal const val PAGE_FAILED = -2
 
+/** A page operation asked for by a screen whose home profile is not the one that is on any more: nothing was
+ *  done, and there is nothing to say (the screen is about to show the other profile). */
+internal const val PAGE_NOT_SHOWN = -3
+
 /** Something placed at a free cell on a home page — an app shortcut or a folder. */
 sealed interface HomeEntry {
     val page: Int
@@ -644,14 +648,19 @@ class HomeViewModel @Inject constructor(
         insertRows = homeLayoutRepository::insertPage,
         removeRows = homeLayoutRepository::removeEmptyPage,
         save = settingsRepository::setHomePages,
+        inProfile = { shown, work -> homeLayoutRepository.whileProfileIsOn(shown, work) },
     )
+
+    /** The home profile the screen shows: what a page operation it asks for is about. */
+    private fun shownProfile(): Long = uiState.value.homeProfileId
 
     /** Opens an empty page at [at] (0..pageCount); what was there and after moves right. Returns the
      *  new index, -1 at the page limit, or [PAGE_FAILED] when storage refused. */
-    suspend fun insertPage(at: Int): Int = pageOperation { pageOperations.insert(at) } ?: PAGE_FAILED
+    suspend fun insertPage(at: Int): Int =
+        pageOperation { pageOperations.insert(at, shownProfile()) ?: return PAGE_NOT_SHOWN } ?: PAGE_FAILED
 
     /** HOME returns to [page] from now on. */
-    fun setHomePage(page: Int) = viewModelScope.launch { pageOperations.setHome(page) }
+    fun setHomePage(page: Int) = viewModelScope.launch { pageOperations.setHome(page, shownProfile()) }
 
     /** True when the home screen shows nothing on [page]. A row can still be stored there (a
      *  disabled app, a shortcut its app dropped, a widget without a provider); such leftovers are
@@ -661,7 +670,13 @@ class HomeViewModel @Inject constructor(
     /** Removes an empty page, returning its navigation destination, null when rejected (not empty,
      *  the only page), or [PAGE_FAILED] when storage refused. */
     suspend fun removeEmptyPage(page: Int): Int? =
-        pageOperation { pageOperations.remove(page, purge = isPageEmpty(page)) ?: return null } ?: PAGE_FAILED
+        pageOperation {
+            // [isPageEmpty] is true of the profile the screen shows, and the removal is held to that profile:
+            // asked a moment after a switch, it reached the NEW profile's page with "delete what is left".
+            val shown = shownProfile()
+            if (!homeLayoutRepository.isProfileOn(shown)) return PAGE_NOT_SHOWN
+            pageOperations.remove(page, purge = isPageEmpty(page), profile = shown) ?: return null
+        } ?: PAGE_FAILED
 
     private suspend inline fun pageOperation(block: () -> Int): Int? = try {
         block()

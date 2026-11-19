@@ -13,6 +13,9 @@ interface HomeItemDao {
     /** The home profile the calls made here go to right now. */
     suspend fun resolvedProfile(): Long
 
+    /** Runs [work], told which profile is on, while that profile stays on ([ActiveHomeProfile.whileActiveStays]). */
+    suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T
+
     /** Every row (home items, folders, and folder children) — the ViewModel partitions by container. */
     fun observeAll(): Flow<List<HomeItemEntity>>
 

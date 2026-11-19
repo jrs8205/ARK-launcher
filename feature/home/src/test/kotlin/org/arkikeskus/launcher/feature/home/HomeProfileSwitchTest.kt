@@ -203,4 +203,42 @@ class HomeProfileSwitchTest {
             wiring.close()
         }
     }
+
+    /**
+     * Review round 3. The screen shows the first profile, whose second page is empty, and is asked to remove
+     * it. The profile was switched a moment before (the screen has not heard yet): the other profile's second
+     * page holds a folder of apps. "This page shows nothing, delete what is left on it" was true of the page
+     * the screen showed and reached the other profile's page: its rows were deleted. A page operation is held
+     * to the profile its screen shows; asked of another, it does nothing.
+     */
+    @Test fun aPageRemovedFromTheScreenOfAProfileThatIsNoLongerOnDeletesNothing() = runTest {
+        installAll()
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = wiring.twoProfiles()
+            // Work's second page also holds a plain app, which nothing stops a purge from deleting.
+            wiring.dao.insert(row(notes, cellX = 3).copy(page = 1))
+            // The first profile on screen, with an empty second page of its own.
+            wiring.homeProfiles.switchTo(1)
+            wiring.settingsRepository.settings.first { it.homeProfileId == 1L }
+            wiring.settingsRepository.setHomePages(home = 0, count = 2)
+            val viewModel = wiring.homeViewModel()
+            val seen = statesOf(viewModel)
+            awaitUntil("the first profile's two pages") { seen.last().loaded && seen.last().homeProfileId == 1L && seen.last().pageCount == 2 }
+            assertThat(viewModel.isPageEmpty(1)).isTrue()
+            val workRows = wiring.rowsOfProfile(work).map { it.id }
+
+            // Switched behind the screen: its state is still the first profile's when it asks.
+            wiring.homeProfiles.switchTo(work)
+            assertThat(viewModel.uiState.value.homeProfileId).isEqualTo(1L)
+            val result = viewModel.removeEmptyPage(1)
+
+            assertThat(wiring.rowsOfProfile(work).map { it.id }).containsExactlyElementsIn(workRows)
+            assertThat(wiring.rowsOfProfile(work).map { it.folderName }).contains("Work things")
+            assertThat(result).isEqualTo(PAGE_NOT_SHOWN)
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
 }
