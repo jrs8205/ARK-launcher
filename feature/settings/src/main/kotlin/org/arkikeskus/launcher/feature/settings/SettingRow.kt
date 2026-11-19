@@ -79,6 +79,9 @@ private val MARK_RING = 3.dp
 private val PROFILE_SIGN = 10.dp
 private val PROFILE_SIGN_INSET = 5.dp
 
+/** The lowest the sign's centre sits from the card's top: the middle of a row of one or two lines. */
+private val PROFILE_SIGN_LOWEST = 40.dp
+
 /**
  * One row of Settings as [SettingsIndex] lists it: [content] under the row's [id], so the page and the list can be
  * held against each other. The frame adds nothing to the look, except for a moment after a search result has led
@@ -157,10 +160,12 @@ internal fun SettingRow(id: String, grouped: Boolean = true, content: @Composabl
                 if (ofProfile) {
                     val sign = PROFILE_SIGN.toPx()
                     val inset = PROFILE_SIGN_INSET.toPx()
-                    // A row on its own ends in the gap to the next one; the sign is centred on the card.
+                    // A row on its own ends in the gap to the next one. The sign is centred on the card, and on
+                    // a tall card (a palette, a preview) it stays up by the row's name instead of the card's middle.
                     val card = if (inGroup) size.height else (size.height - 10.dp.toPx()).coerceAtLeast(sign)
+                    val centre = minOf(card / 2f, PROFILE_SIGN_LOWEST.toPx())
                     val left = if (layoutDirection == LayoutDirection.Ltr) inset else size.width - inset - sign
-                    translate(left, (card - sign) / 2f) {
+                    translate(left, centre - sign / 2f) {
                         with(ofProfileSign) { draw(Size(sign, sign), colorFilter = ColorFilter.tint(ofProfileColor)) }
                     }
                 }
