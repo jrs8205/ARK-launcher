@@ -165,7 +165,6 @@ internal fun Modifier.homeDockPadding(bottomSpacing: Dp = 0.dp): Modifier =
  * Home screen: a paged [Workspace] of app shortcuts + the dock. All home gestures (icon drag, swipe
  * up/down, long-press settings, page swipe) live inside [Workspace] so they don't fight each other.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onOpenDrawer: () -> Unit,
@@ -188,6 +187,47 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // The system (and the startup benchmarks) learn when home is really up: its rows loaded.
     HomeDrawnReporter(loaded = uiState.loaded)
+    // One home profile at a time: nothing of a profile that is not on is drawn, and what the screen has
+    // open or remembers does not pass from one profile to the next.
+    val activeProfile by viewModel.activeHomeProfileId.collectAsStateWithLifecycle()
+    HomeOfActiveProfile(active = activeProfile, uiState = uiState) { shown ->
+        HomeScreenOfProfile(
+            uiState = shown,
+            onOpenDrawer = onOpenDrawer,
+            onOpenSettings = onOpenSettings,
+            modifier = modifier,
+            homeSignals = homeSignals,
+            onDrawerDrag = onDrawerDrag,
+            onDrawerSettle = onDrawerSettle,
+            onDrawerCancel = onDrawerCancel,
+            drawerOpen = drawerOpen,
+            dragController = dragController,
+            showWidgetsFor = showWidgetsFor,
+            onShowWidgetsHandled = onShowWidgetsHandled,
+            viewModel = viewModel,
+        )
+    }
+}
+
+/** [HomeScreen] of one home profile, whose state [uiState] is. Everything remembered here is that profile's
+ *  and starts anew with another (see [HomeOfActiveProfile]). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeScreenOfProfile(
+    uiState: HomeUiState,
+    onOpenDrawer: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier,
+    homeSignals: Flow<Boolean>,
+    onDrawerDrag: (Float) -> Unit,
+    onDrawerSettle: (Float) -> Unit,
+    onDrawerCancel: () -> Unit,
+    drawerOpen: Boolean,
+    dragController: HomeDragController,
+    showWidgetsFor: String?,
+    onShowWidgetsHandled: () -> Unit,
+    viewModel: HomeViewModel,
+) {
     val settings = uiState.settings
     // True briefly after a heads-up notification, while the system transiently shows its own status bar
     // over ours; used to blank the themed bar so they don't overlap.

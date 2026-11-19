@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.FolderIconKey
+import org.arkikeskus.launcher.data.HomeFolderIcons
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.HomeProfile
@@ -28,6 +29,7 @@ class SettingsAcrossProfilesTest {
         store.setActive(2)
 
         assertThat(settings.settings.first().homeProfileId).isEqualTo(2L)
+        assertThat(settings.homeProfileId.first()).isEqualTo(2L)
     }
 
     @Test fun eachProfileHasItsOwnLookAndTheSameBehaviour() = runTest {
@@ -125,6 +127,21 @@ class SettingsAcrossProfilesTest {
         assertThat(settings.folderIconsOfEveryProfile()).containsExactly(home, work)
         store.setActive(1)
         assertThat(settings.folderIconsOfEveryProfile()).containsExactly(home, work)
+    }
+
+    @Test fun theFolderIconsSayWhichProfileTheyAreOf() = runTest {
+        val home = CustomIcon.FromFile("home.png")
+        val work = CustomIcon.FromFile("work.png")
+        settings.setFolderIcon(FolderIconKey.home(4), home)
+        assertThat(settings.folderIconsOfProfile.first())
+            .isEqualTo(HomeFolderIcons(HomeProfile.FIRST_ID, mapOf(FolderIconKey.home(4) to home)))
+
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        assertThat(settings.folderIconsOfProfile.first()).isEqualTo(HomeFolderIcons(2, emptyMap()))
+
+        settings.setFolderIcon(FolderIconKey.home(9), work)
+        assertThat(settings.folderIconsOfProfile.first()).isEqualTo(HomeFolderIcons(2, mapOf(FolderIconKey.home(9) to work)))
     }
 
     @Test fun withOneProfileNothingIsDifferent() = runTest {

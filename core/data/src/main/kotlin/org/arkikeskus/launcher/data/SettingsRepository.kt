@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -49,6 +50,9 @@ object FolderIconKey {
 object ShortcutIconKey {
     fun of(packageName: String, shortcutId: String, userSerial: Long) = "$packageName/$shortcutId/$userSerial"
 }
+
+/** The folders' own icons ([FolderIconKey] -> icon) of the home profile [homeProfileId]. */
+data class HomeFolderIcons(val homeProfileId: Long, val icons: Map<String, CustomIcon>)
 
 /**
  * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
@@ -213,6 +217,9 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setPeopleBatchEnabled(value: Boolean) = edit { it[Keys.PEOPLE_BATCH_ENABLED] = value }
+    /** The home profile that is on, as these settings see it: the one whose own values they show. */
+    val homeProfileId: Flow<Long> = dataStore.data.map { ProfiledPreferences.activeId(it) }.distinctUntilChanged()
+
     /** The page HOME returns to and the explicit page count, in one settings snapshot (the page
      *  menu's operations own both; see WorkspacePageOperations). */
     suspend fun setHomePages(home: Int, count: Int) = edit {
@@ -378,6 +385,12 @@ class SettingsRepository @Inject constructor(
 
     /** Icons the user picked for folders ([FolderIconKey] -> icon), shown in place of the preview. */
     val folderIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.FOLDER_ICONS]) }
+
+    /** [folderIcons] with the home profile they are of, both read from the same stored state: a folder's key
+     *  says nothing outside its profile, so whoever shows the icons beside a layout must know whose they are. */
+    val folderIconsOfProfile: Flow<HomeFolderIcons> = dataStore.data
+        .map { p -> HomeFolderIcons(ProfiledPreferences.activeId(p), parseIcons(p[Keys.FOLDER_ICONS])) }
+        .distinctUntilChanged()
 
     /** Sets (or, for null, clears) the icon picked for the folder [key] (see [FolderIconKey]). */
     suspend fun setFolderIcon(key: String, icon: CustomIcon?) = edit { p ->

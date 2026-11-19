@@ -82,7 +82,7 @@ class PinRequestViewModelTest {
                 .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
                 .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
         }
-        settings = SettingsRepository::class.java.constructors.single().newInstance(dataStore) as SettingsRepository
+        settings = SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, null) as SettingsRepository
         store = PinRequestStore(HomeLayoutRepository(db, dao, Resolver), Resolver, dataStoreScope)
     }
 

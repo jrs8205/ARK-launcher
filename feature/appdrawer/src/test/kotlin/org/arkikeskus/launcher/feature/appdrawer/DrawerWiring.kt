@@ -97,7 +97,7 @@ internal class DrawerWiring(
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
             .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
     }
-    val settingsRepository = SettingsRepository::class.java.constructors.single().newInstance(dataStore) as SettingsRepository
+    val settingsRepository = SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, null) as SettingsRepository
     private val appUsageRepository = AppUsageRepository::class.java.constructors.single().newInstance(dataStore) as AppUsageRepository
 
     private val iconPacks = IconPackRepository(context)

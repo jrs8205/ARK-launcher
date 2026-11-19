@@ -89,6 +89,9 @@ interface HomeItemDao {
     /** The pinned shortcuts of a package in EVERY profile: the system keeps one pinned set per package. */
     suspend fun shortcutIdsOfEveryProfile(pkg: String, user: Long): List<String>
 
+    /** The apps with a shortcut pinned on the home screen of ANY profile, followed as the rows change. */
+    fun observeShortcutOwnersOfEveryProfile(): Flow<List<ShortcutOwner>>
+
     suspend fun getAllOfEveryProfile(): List<HomeItemEntity>
 
     /** The home profiles that have a row at all. */

@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.data
 
 import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
@@ -34,6 +35,9 @@ internal data class SweepPlan(val delete: Set<Long>, val remap: Map<Long, String
  *  (rowId → new cell on [page]) that free it. Empty [moved] = the rect was genuinely free. */
 data class PushPlacement(val page: Int, val cellX: Int, val cellY: Int, val moved: Map<Long, Pair<Int, Int>>)
 
+/** The layout rows of one home profile. An empty layout still says whose it is. */
+data class HomeLayout(val profileId: Long, val items: List<HomeItemEntity>)
+
 /** What became of a placement at a cell the user chose ([HomeLayoutRepository.placeAt]). */
 enum class PlaceResult {
     /** Stored at the cell, or at the first free cell when the chosen one was taken. */
@@ -62,6 +66,17 @@ class HomeLayoutRepository @Inject constructor(
     /** All rows (home items, folders, folder children) of the home profile that is on; the ViewModel
      *  partitions by container. */
     val homeItems: Flow<List<HomeItemEntity>> = dao.observeAll()
+
+    /** [homeItems] with the profile they are of: what a screen shows beside that profile's settings. */
+    val homeLayout: Flow<HomeLayout> = dao.observeAllWithProfile().map { (profile, rows) -> HomeLayout(profile, rows) }
+
+    /**
+     * (package, Android user serial) of every shortcut pinned on the home screen of ANY home profile: the
+     * system reports a shortcut change per app, and an app pinned only in a profile that is not showing
+     * must be acted on as well ([removeMissingShortcuts] works in every profile).
+     */
+    val shortcutOwners: Flow<Set<Pair<String, Long>>> = dao.observeShortcutOwnersOfEveryProfile()
+        .map { owners -> owners.mapTo(HashSet()) { it.packageName to it.userSerial } }
 
     /**
      * One layout operation: one transaction in ONE home profile. The profile is read once, before the work

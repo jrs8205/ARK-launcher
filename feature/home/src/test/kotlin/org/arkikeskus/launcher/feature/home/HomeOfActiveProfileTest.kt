@@ -1,0 +1,164 @@
+package org.arkikeskus.launcher.feature.home
+
+import android.app.Application
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emptyFlow
+import org.arkikeskus.launcher.ui.HomeDragController
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/**
+ * What the home screen draws around a switch of the home profile: nothing of the profile that left, and
+ * nothing it had open or remembered of it. The state the screen holds and the news of the switch arrive
+ * apart, in either order, and the state can be an old one kept from before the screen was last shown.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "en")
+class HomeOfActiveProfileTest {
+    @get:Rule val compose = createComposeRule()
+
+    private fun loaded(profile: Long) = HomeUiState(loaded = true, homeProfileId = profile)
+
+    private val active = mutableStateOf<Long?>(1L)
+    private val state = mutableStateOf(loaded(1))
+
+    /** A home screen with something that can be opened, as a folder is. */
+    private fun show() = compose.setContent {
+        HomeOfActiveProfile(active = active.value, uiState = state.value) { shown ->
+            var open by remember { mutableStateOf(false) }
+            Column {
+                Text(if (shown.loaded) "home of ${shown.homeProfileId}" else "placeholder")
+                Text(if (open) "folder open" else "folder closed", Modifier.clickable { open = true })
+            }
+        }
+    }
+
+    @Test fun whatIsOpenDoesNotSurviveASwitch() {
+        show()
+        compose.onNodeWithText("folder closed").performClick()
+        compose.onNodeWithText("folder open").assertIsDisplayed()
+
+        active.value = 2
+        state.value = loaded(2)
+
+        compose.onNodeWithText("home of 2").assertIsDisplayed()
+        compose.onNodeWithText("folder closed").assertIsDisplayed()
+    }
+
+    @Test fun whatIsOpenStaysThroughAChangeInsideTheProfile() {
+        show()
+        compose.onNodeWithText("folder closed").performClick()
+
+        state.value = loaded(1).copy(pageCount = 3)
+
+        compose.onNodeWithText("folder open").assertIsDisplayed()
+    }
+
+    @Test fun aStateOfTheProfileThatLeftIsNotDrawn() {
+        show()
+
+        // The switch is known, and the state is still the one of the profile that left: an old state kept
+        // from before the screen went behind Settings, or one the new rows have not reached yet.
+        active.value = 2
+
+        compose.onNodeWithText("home of 1").assertDoesNotExist()
+        state.value = loaded(2)
+        compose.onNodeWithText("home of 2").assertIsDisplayed()
+    }
+
+    @Test fun aStateThatIsAheadOfTheNewsOfTheSwitchIsNotDrawn() {
+        show()
+
+        state.value = loaded(2)
+
+        compose.onNodeWithText("home of 2").assertDoesNotExist()
+        compose.onNodeWithText("home of 1").assertDoesNotExist()
+        active.value = 2
+        compose.onNodeWithText("home of 2").assertIsDisplayed()
+    }
+
+    @Test fun aStartKeepsWhatItHasWhenTheLayoutArrives() {
+        // A start with the second profile on: first nothing is known, then which profile, then its layout.
+        active.value = null
+        state.value = HomeUiState()
+        show()
+        compose.onNodeWithText("placeholder").assertIsDisplayed()
+
+        active.value = 2
+        compose.onNodeWithText("placeholder").assertIsDisplayed()
+        compose.onNodeWithText("folder closed").performClick()
+        state.value = loaded(2)
+
+        compose.onNodeWithText("home of 2").assertIsDisplayed()
+        compose.onNodeWithText("folder open").assertIsDisplayed()
+    }
+
+    @Test fun aSwitchLandsOnTheNewProfilesStartPage() {
+        val drag = HomeDragController()
+        val pageRequests = MutableSharedFlow<Int>(extraBufferCapacity = 1)
+        state.value = loaded(1).copy(pageCount = 4, homePage = 0)
+        compose.setContent {
+            HomeOfActiveProfile(active = active.value, uiState = state.value) { shown ->
+                Workspace(
+                    pageCount = shown.pageCount,
+                    columns = 4,
+                    rows = 6,
+                    entries = emptyList(),
+                    badges = emptyMap(),
+                    badgeShowCount = false,
+                    badgeScale = 1f,
+                    showLabels = true,
+                    showPageIndicator = true,
+                    locked = false,
+                    homeSignals = emptyFlow(),
+                    homePage = shown.homePage,
+                    pageRequests = pageRequests,
+                    dragController = drag,
+                    widgetDragController = remember { WidgetDragController(drag) },
+                    onAddWidget = { _, _ -> },
+                    onAppClick = {},
+                    onAppMenu = { _, _, _ -> },
+                    onMove = { _, _, _, _ -> true },
+                    onMoveFolder = { _, _, _, _ -> true },
+                    onDropOnDock = { _, _ -> },
+                    onRemoveFromHome = {},
+                    onOpenFolder = { _, _ -> },
+                    onLaunchShortcut = {},
+                    onRemoveShortcut = {},
+                    onCreateFolder = { _, _ -> },
+                    onAddToFolder = { _, _ -> },
+                    onEmptyAreaMenu = { _, _ -> },
+                    modifier = Modifier.size(300.dp, 500.dp),
+                )
+            }
+        }
+        // The user is on the fourth page of the first profile.
+        compose.runOnIdle { pageRequests.tryEmit(3) }
+        compose.waitForIdle()
+        assertThat(drag.currentPage).isEqualTo(3)
+
+        active.value = 2
+        state.value = loaded(2).copy(pageCount = 4, homePage = 1)
+        compose.waitForIdle()
+
+        assertThat(drag.currentPage).isEqualTo(1)
+    }
+}

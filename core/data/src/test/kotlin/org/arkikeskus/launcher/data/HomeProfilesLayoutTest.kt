@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.data
 
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
@@ -224,5 +225,31 @@ class HomeProfilesLayoutTest {
         assertThat(repo.boundWidgetIds()).isEmpty()
         assertThat(repo.homeShortcutIds("com.chat", 0)).containsExactly("new")
         assertThat(repo.homeShortcutIds("com.maps", 0)).isEmpty()
+    }
+
+    @Test fun theLayoutNamesItsProfileEvenWhenItIsEmpty() = runTest {
+        dao.insert(app("com.mail", 0))
+
+        assertThat(repo.homeLayout.first().profileId).isEqualTo(1L)
+        assertThat(repo.homeLayout.first().items.map { it.packageName }).containsExactly("com.mail")
+
+        active.state.value = 2
+        assertThat(repo.homeLayout.first()).isEqualTo(HomeLayout(profileId = 2, items = emptyList()))
+    }
+
+    @Test fun theAppsWithPinnedShortcutsAreThoseOfEveryProfile() = runTest {
+        dao.insert(shortcut("com.chat", "new", cellX = 1))
+        inHomeProfile(2) {
+            dao.insert(shortcut("com.chat", "group", cellX = 1))
+            dao.insert(shortcut("com.maps", "home", cellX = 2))
+            // Not a shortcut: an app icon pins nothing.
+            dao.insert(app("com.work", 0))
+        }
+
+        // A shortcut event of an app pinned only in a profile that is not showing must still be acted on.
+        assertThat(repo.shortcutOwners.first()).containsExactly("com.chat" to 0L, "com.maps" to 0L)
+
+        repo.deleteProfile(2)
+        assertThat(repo.shortcutOwners.first()).containsExactly("com.chat" to 0L)
     }
 }

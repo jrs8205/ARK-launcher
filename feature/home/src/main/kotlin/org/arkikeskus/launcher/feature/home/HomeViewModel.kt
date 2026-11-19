@@ -39,8 +39,10 @@ import org.arkikeskus.launcher.data.PlaceResult
 import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.data.profile.homeProfileContent
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.AppShortcuts
@@ -208,6 +210,8 @@ data class HomeUiState(
     val apps: List<AppItem> = emptyList(),
     /** False for the placeholder shown before settings and the layout have been read. */
     val loaded: Boolean = false,
+    /** The home profile everything above is of: the settings, the rows and the folders' icons alike. */
+    val homeProfileId: Long = HomeProfile.FIRST_ID,
 )
 
 /** The apps the editor's "Add apps" list offers for [folder]: every app it does not hold yet, by name. */
@@ -248,11 +252,10 @@ class HomeViewModel @Inject constructor(
     /** Resolved pinned shortcuts: filled from the uiState combine, invalidated by the collectors in init. */
     private val shortcutCache = PinnedShortcutCache()
 
-    /** (package, profile serial) of every shortcut pinned on home, for skipping irrelevant shortcut events. */
-    private val pinnedShortcutOwners: StateFlow<Set<Pair<String, Long>>> = homeLayoutRepository.homeItems
-        .map { items ->
-            items.filter { it.containerId == HomeItemEntity.HOME && it.isShortcut }.mapTo(HashSet()) { it.packageName to it.userSerial }
-        }
+    /** (package, profile serial) of every shortcut pinned on home, for skipping irrelevant shortcut events:
+     *  in EVERY home profile, since the clean-up an event leads to reaches every profile too, and a profile
+     *  that is not showing would otherwise keep the row of a shortcut its app took away. */
+    private val pinnedShortcutOwners: StateFlow<Set<Pair<String, Long>>> = homeLayoutRepository.shortcutOwners
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     init {
@@ -382,16 +385,28 @@ class HomeViewModel @Inject constructor(
     val headsUpActive: StateFlow<Boolean> = notificationBadgeRepository.headsUpActive
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), false)
 
+    /**
+     * The home profile that is on; null until it has been read. Followed from the start and for as long as
+     * this lives, also while nobody watches [uiState]: [uiState] stops following when the screen is not
+     * shown and then stays as it last was, so after a switch made elsewhere (the launcher's Settings) the
+     * screen can tell by this that the state it still holds is of the profile that left.
+     */
+    val activeHomeProfileId: StateFlow<Long?> = settingsRepository.homeProfileId
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     val uiState: StateFlow<HomeUiState> = combine(
-        settingsRepository.settings,
-        appRepository.apps,
+        // The settings, the rows and the folders' icons of ONE home profile: around a switch the three are
+        // for a moment of two profiles, and such a combination never gets here ([homeProfileContent]).
         // A new cache generation re-runs this with the same rows, re-resolving what was invalidated.
-        homeLayoutRepository.homeItems.combine(shortcutCache.generation) { items, _ -> items }
-            .combine(settingsRepository.folderIcons) { items, icons -> items to icons }
-            .combine(settingsRepository.shortcutIcons) { (items, folderIcons), shortcutIcons -> Triple(items, folderIcons, shortcutIcons) },
+        homeProfileContent(settingsRepository, homeLayoutRepository).combine(shortcutCache.generation) { content, _ -> content },
+        appRepository.apps,
+        settingsRepository.shortcutIcons,
         notificationBadgeRepository.badges,
         settingsRepository.swipeUpApps.combine(settingsRepository.swipeDownApps) { up, down -> up to down },
-    ) { settings, apps, (homeItems, folderIcons, shortcutIcons), badges, (swipeUpApps, swipeDownApps) ->
+    ) { content, apps, shortcutIcons, badges, (swipeUpApps, swipeDownApps) ->
+        val settings = content.settings
+        val homeItems = content.layout.items
+        val folderIcons = content.folderIcons
         val byKey = apps.associateBy { it.key }
         // Children grouped by their folder id, kept in stored order.
         val childrenByFolder = homeItems
@@ -513,6 +528,7 @@ class HomeViewModel @Inject constructor(
             swipeUpTargets = resolveSwipeUpTargets(swipeUpApps, byKey),
             swipeDownTargets = resolveSwipeUpTargets(swipeDownApps, byKey),
             loaded = true,
+            homeProfileId = content.homeProfileId,
         )
     }.stateIn(
         scope = viewModelScope,

@@ -11,6 +11,7 @@ import android.content.pm.ShortcutInfo
 import android.os.Looper
 import android.os.Process
 import android.os.UserHandle
+import android.os.UserManager
 import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,14 @@ import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.LauncherDatabase
+import org.arkikeskus.launcher.data.local.inHomeProfile
+import org.robolectric.shadows.ShadowLauncherApps
+import org.robolectric.shadows.ShadowUserManager
+import org.arkikeskus.launcher.data.DrawerWallpaperStore
+import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
+import org.arkikeskus.launcher.data.profile.DiskHomeProfileFiles
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
+import org.arkikeskus.launcher.data.profile.HomeProfileStore
 import org.arkikeskus.launcher.launcher.system.SignalMonitor
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.util.ReflectionHelpers
@@ -64,16 +73,28 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         .invoke(null, context, LauncherDatabase::class.java)
         .let { builder -> builder.javaClass.getMethod("allowMainThreadQueries").invoke(builder) }
         .let { builder -> builder.javaClass.getMethod("build").invoke(builder) as LauncherDatabase }
-    val dao = LauncherDatabase::class.java.getMethod("homeItemDao").invoke(db) as HomeItemDao
 
-    private val dataStore: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
+    /** The settings file itself. Everything but the profile list reads and writes it through [dataStore]. */
+    private val settingsFile: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
         val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
         val produceFile: () -> File = { file }
         factory.methods
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
             .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
     }
-    val settingsRepository = SettingsRepository::class.java.constructors.single().newInstance(dataStore) as SettingsRepository
+    private val profileFiles = DiskHomeProfileFiles(context, dataStoreScope)
+
+    /** The settings as the launcher sees them: what the home profiles share, with the own values of the one
+     *  that is on. With one profile this is the settings file itself. */
+    private val dataStore: Any = Class.forName("org.arkikeskus.launcher.data.profile.ProfiledPreferences")
+        .constructors.single().newInstance(settingsFile, profileFiles)
+    private val profileStore =
+        HomeProfileStore::class.java.constructors.single().newInstance(settingsFile, dataStore, profileFiles) as HomeProfileStore
+
+    /** The rows of the home profile that is on. */
+    val dao = LauncherDatabase::class.java.getMethod("homeItemDao", ActiveHomeProfile::class.java).invoke(db, profileStore) as HomeItemDao
+    val settingsRepository =
+        SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, dataStore) as SettingsRepository
     private val appUsageRepository = AppUsageRepository::class.java.constructors.single().newInstance(dataStore) as AppUsageRepository
 
     /** The image loader is only used for icons; its type (Coil) is what keeps this reflective. */
@@ -103,6 +124,7 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         PrivateSpaceRepository(noProfiles, workProfileRepository, source, settingsRepository, appScope), appScope,
     )
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
+    val homeProfiles = HomeProfileRepository(profileStore, homeLayoutRepository, settingsRepository, source, DrawerWallpaperStore(context))
 
     suspend fun pinOnHome(shortcutId: String): Long = dao.insert(
         HomeItemEntity(packageName = context.packageName, shortcutId = shortcutId, page = 0, cellX = 0, cellY = 0),
@@ -129,6 +151,27 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         shadowOf(context.getSystemService(LauncherApps::class.java)).addDynamicShortcut(info)
         shadowOf(Looper.getMainLooper()).idle()
     }
+
+    /** The launcher is the home app (it may ask which shortcuts exist), the user is unlocked and the test
+     *  app is enabled: only then can a pinned shortcut be told to be gone (the check keeps a row it cannot judge). */
+    fun allowShortcutQueries() {
+        val launcherApps = shadowOf(context.getSystemService(LauncherApps::class.java))
+        launcherApps.setHasShortcutHostPermission(true)
+        launcherApps.addEnabledPackage(Process.myUserHandle(), context.packageName)
+        shadowOf(context.getSystemService(UserManager::class.java))
+            .setUserState(Process.myUserHandle(), ShadowUserManager.UserState.STATE_RUNNING_UNLOCKED)
+    }
+
+    /** The test app takes the shortcut [shortcutId] away for good, and the system tells of a change in the
+     *  app's shortcuts (here by a new one appearing), as it does for any change. */
+    fun withdrawShortcut(shortcutId: String) {
+        ReflectionHelpers.getStaticField<MutableList<ShortcutInfo>>(ShadowLauncherApps::class.java, "shortcuts")
+            .removeAll { it.id == shortcutId }
+        publishShortcut("after-$shortcutId")
+    }
+
+    /** The rows of the home profile [profileId], whichever profile is on. */
+    suspend fun rowsOfProfile(profileId: Long): List<HomeItemEntity> = inHomeProfile(profileId) { dao.getAll() }
 
     /** Creates the ViewModel on the main thread with the first-run work already done, as on
      *  every launch after the first. */

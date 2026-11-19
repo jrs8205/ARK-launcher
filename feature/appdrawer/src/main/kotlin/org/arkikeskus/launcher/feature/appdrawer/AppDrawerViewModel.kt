@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.data.profile.homeProfileContent
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
@@ -209,9 +210,13 @@ class AppDrawerViewModel @Inject constructor(
     private val kept: StateFlow<AppDrawerUiState> = combine(
         appRepository.apps,
         query,
-        settingsRepository.settings,
-        homeLayoutRepository.homeItems,
-    ) { apps, q, settings, homeItems ->
+        // The settings and the home rows of ONE home profile: around a switch the two are for a moment of
+        // two profiles, and such a combination never gets here (the dock's columns of one profile against
+        // the dock rows of another).
+        homeProfileContent(settingsRepository, homeLayoutRepository),
+    ) { apps, q, content ->
+        val settings = content.settings
+        val homeItems = content.layout.items
         // Dock rows whose app was uninstalled don't render in the dock (HomeViewModel drops them),
         // so they must not count toward its visible capacity either; a dock folder always does.
         val installed = apps.mapTo(HashSet()) { it.key }

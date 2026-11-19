@@ -103,6 +103,8 @@ class ProfileHomeItemDao(
 
     override suspend fun shortcutIdsOfEveryProfile(pkg: String, user: Long) = rows.shortcutIdsOfEveryProfile(pkg, user)
 
+    override fun observeShortcutOwnersOfEveryProfile() = rows.observeShortcutOwnersOfEveryProfile()
+
     override suspend fun getAllOfEveryProfile() = rows.getAllOfEveryProfile()
 
     override suspend fun profileIds() = rows.profileIds()

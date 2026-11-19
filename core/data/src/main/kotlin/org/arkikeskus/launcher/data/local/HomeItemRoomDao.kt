@@ -6,6 +6,9 @@ import androidx.room.Query
 import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
+/** An app, in one Android user, that has a shortcut pinned on a home screen. */
+data class ShortcutOwner(val packageName: String, val userSerial: Long)
+
 /**
  * The home layout table as Room reads it: every statement names the home profile it works in, by row id
  * too, so nothing done in one profile can reach a row of another. The layout's code does not use this
@@ -132,6 +135,13 @@ interface HomeItemRoomDao {
             "AND packageName = :pkg AND userSerial = :user",
     )
     suspend fun shortcutIdsOfEveryProfile(pkg: String, user: Long): List<String>
+
+    /** Who has a shortcut pinned on the home screen of ANY profile, followed as the rows change. */
+    @Query(
+        "SELECT DISTINCT packageName, userSerial FROM home_items " +
+            "WHERE containerId = ${HomeItemEntity.HOME} AND shortcutId IS NOT NULL",
+    )
+    fun observeShortcutOwnersOfEveryProfile(): Flow<List<ShortcutOwner>>
 
     @Query("SELECT * FROM home_items")
     suspend fun getAllOfEveryProfile(): List<HomeItemEntity>
