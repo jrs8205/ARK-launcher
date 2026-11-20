@@ -44,6 +44,7 @@ import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.search.SearchAggregator
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.folderStyle
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.SearchResult
@@ -94,6 +95,8 @@ data class AppDrawerUiState(
     val selectedTab: DrawerTab = DrawerTab.Personal,
     val query: String = "",
     val columns: Int = 4,
+    /** The home profile this state is of: what the drawer asks of the home layout is asked for this one. */
+    val homeProfileId: Long = org.arkikeskus.launcher.model.HomeProfile.FIRST_ID,
     val dockKeys: Set<String> = emptySet(),
     /** Folders in the dock: slots taken like [dockKeys]' apps. */
     val dockFolders: Int = 0,
@@ -225,6 +228,7 @@ class AppDrawerViewModel @Inject constructor(
             apps = apps,
             query = q,
             columns = settings.drawerColumns,
+            homeProfileId = settings.homeProfileId,
             dockKeys = dockRows.filter { it.isApp && it.key in installed }.mapTo(LinkedHashSet()) { it.key },
             dockFolders = dockRows.count { it.isFolder },
             dockColumns = settings.dockColumns,
@@ -507,9 +511,20 @@ class AppDrawerViewModel @Inject constructor(
 
     fun removeFromDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
 
-    fun addToHome(appItem: AppItem) = viewModelScope.launch {
-        val s = settingsRepository.settings.first()
-        if (!homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows)) notify(HomeNotice.HomeFull)
+    /**
+     * What the drawer, drawn from the state of the home profile [profile], asks to be ADDED to its layout. [work] is given that
+     * profile's settings (its grid) and runs while the profile is on and stays on; with another profile on it does
+     * not run, and null is returned. The screen hands [profile] over from the state it was drawn from: the grid
+     * used to be read from the settings and the row stored in a transaction that read the profile again, so a
+     * switch between the two stored the row in the other profile, at a cell counted for the first one's columns.
+     */
+    private suspend fun <T> onHomeOf(profile: Long, work: suspend (LauncherSettings) -> T): T? =
+        homeLayoutRepository.whileProfileIsOn(profile) { work(settingsRepository.settings.first()) }
+
+    /** Puts [appItem] at the first free cell of the home profile [profile] ([onHomeOf]). */
+    fun addToHome(appItem: AppItem, profile: Long) = viewModelScope.launch {
+        val added = onHomeOf(profile) { s -> homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows) }
+        if (added == false) notify(HomeNotice.HomeFull)
     }
 
     /** Drag-and-drop from the drawer onto a specific home cell: a free cell takes the icon, an app
@@ -549,23 +564,21 @@ class AppDrawerViewModel @Inject constructor(
 
     fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
 
-    /** Stores a pinned shortcut on home; false when every page the pager shows is full. */
-    private suspend fun storePinnedShortcut(packageName: String, shortcutId: String, userSerial: Long): Boolean {
-        val s = settingsRepository.settings.first()
-        return homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
-    }
-
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell).
      *  When home has no room for it the system pin is released again — re-pinned to the ids home
-     *  shows — so the system never holds a shortcut home cannot show. */
-    fun pinShortcut(item: org.arkikeskus.launcher.ui.AppShortcuts.Item) = viewModelScope.launch {
-        ShortcutPinLock.withLock {
-            if (!org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)) return@withLock
-            if (!storePinnedShortcut(item.packageName, item.id, item.userSerial)) {
-                val remaining = homeLayoutRepository.homeShortcutIds(item.packageName, item.userSerial)
-                org.arkikeskus.launcher.ui.AppShortcuts.setPinned(context, item.packageName, item.userSerial, remaining)
-                notify(HomeNotice.HomeFull)
+     *  shows — so the system never holds a shortcut home cannot show. For the home profile [profile],
+     *  the one the drawer's state was of when the pin was offered ([onHomeOf]). */
+    fun pinShortcut(item: org.arkikeskus.launcher.ui.AppShortcuts.Item, profile: Long) = viewModelScope.launch {
+        // The profile's hold first, then the pin lock: the order every holder of both keeps.
+        onHomeOf(profile) { s ->
+            ShortcutPinLock.withLock {
+                if (!org.arkikeskus.launcher.ui.AppShortcuts.pin(context, item)) return@withLock
+                if (!homeLayoutRepository.addShortcut(item.packageName, item.id, item.userSerial, s.homeColumns, s.homeRows)) {
+                    val remaining = homeLayoutRepository.homeShortcutIds(item.packageName, item.userSerial)
+                    org.arkikeskus.launcher.ui.AppShortcuts.setPinned(context, item.packageName, item.userSerial, remaining)
+                    notify(HomeNotice.HomeFull)
+                }
             }
         }
     }

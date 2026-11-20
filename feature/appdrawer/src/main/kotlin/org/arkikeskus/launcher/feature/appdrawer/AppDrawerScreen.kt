@@ -412,7 +412,7 @@ fun AppDrawerScreen(
                     stringResource(if (inHome) R.string.remove_from_home else R.string.add_to_home),
                     if (inHome) LauncherIcons.Close else LauncherIcons.Add,
                 ) {
-                    if (inHome) viewModel.removeFromHome(app) else viewModel.addToHome(app)
+                    if (inHome) viewModel.removeFromHome(app) else viewModel.addToHome(app, uiState.homeProfileId)
                 },
                 // Offer "Remove from dock" for a member, "Add to dock" only when a visible slot is
                 // free; a full dock hides the add action instead of appearing to do nothing.
@@ -433,7 +433,7 @@ fun AppDrawerScreen(
                 },
             ),
             onDismiss = { menuTarget = null },
-            onPinShortcut = { item -> viewModel.pinShortcut(item) },
+            onPinShortcut = { item -> viewModel.pinShortcut(item, uiState.homeProfileId) },
             onWidgets = if (uiState.desktopLocked) null else onShowWidgets?.let { { it(app) } },
             // Opened at the lift, under the still-held finger (issue #12).
             held = dragController.isDragging,

@@ -574,11 +574,15 @@ class HomeViewModel @Inject constructor(
         context, shortcut.packageName, shortcut.shortcutId, shortcut.userSerial, shortcut.enabled, shortcut.disabledMessage,
     )
 
-    /** Stores a pinned shortcut on home; false when every page the pager shows is full. */
-    private suspend fun storePinnedShortcut(packageName: String, shortcutId: String, userSerial: Long): Boolean {
-        val s = settingsRepository.settings.first()
-        return homeLayoutRepository.addShortcut(packageName, shortcutId, userSerial, s.homeColumns, s.homeRows)
-    }
+    /**
+     * What the screen of the home profile [profile] asks to be ADDED to its layout. [work] is given that
+     * profile's settings (its grid) and runs while the profile is on and stays on; with another profile on it does
+     * not run, and null is returned. The screen hands [profile] over from the state it was drawn from: the grid
+     * used to be read from the settings and the row stored in a transaction that read the profile again, so a
+     * switch between the two stored the row in the other profile, at a cell counted for the first one's columns.
+     */
+    private suspend fun <T> onHomeOf(profile: Long, work: suspend (LauncherSettings) -> T): T? =
+        homeLayoutRepository.whileProfileIsOn(profile) { work(settingsRepository.settings.first()) }
 
     /** Removes a folder together with its apps — offered only for a folder that shows no apps (all
      *  of them disabled or gone), which could otherwise never leave its cell. */
@@ -615,14 +619,18 @@ class HomeViewModel @Inject constructor(
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell).
      *  When home has no room for it the system pin is released again — re-pinned to the ids home
-     *  shows, as [removeShortcut] does — so the system never holds a shortcut home cannot show. */
-    fun pinShortcut(item: AppShortcuts.Item) = viewModelScope.launch {
-        ShortcutPinLock.withLock {
-            if (!AppShortcuts.pin(context, item)) return@withLock
-            if (!storePinnedShortcut(item.packageName, item.id, item.userSerial)) {
-                val remaining = homeLayoutRepository.homeShortcutIds(item.packageName, item.userSerial)
-                AppShortcuts.setPinned(context, item.packageName, item.userSerial, remaining)
-                notify(HomeNotice.HomeFull)
+     *  shows, as [removeShortcut] does — so the system never holds a shortcut home cannot show. For the
+     *  home profile [profile], the one whose screen offered the pin ([onHomeOf]). */
+    fun pinShortcut(item: AppShortcuts.Item, profile: Long) = viewModelScope.launch {
+        // The profile's hold first, then the pin lock: the order every holder of both keeps.
+        onHomeOf(profile) { s ->
+            ShortcutPinLock.withLock {
+                if (!AppShortcuts.pin(context, item)) return@withLock
+                if (!homeLayoutRepository.addShortcut(item.packageName, item.id, item.userSerial, s.homeColumns, s.homeRows)) {
+                    val remaining = homeLayoutRepository.homeShortcutIds(item.packageName, item.userSerial)
+                    AppShortcuts.setPinned(context, item.packageName, item.userSerial, remaining)
+                    notify(HomeNotice.HomeFull)
+                }
             }
         }
     }
@@ -651,16 +659,21 @@ class HomeViewModel @Inject constructor(
         inProfile = { shown, work -> homeLayoutRepository.whileProfileIsOn(shown, work) },
     )
 
-    /** The home profile the screen shows: what a page operation it asks for is about. */
-    private fun shownProfile(): Long = uiState.value.homeProfileId
+    /*
+     * A page operation is for the home profile [profile]: the one the MENU it was chosen from showed, handed
+     * over by the screen with the page. Not the one this view model's state shows when the handler runs: the
+     * state can already be the next profile's while the menu on screen is still the last one's, and the
+     * page of the same number in the next profile would be the one opened, removed or made the home page.
+     */
 
     /** Opens an empty page at [at] (0..pageCount); what was there and after moves right. Returns the
-     *  new index, -1 at the page limit, or [PAGE_FAILED] when storage refused. */
-    suspend fun insertPage(at: Int): Int =
-        pageOperation { pageOperations.insert(at, shownProfile()) ?: return PAGE_NOT_SHOWN } ?: PAGE_FAILED
+     *  new index, -1 at the page limit, [PAGE_NOT_SHOWN] when [profile] is not on, or [PAGE_FAILED] when
+     *  storage refused. */
+    suspend fun insertPage(at: Int, profile: Long): Int =
+        pageOperation { pageOperations.insert(at, profile) ?: return PAGE_NOT_SHOWN } ?: PAGE_FAILED
 
     /** HOME returns to [page] from now on. */
-    fun setHomePage(page: Int) = viewModelScope.launch { pageOperations.setHome(page, shownProfile()) }
+    fun setHomePage(page: Int, profile: Long) = viewModelScope.launch { pageOperations.setHome(page, profile) }
 
     /** True when the home screen shows nothing on [page]. A row can still be stored there (a
      *  disabled app, a shortcut its app dropped, a widget without a provider); such leftovers are
@@ -669,13 +682,14 @@ class HomeViewModel @Inject constructor(
 
     /** Removes an empty page, returning its navigation destination, null when rejected (not empty,
      *  the only page), or [PAGE_FAILED] when storage refused. */
-    suspend fun removeEmptyPage(page: Int): Int? =
+    suspend fun removeEmptyPage(page: Int, profile: Long): Int? =
         pageOperation {
-            // [isPageEmpty] is true of the profile the screen shows, and the removal is held to that profile:
-            // asked a moment after a switch, it reached the NEW profile's page with "delete what is left".
-            val shown = shownProfile()
-            if (!homeLayoutRepository.isProfileOn(shown)) return PAGE_NOT_SHOWN
-            pageOperations.remove(page, purge = isPageEmpty(page), profile = shown) ?: return null
+            // "This page shows nothing, delete what is left on it" is judged from this state, so the state
+            // must be [profile]'s, and the removal is held to that profile: asked a moment after a switch, it
+            // reached the NEW profile's page.
+            val state = uiState.value
+            if (state.homeProfileId != profile || !homeLayoutRepository.isProfileOn(profile)) return PAGE_NOT_SHOWN
+            pageOperations.remove(page, purge = state.entries.none { it.page == page }, profile = profile) ?: return null
         } ?: PAGE_FAILED
 
     private suspend inline fun pageOperation(block: () -> Int): Int? = try {
@@ -751,9 +765,10 @@ class HomeViewModel @Inject constructor(
     suspend fun moveDockFolderToHome(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
         homeLayoutRepository.moveDockFolderToHome(folderId, page, cellX, cellY)
 
-    fun addToHome(appItem: AppItem) = viewModelScope.launch {
-        val s = settingsRepository.settings.first()
-        if (!homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows)) notify(HomeNotice.HomeFull)
+    /** Puts [appItem] at the first free cell of the home profile [profile] ([onHomeOf]). */
+    fun addToHome(appItem: AppItem, profile: Long) = viewModelScope.launch {
+        val added = onHomeOf(profile) { s -> homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows) }
+        if (added == false) notify(HomeNotice.HomeFull)
     }
 
     /** Queues a notice for the screen; the buffer absorbs a burst while nothing collects yet. */

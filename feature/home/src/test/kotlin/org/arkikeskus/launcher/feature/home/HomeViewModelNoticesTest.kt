@@ -41,7 +41,7 @@ class HomeViewModelNoticesTest {
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
-            viewModel.addToHome(app)
+            viewModel.addToHome(app, profile = 1)
 
             awaitUntil("the notice") { notices.isNotEmpty() }
             assertThat(notices).containsExactly(HomeNotice.HomeFull)
@@ -59,7 +59,7 @@ class HomeViewModelNoticesTest {
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
-            viewModel.addToHome(app)
+            viewModel.addToHome(app, profile = 1)
 
             awaitUntil("the row") { wiring.dao.getByKey(HOME, app.packageName, app.className, app.userSerial) != null }
             assertThat(wiring.dao.getByKey(HOME, app.packageName, app.className, app.userSerial)?.page).isEqualTo(5)

@@ -922,7 +922,7 @@ private fun HomeScreenOfProfile(
                 onAppClick = launchApp,
                 onRenameApp = { renameTarget = it },
                 onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id) },
-                onPinShortcut = { viewModel.pinShortcut(it) },
+                onPinShortcut = { viewModel.pinShortcut(it, uiState.homeProfileId) },
                 onReorder = { app, before -> viewModel.reorderInFolder(openFolder.id, app, before) },
                 onDropOnHome = { app, page, cx, cy -> viewModel.moveOutOfFolder(app, openFolder.id, page, cx, cy, defaultFolderName) },
                 onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Folder) },
@@ -1035,7 +1035,7 @@ private fun HomeScreenOfProfile(
                 if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app)
                 else viewModel.removeFromHome(menu.app)
             },
-            onPinShortcut = { item -> viewModel.pinShortcut(item) },
+            onPinShortcut = { item -> viewModel.pinShortcut(item, uiState.homeProfileId) },
             onWidgets = {
                 widgetPickerPackage = menu.app.packageName
                 showWidgetPicker = true
@@ -1076,21 +1076,21 @@ private fun HomeScreenOfProfile(
                 }
                 if (!settings.desktopLocked) {
                     add(IconMenuItem(R.drawable.ic_page_add_left, stringResource(R.string.home_options_page_left)) {
-                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page)) }
+                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page, uiState.homeProfileId)) }
                     })
                     add(IconMenuItem(R.drawable.ic_page_add_right, stringResource(R.string.home_options_page_right)) {
-                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page + 1)) }
+                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page + 1, uiState.homeProfileId)) }
                     })
                 }
                 if (page != uiState.homePage) {
                     add(IconMenuItem(R.drawable.ic_home_page, stringResource(R.string.home_options_set_home)) {
-                        viewModel.setHomePage(page)
+                        viewModel.setHomePage(page, uiState.homeProfileId)
                     })
                 }
                 if (!settings.desktopLocked && uiState.pageCount > 1 && viewModel.isPageEmpty(page)) {
                     add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.home_options_page_remove)) {
                         widgetScope.launch {
-                            when (val target = viewModel.removeEmptyPage(page)) {
+                            when (val target = viewModel.removeEmptyPage(page, uiState.homeProfileId)) {
                                 null -> widgetMessage(R.string.home_options_page_not_empty)
                                 PAGE_NOT_SHOWN -> Unit
                                 PAGE_FAILED -> widgetMessage(R.string.home_options_page_failed)

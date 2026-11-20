@@ -231,11 +231,115 @@ class HomeProfileSwitchTest {
             // Switched behind the screen: its state is still the first profile's when it asks.
             wiring.homeProfiles.switchTo(work)
             assertThat(viewModel.uiState.value.homeProfileId).isEqualTo(1L)
-            val result = viewModel.removeEmptyPage(1)
+            val result = viewModel.removeEmptyPage(1, profile = 1)
 
             assertThat(wiring.rowsOfProfile(work).map { it.id }).containsExactlyElementsIn(workRows)
             assertThat(wiring.rowsOfProfile(work).map { it.folderName }).contains("Work things")
             assertThat(result).isEqualTo(PAGE_NOT_SHOWN)
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 4. A menu is opened on the screen of one profile; when its handler runs, the view model's state
+     * can already be the other profile's (the screen has not been composed again yet). A page operation is for the
+     * profile the MENU showed, which the screen hands over with the page: asked for a profile that is not on it
+     * does nothing, though the view model's own state says another profile, the one that is on.
+     */
+    @Test fun aPageOperationIsForTheProfileItsMenuShowed() = runTest {
+        installAll()
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = wiring.twoProfiles()
+            // Work, on and on screen, with an empty third page a removal could take.
+            wiring.settingsRepository.setHomePages(home = 1, count = 3)
+            val viewModel = wiring.homeViewModel()
+            val seen = statesOf(viewModel)
+            awaitUntil("Work's three pages") { seen.last().loaded && seen.last().homeProfileId == work && seen.last().pageCount == 3 }
+            assertThat(viewModel.isPageEmpty(2)).isTrue()
+
+            // The menu of the first profile's screen, handled after the state turned to Work.
+            assertThat(viewModel.removeEmptyPage(2, profile = 1)).isEqualTo(PAGE_NOT_SHOWN)
+            assertThat(viewModel.insertPage(0, profile = 1)).isEqualTo(PAGE_NOT_SHOWN)
+            val setHome = viewModel.setHomePage(0, profile = 1)
+            awaitUntil("the home page's answer") { setHome.isCompleted }
+
+            val now = wiring.settingsRepository.settings.first()
+            assertThat(now.homeProfileId).isEqualTo(work)
+            assertThat(now.homePageCount).isEqualTo(3)
+            assertThat(now.homePage).isEqualTo(1)
+            // The same, asked for the profile that is on, goes through.
+            assertThat(viewModel.removeEmptyPage(2, profile = work)).isNotEqualTo(PAGE_NOT_SHOWN)
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * What a profile's screen asks to be added goes to that profile, by that profile's grid, or nowhere: the grid
+     * was read from the settings and the row stored in a transaction that read the profile again, so a switch
+     * between the two stored the row in the other profile at a cell counted for the first one's columns.
+     */
+    @Test fun anAppAddedFromTheScreenOfAProfileThatIsNotOnIsNotAddedToTheOther() = runTest {
+        installAll()
+        installFakeApp(context, "com.cam", "Camera")
+        val camera = app("com.cam", "Camera")
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = wiring.twoProfiles()
+            val viewModel = wiring.homeViewModel()
+            val seen = statesOf(viewModel)
+            awaitUntil("Work on screen") { seen.last().loaded && seen.last().homeProfileId == work }
+            val workRows = wiring.rowsOfProfile(work).map { it.id }
+
+            val refused = viewModel.addToHome(camera, profile = 1)
+            awaitUntil("the first profile's answer") { refused.isCompleted }
+
+            assertThat(wiring.rowsOfProfile(work).map { it.id }).containsExactlyElementsIn(workRows)
+            assertThat(wiring.rowsOfProfile(1).map { it.packageName }).doesNotContain("com.cam")
+            // Asked for the profile that is on, it is added.
+            viewModel.addToHome(camera, profile = work)
+            awaitUntil("the camera on Work's home") { wiring.rowsOfProfile(work).any { it.packageName == "com.cam" } }
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * A shortcut pinned from a profile's screen takes that profile's hold BEFORE it waits for the pin lock, the
+     * order every holder of both keeps. Seen from outside: while the pin waits for the lock, a switch waits too.
+     */
+    @Test fun aPinFromAScreenHoldsItsProfileBeforeItWaitsForThePinLock() = runTest {
+        installAll()
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = wiring.twoProfiles()
+            val viewModel = wiring.homeViewModel()
+            val seen = statesOf(viewModel)
+            awaitUntil("Work on screen") { seen.last().loaded && seen.last().homeProfileId == work }
+            val item = org.arkikeskus.launcher.ui.AppShortcuts.Item("com.mail", "inbox", user, 0L, "Inbox", "Inbox", icon = null)
+
+            var switched: Unit? = Unit
+            val pin = ShortcutPinLock.withLock {
+                val pin = viewModel.pinShortcut(item, profile = work)
+                // Time for the pin to come to the lock this test holds; it holds its profile meanwhile.
+                repeat(100) {
+                    shadowOf(Looper.getMainLooper()).idle()
+                    Thread.sleep(5)
+                }
+                // On the wall clock, off the test's own: a switch that is free to happen takes real file writes.
+                switched = kotlinx.coroutines.withContext(Dispatchers.Default) {
+                    kotlinx.coroutines.withTimeoutOrNull(2_000) { wiring.homeProfiles.switchTo(1) }
+                }
+                pin
+            }
+            awaitUntil("the pin's end") { pin.isCompleted }
+
+            assertThat(switched).isNull()
             wiring.clear(viewModel)
         } finally {
             wiring.close()
