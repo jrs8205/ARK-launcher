@@ -6,6 +6,7 @@ import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -92,7 +93,7 @@ class DrawerWallpaperStoreTest {
             setPixels(IntArray(width * height) { i -> if (i % width in 400 until 1200) Color.BLACK else Color.WHITE }, 0, width, 0, 0, width, height)
         }
         val store = DrawerWallpaperStore(context)
-        store.set(picture)
+        store.set(picture, 1)
         val saved = store.current.value!!
         assertThat(saved.luminance).isWithin(0.05f).of(0.5f)
         assertThat(saved.luminanceFor(9f / 20f)).isLessThan(0.05f)
@@ -108,13 +109,13 @@ class DrawerWallpaperStoreTest {
         val store = DrawerWallpaperStore(context)
         assertThat(store.current.value).isNull()
 
-        store.set(picture(Color.WHITE))
+        store.set(picture(Color.WHITE), 1)
         val first = store.current.value!!
         assertThat(first.file.isFile).isTrue()
         assertThat(first.file.parentFile).isEqualTo(dir)
         assertThat(first.luminance).isWithin(0.01f).of(1f)
 
-        store.set(picture(Color.BLACK))
+        store.set(picture(Color.BLACK), 1)
         val second = store.current.value!!
         assertThat(second.file).isNotEqualTo(first.file) // a new name, so no cache shows the old one
         assertThat(first.file.exists()).isFalse()
@@ -127,10 +128,10 @@ class DrawerWallpaperStoreTest {
 
     @Test fun aClearRemovesThePictureForGood() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.GRAY))
+        store.set(picture(Color.GRAY), 1)
         val file = store.current.value!!.file
 
-        store.clear()
+        store.clear(1)
 
         assertThat(store.current.value).isNull()
         assertThat(file.exists()).isFalse()
@@ -147,12 +148,12 @@ class DrawerWallpaperStoreTest {
     /** The first profile keeps the folder there always was; each further profile has one of its own. */
     @Test fun eachHomeProfileHasItsOwnPicture() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.WHITE))
+        store.set(picture(Color.WHITE), 1)
         val first = store.current.value!!
 
         store.switchTo(2)
         assertThat(store.current.value).isNull()
-        store.set(picture(Color.BLACK))
+        store.set(picture(Color.BLACK), 2)
         val second = store.current.value!!
 
         assertThat(second.luminance).isWithin(0.01f).of(0f)
@@ -166,11 +167,11 @@ class DrawerWallpaperStoreTest {
 
     @Test fun aClearInOneProfileLeavesTheOthersPicture() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.WHITE))
+        store.set(picture(Color.WHITE), 1)
         store.switchTo(2)
-        store.set(picture(Color.BLACK))
+        store.set(picture(Color.BLACK), 2)
 
-        store.clear()
+        store.clear(2)
 
         assertThat(store.current.value).isNull()
         assertThat(jpgsOf(2)).isEmpty()
@@ -181,7 +182,7 @@ class DrawerWallpaperStoreTest {
 
     @Test fun aCopiedProfileGetsACopyOfThePictureAndADeletedOneLosesIt() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.WHITE))
+        store.set(picture(Color.WHITE), 1)
 
         store.copy(from = 1, to = 2)
         // A profile without a picture copies nothing.
@@ -200,11 +201,12 @@ class DrawerWallpaperStoreTest {
         assertThat(store.current.value).isNotNull()
     }
 
-    /** A pick still being saved when the profile changes was for the profile that was on: it lands in neither. */
-    @Test fun aPickOvertakenByAProfileSwitchIsDropped() = runBlocking<Unit> {
+    /** A pick still being saved when the profile changes names the profile it was for: it lands there, and not in
+     *  the one that shows by the time it is saved. */
+    @Test fun aPickOvertakenByAProfileSwitchLandsInItsOwnProfile() = runBlocking<Unit> {
         val io = LastInFirstOutDispatcher()
         val store = DrawerWallpaperStore(context, io)
-        val pick = launch { store.set(picture(Color.WHITE)) }
+        val pick = launch { store.set(picture(Color.WHITE), 1) }
         val switch = launch { store.switchTo(2) }
         yield()
         io.runAll()
@@ -213,7 +215,96 @@ class DrawerWallpaperStoreTest {
 
         assertThat(store.current.value).isNull()
         assertThat(jpgsOf(2)).isEmpty()
-        assertThat(jpgs()).isEmpty()
+        assertThat(jpgs()).hasSize(1)
+    }
+
+    /** The owner's review: a pick is for the home profile the page shows. Settings can ask a moment after a switch,
+     *  before the store has followed it, and the picture must still go to the profile that was named: not to the one
+     *  the store happens to show, and not nowhere. */
+    @Test fun aPickGoesToTheProfileItNamesWhateverTheStoreShows() = runBlocking<Unit> {
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        store.set(picture(Color.WHITE), 1)
+        val first = store.current.value!!
+
+        // Profile 2 is on by now; the store still shows the first.
+        assertThat(store.set(picture(Color.BLACK), 2)).isTrue()
+
+        assertThat(store.current.value).isEqualTo(first)
+        assertThat(jpgs()).containsExactly(first.file)
+        assertThat(jpgsOf(2)).hasSize(1)
+        store.switchTo(2)
+        assertThat(store.current.value!!.file).isEqualTo(jpgsOf(2).single())
+        assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
+    }
+
+    /** The same for a removal, which is the worse of the two: it took the picture of the profile the store showed,
+     *  which the page was no longer about. */
+    @Test fun aRemovalTakesThePictureOfTheProfileItNamesWhateverTheStoreShows() = runBlocking<Unit> {
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        store.set(picture(Color.WHITE), 1)
+        val first = store.current.value!!
+        store.switchTo(2)
+        store.set(picture(Color.BLACK), 2)
+        store.switchTo(1)
+
+        store.clear(2)
+
+        assertThat(store.current.value).isEqualTo(first)
+        assertThat(first.file.exists()).isTrue()
+        assertThat(jpgsOf(2)).isEmpty()
+        store.switchTo(2)
+        assertThat(store.current.value).isNull()
+    }
+
+    /** What shows says whose it is: a page about one profile takes the picture only while it is that profile's, and
+     *  shows none (never another profile's) in the moment before the store has followed a switch. */
+    @Test fun whatShowsSaysWhichProfileItIsOf() = runBlocking<Unit> {
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        store.set(picture(Color.WHITE), 1)
+        val first = store.current.value!!
+
+        assertThat(store.shown.value).isEqualTo(ShownDrawerWallpaper(1, first))
+        assertThat(store.shown.value.of(1)).isEqualTo(first)
+        // The page is already about profile 2; the store still shows the first profile's picture.
+        assertThat(store.shown.value.of(2)).isNull()
+
+        store.switchTo(2)
+        assertThat(store.shown.value).isEqualTo(ShownDrawerWallpaper(2, null))
+        store.set(picture(Color.BLACK), 2)
+        assertThat(store.shown.value.of(2)).isEqualTo(store.current.value)
+        assertThat(store.shown.value.of(1)).isNull()
+        store.clear(2)
+        assertThat(store.shown.value).isEqualTo(ShownDrawerWallpaper(2, null))
+    }
+
+    /** A save under way when the store turns to its profile is not a leftover: only a start sweeps part-files (no
+     *  save can be under way then), in every profile's folder. */
+    @Test fun aPartFileIsSweptAtAStartAndNotWhenTheStoreTurnsToItsProfile() = runBlocking<Unit> {
+        val folder = File(context.filesDir, "drawer_wallpaper_2").apply { mkdirs() }
+        val part = File(folder, "being-written.part").apply { writeBytes(ByteArray(10)) }
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        // The start took it for what a dead process left; this one stands for a save under way now.
+        assertThat(part.exists()).isFalse()
+        part.writeBytes(ByteArray(10))
+
+        store.switchTo(2)
+
+        assertThat(part.exists()).isTrue()
+    }
+
+    /** A profile that is deleted takes a pick on its way there with it: nothing is saved for a profile that is gone. */
+    @Test fun aPickOvertakenByItsProfilesDeletionLandsNowhere() = runBlocking<Unit> {
+        val io = LastInFirstOutDispatcher()
+        val store = DrawerWallpaperStore(context, io)
+        val pick = launch { store.set(picture(Color.WHITE), 2) }
+        val deletion = launch { store.delete(2) }
+        yield()
+        io.runAll()
+        pick.join()
+        deletion.join()
+
+        assertThat(jpgsOf(2)).isEmpty()
+        assertThat(store.current.value).isNull()
     }
 
     /** A save that fails half-way (here: a recycled bitmap, which cannot be encoded) is reported, leaves no half-written
@@ -221,11 +312,11 @@ class DrawerWallpaperStoreTest {
      *  the launcher down. */
     @Test fun aFailedSaveKeepsThePreviousPictureAndSaysSo() = runTest {
         val store = DrawerWallpaperStore(context)
-        assertThat(store.set(picture(Color.WHITE))).isTrue()
+        assertThat(store.set(picture(Color.WHITE), 1)).isTrue()
         val kept = store.current.value!!
         val broken = picture(Color.BLACK).apply { recycle() }
 
-        assertThat(store.set(broken)).isFalse()
+        assertThat(store.set(broken, 1)).isFalse()
 
         assertThat(store.current.value).isEqualTo(kept)
         assertThat(kept.file.exists()).isTrue()
@@ -237,7 +328,7 @@ class DrawerWallpaperStoreTest {
      *  picture's lightness: a shared file (as older builds wrote) counts only for a picture whose name has none. */
     @Test fun theLightnessTravelsWithThePictureItself() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.WHITE))
+        store.set(picture(Color.WHITE), 1)
         val saved = store.current.value!!
         assertThat(saved.luminance).isWithin(0.01f).of(1f)
         File(dir, "luminance.txt").writeText("0.0")
@@ -252,7 +343,7 @@ class DrawerWallpaperStoreTest {
      *  it, and keeps the picture that was published whole. */
     @Test fun aSaveInterruptedBeforeItsPublishIsSweptAtTheNextStart() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.BLACK))
+        store.set(picture(Color.BLACK), 1)
         val published = store.current.value!!
         val leftover = File(dir, "half-written.part").apply { writeBytes(ByteArray(10)) }
         leftover.setLastModified(published.file.lastModified() + 60_000)
@@ -268,8 +359,8 @@ class DrawerWallpaperStoreTest {
     @Test fun aRemovalIssuedAfterAPickWinsEvenWhenThePickFinishesLater() = runBlocking<Unit> {
         val io = StandardTestDispatcher()
         val store = DrawerWallpaperStore(context, io)
-        val pick = launch { store.set(picture(Color.WHITE)) }
-        val removal = launch { store.clear() }
+        val pick = launch { store.set(picture(Color.WHITE), 1) }
+        val removal = launch { store.clear(1) }
         yield() // both have started: the pick came first, the removal after it; neither has saved yet
         io.scheduler.advanceUntilIdle()
         pick.join()
@@ -284,8 +375,8 @@ class DrawerWallpaperStoreTest {
     @Test fun aRemovalOvertakenByALaterPickStandsDown() = runBlocking<Unit> {
         val io = LastInFirstOutDispatcher()
         val store = DrawerWallpaperStore(context, io)
-        val removal = launch { store.clear() }
-        val pick = launch { store.set(picture(Color.BLACK)) }
+        val removal = launch { store.clear(1) }
+        val pick = launch { store.set(picture(Color.BLACK), 1) }
         yield() // the removal took its ticket first, the pick after it
         io.runAll()
         removal.join()
@@ -301,8 +392,8 @@ class DrawerWallpaperStoreTest {
     @Test fun aStalePickLeavesTheAcceptedPicturesLightnessAlone() = runBlocking<Unit> {
         val io = LastInFirstOutDispatcher()
         val store = DrawerWallpaperStore(context, io)
-        val stale = launch { store.set(picture(Color.WHITE)) }
-        val accepted = launch { store.set(picture(Color.BLACK)) }
+        val stale = launch { store.set(picture(Color.WHITE), 1) }
+        val accepted = launch { store.set(picture(Color.BLACK), 1) }
         yield()
         io.runAll() // the later (black) pick saves first, the stale (white) one after it
         stale.join()
@@ -316,7 +407,7 @@ class DrawerWallpaperStoreTest {
      *  next start shows the newest and sweeps the other, so nothing older can come back later. */
     @Test fun aReplacedPictureLeftBehindByACrashIsSweptAtTheNextStart() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.BLACK))
+        store.set(picture(Color.BLACK), 1)
         val published = store.current.value!!
         val leftover = File(dir, "leftover-0.900.jpg").apply { writeBytes(ByteArray(10)) }
         leftover.setLastModified(published.file.lastModified() - 60_000)
@@ -332,11 +423,11 @@ class DrawerWallpaperStoreTest {
      *  must leave nothing for the next start to bring back. */
     @Test fun aRemovalWithTwoPublishedPicturesOnDiskLeavesNothingToComeBack() = runTest {
         val store = DrawerWallpaperStore(context)
-        store.set(picture(Color.BLACK))
+        store.set(picture(Color.BLACK), 1)
         val leftover = File(dir, "leftover-0.900.jpg").apply { writeBytes(ByteArray(10)) }
         leftover.setLastModified(store.current.value!!.file.lastModified() - 60_000)
 
-        store.clear()
+        store.clear(1)
 
         assertThat(store.current.value).isNull()
         assertThat(jpgs()).isEmpty()
@@ -354,8 +445,8 @@ class DrawerWallpaperStoreTest {
     @Test fun theLaterOfTwoPicksWins() = runBlocking<Unit> {
         val io = StandardTestDispatcher()
         val store = DrawerWallpaperStore(context, io)
-        val first = launch { store.set(picture(Color.WHITE)) }
-        val second = launch { store.set(picture(Color.BLACK)) }
+        val first = launch { store.set(picture(Color.WHITE), 1) }
+        val second = launch { store.set(picture(Color.BLACK), 1) }
         yield()
         io.scheduler.advanceUntilIdle()
         first.join()

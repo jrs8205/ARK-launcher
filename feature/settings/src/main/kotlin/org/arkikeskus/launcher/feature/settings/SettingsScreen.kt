@@ -72,7 +72,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
             hiddenKeys = hiddenKeys,
             drawerFolders = drawerFolders,
             iconPacks = iconPacks,
-            drawerWallpaper = drawerWallpaper,
+            // The picture of the profile the page is about, or none: never another profile's ([ShownDrawerWallpaper]).
+            drawerWallpaper = s?.let { drawerWallpaper.of(it.homeProfileId) },
             privateSpaceSeen = privateSpaceSeen,
             homeProfiles = homeProfiles,
         ),

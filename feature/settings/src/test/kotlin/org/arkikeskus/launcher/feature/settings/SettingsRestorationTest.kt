@@ -53,11 +53,11 @@ class SettingsRestorationTest {
         override val activityResultRegistry: ActivityResultRegistry = registry
     }
 
-    private fun show() {
+    private fun show(s: LauncherSettings = LauncherSettings()) {
         tester.setContent {
             CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
                 SettingsContent(
-                    s = LauncherSettings(),
+                    s = s,
                     lists = SettingsLists(),
                     actions = recorded.actions,
                     blurAvailability = BlurAvailability.AVAILABLE,
@@ -119,8 +119,10 @@ class SettingsRestorationTest {
         compose.onNodeWithTag(categoryTag("dock")).assertDoesNotExist()
     }
 
+    /** The pick is asked for the home profile the page shows (here the second): the store behind it follows a
+     *  profile switch a moment late, and must not be the one to say whose picture this is. */
     @Test fun aPickersResultReachesItsRowAfterRecreation() {
-        show()
+        show(LauncherSettings(homeProfileId = 2))
         open(SettingsCategory.DRAWER)
         compose.onNodeWithTag(DRAWER_WALLPAPER_PICK_TAG).performScrollTo().performClick()
         compose.waitForIdle()
@@ -131,6 +133,6 @@ class SettingsRestorationTest {
         val picture = Uri.parse("content://media/picker/0/picture/1")
         compose.runOnUiThread { registry.dispatchResult(launched.single(), picture) }
         compose.waitForIdle()
-        assertThat(recorded.calls).contains("importDrawerWallpaper" to listOf(picture))
+        assertThat(recorded.calls).contains("importDrawerWallpaper" to listOf(picture, 2L))
     }
 }

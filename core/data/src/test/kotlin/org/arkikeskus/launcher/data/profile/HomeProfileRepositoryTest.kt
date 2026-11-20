@@ -392,7 +392,7 @@ class HomeProfileRepositoryTest {
     }
 
     @Test fun aCopyGetsTheDrawersPictureAndADeletedProfilesPictureGoes() = runTest {
-        drawerPictures.set(picture(Color.WHITE))
+        drawerPictures.set(picture(Color.WHITE), 1)
         val original = drawerPictures.current.value!!
         val copy = created("Work", copyCurrent = true)
         val empty = created("Evening", copyCurrent = false)

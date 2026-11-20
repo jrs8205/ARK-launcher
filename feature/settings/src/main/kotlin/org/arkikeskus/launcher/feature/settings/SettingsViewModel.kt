@@ -2,7 +2,7 @@ package org.arkikeskus.launcher.feature.settings
 
 import androidx.lifecycle.ViewModel
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
-import org.arkikeskus.launcher.data.DrawerWallpaper
+import org.arkikeskus.launcher.data.ShownDrawerWallpaper
 import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -62,13 +62,14 @@ internal class SettingsViewModel @Inject constructor(
         initialValue = privateSpace.state.value != null,
     )
 
-    /** The user's own picture behind the app drawer, or null (a Telegram request after 0.9.9). */
-    val drawerWallpaperPicture: StateFlow<DrawerWallpaper?> = drawerWallpaper.current
+    /** The user's own picture behind the app drawer (a Telegram request after 0.9.9), with the home profile it is
+     *  of: the page takes it only while it is the picture of the profile the page is about. */
+    val drawerWallpaperPicture: StateFlow<ShownDrawerWallpaper> = drawerWallpaper.shown
 
-    /** Saves the picture at [uri] as the drawer's wallpaper. */
-    override fun importDrawerWallpaper(uri: Uri) = update { drawerWallpaper.import(uri) }
+    /** Saves the picture at [uri] as the drawer's wallpaper in the home profile [profile], the one the page shows. */
+    override fun importDrawerWallpaper(uri: Uri, profile: Long) = update { drawerWallpaper.import(uri, profile) }
 
-    override fun clearDrawerWallpaper() = update { drawerWallpaper.clear() }
+    override fun clearDrawerWallpaper(profile: Long) = update { drawerWallpaper.clear(profile) }
 
     /** Null until the stored settings are read: the page shows no value before that (see SettingsWhenRead). */
     val settings: StateFlow<LauncherSettings?> = repository.settings.stateIn(

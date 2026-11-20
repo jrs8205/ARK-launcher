@@ -21,6 +21,7 @@ import org.arkikeskus.launcher.model.HomeProfile
 import java.io.File
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,6 +43,16 @@ class DrawerWallpaper(val file: File, val luminance: Float, internal val lightne
     override fun equals(other: Any?): Boolean = other is DrawerWallpaper && other.file == file && other.luminance == luminance
     override fun hashCode(): Int = 31 * file.hashCode() + luminance.hashCode()
     override fun toString(): String = "DrawerWallpaper(file=$file, luminance=$luminance)"
+}
+
+/**
+ * The picture the store shows with the home profile it is of. The store follows a profile switch a moment after the
+ * settings do, so a screen that is about one profile asks for that profile's picture ([of]) and never takes another's
+ * for its own.
+ */
+data class ShownDrawerWallpaper(val profile: Long, val picture: DrawerWallpaper?) {
+    /** The picture when it is the home profile [profile]'s; null, as for no picture, while the store shows another's. */
+    fun of(profile: Long): DrawerWallpaper? = picture.takeIf { this.profile == profile }
 }
 
 /**
@@ -157,68 +168,87 @@ class DrawerWallpaperStore internal constructor(
     /** A store that stays with the first home profile until it is told otherwise ([switchTo]). */
     constructor(context: Context) : this(context, Dispatchers.IO)
 
-    /** The folder of the picture that shows: the first home profile's until [switchTo] says otherwise, which is
-     *  what there was before profiles and what a start comes up with. Changed only under [publishLock]. */
-    @Volatile private var dir = dirOf(HomeProfile.FIRST_ID)
-    private val _current = MutableStateFlow(load())
+    /** The home profile whose picture shows: the first until [switchTo] says otherwise, which is what there was
+     *  before profiles and what a start comes up with. Changed only under [publishLock]. */
+    @Volatile private var shownProfile = HomeProfile.FIRST_ID
 
-    /** The ticket of the user's latest pick or removal, taken the moment it is asked for. A pick publishes only while
-     *  it still holds the latest ticket, so the last action wins whatever order the saves finish in: a removal issued
-     *  during a slow pick stays a removal, and of two picks in a row the later one shows. */
-    private val latest = AtomicInteger()
+    private val _shown = MutableStateFlow(ShownDrawerWallpaper(shownProfile, atStart()))
+    private val _current = MutableStateFlow(_shown.value.picture)
+
+    /** The ticket of the user's latest pick or removal in each home profile, taken the moment it is asked for. A pick
+     *  publishes only while it still holds its profile's latest ticket, so the last action wins whatever order the
+     *  saves finish in: a removal issued during a slow pick stays a removal, and of two picks in a row the later one
+     *  shows. One count per profile: an action in one profile never overtakes an action in another. */
+    private val latest = ConcurrentHashMap<Long, AtomicInteger>()
+
+    private fun ticketsOf(profile: Long): AtomicInteger = latest.computeIfAbsent(profile) { AtomicInteger() }
 
     /** Guards the ticket check and the publish, so a removal cannot slip between them. */
     private val publishLock = Any()
 
-    /** The picture, or null when none is set. */
+    /** The picture of the home profile that shows, or null when it has none. */
     val current: StateFlow<DrawerWallpaper?> = _current
 
-    /** Saves the picture at [uri]; false when it cannot be read or saved, or a later pick or removal overtook it. */
-    suspend fun import(uri: Uri): Boolean {
-        val ticket = latest.incrementAndGet()
+    /** [current] with the home profile it is of: for a screen that is about one profile ([ShownDrawerWallpaper.of]). */
+    val shown: StateFlow<ShownDrawerWallpaper> = _shown
+
+    /** Both values of what shows, under [publishLock]: the pair first, which is what tells whose picture it is. */
+    private fun publish(profile: Long, picture: DrawerWallpaper?) {
+        _shown.value = ShownDrawerWallpaper(profile, picture)
+        _current.value = picture
+    }
+
+    /**
+     * Saves the picture at [uri] as the home profile [profile]'s; false when it cannot be read or saved, or a later
+     * pick or removal in that profile overtook it. The caller names the profile its page is about: the one this
+     * store shows follows a switch a moment late, and what shows is not what the user was looking at then.
+     */
+    suspend fun import(uri: Uri, profile: Long): Boolean {
+        val ticket = ticketsOf(profile).incrementAndGet()
         return withContext(io) {
             val picture = runCatching { decode(uri) }.getOrNull() ?: return@withContext false
-            save(picture, ticket)
+            save(picture, profile, ticket)
         }
     }
 
-    /** Saves [picture] as the drawer's wallpaper (also the test seam); false as for [import]. */
-    suspend fun set(picture: Bitmap): Boolean {
-        val ticket = latest.incrementAndGet()
-        return withContext(io) { save(picture, ticket) }
+    /** Saves [picture] as the drawer's wallpaper in the home profile [profile] (also the test seam); false as for
+     *  [import]. */
+    suspend fun set(picture: Bitmap, profile: Long): Boolean {
+        val ticket = ticketsOf(profile).incrementAndGet()
+        return withContext(io) { save(picture, profile, ticket) }
     }
 
-    /** Removes the picture; the drawer shows the system wallpaper through again. Every published picture on disk goes,
-     *  not only the current one: a crash between a pick's rename and the deletion of the picture it replaced leaves two,
-     *  and the next start would otherwise bring the older one back after the removal. A removal the pool runs only
-     *  after a pick issued later stands down: that pick is the user's last action, and it clears the old file itself. */
-    suspend fun clear() {
-        val ticket = latest.incrementAndGet()
+    /** Removes the picture of the home profile [profile]; its drawer shows the system wallpaper through again. Every
+     *  published picture on disk goes, not only the current one: a crash between a pick's rename and the deletion of
+     *  the picture it replaced leaves two, and the next start would otherwise bring the older one back after the
+     *  removal. A removal the pool runs only after a pick issued later stands down: that pick is the user's last
+     *  action, and it clears the old file itself. */
+    suspend fun clear(profile: Long) {
+        val ticket = ticketsOf(profile).incrementAndGet()
         withContext(io) {
             synchronized(publishLock) {
-                if (ticket != latest.get()) return@withContext
-                File(dir, LEGACY_LUMINANCE_FILE).delete()
-                _current.value = null
-                publishedPictures().forEach { it.delete() }
+                if (ticket != ticketsOf(profile).get()) return@withContext
+                val folder = dirOf(profile)
+                File(folder, LEGACY_LUMINANCE_FILE).delete()
+                if (profile == shownProfile) publish(profile, null)
+                publishedPictures(folder).forEach { it.delete() }
             }
         }
     }
 
     /** The folder of the home profile [profile]'s picture: the first profile keeps the one there always was. */
     private fun dirOf(profile: Long): File =
-        File(context.filesDir, if (profile == HomeProfile.FIRST_ID) "drawer_wallpaper" else "drawer_wallpaper_$profile")
+        File(context.filesDir, if (profile == HomeProfile.FIRST_ID) FIRST_DIR else "${FIRST_DIR}_$profile")
 
     /**
-     * Shows the picture of the home profile [profile] from now on, and saves and removes there. A pick or a removal
-     * still on its way was for the profile that was on: it loses its ticket and lands nowhere.
+     * Shows the picture of the home profile [profile] from now on. A pick or a removal still on its way names its
+     * own profile and lands there, whichever profile shows by then.
      */
     suspend fun switchTo(profile: Long) = withContext(io) {
         synchronized(publishLock) {
-            val next = dirOf(profile)
-            if (next == dir) return@withContext
-            latest.incrementAndGet()
-            dir = next
-            _current.value = load()
+            if (profile == shownProfile) return@withContext
+            shownProfile = profile
+            publish(profile, load(dirOf(profile)))
         }
     }
 
@@ -236,35 +266,33 @@ class DrawerWallpaperStore internal constructor(
         }
     }
 
-    /** Removes the picture of the home profile [profile] with its folder: the profile was deleted. */
+    /** Removes the picture of the home profile [profile] with its folder: the profile was deleted. A pick or a
+     *  removal on its way there loses its ticket: nothing is saved for a profile that is gone. */
     suspend fun delete(profile: Long) = withContext(io) {
         val gone = dirOf(profile)
         synchronized(publishLock) {
-            if (gone == dir) {
-                latest.incrementAndGet()
-                _current.value = null
-            }
+            ticketsOf(profile).incrementAndGet()
+            if (profile == shownProfile) publish(profile, null)
             gone.deleteRecursively()
         }
         Unit
     }
 
     /**
-     * Encodes [picture] into a part-file (not a picture yet: [load] never takes one), then -- if [ticket] is still the
-     * latest action -- renames it under the lock to its final name, which carries its lightness ([pictureFileName]),
-     * and publishes it. The rename is atomic, so the next start can only ever load a picture that was published whole,
-     * with its own lightness; a process that dies mid-save leaves a part-file that [load] sweeps. The picture this one
-     * replaces is deleted whatever happens to the new one afterwards (a removal right after the publish deletes the new
-     * one itself). A write that fails half-way (no space left, a picture that cannot be encoded) leaves nothing behind
-     * and keeps the picture that was there: it is reported as false, never thrown into the caller's coroutine (that
-     * took the launcher down).
+     * Encodes [picture] into a part-file in the home profile [profile]'s folder (not a picture yet: [load] never takes
+     * one), then -- if [ticket] is still that profile's latest action -- renames it under the lock to its final name,
+     * which carries its lightness ([pictureFileName]), and shows it when its profile is the one that shows. The rename
+     * is atomic, so a start can only ever load a picture that was published whole, with its own lightness; a process
+     * that dies mid-save leaves a part-file that the next start sweeps ([atStart]). The pictures this one replaces go
+     * under the same lock, so a store that turns to this profile right then finds one picture, the new one. A write
+     * that fails half-way (no space left, a picture that cannot be encoded) leaves nothing behind and keeps the
+     * picture that was there: it is reported as false, never thrown into the caller's coroutine (that took the
+     * launcher down).
      */
-    private fun save(picture: Bitmap, ticket: Int): Boolean {
-        // The folder as it is now: a profile switch after this takes a ticket, so a save that still holds the
-        // latest one below was started in the folder that shows.
-        val dir = dir
-        dir.mkdirs()
-        val part = File(dir, "${UUID.randomUUID()}$PART_SUFFIX")
+    private fun save(picture: Bitmap, profile: Long, ticket: Int): Boolean {
+        val folder = dirOf(profile)
+        folder.mkdirs()
+        val part = File(folder, "${UUID.randomUUID()}$PART_SUFFIX")
         val lightness = runCatching {
             check(!picture.isRecycled) { "the picture was recycled" }
             part.outputStream().use { out ->
@@ -273,33 +301,38 @@ class DrawerWallpaperStore internal constructor(
             lightnessOf(picture)
         }.getOrNull()
         val luminance = lightness?.let { storedLuminance(it.mean) }
-        var replaced: DrawerWallpaper? = null
-        var published: DrawerWallpaper? = null
+        var published = false
         synchronized(publishLock) {
-            if (luminance == null || ticket != latest.get()) return@synchronized
-            val target = File(dir, pictureFileName(luminance))
+            if (luminance == null || ticket != ticketsOf(profile).get()) return@synchronized
+            val replaced = publishedPictures(folder)
+            val target = File(folder, pictureFileName(luminance))
             if (!part.renameTo(target)) return@synchronized
-            replaced = _current.value
-            published = DrawerWallpaper(target, luminance, lightness)
-            _current.value = published
+            if (profile == shownProfile) publish(profile, DrawerWallpaper(target, luminance, lightness))
+            replaced.forEach { it.delete() }
+            published = true
         }
-        if (published == null) {
-            part.delete()
-            return false
-        }
-        replaced?.file?.delete()
-        return true
+        if (!published) part.delete()
+        return published
     }
 
-    /** The newest published picture with the lightness in its name. Swept here: part-files of saves the process did
-     *  not live to publish, and any older published picture a crash left beside the newest (between a pick's rename
-     *  and the deletion of the picture it replaced), so a later removal has nothing to leave behind. A picture an
-     *  older build saved (no lightness in its name) reads the shared file it wrote. The lightness grid (what the
-     *  drawer's crop of the picture looks like) comes from a small decode of the file; failing that, the whole
-     *  picture's lightness stands for every crop. */
-    private fun load(): DrawerWallpaper? {
+    /**
+     * What a start comes up with: the first home profile's picture, after the part-files a dead process left in ANY
+     * profile's folder are swept. Only here, where no save of this process can be under way: a later [load] (the
+     * store turning to a profile) may run while a pick for that very profile is being written.
+     */
+    private fun atStart(): DrawerWallpaper? {
+        context.filesDir.listFiles { f -> f.isDirectory && (f.name == FIRST_DIR || f.name.startsWith("${FIRST_DIR}_")) }
+            ?.forEach { folder -> folder.listFiles { f -> f.isFile && f.name.endsWith(PART_SUFFIX) }?.forEach { it.delete() } }
+        return load(dirOf(HomeProfile.FIRST_ID))
+    }
+
+    /** The newest published picture in [dir] with the lightness in its name. Swept here: any older published picture
+     *  a crash left beside the newest (between a pick's rename and the deletion of the pictures it replaced), so a
+     *  later removal has nothing to leave behind. A picture an older build saved (no lightness in its name) reads the
+     *  shared file it wrote. The lightness grid (what the drawer's crop of the picture looks like) comes from a small
+     *  decode of the file; failing that, the whole picture's lightness stands for every crop. */
+    private fun load(dir: File): DrawerWallpaper? {
         val files = dir.listFiles()?.filter { it.isFile } ?: return null
-        files.filter { it.name.endsWith(PART_SUFFIX) }.forEach { it.delete() }
         val pictures = files.filter { it.extension == "jpg" }.sortedByDescending { it.lastModified() }
         val file = pictures.firstOrNull() ?: return null
         pictures.drop(1).forEach { it.delete() }
@@ -323,8 +356,8 @@ class DrawerWallpaperStore internal constructor(
         return file.inputStream().use { BitmapFactory.decodeStream(it, null, options) }
     }
 
-    /** Every published picture on disk: the current one and, after a crash, the one it replaced. */
-    private fun publishedPictures(): List<File> = dir.listFiles()?.filter { it.isFile && it.extension == "jpg" }.orEmpty()
+    /** Every published picture in [dir]: the current one and, after a crash, the one it replaced. */
+    private fun publishedPictures(dir: File): List<File> = dir.listFiles()?.filter { it.isFile && it.extension == "jpg" }.orEmpty()
 
     /** The picture at [uri] upright (ImageDecoder reads the EXIF orientation) and within
      *  [DRAWER_WALLPAPER_MAX_SIDE]; BitmapFactory where ImageDecoder cannot decode. */
@@ -358,6 +391,9 @@ class DrawerWallpaperStore internal constructor(
         /** The shared lightness file of builds before the lightness moved into the picture's name. */
         const val LEGACY_LUMINANCE_FILE = "luminance.txt"
         const val PART_SUFFIX = ".part"
+
+        /** The first home profile's folder, the one there always was; another profile's is this with its id. */
+        const val FIRST_DIR = "drawer_wallpaper"
         private val LUMINANCE_IN_NAME = Regex("""-(\d\.\d{3})\.jpg$""")
 
         /** The lightness as the file name carries it: three decimals, the same value in memory and after a restart. */

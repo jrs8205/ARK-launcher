@@ -632,11 +632,11 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
 
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark) }
+        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertExists()
 
-        runBlocking { wiring.drawerWallpaper.clear() }
+        runBlocking { wiring.drawerWallpaper.clear(1) }
         awaitState("no picture again") { it.wallpaper == null }
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
     }
@@ -798,7 +798,7 @@ class AppDrawerScreenTest {
     @Test fun theEditDialogKeepsItsOwnTextOverADarkPicture() {
         showWithApp()
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark) }
+        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         settle()
         assertThat(textColorOf(mailApp).luminance()).isGreaterThan(0.5f)
@@ -815,7 +815,7 @@ class AppDrawerScreenTest {
     @Test fun theSearchSectionTitlesFollowTheDrawersTextOverADarkPicture() {
         showWithApp()
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark) }
+        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         settle()
 
@@ -839,7 +839,7 @@ class AppDrawerScreenTest {
         assertThat(textColorOf(hint).luminance()).isLessThan(0.5f)
 
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark) }
+        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         settle()
 

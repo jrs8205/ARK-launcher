@@ -222,11 +222,11 @@ class BackupProfilesTest {
     @Test fun aRestoreRemovesTheDrawerPicturesOfTheProfilesThatWent() = runTest {
         fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
         val pictures = DrawerWallpaperStore(context)
-        pictures.set(picture(Color.WHITE))
+        pictures.set(picture(Color.WHITE), 1)
         val ofTheFirst = pictures.current.value!!.file
         twoProfiles()
         pictures.switchTo(2)
-        pictures.set(picture(Color.RED))
+        pictures.set(picture(Color.RED), 2)
         val ofTheOneThatIsOn = pictures.current.value!!.file
 
         repo(drawerPictures = pictures).restoreDocument(backup, installed)

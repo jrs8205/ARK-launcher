@@ -9,8 +9,8 @@ import org.arkikeskus.launcher.model.IconShape
  * nothing else, so what a row does is the same wherever the row is shown.
  */
 internal interface SettingsActions {
-    fun importDrawerWallpaper(uri: Uri)
-    fun clearDrawerWallpaper()
+    fun importDrawerWallpaper(uri: Uri, profile: Long)
+    fun clearDrawerWallpaper(profile: Long)
     fun setAppHidden(key: String, hidden: Boolean)
     fun createDrawerFolder(name: String)
     fun renameDrawerFolder(id: Long, name: String)

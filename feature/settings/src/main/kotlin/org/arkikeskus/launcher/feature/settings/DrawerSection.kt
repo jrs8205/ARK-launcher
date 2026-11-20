@@ -121,8 +121,9 @@ internal fun DrawerRows(
         actions = DrawerBackdropActions(
             onColor = actions::setDrawerBackgroundColor,
             onColorOpacity = actions::setDrawerBackgroundOpacity,
-            onPickPicture = actions::importDrawerWallpaper,
-            onClearPicture = actions::clearDrawerWallpaper,
+            // For the home profile this page shows: the store behind the action follows a switch a moment late.
+            onPickPicture = { actions.importDrawerWallpaper(it, s.homeProfileId) },
+            onClearPicture = { actions.clearDrawerWallpaper(s.homeProfileId) },
             onPictureDim = actions::setDrawerPictureDim,
             onBlur = actions::setBlurBehindDrawer,
             onBlurStrength = actions::setDrawerBlurStrength,
