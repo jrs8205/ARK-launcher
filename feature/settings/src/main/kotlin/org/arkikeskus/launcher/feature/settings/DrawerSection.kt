@@ -32,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -115,6 +116,7 @@ internal fun DrawerRows(
     SettingRow("A7") {
         SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, actions::setShowFrequentApps)
     }
+    SettingRow("A24") { CountSystemUsageToggle(on = s.countSystemUsage, onSet = actions::setCountSystemUsage) }
     SettingRow("A8") {
         SwitchRow(
             stringResource(R.string.settings_hide_home_apps),
@@ -151,6 +153,39 @@ internal fun DrawerRows(
             description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
         ) { onOpenHiddenApps() }
     }
+}
+
+/**
+ * "Count apps opened elsewhere" (issue #33): whether the "most used" apps also count an app opened from a
+ * notification, a widget or another app. That is read from Android's usage access, which the user gives in
+ * Android's own settings (no dialog can ask for it): turned on without it, the switch opens that page, and until
+ * the access is given the row says that nothing is counted from elsewhere yet. Read again at every return to
+ * the page, which is when the user comes back from Android's settings.
+ */
+@Composable
+internal fun CountSystemUsageToggle(
+    on: Boolean,
+    onSet: (Boolean) -> Unit,
+    hasAccess: (android.content.Context) -> Boolean = ::hasUsageAccess,
+    openAccess: (android.content.Context) -> Unit = ::openUsageAccess,
+) {
+    val context = LocalContext.current
+    var granted by remember { mutableStateOf(hasAccess(context)) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        granted = hasAccess(context)
+        onPauseOrDispose { }
+    }
+    SwitchRow(
+        stringResource(R.string.settings_count_system_usage),
+        stringResource(
+            if (on && !granted) R.string.settings_count_system_usage_needs_access else R.string.settings_count_system_usage_desc,
+        ),
+        on,
+        { wantOn ->
+            onSet(wantOn)
+            if (wantOn && !hasAccess(context)) openAccess(context)
+        },
+    )
 }
 
 /** Whether the drawer's search also finds contacts (asks for the contacts permission). */

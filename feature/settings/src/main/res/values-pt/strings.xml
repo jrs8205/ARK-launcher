@@ -198,7 +198,13 @@
     <string name="settings_hide_navigation_bar_desc">Tela inicial e gaveta de apps. Deslize para cima a partir da borda inferior para mostrá-la por um instante.</string>
     <string name="settings_status_bar">Barra de status (relógio, bateria, sinal)</string>
     <string name="settings_status_bar_scrim">Escurecimento da barra de status</string>
-    <string name="settings_frequent_apps">Mais usados no topo</string>
+    <string name="settings_frequent_apps">Apps mais usados</string>
+    <string name="settings_count_system_usage">Contar apps abertos em outros lugares</string>
+    <string name="settings_count_system_usage_desc">Apps abertos por uma notificação, um widget ou outro app também contam para os mais usados. Requer o acesso ao uso, concedido nas configurações do Android.</string>
+    <string name="settings_count_system_usage_needs_access">O acesso ao uso ainda não foi concedido, então nada de outros lugares é contado. Conceda em Permissões.</string>
+    <string name="settings_permission_usage">Acesso ao uso</string>
+    <string name="settings_permission_usage_granted">Concedido. Lido apenas enquanto “Contar apps abertos em outros lugares” está ativado.</string>
+    <string name="settings_permission_usage_not_granted">Não concedido. Necessário apenas para “Contar apps abertos em outros lugares”.</string>
     <string name="settings_hide_home_apps">Ocultar apps que estão na tela inicial</string>
     <string name="settings_hide_home_apps_desc">Apps colocados na tela inicial, em suas pastas ou no dock saem da lista. A busca ainda os encontra.</string>
     <string name="settings_drawer_open_top">Sempre abrir no topo</string>

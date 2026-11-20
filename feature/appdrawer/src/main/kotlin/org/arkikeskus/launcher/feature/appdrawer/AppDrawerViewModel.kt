@@ -171,6 +171,7 @@ class AppDrawerViewModel @Inject constructor(
     private val privateSpace: PrivateSpaceRepository,
     private val customIcons: CustomIconStore,
     private val drawerWallpaper: DrawerWallpaperStore,
+    private val systemUsage: org.arkikeskus.launcher.data.SystemUsageSync,
 ) : ViewModel() {
 
     private val _notices = Channel<HomeNotice>(Channel.BUFFERED)
@@ -464,8 +465,13 @@ class AppDrawerViewModel @Inject constructor(
             .onFailure { Log.w("AppDrawerViewModel", "Failed to launch a private app (${it.javaClass.simpleName})") }
             .isSuccess
 
-    /** The drawer opened: Android's own hide setting has no broadcast, so it is read again now. */
-    fun onDrawerOpened() = privateSpace.refresh()
+    /** The drawer opened: Android's own hide setting has no broadcast, so it is read again now. And the
+     *  "most used" card is about to be looked at: what was opened elsewhere since the last time is counted
+     *  in, if the user has switched that on (off the main thread: it asks the system). */
+    fun onDrawerOpened() {
+        privateSpace.refresh()
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) { runCatching { systemUsage.sync() } }
+    }
 
     /** What the Install tile opens right now, or null. */
     fun privateInstallSender(): IntentSender? = privateSpace.installSender()

@@ -195,7 +195,13 @@
     <string name="settings_hide_navigation_bar_desc">Aloitusnäyttö ja sovellusvalikko. Palkki tulee hetkeksi näkyviin pyyhkäisemällä alareunasta ylös.</string>
     <string name="settings_status_bar">Tilapalkki (kello, akku, signaali)</string>
     <string name="settings_status_bar_scrim">Tilapalkin taustan tummuus</string>
-    <string name="settings_frequent_apps">Eniten käytetyt ylimmäisinä</string>
+    <string name="settings_frequent_apps">Eniten käytetyt sovellukset</string>
+    <string name="settings_count_system_usage">Laske muualta avatut sovellukset</string>
+    <string name="settings_count_system_usage_desc">Myös ilmoituksesta, widgetistä tai toisesta sovelluksesta avatut sovellukset lasketaan eniten käytettyihin. Vaatii käyttötietojen käyttöoikeuden, joka annetaan Androidin asetuksissa.</string>
+    <string name="settings_count_system_usage_needs_access">Käyttötietojen käyttöoikeutta ei ole vielä annettu, joten muualta avattuja ei lasketa. Anna se kohdassa Luvat.</string>
+    <string name="settings_permission_usage">Käyttötietojen käyttöoikeus</string>
+    <string name="settings_permission_usage_granted">Annettu. Luetaan vain, kun ”Laske muualta avatut sovellukset” on päällä.</string>
+    <string name="settings_permission_usage_not_granted">Ei annettu. Tarvitaan vain asetukseen ”Laske muualta avatut sovellukset”.</string>
     <string name="settings_hide_home_apps">Piilota etusivulla olevat sovellukset</string>
     <string name="settings_hide_home_apps_desc">Etusivulle, sen kansioihin tai dockkiin sijoitetut sovellukset poistuvat listasta. Haku löytää ne silti.</string>
     <string name="settings_drawer_open_top">Avaa aina ylhäältä</string>

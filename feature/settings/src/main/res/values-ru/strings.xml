@@ -201,7 +201,13 @@
     <string name="settings_hide_navigation_bar_desc">Главный экран и меню приложений. Проведите вверх от нижнего края, чтобы показать её на мгновение.</string>
     <string name="settings_status_bar">Строка состояния (часы, батарея, сигнал)</string>
     <string name="settings_status_bar_scrim">Затемнение фона строки состояния</string>
-    <string name="settings_frequent_apps">Часто используемые вверху</string>
+    <string name="settings_frequent_apps">Часто используемые приложения</string>
+    <string name="settings_count_system_usage">Учитывать приложения, открытые в других местах</string>
+    <string name="settings_count_system_usage_desc">Приложения, открытые из уведомления, виджета или другого приложения, тоже учитываются в часто используемых. Нужен доступ к истории использования, он выдаётся в настройках Android.</string>
+    <string name="settings_count_system_usage_needs_access">Доступ к истории использования ещё не выдан, поэтому открытия из других мест не учитываются. Выдайте его в разделе Разрешения.</string>
+    <string name="settings_permission_usage">Доступ к истории использования</string>
+    <string name="settings_permission_usage_granted">Выдан. Читается, только пока включено «Учитывать приложения, открытые в других местах».</string>
+    <string name="settings_permission_usage_not_granted">Не выдан. Нужен только для «Учитывать приложения, открытые в других местах».</string>
     <string name="settings_hide_home_apps">Скрывать приложения с главного экрана</string>
     <string name="settings_hide_home_apps_desc">Приложения, размещённые на главном экране, в его папках или в док-панели, исчезают из списка. Поиск по-прежнему их находит.</string>
     <string name="settings_drawer_open_top">Всегда открывать с начала списка</string>

@@ -143,6 +143,15 @@ internal class DrawerWiring(
         privateSpaceRepository,
         CustomIconStore(settingsRepository, CustomIconSource(context, iconPacks)),
         drawerWallpaper,
+        // No usage access in these tests: nothing of Android's record is read.
+        org.arkikeskus.launcher.data.SystemUsageSync(
+            context,
+            object : org.arkikeskus.launcher.data.SystemUsageSource {
+                override fun hasAccess() = false
+                override fun resumedBetween(fromMs: Long, toMs: Long) = emptyList<org.arkikeskus.launcher.data.AppOpening>()
+            },
+            appUsageRepository, settingsRepository, appRepository, source,
+        ),
     )
 
     /** The user's own picture behind the drawer (DrawerWallpaperStore), in the app's files. */

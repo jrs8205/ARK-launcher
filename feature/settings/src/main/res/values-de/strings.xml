@@ -195,7 +195,13 @@
     <string name="settings_hide_navigation_bar_desc">Startbildschirm und App-Übersicht. Vom unteren Rand nach oben wischen, um sie kurz einzublenden.</string>
     <string name="settings_status_bar">Statusleiste (Uhr, Akku, Signal)</string>
     <string name="settings_status_bar_scrim">Abdunklung hinter der Statusleiste</string>
-    <string name="settings_frequent_apps">Meistgenutzte Apps oben</string>
+    <string name="settings_frequent_apps">Meistgenutzte Apps</string>
+    <string name="settings_count_system_usage">Anderswo geöffnete Apps mitzählen</string>
+    <string name="settings_count_system_usage_desc">Auch Apps, die über eine Benachrichtigung, ein Widget oder eine andere App geöffnet werden, zählen zu den meistgenutzten. Erfordert den Nutzungsdatenzugriff in den Android-Einstellungen.</string>
+    <string name="settings_count_system_usage_needs_access">Der Nutzungsdatenzugriff fehlt noch, daher wird nichts von anderswo mitgezählt. Erteile ihn unter Berechtigungen.</string>
+    <string name="settings_permission_usage">Nutzungsdatenzugriff</string>
+    <string name="settings_permission_usage_granted">Erteilt. Wird nur gelesen, solange „Anderswo geöffnete Apps mitzählen“ eingeschaltet ist.</string>
+    <string name="settings_permission_usage_not_granted">Nicht erteilt. Nur für „Anderswo geöffnete Apps mitzählen“ nötig.</string>
     <string name="settings_hide_home_apps">Apps auf dem Startbildschirm ausblenden</string>
     <string name="settings_hide_home_apps_desc">Apps auf dem Startbildschirm, in seinen Ordnern oder im Dock verschwinden aus der Liste. Die Suche findet sie weiterhin.</string>
     <string name="settings_drawer_open_top">Immer oben öffnen</string>

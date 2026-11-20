@@ -29,6 +29,7 @@ internal interface SettingsActions {
     fun setShowFrequentApps(value: Boolean)
     fun setDrawerOpensAtTop(value: Boolean)
     fun setDrawerSearchAtBottom(value: Boolean)
+    fun setCountSystemUsage(value: Boolean)
     fun setSortDrawerFolders(value: Boolean)
     fun setMixDrawerFolders(value: Boolean)
     fun setBlurBehindDrawer(value: Boolean)

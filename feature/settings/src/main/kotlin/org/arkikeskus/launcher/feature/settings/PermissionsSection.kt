@@ -22,6 +22,20 @@ import androidx.compose.ui.res.stringResource
 import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.ExpressiveActionRow
 
+/** Whether the user has given the launcher Android's usage access (a special access, given in Android's settings). */
+internal fun hasUsageAccess(context: android.content.Context): Boolean = runCatching {
+    val ops = context.getSystemService(android.app.AppOpsManager::class.java) ?: return false
+    ops.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.packageName) ==
+        android.app.AppOpsManager.MODE_ALLOWED
+}.getOrDefault(false)
+
+/** Opens Android's usage-access page, at this app where the phone's Settings can go straight there. */
+internal fun openUsageAccess(context: android.content.Context) {
+    val page = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val ofThisApp = Intent(page).setData(Uri.fromParts("package", context.packageName, null))
+    if (runCatching { context.startActivity(ofThisApp) }.isFailure) runCatching { context.startActivity(page) }
+}
+
 /** Settings > Permissions: every permission the launcher uses, with a live granted or not-granted status. */
 @Composable
 internal fun PermissionsRows() {
@@ -90,6 +104,22 @@ internal fun PermissionsRows() {
                 label = stringResource(R.string.settings_permission_notifications),
                 permission = android.Manifest.permission.POST_NOTIFICATIONS,
             )
+        }
+    }
+    // Usage access: given and taken back in Android's settings, read again at every return to the page.
+    var usageAccess by remember { mutableStateOf(hasUsageAccess(context)) }
+    LifecycleResumeEffect(Unit) {
+        usageAccess = hasUsageAccess(context)
+        onPauseOrDispose { }
+    }
+    SettingRow("P7") {
+        ExpressiveActionRow(
+            label = stringResource(R.string.settings_permission_usage),
+            description = stringResource(
+                if (usageAccess) R.string.settings_permission_usage_granted else R.string.settings_permission_usage_not_granted,
+            ),
+        ) {
+            openUsageAccess(context)
         }
     }
 }

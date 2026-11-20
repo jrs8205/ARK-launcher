@@ -195,7 +195,13 @@
     <string name="settings_hide_navigation_bar_desc">Ana ekran ve uygulama çekmecesi. Kısa süreliğine göstermek için alt kenardan yukarı kaydırın.</string>
     <string name="settings_status_bar">Durum çubuğu (saat, pil, sinyal)</string>
     <string name="settings_status_bar_scrim">Durum çubuğu arka plan koyuluğu</string>
-    <string name="settings_frequent_apps">En çok kullanılanlar üstte</string>
+    <string name="settings_frequent_apps">En çok kullanılan uygulamalar</string>
+    <string name="settings_count_system_usage">Başka yerden açılan uygulamaları say</string>
+    <string name="settings_count_system_usage_desc">Bir bildirimden, widget\'tan veya başka bir uygulamadan açılan uygulamalar da en çok kullanılanlara sayılır. Android ayarlarından verilen kullanım erişimi gerekir.</string>
+    <string name="settings_count_system_usage_needs_access">Kullanım erişimi henüz verilmedi, bu yüzden başka yerden açılanlar sayılmıyor. İzinler bölümünden verin.</string>
+    <string name="settings_permission_usage">Kullanım erişimi</string>
+    <string name="settings_permission_usage_granted">Verildi. Yalnızca “Başka yerden açılan uygulamaları say” açıkken okunur.</string>
+    <string name="settings_permission_usage_not_granted">Verilmedi. Yalnızca “Başka yerden açılan uygulamaları say” için gerekir.</string>
     <string name="settings_hide_home_apps">Ana ekrandaki uygulamaları gizle</string>
     <string name="settings_hide_home_apps_desc">Ana ekrana, klasörlerine veya dock\'a yerleştirilen uygulamalar listeden çıkar. Arama yine de bulur.</string>
     <string name="settings_drawer_open_top">Her zaman en üstte aç</string>

@@ -152,6 +152,7 @@ internal object SettingsIndex {
             row("A23", c, R.string.settings_drawer_search_bottom, R.string.settings_drawer_search_bottom_desc)
             row("Q1", c, R.string.settings_search_contacts)
             row("A7", c, R.string.settings_frequent_apps)
+            row("A24", c, R.string.settings_count_system_usage, R.string.settings_count_system_usage_desc)
             row("A8", c, R.string.settings_hide_home_apps, R.string.settings_hide_home_apps_desc)
             row("A9", c, R.string.settings_drawer_open_top)
             row("A10", c, R.string.settings_drawer_color)
@@ -284,6 +285,7 @@ internal object SettingsIndex {
             row("P5", c, R.string.settings_permission_location)
             // Android 13 made sending notifications a permission.
             row("P6", c, R.string.settings_permission_notifications, minSdk = Build.VERSION_CODES.TIRAMISU)
+            row("P7", c, R.string.settings_permission_usage)
         }
         row("B1", SettingsCategory.BACKUP, R.string.settings_backup)
         SettingsCategory.ABOUT.let { c ->

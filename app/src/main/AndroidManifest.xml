@@ -51,6 +51,11 @@
     <!-- Private space (Android 15+): lets the default launcher see the private profile; nothing about its apps is stored. -->
     <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
 
+    <!-- "Count apps opened elsewhere" (Settings > App drawer, off by default): which app came to the front,
+         for the "most used" card. A special access the user gives in Android's settings and can take back
+         there; nothing is read without it or with the switch off. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+
     <!-- The screensaver's "Start as soon as charging begins" (off by default): a one-second wake of the
          screen when the charger is connected, so the lock screen times out into the screensaver. A normal
          permission, granted at install; used nowhere else. -->

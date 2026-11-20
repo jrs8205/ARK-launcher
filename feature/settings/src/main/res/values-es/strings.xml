@@ -198,7 +198,13 @@
     <string name="settings_hide_navigation_bar_desc">Pantalla de inicio y cajón de aplicaciones. Desliza hacia arriba desde el borde inferior para mostrarla un momento.</string>
     <string name="settings_status_bar">Barra de estado (reloj, batería, señal)</string>
     <string name="settings_status_bar_scrim">Oscurecimiento de la barra de estado</string>
-    <string name="settings_frequent_apps">Mostrar las más usadas arriba</string>
+    <string name="settings_frequent_apps">Aplicaciones más usadas</string>
+    <string name="settings_count_system_usage">Contar las apps abiertas desde otros sitios</string>
+    <string name="settings_count_system_usage_desc">Las apps abiertas desde una notificación, un widget u otra app también cuentan para las más usadas. Requiere el acceso de uso, que se concede en los ajustes de Android.</string>
+    <string name="settings_count_system_usage_needs_access">Aún no se ha concedido el acceso de uso, así que no se cuenta nada de otros sitios. Concédelo en Permisos.</string>
+    <string name="settings_permission_usage">Acceso de uso</string>
+    <string name="settings_permission_usage_granted">Concedido. Solo se lee mientras «Contar las apps abiertas desde otros sitios» está activado.</string>
+    <string name="settings_permission_usage_not_granted">No concedido. Solo hace falta para «Contar las apps abiertas desde otros sitios».</string>
     <string name="settings_hide_home_apps">Ocultar las apps que están en la pantalla de inicio</string>
     <string name="settings_hide_home_apps_desc">Las apps colocadas en la pantalla de inicio, en sus carpetas o en el dock salen de la lista. La búsqueda sigue encontrándolas.</string>
     <string name="settings_drawer_open_top">Abrir siempre al principio</string>

@@ -195,7 +195,13 @@
     <string name="settings_hide_navigation_bar_desc">Home screen and app drawer. Swipe up from the bottom edge to show it for a moment.</string>
     <string name="settings_status_bar">Status bar (clock, battery, signal)</string>
     <string name="settings_status_bar_scrim">Status bar background darkness</string>
-    <string name="settings_frequent_apps">Most used at the top</string>
+    <string name="settings_frequent_apps">Most used apps</string>
+    <string name="settings_count_system_usage">Count apps opened elsewhere</string>
+    <string name="settings_count_system_usage_desc">Apps opened from a notification, a widget or another app count for the most used apps too. Needs usage access, given in Android\'s settings.</string>
+    <string name="settings_count_system_usage_needs_access">Usage access is not given yet, so nothing is counted from elsewhere. Give it under Permissions.</string>
+    <string name="settings_permission_usage">Usage access</string>
+    <string name="settings_permission_usage_granted">Given. Read only while “Count apps opened elsewhere” is on.</string>
+    <string name="settings_permission_usage_not_granted">Not given. Needed only for “Count apps opened elsewhere”.</string>
     <string name="settings_hide_home_apps">Hide apps that are on the home screen</string>
     <string name="settings_hide_home_apps_desc">Apps placed on the home screen, in its folders or in the dock leave the list. The search still finds them.</string>
     <string name="settings_drawer_open_top">Always open at top</string>

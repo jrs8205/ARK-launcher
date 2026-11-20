@@ -201,7 +201,13 @@
     <string name="settings_hide_navigation_bar_desc">Ekran główny i szuflada aplikacji. Przesuń w górę od dolnej krawędzi, aby pokazać go na chwilę.</string>
     <string name="settings_status_bar">Pasek stanu (zegar, bateria, sygnał)</string>
     <string name="settings_status_bar_scrim">Przyciemnienie tła paska stanu</string>
-    <string name="settings_frequent_apps">Najczęściej używane na górze</string>
+    <string name="settings_frequent_apps">Najczęściej używane aplikacje</string>
+    <string name="settings_count_system_usage">Licz aplikacje otwierane poza launcherem</string>
+    <string name="settings_count_system_usage_desc">Aplikacje otwierane z powiadomienia, widżetu lub innej aplikacji też liczą się do najczęściej używanych. Wymaga dostępu do danych o użyciu, przyznawanego w ustawieniach Androida.</string>
+    <string name="settings_count_system_usage_needs_access">Dostęp do danych o użyciu nie został jeszcze przyznany, więc nic spoza launchera nie jest liczone. Przyznaj go w Uprawnieniach.</string>
+    <string name="settings_permission_usage">Dostęp do danych o użyciu</string>
+    <string name="settings_permission_usage_granted">Przyznano. Odczytywane tylko wtedy, gdy włączone jest „Licz aplikacje otwierane poza launcherem”.</string>
+    <string name="settings_permission_usage_not_granted">Nie przyznano. Potrzebne tylko do „Licz aplikacje otwierane poza launcherem”.</string>
     <string name="settings_hide_home_apps">Ukryj aplikacje znajdujące się na ekranie głównym</string>
     <string name="settings_hide_home_apps_desc">Aplikacje umieszczone na ekranie głównym, w jego folderach lub w docku znikają z listy. Wyszukiwanie nadal je znajduje.</string>
     <string name="settings_drawer_open_top">Zawsze otwieraj od góry</string>
