@@ -101,10 +101,13 @@ fun BackupScreen(
             // --- File section ---
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             val backupDefaultName = stringResource(R.string.backup_default_name)
+            // A file holds the one profile that is on: with several profiles the button and the time below
+            // say which (ExportTexts).
+            val exportProfiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
             Button(
                 onClick = { guarded { createDoc.launch(backupFileName(backupDefaultName, LocalDateTime.now())) } },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.backup_export)) }
+            ) { Text(exportButtonText(resources, exportProfiles)) }
             OutlinedButton(
                 onClick = { guarded { openDoc.launch(arrayOf("application/json")) } },
                 modifier = Modifier.fillMaxWidth(),
@@ -115,7 +118,7 @@ fun BackupScreen(
                     java.text.DateFormat.SHORT,
                 ).format(java.util.Date(localLastBackupMs))
                 Text(
-                    stringResource(R.string.backup_last_time, formatted),
+                    lastBackupText(resources, exportProfiles, formatted),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

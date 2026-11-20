@@ -303,6 +303,77 @@ class BackupProfilesTest {
         assertThat(inHomeProfile(1) { dao.getAll() }.mapNotNull { it.appWidgetId }).containsExactly(11)
     }
 
+    // --- An export is of ONE profile, and says which ---------------------------------------------------
+
+    /** The export says which profile it wrote, and notes its time as THAT profile's last export: a profile that
+     *  was never exported does not show another profile's time. */
+    @Test fun anExportNamesItsProfileAndNotesTheTimeAsThatProfilesOwn() = runTest {
+        twoProfiles()
+        var written: BackupDocument? = null
+
+        val exported = repo().export(createdAt = 77L, appVersion = "test") { written = it }
+
+        assertThat(exported).isEqualTo(ExportedProfile(id = 2, name = "Work", oneOfSeveral = true))
+        assertThat(written!!.homeItems.map { it.packageName }).containsExactly("com.work", "com.chat")
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(77L)
+        store.setActive(1)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+        store.setActive(2)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(77L)
+    }
+
+    @Test fun anExportOfTheOnlyProfileIsNotOneOfSeveral() = runTest {
+        dao.insert(app("com.first", 0))
+
+        val exported = repo().export(createdAt = 5L, appVersion = "test") {}
+
+        assertThat(exported).isEqualTo(ExportedProfile(id = 1, name = "", oneOfSeveral = false))
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(5L)
+    }
+
+    /** The document, the file and the time are one profile's: a switch asked for while the file is being written
+     *  waits, so the time is not noted in a profile the file is not of. */
+    @Test fun aSwitchAskedForWhileTheFileIsWrittenWaitsForTheExport() = runTest(UnconfinedTestDispatcher()) {
+        twoProfiles()
+
+        var switch: kotlinx.coroutines.Job? = null
+
+        val exported = repo().export(createdAt = 77L, appVersion = "test") {
+            switch = launch { store.setActive(1) }
+        }
+        switch!!.join()
+
+        assertThat(exported.id).isEqualTo(2L)
+        // The switch happened, after the export: the time is the second profile's, not the first's.
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+        store.setActive(2)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(77L)
+    }
+
+    /** A file that could not be written is no export: no time is noted. */
+    @Test fun anExportWhoseFileCouldNotBeWrittenNotesNoTime() = runTest {
+        twoProfiles()
+
+        assertThrows(IOException::class.java) {
+            kotlinx.coroutines.runBlocking { repo().export(createdAt = 77L, appVersion = "test") { throw IOException("no space") } }
+        }
+
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+    }
+
+    /** The file is written; that its time could not be noted does not make the export fail. */
+    @Test fun anExportWhoseTimeCouldNotBeNotedIsStillAnExport() = runTest {
+        twoProfiles()
+
+        val exported = repo().export(createdAt = 77L, appVersion = "test") {
+            files.store(2).failWrites = IOException("disk full")
+            main.failWrites = IOException("disk full")
+        }
+
+        assertThat(exported.id).isEqualTo(2L)
+    }
+
     @Test fun aRestoreRemovesTheDrawerPicturesOfTheProfilesThatWent() = runTest {
         fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
         val pictures = DrawerWallpaperStore(context)

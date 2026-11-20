@@ -175,6 +175,18 @@ class HomeProfileStoreTest {
         assertThat(store.keepOnlyActive()).isEmpty()
     }
 
+    /** When a profile was last exported is its own, and a copy is a new profile that has never been exported: it
+     *  takes its source's look, not its source's bookkeeping. */
+    @Test fun aCopyDoesNotTakeItsSourcesLastExportTime() = runTest {
+        val lastBackup = longPreferencesKey("local_last_backup_time")
+        view.edit { it[baseColour] = "blue"; it[lastBackup] = 77L }
+
+        store.create("Work", copyOf = 1)
+
+        assertThat(view.profileValues(2).names()).containsExactly("base_colour")
+        assertThat(view.data.first()[lastBackup]).isEqualTo(77L)
+    }
+
     /** The list is what says which profiles there are: once it is written the others are gone. A store file of
      *  theirs that cannot be removed then is never read again (ids are not reused), and must not turn a
      *  removal that happened into a failure. */

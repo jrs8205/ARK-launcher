@@ -19,9 +19,11 @@ import javax.inject.Inject
 
 /**
  * The home profiles as a restore meets them: the one that is on ([activeId]), which it fills with the
- * backup, and the others ([deleted]), which it deletes: a backup file holds one profile.
+ * backup, and the others ([deleted]), which it deletes: a backup file holds one profile. The one that is on
+ * is also the one an export writes, under its stored name [activeName] (empty until the user names it): with
+ * other profiles beside it the backup screen says which profile its file is of ([exportedProfileName]).
  */
-data class RestoreProfiles(val activeId: Long, val deleted: List<HomeProfile>) {
+data class RestoreProfiles(val activeId: Long, val deleted: List<HomeProfile>, val activeName: String = "") {
     /** The names the question shows (an unnamed one is empty here; [restoreConfirmText] names it). */
     val names: List<String> get() = deleted.map { it.name }
 
@@ -44,7 +46,7 @@ internal class StoredProfilesLostInRestore @Inject constructor(
 
 /** The one that is on ([activeId]) and every other profile of [profiles], in the list's order. */
 internal fun profilesARestoreDeletes(profiles: List<HomeProfile>, activeId: Long): RestoreProfiles =
-    RestoreProfiles(activeId, profiles.filter { it.id != activeId })
+    RestoreProfiles(activeId, profiles.filter { it.id != activeId }, profiles.firstOrNull { it.id == activeId }?.name.orEmpty())
 
 /**
  * What the restore's question says: what it always said, and which profiles go ([deletedProfiles]) if any do.

@@ -29,4 +29,7 @@
     <string name="backup_restore_confirm_ok">Palauta</string>
     <string name="backup_cancel">Peruuta</string>
     <string name="backup_last_time">Viimeksi: %1$s</string>
+    <string name="backup_export_profile">Vie profiili ”%1$s” tiedostoon</string>
+    <string name="backup_exported_profile">Profiilin ”%1$s” varmuuskopio tallennettu</string>
+    <string name="backup_last_time_profile">Profiilin ”%1$s” viimeisin varmuuskopio: %2$s</string>
 </resources>

@@ -29,4 +29,7 @@
     <string name="backup_restore_confirm_ok">Geri yükle</string>
     <string name="backup_cancel">İptal</string>
     <string name="backup_last_time">Son yedek: %1$s</string>
+    <string name="backup_export_profile">“%1$s” profilini dosyaya dışa aktar</string>
+    <string name="backup_exported_profile">“%1$s” profilinin yedeği kaydedildi</string>
+    <string name="backup_last_time_profile">“%1$s” profilinin son yedeği: %2$s</string>
 </resources>

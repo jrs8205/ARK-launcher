@@ -29,4 +29,7 @@
     <string name="backup_restore_confirm_ok">Wiederherstellen</string>
     <string name="backup_cancel">Abbrechen</string>
     <string name="backup_last_time">Zuletzt: %1$s</string>
+    <string name="backup_export_profile">Profil „%1$s“ in Datei exportieren</string>
+    <string name="backup_exported_profile">Sicherung des Profils „%1$s“ gespeichert</string>
+    <string name="backup_last_time_profile">Letzte Sicherung von „%1$s“: %2$s</string>
 </resources>

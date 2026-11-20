@@ -35,6 +35,13 @@ data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: 
  */
 data class ConfirmedProfiles(val activeId: Long, val otherIds: Set<Long>)
 
+/**
+ * The home profile an export wrote (a backup file holds one profile, the one that is on): its [id], its stored
+ * [name] (empty for one the user never named), and whether it is [oneOfSeveral]: only then does the screen
+ * need to say which profile the file is of.
+ */
+data class ExportedProfile(val id: Long, val name: String, val oneOfSeveral: Boolean)
+
 /** The profiles are not the ones the restore was agreed to with ([ConfirmedProfiles]): nothing was written. */
 class ProfilesChangedException : Exception("The home profiles changed after the restore was confirmed")
 
@@ -54,17 +61,35 @@ class BackupRepository @Inject constructor(
 
     /** The settings and the rows of the profile that is on: of ONE profile, so the two are read while it
      *  stays on (a switch between them gave one profile's grid with another's rows). */
-    suspend fun exportDocument(createdAt: Long, appVersion: String): BackupDocument = whileProfileStays {
-        BackupDocument(
-            format = BackupCodec.FORMAT,
-            appVersion = appVersion,
-            createdAt = createdAt,
-            settings = settings.exportRaw(),
-            homeItems = BackupMapper.toBackupItems(homeItemDao.getAllOnce(), mainUserSerial()),
-            mainUserSerial = mainUserSerial(),
-            screensaver = screensaver.exportRaw(),
-        )
-    }
+    suspend fun exportDocument(createdAt: Long, appVersion: String): BackupDocument =
+        whileProfileStays { document(createdAt, appVersion) }
+
+    /** The document of the profile that is on, for a caller that holds it ([whileProfileStays]). */
+    private suspend fun document(createdAt: Long, appVersion: String) = BackupDocument(
+        format = BackupCodec.FORMAT,
+        appVersion = appVersion,
+        createdAt = createdAt,
+        settings = settings.exportRaw(),
+        homeItems = BackupMapper.toBackupItems(homeItemDao.getAllOnce(), mainUserSerial()),
+        mainUserSerial = mainUserSerial(),
+        screensaver = screensaver.exportRaw(),
+    )
+
+    /**
+     * Exports the home profile that is on: its document ([exportDocument]) is handed to [write], and once that
+     * has returned [createdAt] is noted as THAT profile's last export. Returns the profile the file is of, for
+     * the screen to name. All of it while the profile stays on: with a switch between the document, the file
+     * and the time, the time was noted in a profile the file is not of. What [write] throws is thrown, with no
+     * time noted. That the time itself cannot be noted does not undo the export: the file is written.
+     */
+    suspend fun export(createdAt: Long, appVersion: String, write: suspend (BackupDocument) -> Unit): ExportedProfile =
+        whileProfileStays {
+            write(document(createdAt, appVersion))
+            runCatching { settings.setLocalLastBackup(createdAt) }
+            val active = homeItemDao.resolvedProfile()
+            val list = profiles?.list().orEmpty()
+            ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
+        }
 
     /** Restores [doc] against the launchable apps on this device ([installedApps]: AppItem keys,
      *  "package/class/userSerial", from every profile). Blocking system queries: call off the main

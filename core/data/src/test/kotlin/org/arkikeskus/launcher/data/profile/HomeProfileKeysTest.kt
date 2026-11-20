@@ -34,13 +34,15 @@ class HomeProfileKeysTest {
         for (name in listOf(
             "base_colour", "home_columns", "home_rows", "home_page", "desktop_locked", "drawer_folders", "folder_icons",
             "icon_pack_package", "dock_opacity", "show_status_bar", "left_swipe_app_key", "hide_home_apps_from_drawer",
+            // A backup file is of one profile, so when one was last exported is that profile's own.
+            "local_last_backup_time",
         )) {
             assertThat(HomeProfileKeys.isPerProfile(name)).isTrue()
         }
         for (name in listOf(
             "long_press_scale", "swipe_up_drawer", "page_switch_speed", "double_tap_lock", "show_notif_dots",
             "hidden_apps", "custom_labels", "custom_icons", "shortcut_icons", "swipe_up_apps", "weather_app_key",
-            "chameleon_last_argb", "charging_animation", "people_privacy", "onboarding_done", "local_last_backup_time",
+            "chameleon_last_argb", "charging_animation", "people_privacy", "onboarding_done",
         )) {
             assertThat(HomeProfileKeys.isPerProfile(name)).isFalse()
         }

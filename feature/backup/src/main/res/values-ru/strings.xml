@@ -33,4 +33,7 @@
     <string name="backup_restore_confirm_ok">Восстановить</string>
     <string name="backup_cancel">Отмена</string>
     <string name="backup_last_time">Последняя копия: %1$s</string>
+    <string name="backup_export_profile">Экспорт профиля «%1$s» в файл</string>
+    <string name="backup_exported_profile">Резервная копия профиля «%1$s» сохранена</string>
+    <string name="backup_last_time_profile">Последняя копия профиля «%1$s»: %2$s</string>
 </resources>

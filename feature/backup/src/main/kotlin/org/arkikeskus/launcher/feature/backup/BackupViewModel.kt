@@ -23,7 +23,9 @@ import org.arkikeskus.launcher.data.backup.BackupRepository
 import javax.inject.Inject
 
 sealed interface BackupEvent {
-    data class Exported(val name: String) : BackupEvent
+    /** The file [name] is written. [profile] is the stored name of the home profile it is of (empty for one the
+     *  user never named) when there are several profiles; null with one, where there is nothing to tell apart. */
+    data class Exported(val name: String, val profile: String? = null) : BackupEvent
     /** The backup is in. [profilesLeft] other home profiles are still listed, empty: their rows went with the
      *  restore, and the list could not be written after it (`RestoreResult.profilesLeft`). */
     data class Restored(val restored: Int, val skipped: Int, val profilesLeft: Int = 0) : BackupEvent
@@ -77,15 +79,20 @@ class BackupViewModel @Inject constructor(
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
         }.getOrNull() ?: "?"
 
+    /**
+     * Writes the home profile that is on to [uri]. The document, the file and the time of the export are one
+     * profile's (`BackupRepository.export` holds it), and the result names that profile when there are several:
+     * the one the file is of, read where it was written.
+     */
     fun exportTo(uri: Uri) = viewModelScope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
-                val doc = backupRepository.exportDocument(createdAt = System.currentTimeMillis(), appVersion = appVersion)
-                context.contentResolver.writeDocument(uri, BackupCodec.encode(doc).toByteArray())
+                backupRepository.export(createdAt = System.currentTimeMillis(), appVersion = appVersion) { doc ->
+                    context.contentResolver.writeDocument(uri, BackupCodec.encode(doc).toByteArray())
+                }
             }
-        }.onSuccess {
-            settings.setLocalLastBackup(System.currentTimeMillis())
-            _events.emit(BackupEvent.Exported(uri.lastPathSegment ?: ""))
+        }.onSuccess { exported ->
+            _events.emit(BackupEvent.Exported(uri.lastPathSegment ?: "", profile = exported.name.takeIf { exported.oneOfSeveral }))
         }
             .onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it

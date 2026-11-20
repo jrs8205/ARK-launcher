@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -72,7 +73,12 @@ class HomeProfileStore(
         // Its values before its place in the list: a profile that is listed always has what it shows. An
         // empty one's file is written too: a copy that died between its values and its place in the list
         // left a file under this very id, which an empty profile would otherwise show as its own.
-        val source = if (copyOf != null && list.any { it.id == copyOf }) view.profileValues(copyOf) else emptyPreferences()
+        // A copy takes its source's own values but not its bookkeeping ([HomeProfileKeys.NOT_COPIED]).
+        val source = if (copyOf != null && list.any { it.id == copyOf }) {
+            mutablePreferencesOf().apply { copy(view.profileValues(copyOf)) { it !in HomeProfileKeys.NOT_COPIED } }
+        } else {
+            emptyPreferences()
+        }
         files.store(id).updateData { source }
         main.edit {
             it[LIST] = HomeProfile.encode(list + profile)

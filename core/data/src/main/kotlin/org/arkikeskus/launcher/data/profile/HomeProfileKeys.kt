@@ -46,7 +46,16 @@ object HomeProfileKeys {
         "widget_inset_like_icons",
         // The lock: one profile can be locked while the others are free.
         "desktop_locked",
+        // A backup file holds one profile, so when one was last exported is that profile's own: a profile
+        // that was never exported does not show another's time.
+        "local_last_backup_time",
     )
+
+    /**
+     * Of [PER_PROFILE], what a copy of a profile does not take from its source: the profile's own bookkeeping.
+     * A copy is a new profile, and it has never been exported.
+     */
+    val NOT_COPIED: Set<String> = setOf("local_last_backup_time")
 
     /** What every home profile shares. */
     val SHARED: Set<String> = setOf(
@@ -67,7 +76,7 @@ object HomeProfileKeys {
         // The apps' own names, icons and swipe actions: the same app looks the same in every profile.
         "hidden_apps", "custom_labels", "custom_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps",
         // Settings' own state and this phone's bookkeeping.
-        "collapsed_settings_sections", "local_last_backup_time", "default_layout_seeded", "onboarding_done",
+        "collapsed_settings_sections", "default_layout_seeded", "onboarding_done",
         "default_reminder_dismissed", "first_run_fresh",
         // The dock of versions before 0.9.7, read once at a start and turned into rows.
         "dock_favorites",
