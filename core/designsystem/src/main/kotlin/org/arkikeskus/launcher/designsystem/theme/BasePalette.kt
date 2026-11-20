@@ -96,8 +96,10 @@ internal fun readable(fg: Color, toward: Color, surfaces: List<Color>): Color {
 
 private fun tinted(hue: Float, saturation: Float, dark: Boolean): BasePalette {
     fun tone(s: Float, l: Float) = Color.hsl(hue, s, l.coerceIn(0f, 1f))
-    val background = if (dark) tone(0.45f, 0.06f) else tone(0.80f, 0.97f)
-    val card = if (dark) tone(0.38f, 0.14f) else tone(0.85f, 0.92f)
+    // The surfaces carry the base colour strongly (the owner's choice between two looks, 2026-11-19): a
+    // page and a card that are clearly of the colour, not a grey with a hint of it.
+    val background = if (dark) tone(0.60f, 0.07f) else tone(1.0f, 0.965f)
+    val card = if (dark) tone(0.58f, 0.17f) else tone(1.0f, 0.90f)
     val text = if (dark) tone(0.30f, 0.95f) else tone(0.50f, 0.08f)
     val dim = if (dark) tone(0.22f, 0.72f) else tone(0.25f, 0.30f)
 
@@ -119,7 +121,7 @@ private fun tinted(hue: Float, saturation: Float, dark: Boolean): BasePalette {
     val onContainer = if (dark) tone(1f, 0.95f) else tone(0.95f, 0.12f)
     var container = card
     for (step in 0..CONTAINER_STEPS) {
-        container = if (dark) tone(0.78f, (32 - step) / 100f) else tone(1f, (80 + step) / 100f)
+        container = if (dark) tone(0.92f, (36 - step) / 100f) else tone(1f, (76 + step) / 100f)
         if (contrast(onContainer, container) >= TEXT_CONTRAST) break
     }
 

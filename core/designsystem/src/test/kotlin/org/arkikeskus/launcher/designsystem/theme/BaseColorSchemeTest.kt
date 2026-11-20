@@ -95,6 +95,24 @@ class BaseColorSchemeTest {
         assertThat(moved).isGreaterThan(0)
     }
 
+    /** The descriptions' colour is the palette's own wherever that reads on every surface level, and is moved
+     *  only where it does not (the lightest dark level near yellow, since the surfaces carry more colour). */
+    @Test fun `onSurfaceVariant is dim itself wherever dim already reads as text`() {
+        var untouched = 0
+        var moved = 0
+        everyPalette { p, at ->
+            val s = p.toColorScheme()
+            if (surfacesOf(s).all { contrast(p.dim, it) >= 4.5f }) {
+                assertWithMessage(at).that(s.onSurfaceVariant).isEqualTo(p.dim)
+                untouched++
+            } else {
+                moved++
+            }
+        }
+        assertThat(untouched).isGreaterThan(moved)
+        assertThat(moved).isGreaterThan(0)
+    }
+
     @Test fun `no role is left to Material's baseline`() {
         listOf(false to lightColorScheme(), true to darkColorScheme()).forEach { (dark, baseline) ->
             val s = basePalette(PaletteSeed.Hue(15f), dark).toColorScheme()

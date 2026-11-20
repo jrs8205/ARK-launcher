@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.compositeOver
  * buttons in `primary` on a surface; a fill only has to stand 3:1 from the card, so for the hues
  * where that is not enough (blue on dark) `primary` is the fill moved toward the text until it
  * reads on every surface level. There is one colour: secondary and tertiary are primary.
+ * `onSurfaceVariant` is [BasePalette.dim] by the same rule: itself where it reads on every surface
+ * level, otherwise moved toward the text until it does.
  */
 fun BasePalette.toColorScheme(): ColorScheme {
     fun towardText(color: Color, fraction: Float) = text.copy(alpha = fraction).compositeOver(color)
@@ -22,6 +24,9 @@ fun BasePalette.toColorScheme(): ColorScheme {
     val highest = towardText(card, 0.12f)
     val surfaces = listOf(background, low, card, high, highest)
 
+    // The descriptions' colour, as text on every surface level: [dim] itself where it reads on all of them. It
+    // is made to read on the page and the card; on the lightest dark level, near yellow, it falls a hair short.
+    val variantText = readable(dim, text, surfaces)
     val primary = readable(fill, text, surfaces)
     val onPrimary = contentOn(primary, preferred = onFill)
     val errorText = readable(error, text, surfaces)
@@ -46,7 +51,7 @@ fun BasePalette.toColorScheme(): ColorScheme {
         surface = background,
         onSurface = text,
         surfaceVariant = high,
-        onSurfaceVariant = dim,
+        onSurfaceVariant = variantText,
         surfaceTint = primary,
         inverseSurface = text,
         inverseOnSurface = background,

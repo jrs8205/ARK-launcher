@@ -47,11 +47,38 @@ class BasePaletteTest {
     @Test fun `orange is the mock-up's orange`() {
         val dark = basePalette(PaletteSeed.Hue(15f), dark = true)
         assertNear(dark.fill, Color(0xFFFB602D))
-        assertNear(dark.background, Color.hsl(15f, 0.45f, 0.06f))
-        assertNear(dark.card, Color.hsl(15f, 0.38f, 0.14f))
         val light = basePalette(PaletteSeed.Hue(15f), dark = false)
         assertNear(light.fill, Color(0xFFDC3A04))
         assertThat(light.onFill).isEqualTo(Color.White)
+    }
+
+    /**
+     * The owner's choice of 2026-11-19, the more saturated of the two looks he compared: the page, the card and
+     * the container carry clearly more of the base colour than they did (the dark card was 38 % saturated at
+     * 14 % lightness, the light page 80 % at 97 %). Pinned on orange; the rules above hold it for every hue.
+     */
+    @Test fun `the surfaces carry the base colour as strongly as the owner chose`() {
+        val dark = basePalette(PaletteSeed.Hue(15f), dark = true)
+        assertNear(dark.background, Color.hsl(15f, 0.60f, 0.07f))
+        assertNear(dark.card, Color.hsl(15f, 0.58f, 0.17f))
+        assertNear(dark.container, Color.hsl(15f, 0.92f, 0.36f))
+        val light = basePalette(PaletteSeed.Hue(15f), dark = false)
+        assertNear(light.background, Color.hsl(15f, 1f, 0.965f))
+        assertNear(light.card, Color.hsl(15f, 1f, 0.90f))
+        assertNear(light.container, Color.hsl(15f, 1f, 0.76f))
+    }
+
+    /** More colour in the surfaces must not cost the order of the layers: the card is told from the page, and
+     *  the container from the card, for every hue. */
+    @Test fun `the card is told from the page and the container from the card`() = everyPalette { p, at ->
+        if (p.seed is PaletteSeed.Mono) return@everyPalette
+        if (p.dark) {
+            assertWithMessage(at).that(p.card.luminance()).isGreaterThan(p.background.luminance())
+            assertWithMessage(at).that(p.container.luminance()).isGreaterThan(p.card.luminance())
+        } else {
+            assertWithMessage(at).that(p.card.luminance()).isLessThan(p.background.luminance())
+            assertWithMessage(at).that(p.container.luminance()).isLessThan(p.card.luminance())
+        }
     }
 
     @Test fun `yellow carries dark content in both modes and deepens in light`() {
