@@ -24,6 +24,12 @@
     <string name="backup_restore_confirm_msg">Twój obecny ekran główny i ustawienia zostaną zastąpione. Widżety zostaną przywrócone jako elementy zastępcze, które skonfigurujesz dotknięciem.</string>
     <string name="backup_restore_confirm_profiles">Usunięte zostaną też wszystkie pozostałe profile: %1$s.</string>
     <string name="backup_restore_profiles_changed">Twoje profile zmieniły się podczas odczytu kopii zapasowej, więc nic nie zostało przywrócone. Zaimportuj plik ponownie, aby zobaczyć, co zostałoby zastąpione.</string>
+    <plurals name="backup_restore_profiles_left">
+        <item quantity="one">Nie udało się usunąć %1$d innego profilu. Jest teraz pusty: usuń go w Ustawienia ▸ Profile.</item>
+        <item quantity="few">Nie udało się usunąć %1$d innych profili. Są teraz puste: usuń je w Ustawienia ▸ Profile.</item>
+        <item quantity="many">Nie udało się usunąć %1$d innych profili. Są teraz puste: usuń je w Ustawienia ▸ Profile.</item>
+        <item quantity="other">Nie udało się usunąć %1$d innych profili. Są teraz puste: usuń je w Ustawienia ▸ Profile.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Przywróć</string>
     <string name="backup_cancel">Anuluj</string>
     <string name="backup_last_time">Ostatnio: %1$s</string>

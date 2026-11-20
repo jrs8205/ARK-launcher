@@ -128,6 +128,42 @@ class BackupProfilesTest {
         assertThat(files.stores).isEmpty()
     }
 
+    /**
+     * The rows are replaced, and then the list of profiles cannot be written (a full disk): the other profiles
+     * stay listed, with no rows. The restore says how many are left, so the screen does not call a half-done
+     * restore done; what is left are empty profiles the user can delete.
+     */
+    @Test fun aRestoreThatCouldNotRemoveTheOtherProfilesSaysHowManyAreLeft() = runTest {
+        twoProfiles()
+        store.create("Evening", copyOf = null)
+        val thenTheDiskFills = object : HomeItemDao by dao {
+            override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) {
+                dao.replaceEveryProfile(items)
+                main.failWrites = IOException("disk full")
+            }
+        }
+
+        val result = repo(thenTheDiskFills).restoreDocument(backup, installed)
+
+        assertThat(result.profilesLeft).isEqualTo(2)
+        assertThat(result.restored).isEqualTo(2)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L, 3L).inOrder()
+        // What could be done was done: the rows are the backup's, in the profile that is on.
+        assertThat(dao.getAllOfEveryProfile().map { it.packageName }).containsExactly("com.mail", "com.maps")
+        assertThat(dao.getAllOfEveryProfile().map { it.homeProfileId }.toSet()).containsExactly(2L)
+        // Once the disk has room again the profiles that are left can be deleted.
+        main.failWrites = null
+        assertThat(store.delete(1)).isTrue()
+        assertThat(store.delete(3)).isTrue()
+        assertThat(store.list()).containsExactly(HomeProfile(2, "Work"))
+    }
+
+    @Test fun aRestoreThatRemovedTheOtherProfilesLeavesNone() = runTest {
+        twoProfiles()
+
+        assertThat(repo().restoreDocument(backup, installed).profilesLeft).isEqualTo(0)
+    }
+
     @Test fun aRestoreIntoTheOnlyProfileIsWhatItAlwaysWas() = runTest {
         dao.insert(app("com.first", 0))
 

@@ -22,6 +22,10 @@
     <string name="backup_restore_confirm_msg">Your current home screen and settings will be replaced. Widgets are restored as tap-to-set-up placeholders.</string>
     <string name="backup_restore_confirm_profiles">This also deletes every other profile: %1$s.</string>
     <string name="backup_restore_profiles_changed">Your profiles changed while the backup was being read, so nothing was restored. Import the file again to see what it would replace.</string>
+    <plurals name="backup_restore_profiles_left">
+        <item quantity="one">%1$d other profile could not be deleted. It is empty now: delete it in Settings ▸ Profiles.</item>
+        <item quantity="other">%1$d other profiles could not be deleted. They are empty now: delete them in Settings ▸ Profiles.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Restore</string>
     <string name="backup_cancel">Cancel</string>
     <string name="backup_last_time">Last: %1$s</string>

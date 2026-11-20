@@ -22,6 +22,10 @@
     <string name="backup_restore_confirm_msg">Mevcut ana ekranınız ve ayarlarınız bu yedekle değiştirilecek. Widget\'lar, dokunarak kurulabilen yer tutucular olarak geri yüklenir.</string>
     <string name="backup_restore_confirm_profiles">Diğer tüm profiller de silinir: %1$s.</string>
     <string name="backup_restore_profiles_changed">Yedek okunurken profilleriniz değişti, bu yüzden hiçbir şey geri yüklenmedi. Neyin değişeceğini görmek için dosyayı yeniden içe aktarın.</string>
+    <plurals name="backup_restore_profiles_left">
+        <item quantity="one">%1$d diğer profil silinemedi. Artık boş: Ayarlar ▸ Profiller bölümünden silin.</item>
+        <item quantity="other">%1$d diğer profil silinemedi. Artık boş: Ayarlar ▸ Profiller bölümünden silin.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Geri yükle</string>
     <string name="backup_cancel">İptal</string>
     <string name="backup_last_time">Son yedek: %1$s</string>

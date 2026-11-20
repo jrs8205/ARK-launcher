@@ -24,7 +24,9 @@ import javax.inject.Inject
 
 sealed interface BackupEvent {
     data class Exported(val name: String) : BackupEvent
-    data class Restored(val restored: Int, val skipped: Int) : BackupEvent
+    /** The backup is in. [profilesLeft] other home profiles are still listed, empty: their rows went with the
+     *  restore, and the list could not be written after it (`RestoreResult.profilesLeft`). */
+    data class Restored(val restored: Int, val skipped: Int, val profilesLeft: Int = 0) : BackupEvent
     data object InvalidFile : BackupEvent
     data object TooLarge : BackupEvent
 
@@ -40,7 +42,8 @@ sealed interface BackupEvent {
     data class Failed(val message: String) : BackupEvent
 
     /** A message too long to read in a short snackbar: it stays until dismissed or timed out long. */
-    val needsTimeToRead: Boolean get() = this is ReadBlocked || this is ProfilesChanged
+    val needsTimeToRead: Boolean
+        get() = this is ReadBlocked || this is ProfilesChanged || (this is Restored && profilesLeft > 0)
 }
 
 @HiltViewModel

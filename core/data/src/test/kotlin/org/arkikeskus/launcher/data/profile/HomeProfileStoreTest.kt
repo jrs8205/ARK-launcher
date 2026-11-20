@@ -175,6 +175,22 @@ class HomeProfileStoreTest {
         assertThat(store.keepOnlyActive()).isEmpty()
     }
 
+    /** The list is what says which profiles there are: once it is written the others are gone. A store file of
+     *  theirs that cannot be removed then is never read again (ids are not reused), and must not turn a
+     *  removal that happened into a failure. */
+    @Test fun keepOnlyActiveRemovesTheOthersThoughAFileOfTheirsCannotBeDeleted() = runTest {
+        val stubborn = object : HomeProfileFiles by files {
+            override suspend fun delete(profileId: Long) = throw java.io.IOException("the file is in use")
+        }
+        val store = HomeProfileStore(main, ProfiledPreferences(main, stubborn), stubborn)
+        store.create("Work", null)
+        store.create("Evening", null)
+
+        assertThat(store.keepOnlyActive()).containsExactly(2L, 3L)
+
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""))
+    }
+
     @Test fun aRenameIsCutAndCleaned() = runTest {
         store.rename(1, "  My\thome  ")
         assertThat(store.list()).containsExactly(HomeProfile(1, "My home"))

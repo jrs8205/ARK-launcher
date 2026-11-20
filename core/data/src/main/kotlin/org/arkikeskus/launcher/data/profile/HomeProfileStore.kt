@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.arkikeskus.launcher.data.profile.ProfiledPreferences.Companion.copy
@@ -139,8 +140,22 @@ class HomeProfileStore(
         } else {
             main.edit { it[LIST] = HomeProfile.encode(rest) }
         }
-        files.delete(id)
+        dropFile(id)
         true
+    }
+
+    /**
+     * Removes the store file of [id], a profile the list no longer has. The list is what says which profiles
+     * there are, so the profile is gone whether or not its file can be removed: a file left behind is never
+     * read again (ids are not reused), and failing here would report a removal that happened as one that did not.
+     */
+    private suspend fun dropFile(id: Long) {
+        try {
+            files.delete(id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
     }
 
     /**
@@ -159,7 +174,7 @@ class HomeProfileStore(
         } else {
             moveIntoMain(active, kept)
         }
-        for (id in removed) files.delete(id)
+        for (id in removed) dropFile(id)
         removed
     }
 

@@ -43,6 +43,25 @@ class BackupEventMessageTest {
             .isEqualTo(res.getString(R.string.backup_failed) + ": disk full")
     }
 
+    /** The backup is in, but the list of profiles could not be written: the other profiles are still there, empty.
+     *  The text says the backup was restored, that they are left and where to delete them, and it is long enough
+     *  to need its time. A plain "Backup restored" would call a half-done restore done. */
+    @Test fun aRestoreThatLeftOtherProfilesSaysSoAndWhereToDeleteThem() {
+        val left = BackupEvent.Restored(5, 0, profilesLeft = 2)
+        val text = backupEventMessage(res, left)
+
+        assertThat(text).startsWith(res.getString(R.string.backup_restored))
+        assertThat(text).contains(res.getQuantityString(R.plurals.backup_restore_profiles_left, 2, 2))
+        assertThat(text).contains("2 other profiles could not be deleted")
+        assertThat(left.needsTimeToRead).isTrue()
+        // With items that were skipped too, both are said.
+        val both = backupEventMessage(res, BackupEvent.Restored(5, 3, profilesLeft = 1))
+        assertThat(both).startsWith(res.getQuantityString(R.plurals.backup_restored_skipped, 3, 3))
+        assertThat(both).contains("1 other profile could not be deleted")
+        // A restore that left none says what it always did, and is short.
+        assertThat(BackupEvent.Restored(5, 3).needsTimeToRead).isFalse()
+    }
+
     /** Nothing was restored because the profiles changed under the question: the text says so and what to do,
      *  and it is long enough to need its time. */
     @Test fun changedProfilesSayThatNothingWasRestored() {

@@ -22,7 +22,12 @@ import org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class RestoreResult(val restored: Int, val skipped: Int)
+/**
+ * What a restore did: the rows it [restored], the ones it [skipped] (their app is not installed), and how many
+ * other home profiles are still listed although their rows went ([profilesLeft]: the list could not be
+ * written after the layout was replaced; they are empty and can be deleted in Settings).
+ */
+data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: Int = 0)
 
 /**
  * The home profiles as a restore's question showed them: the one that is on ([activeId]), which the restore
@@ -112,7 +117,7 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         // While the profile that is on stays on: the settings, the rows and the list of profiles this
         // leaves are of one profile, and a switch in the middle put the rows in one and left another.
-        withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
+        val profilesLeft = withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
             // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
             // was read after the question, and a profile made meanwhile would go without a word. Under the
             // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
@@ -156,15 +161,19 @@ class BackupRepository @Inject constructor(
                     .forEach { id -> runCatching { releaser.release(id) } }
             }
             // The layout is the restored profile's alone now; the other profiles' settings go with their
-            // rows. Last, and best effort: until here a failure leaves every profile as it was, and a
-            // profile left listed by a failure here is an empty one the user can delete.
-            val removed = runCatching { profiles?.keepOnlyActive() }.getOrNull().orEmpty()
+            // rows. Last: until here a failure leaves every profile as it was. A list that cannot be
+            // written here leaves the others listed, with no rows: empty profiles the user can delete, and
+            // the result says how many, since "restored" alone would call this done.
+            val kept = runCatching { profiles?.keepOnlyActive() }
+            val removed = kept.getOrNull().orEmpty()
+            val left = if (kept.isSuccess) 0 else runCatching { profiles?.list()?.size?.minus(1) }.getOrNull() ?: 1
             // Their own pictures behind the app drawer go with them: nothing in the launcher could remove
             // the picture of a profile that is not there any more.
             for (id in removed) runCatching { drawerPictures?.delete(id) }
             repinShortcuts(previousLayout, entities)
+            left
         } } }
-        return RestoreResult(entities.size, mapping.skipped)
+        return RestoreResult(entities.size, mapping.skipped, profilesLeft)
     }
 
     private fun mainUserSerial(): Long = resolver.ownUserSerial() ?: 0L
