@@ -273,6 +273,58 @@ class SettingsRepositoryTest {
         assertThat(settings.settings.first().homeColumns).isEqualTo(5)
     }
 
+    /** Issue #33: the count of apps opened elsewhere keeps two things of this phone's own beside the scores:
+     *  the moment Android's record was read up to, and the launcher's own launches since then. A backup holds
+     *  neither, and a restore that leaves the switch on keeps both. */
+    @Test
+    fun `the bookkeeping of counting apps opened elsewhere stays on this phone across a restore`() = runTest {
+        val store = InMemoryDataStore()
+        val settings = SettingsRepository(store)
+        val usage = AppUsageRepository(store)
+        settings.setCountSystemUsage(true, now = 1_000L)
+        usage.recordLaunch("com.example/Main/0", at = 2_000L)
+
+        val backup = settings.exportRaw()
+        assertThat(backup.keys).containsNoneOf(AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY)
+        assertThat(backup["count_system_usage"]).isEqualTo(true)
+
+        settings.importRaw(backup)
+
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(1_000L)
+        assertThat(usage.ownLaunches.first()).containsExactly("com.example/Main/0" to 2_000L)
+    }
+
+    /** A restore that turns the switch on is the switch turned on: the count starts at that moment, whatever
+     *  the file says of another phone's reading. One that turns it off forgets the bookkeeping. */
+    @Test
+    fun `a restore that switches the count of apps opened elsewhere on starts it from that moment`() = runTest {
+        val store = InMemoryDataStore()
+        val settings = SettingsRepository(store)
+        val usage = AppUsageRepository(store)
+        usage.recordLaunch("com.example/Main/0", at = 2_000L)
+        val before = System.currentTimeMillis()
+
+        settings.importRaw(
+            mapOf(
+                "count_system_usage" to true,
+                AppUsageRepository.SYSTEM_SYNC_KEY to 5,
+                AppUsageRepository.OWN_LAUNCHES_KEY to "com.other/Main/0\t7",
+            ),
+        )
+
+        assertThat(settings.settings.first().countSystemUsage).isTrue()
+        assertThat(usage.systemSyncedTo.first()).isAtLeast(before)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+
+        usage.recordLaunch("com.example/Main/0", at = 3_000L)
+        assertThat(usage.ownLaunches.first()).hasSize(1)
+        settings.importRaw(mapOf("home_columns" to 5))
+
+        assertThat(settings.settings.first().countSystemUsage).isFalse()
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(0L)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+    }
+
     @Test
     fun `importRaw preserves device-local state and applies restored values`() = runTest {
         val repo = newRepository()

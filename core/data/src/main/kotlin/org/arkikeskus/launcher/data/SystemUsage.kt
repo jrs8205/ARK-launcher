@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import android.annotation.SuppressLint
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
@@ -40,6 +41,10 @@ class AndroidSystemUsageSource @Inject constructor(@ApplicationContext private v
             AppOpsManager.MODE_ALLOWED
     }.getOrDefault(false)
 
+    // The permission is declared in the app's manifest (this module declares none of the launcher's own). It
+    // is a special access, not a runtime permission: without it Android answers with nothing, and a refusal
+    // thrown instead ends in the empty list too.
+    @SuppressLint("MissingPermission")
     override fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening> = runCatching {
         val manager = context.getSystemService(UsageStatsManager::class.java) ?: return emptyList()
         val events = manager.queryEvents(fromMs, toMs) ?: return emptyList()
@@ -87,11 +92,12 @@ fun appKeyFor(opening: AppOpening, apps: List<AppItem>): String? {
  * as one opening, in the same score the launcher's own launches go to ([AppUsageRepository]). Run when the
  * app drawer opens, which is when the card is looked at.
  *
- * Read: the last [WINDOW_MS] at most, and never a moment twice (the time read up to is stored). Not counted:
- * the launcher itself, a package the launcher shows no app of, and anything of another user (Android does not
- * tell of a work profile's or the private space's apps here, and [apps] hands over the launcher's own user's
- * apps only). Nothing leaves the phone: the result is a score per app in the launcher's settings file, as
- * the launcher's own count always was.
+ * Read: from the moment the user switched it on, the last [WINDOW_MS] at most, and never a moment twice (the
+ * time read up to is stored). Not counted: the launcher itself, a package the launcher shows no app of, and
+ * anything of another user (Android does not tell of a work profile's or the private space's apps here, and
+ * [apps] hands over the launcher's own user's apps only). A launch made in the launcher is in Android's record
+ * too and in the score already: [AppUsageRepository.recordOpenings] leaves that report out. Nothing leaves the
+ * phone: the result is a score per app in the launcher's settings file, as the launcher's own count always was.
  */
 @Singleton
 class SystemUsageSync internal constructor(
@@ -124,10 +130,18 @@ class SystemUsageSync internal constructor(
     private val running = Mutex()
 
     /** Counts what came to the front since the last sync, up to [now]. Does nothing while the switch is off or
-     *  access is not given; the stored time then stays, and at most [WINDOW_MS] is read once it is on. */
+     *  access is not given; the stored time then stays (the moment the switch was turned on, before the first
+     *  read), and at most [WINDOW_MS] is read once the access is there. */
     suspend fun sync(now: Long = System.currentTimeMillis()) = running.withLock {
         if (!enabled() || !source.hasAccess()) return@withLock
-        val from = maxOf(usage.systemSyncedTo.first(), now - WINDOW_MS)
+        val syncedTo = usage.systemSyncedTo.first()
+        if (syncedTo <= 0L) {
+            // On, but no start was noted (the setting's own switch notes one): the count starts here.
+            // Nothing is read back, as the launcher's own launches before this moment were not remembered.
+            usage.recordOpenings(emptyList(), syncedTo = now)
+            return@withLock
+        }
+        val from = maxOf(syncedTo, now - WINDOW_MS)
         if (from >= now) return@withLock
         val known = apps()
         val counted = openingsOf(source.resumedBetween(from, now))
@@ -137,7 +151,8 @@ class SystemUsageSync internal constructor(
     }
 
     companion object {
-        /** How far back the first sync reads (and any sync after a long pause): the score's own half-life. */
+        /** How far back a sync reads at most (the first one after the access was given late, or one after a
+         *  long pause): the score's own half-life. */
         const val WINDOW_MS = AppUsageRepository.HALF_LIFE_MS
     }
 }

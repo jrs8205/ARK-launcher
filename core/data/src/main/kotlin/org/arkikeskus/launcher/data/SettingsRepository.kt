@@ -618,7 +618,13 @@ class SettingsRepository @Inject constructor(
     /** Whether the app drawer reopens at the top vs. remembers its last scroll position. */
     suspend fun setDrawerOpensAtTop(value: Boolean) = edit { it[Keys.DRAWER_OPENS_AT_TOP] = value }
     suspend fun setDrawerSearchAtBottom(value: Boolean) = edit { it[Keys.DRAWER_SEARCH_AT_BOTTOM] = value }
-    suspend fun setCountSystemUsage(value: Boolean) = edit { it[Keys.COUNT_SYSTEM_USAGE] = value }
+    /** "Count apps opened elsewhere". Turned on, the count starts at [now]; turned off, its bookkeeping goes
+     *  ([AppUsageRepository.countingSwitched]). */
+    suspend fun setCountSystemUsage(value: Boolean, now: Long = System.currentTimeMillis()) = edit {
+        val was = it[Keys.COUNT_SYSTEM_USAGE] ?: false
+        it[Keys.COUNT_SYSTEM_USAGE] = value
+        AppUsageRepository.countingSwitched(it, was = was, on = value, now = now)
+    }
     suspend fun setSortDrawerFolders(value: Boolean) = edit { it[Keys.SORT_DRAWER_FOLDERS] = value }
     suspend fun setMixDrawerFolders(value: Boolean) = edit { it[Keys.MIX_DRAWER_FOLDERS] = value }
     suspend fun setBlurBehindDrawer(value: Boolean) = edit { it[Keys.BLUR_BEHIND_DRAWER] = value }
@@ -869,9 +875,12 @@ class SettingsRepository @Inject constructor(
             val chameleonLastArgb = prefs[Keys.CHAMELEON_LAST_ARGB]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
-            // With them, the time Android's own record was read up to: cleared, the next read would count
-            // a week of openings a second time.
+            // With them, while apps opened elsewhere are counted: the time Android's own record was read up
+            // to and the launcher's own launches since then. Cleared, the next read would count openings a
+            // second time.
+            val wasCounting = prefs[Keys.COUNT_SYSTEM_USAGE] ?: false
             val usageSyncedTo = prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)]
+            val ownLaunches = prefs[stringPreferencesKey(AppUsageRepository.OWN_LAUNCHES_KEY)]
             // Gallery images are files on this phone (not in a backup): keep them for the apps, the
             // pinned shortcuts and the home folders the backup picks no icon for. Not for drawer folders: their ids come back
             // (max + 1), so the folder the backup has under an id may not be the one with the picture.
@@ -913,7 +922,15 @@ class SettingsRepository @Inject constructor(
             if (unlockSound != null) prefs[Keys.UNLOCK_SOUND_URI] = unlockSound
             if (chameleonLastArgb != null) prefs[Keys.CHAMELEON_LAST_ARGB] = chameleonLastArgb
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
-            if (usageSyncedTo != null) prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)] = usageSyncedTo
+            // The count's bookkeeping stays only where the count goes on as it was. A file that turns the
+            // switch on is the switch turned on: the count starts now.
+            val counting = prefs[Keys.COUNT_SYSTEM_USAGE] ?: false
+            if (wasCounting && counting) {
+                if (usageSyncedTo != null) prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)] = usageSyncedTo
+                if (ownLaunches != null) prefs[stringPreferencesKey(AppUsageRepository.OWN_LAUNCHES_KEY)] = ownLaunches
+            } else {
+                AppUsageRepository.countingSwitched(prefs, was = wasCounting, on = counting, now = System.currentTimeMillis())
+            }
             for ((name, images) in localImages) {
                 if (images.isEmpty()) continue
                 val key = stringPreferencesKey(name)
@@ -1007,7 +1024,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val DRAWER_SEARCH_AT_BOTTOM = booleanPreferencesKey("drawer_search_at_bottom")
-        val COUNT_SYSTEM_USAGE = booleanPreferencesKey("count_system_usage")
+        val COUNT_SYSTEM_USAGE = booleanPreferencesKey(AppUsageRepository.COUNTING_KEY)
         val SORT_DRAWER_FOLDERS = booleanPreferencesKey("sort_drawer_folders")
         val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
         val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
@@ -1216,7 +1233,7 @@ class SettingsRepository @Inject constructor(
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
             "default_layout_seeded", "onboarding_done", "first_run_fresh", "people_held_notifications",
-            AppUsageRepository.SYSTEM_SYNC_KEY,
+            AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY,
             "default_reminder_dismissed",
             // A picked lock/unlock sound is a content URI this phone holds a read grant for; another
             // phone could not play it.
