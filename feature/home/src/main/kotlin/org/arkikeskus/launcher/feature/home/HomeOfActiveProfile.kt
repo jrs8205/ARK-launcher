@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.feature.home
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 
 /**
@@ -17,6 +18,9 @@ import androidx.compose.runtime.key
  * that profile's own start page. A change inside the profile, and the layout arriving at a start, reset
  * nothing.
  *
+ * What the screen of a profile leaves behind in the Activity's widget host goes with it too: the host views
+ * it made ([LauncherWidgetHost.forgetViews]).
+ *
  * Until the profile has been read nothing is drawn either, not even for a guess. A screen first made for
  * the first profile and then for the one that is on started twice, and the first start had nothing of what
  * the real profile's screen saved before the process died: a widget being added was not pending for it, so
@@ -27,5 +31,11 @@ import androidx.compose.runtime.key
 internal fun HomeOfActiveProfile(active: Long?, uiState: HomeUiState, content: @Composable (HomeUiState) -> Unit) {
     if (active == null) return
     if (uiState.loaded && uiState.homeProfileId != active) return
-    key(active) { content(uiState) }
+    key(active) {
+        // The widget views this profile's screen makes are registered with the Activity's host, which
+        // outlives the screen: when the screen leaves (another profile's comes), the host lets go of them.
+        val host = LocalAppWidgetHost.current as? LauncherWidgetHost
+        DisposableEffect(host) { onDispose { host?.forgetViews() } }
+        content(uiState)
+    }
 }

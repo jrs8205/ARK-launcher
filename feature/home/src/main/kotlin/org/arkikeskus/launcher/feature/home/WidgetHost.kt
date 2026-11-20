@@ -34,6 +34,16 @@ open class LauncherWidgetHost(context: Context, hostId: Int) : AppWidgetHost(con
         super.onProvidersChanged()
         _providerGeneration.value++
     }
+
+    /**
+     * Lets go of every host view made with [createView]. The platform's host keeps each view it makes as the
+     * listener of its widget id until that id is deleted, and this host is the Activity's: it outlives the
+     * home screen of one home profile. Without this, the views of a profile that is no longer on stayed in
+     * memory and were handed every update of their widgets again whenever the launcher came back to the
+     * front, though nothing draws them. The widgets stay bound and their ids allocated: a screen that shows
+     * them later makes its views again.
+     */
+    open fun forgetViews() = clearViews()
 }
 
 /**

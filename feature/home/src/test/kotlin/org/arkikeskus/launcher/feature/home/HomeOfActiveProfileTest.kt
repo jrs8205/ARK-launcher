@@ -54,6 +54,45 @@ class HomeOfActiveProfileTest {
         }
     }
 
+    /** The Activity's widget host, counting how often it is told to let go of its views. */
+    private class CountingHost(context: android.content.Context) : LauncherWidgetHost(context, 1) {
+        var forgotten = 0
+        override fun forgetViews() {
+            forgotten++
+            super.forgetViews()
+        }
+    }
+
+    /**
+     * Review round 4. The widget views of a profile's home screen are registered with the Activity's host,
+     * which outlives that screen. When the screen of a profile leaves, the host lets go of them (they
+     * stayed in memory and went on receiving their widgets' updates); a change inside a profile lets go of
+     * nothing, or its widgets would be made again for every change.
+     */
+    @Test fun theHostLetsGoOfAProfilesWidgetViewsWhenItsScreenLeaves() {
+        val host = CountingHost(org.robolectric.RuntimeEnvironment.getApplication())
+        compose.setContent {
+            androidx.compose.runtime.CompositionLocalProvider(LocalAppWidgetHost provides host) {
+                HomeOfActiveProfile(active = active.value, uiState = state.value) { shown -> Text("home of ${shown.homeProfileId}") }
+            }
+        }
+        compose.onNodeWithText("home of 1").assertIsDisplayed()
+        assertThat(host.forgotten).isEqualTo(0)
+
+        state.value = loaded(1).copy(pageCount = 3)
+        compose.waitForIdle()
+        assertThat(host.forgotten).isEqualTo(0)
+
+        // The switch is known before the new profile's state has come: the old screen has left already.
+        active.value = 2
+        compose.waitForIdle()
+        assertThat(host.forgotten).isEqualTo(1)
+
+        state.value = loaded(2)
+        compose.onNodeWithText("home of 2").assertIsDisplayed()
+        assertThat(host.forgotten).isEqualTo(1)
+    }
+
     @Test fun whatIsOpenDoesNotSurviveASwitch() {
         show()
         compose.onNodeWithText("folder closed").performClick()
