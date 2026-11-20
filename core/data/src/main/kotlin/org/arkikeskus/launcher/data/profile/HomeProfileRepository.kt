@@ -1,11 +1,13 @@
 package org.arkikeskus.launcher.data.profile
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRowResolver
+import org.arkikeskus.launcher.data.DeletedProfileRows
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
@@ -44,6 +46,10 @@ class HomeProfileRepository @Inject constructor(
 
         /** The list is at its limit ([HomeProfile.MAX_PROFILES]). */
         data object Full : Created
+
+        /** The profile could not be made whole (its rows or its picture could not be written): there is no
+         *  new profile, and what had been made of it is gone. */
+        data object Failed : Created
     }
 
     /**
@@ -57,18 +63,55 @@ class HomeProfileRepository @Inject constructor(
      * drawer folders and pictures; an app widget arrives as a placeholder to set up again), or an empty one
      * with the default look. It is not switched to, and cannot be until it is whole: a tap on it the moment
      * it was listed showed it before its rows and its drawer picture were there.
+     *
+     * It is LISTED LAST, when its values, its rows and its picture are all there. Listed first, a process that
+     * died in between left a profile with its source's look over an empty home screen, and so did a row or a
+     * picture that could not be written. Now either leaves no profile: on a failure what was made of it is
+     * taken away again ([Created.Failed]); after a death it stays unlisted under an id that the next profile
+     * is given, and that one starts by clearing it. (Nothing sweeps unlisted rows at a start: the list is
+     * read from a file that reads as empty when it is damaged, and such a sweep would then delete every
+     * profile's home screen but the first.)
      */
     suspend fun create(name: String, copyCurrent: Boolean): Created = withContext(NonCancellable) {
         store.whileActiveStays { source ->
-            val profile = store.create(name, copyOf = source.takeIf { copyCurrent }) ?: return@whileActiveStays Created.Full
-            if (copyCurrent) {
-                val folderIds = layout.copyProfile(from = source, to = profile.id)
-                // A home folder's own icon is filed by its row id, and the copy's folders are new rows.
-                settings.moveHomeFolderIcons(profile.id, folderIds)
-                drawerPictures.copy(from = source, to = profile.id)
+            val profile = store.prepare(name, copyOf = source.takeIf { copyCurrent }) ?: return@whileActiveStays Created.Full
+            try {
+                // What an attempt that died left under this id (an id is given again until it is listed).
+                dropRows(profile.id)
+                drawerPictures.delete(profile.id)
+                if (copyCurrent) {
+                    val folderIds = layout.copyProfile(from = source, to = profile.id)
+                    // A home folder's own icon is filed by its row id, and the copy's folders are new rows.
+                    settings.moveHomeFolderIcons(profile.id, folderIds)
+                    check(drawerPictures.copy(from = source, to = profile.id)) { "the drawer's picture could not be copied" }
+                }
+                check(store.publish(profile)) { "the list of profiles filled up" }
+                Created.Done(profile)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Not listed, so not a profile: what was made of it goes, as far as it can be reached.
+                runCatching { dropRows(profile.id) }
+                runCatching { drawerPictures.delete(profile.id) }
+                runCatching { store.discard(profile) }
+                Created.Failed
             }
-            Created.Done(profile)
         }
+    }
+
+    /**
+     * Deletes the rows of the home profile [id]; the shortcuts they had pinned are pinned again as the other
+     * profiles still have them, under the lock every pin change takes and off the caller's thread (these are
+     * calls into the system, and Settings asks from the main thread). For a caller that holds the profile.
+     */
+    private suspend fun dropRows(id: Long): DeletedProfileRows = ShortcutPinLock.withLock {
+        val gone = layout.deleteProfile(id)
+        withContext(Dispatchers.IO) {
+            for ((packageName, userSerial) in gone.shortcutOwners) {
+                resolver.pinShortcuts(packageName, userSerial, layout.homeShortcutIds(packageName, userSerial))
+            }
+        }
+        gone
     }
 
     suspend fun switchTo(id: Long) = store.setActive(id)
@@ -125,18 +168,8 @@ class HomeProfileRepository @Inject constructor(
             if (list.size <= 1 || index < 0) return@whileActiveStays false
             if (active == id) store.setActiveLocked((list.getOrNull(index + 1) ?: list[index - 1]).id)
             // The rows first: from here on the profile shows nothing, and what is left of it can be deleted
-            // again. The shortcuts it had pinned are pinned again as the other profiles still have them,
-            // under the lock every pin change takes and off the caller's thread: these are calls into the
-            // system, and Settings asks from the main thread.
-            val gone = ShortcutPinLock.withLock {
-                val gone = layout.deleteProfile(id)
-                withContext(Dispatchers.IO) {
-                    for ((packageName, userSerial) in gone.shortcutOwners) {
-                        resolver.pinShortcuts(packageName, userSerial, layout.homeShortcutIds(packageName, userSerial))
-                    }
-                }
-                gone
-            }
+            // again ([dropRows] pins its shortcuts again as the other profiles still have them).
+            val gone = dropRows(id)
             drawerPictures.delete(id)
             // Its folders' pictures, if no other profile shows them, go with the unused pictures at the next start.
             val deleted = store.delete(id)

@@ -308,6 +308,7 @@
     <string name="settings_profile_empty">Vide</string>
     <string name="settings_profile_explain">Un profil est une vue de ce lanceur, pas le profil professionnel d\'Android. Les applications qu\'un profil laisse de côté continuent de fonctionner et d\'envoyer des notifications.</string>
     <string name="settings_profile_limit">La limite de 8 profils est atteinte</string>
+    <string name="settings_profile_create_failed">Le profil n\'a pas pu être créé. Rien n\'a été modifié.</string>
     <string name="settings_profile_create">Créer</string>
     <string name="settings_profile_edit">Modifier %1$s</string>
     <string name="settings_profile_delete">Supprimer le profil</string>

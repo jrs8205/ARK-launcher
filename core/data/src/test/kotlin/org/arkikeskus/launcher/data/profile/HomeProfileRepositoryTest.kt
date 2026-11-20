@@ -11,7 +11,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
@@ -410,6 +415,93 @@ class HomeProfileRepositoryTest {
 
         assertThat(copied.file.exists()).isFalse()
         assertThat(drawerPictures.current.value!!.file.exists()).isTrue()
+    }
+
+    // --- A copy is a profile only when it is whole (review round 4) ------------------------------------
+
+    /** A file where the new profile's picture folder should be: its picture cannot be copied. */
+    private fun blockThePictureOf(profile: Long) =
+        File(context.filesDir, "drawer_wallpaper_$profile").apply { deleteRecursively(); writeText("in the way") }
+
+    /**
+     * The copy's picture cannot be written. There is then no new profile: it used to be listed before its rows
+     * and its picture were made, the picture's failure was swallowed, and the list offered a profile that was
+     * not what its source is. What had been made of it is gone, and the next profile gets the id and is whole.
+     */
+    @Test fun aCopyThatCannotBeMadeWholeLeavesNoProfile() = runTest {
+        dao.insert(app("com.mail", 0))
+        drawerPictures.set(picture(Color.WHITE), 1)
+        // The picture's folder is blocked once the copy's rows are being written (the making first clears what
+        // an earlier attempt left under the id, which would take a block set before it away).
+        var inTheWay: File? = null
+        val blocking = object : HomeItemDao by dao {
+            override suspend fun insert(item: HomeItemEntity): Long {
+                if (inTheWay == null) inTheWay = blockThePictureOf(2)
+                return dao.insert(item)
+            }
+        }
+
+        assertThat(repositoryOver(blocking).create("Work", copyCurrent = true)).isEqualTo(HomeProfileRepository.Created.Failed)
+
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(rowsOf(2)).isEmpty()
+        assertThat(files.stores.keys).doesNotContain(2L)
+        inTheWay!!.delete()
+        val work = created("Work", copyCurrent = true)
+        assertThat(work.id).isEqualTo(2L)
+        assertThat(rowsOf(2).map { it.packageName }).containsExactly("com.mail")
+    }
+
+    /** Runs what is dispatched to it one piece at a time, when asked, on the asker's thread. */
+    private class OneAtATime : kotlinx.coroutines.CoroutineDispatcher() {
+        private val queue = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { queue.add(block) }
+        fun runOne(): Boolean = queue.poll()?.also { it.run() } != null
+    }
+
+    /** While its rows are there and its picture is still being copied, the copy is not in the list: a process
+     *  that dies now leaves no profile with its source's look over half a home screen. */
+    @Test fun aCopyIsNotListedBeforeItIsWhole() = runBlocking<Unit> {
+        val io = OneAtATime()
+        val paced = DrawerWallpaperStore(context, io)
+        val repository = HomeProfileRepository(store, layout, settings, resolver, paced) {}
+        dao.insert(app("com.mail", 0))
+
+        val making = async(Dispatchers.Default) { repository.create("Work", copyCurrent = true) }
+        val listedWhileItsPictureWasStillToCome = try {
+            // The picture store's first piece of work: clearing what an earlier attempt left under the id.
+            withTimeout(5_000) { while (!io.runOne()) delay(5) }
+            withTimeout(5_000) { while (rowsOf(2).isEmpty()) delay(5) }
+            // Its rows are copied; the copy of its picture waits in the paced store's queue.
+            store.list().map { it.id }
+        } finally {
+            // Whatever was seen, the making is let through to its end: it cannot be cancelled, and this test
+            // would wait for it for ever.
+            withTimeout(5_000) {
+                while (!making.isCompleted) {
+                    io.runOne()
+                    delay(5)
+                }
+            }
+        }
+
+        assertThat(listedWhileItsPictureWasStillToCome).containsExactly(1L)
+        assertThat((making.await() as HomeProfileRepository.Created.Done).profile.id).isEqualTo(2L)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L).inOrder()
+    }
+
+    /** An attempt that died half-way left rows and a picture under the id the next profile gets (an id is given
+     *  again until a profile is listed with it): the next profile starts without them, a copy or an empty one. */
+    @Test fun whatAnAttemptThatDiedLeftUnderAnIdIsNotInTheNextProfileOfThatId() = runTest {
+        inHomeProfile(2) { dao.insert(app("com.ghost", 3)) }
+        val leftover = File(context.filesDir, "drawer_wallpaper_2").apply { mkdirs() }
+        File(leftover, "ghost-0.500.jpg").writeBytes(ByteArray(10))
+
+        val evening = created("Evening", copyCurrent = false)
+
+        assertThat(evening.id).isEqualTo(2L)
+        assertThat(rowsOf(2)).isEmpty()
+        assertThat(leftover.listFiles().orEmpty().filter { it.extension == "jpg" }).isEmpty()
     }
 
     /**

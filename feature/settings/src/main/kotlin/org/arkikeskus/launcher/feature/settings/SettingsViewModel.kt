@@ -7,7 +7,10 @@ import android.net.Uri
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -28,6 +31,14 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import org.arkikeskus.launcher.model.IconShape
 
+/** Something Settings tells the user once, when what was asked for did not happen. */
+internal enum class SettingsNotice { PROFILE_NOT_MADE }
+
+/** The text of [notice]. */
+internal fun settingsNoticeText(notice: SettingsNotice): Int = when (notice) {
+    SettingsNotice.PROFILE_NOT_MADE -> R.string.settings_profile_create_failed
+}
+
 @HiltViewModel
 internal class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
@@ -46,7 +57,17 @@ internal class SettingsViewModel @Inject constructor(
         initialValue = listOf(HomeProfile(HomeProfile.FIRST_ID, "")),
     )
 
-    override fun createHomeProfile(name: String, copyCurrent: Boolean) = update { homeProfileRepository.create(name, copyCurrent) }
+    /** What the screen says once, in a toast ([settingsNoticeText]); the buffer keeps one said while nothing listens. */
+    private val _notices = Channel<SettingsNotice>(Channel.BUFFERED)
+    val notices: Flow<SettingsNotice> = _notices.receiveAsFlow()
+
+    /** A profile that could not be made whole is not made at all, and the screen says so: it would otherwise
+     *  just not appear in the list. */
+    override fun createHomeProfile(name: String, copyCurrent: Boolean) = update {
+        if (homeProfileRepository.create(name, copyCurrent) == HomeProfileRepository.Created.Failed) {
+            _notices.trySend(SettingsNotice.PROFILE_NOT_MADE)
+        }
+    }
 
     /** Settings is the only place a profile is switched from by hand so far, and it switches at once. */
     override fun switchHomeProfile(id: Long) = update { homeProfileRepository.switchTo(id) }

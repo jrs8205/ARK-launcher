@@ -65,6 +65,12 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
     val privateSpaceSeen by viewModel.privateSpaceSeen.collectAsStateWithLifecycle()
     val homeProfiles by viewModel.homeProfiles.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(viewModel) {
+        viewModel.notices.collect { notice ->
+            android.widget.Toast.makeText(context, settingsNoticeText(notice), android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
     SettingsWhenRead(
         s = s,
         lists = SettingsLists(

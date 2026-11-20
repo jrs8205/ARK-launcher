@@ -256,6 +256,34 @@ class DrawerWallpaperStoreTest {
         assertThat(store.current.value).isNull()
     }
 
+    /** Review round 4: a copy is written to a part-file and renamed, as a pick is, and says whether it is whole.
+     *  It wrote straight to the picture's name and swallowed a failure: a disk that filled up half-way left half
+     *  a JPEG that the profile then showed (or could not show), and the copy was reported as made. */
+    @Test fun aCopyIsOnePictureAndNoPartFile() = runBlocking<Unit> {
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        store.set(picture(Color.WHITE), 1)
+
+        assertThat(store.copy(from = 1, to = 2)).isTrue()
+
+        val folder = File(context.filesDir, "drawer_wallpaper_2")
+        assertThat(jpgsOf(2)).hasSize(1)
+        assertThat(folder.listFiles { f -> f.name.endsWith(".part") }.orEmpty()).isEmpty()
+        // A profile without a picture has nothing to copy, and that is no failure.
+        assertThat(store.copy(from = 5, to = 6)).isTrue()
+    }
+
+    @Test fun aCopyThatCannotBeWrittenSaysSoAndLeavesNoPicture() = runBlocking<Unit> {
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        store.set(picture(Color.WHITE), 1)
+        // A file where the target's folder should be: nothing can be written into it.
+        val inTheWay = File(context.filesDir, "drawer_wallpaper_2").apply { writeText("in the way") }
+
+        assertThat(store.copy(from = 1, to = 2)).isFalse()
+
+        assertThat(inTheWay.isFile).isTrue()
+        assertThat(jpgsOf(2)).isEmpty()
+    }
+
     /** What shows says whose it is: a page about one profile takes the picture only while it is that profile's, and
      *  shows none (never another profile's) in the moment before the store has followed a switch. */
     @Test fun whatShowsSaysWhichProfileItIsOf() = runBlocking<Unit> {

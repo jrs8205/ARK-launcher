@@ -87,6 +87,50 @@ class HomeProfileStore(
         profile
     }
 
+    /**
+     * The first half of [create]: the profile a new one will be, with its own values written (a copy of
+     * [copyOf]'s or none), and NOT in the list yet. Null when the list is full. The caller makes the rest of
+     * it (its rows, its pictures) and then lists it ([publish]), or gives it up ([discard]): a profile is
+     * listed when it is whole, so a process that dies half-way, or a write that fails, leaves no profile that
+     * shows its source's look over an empty home screen. Its id is given again until a profile is listed
+     * with it, so whoever makes the rest first clears what an earlier attempt left under that id.
+     */
+    suspend fun prepare(name: String, copyOf: Long?): HomeProfile? = view.mutex.withLock {
+        val now = main.data.first()
+        val list = profilesIn(now)
+        if (list.size >= HomeProfile.MAX_PROFILES) return@withLock null
+        val profile = HomeProfile(nextId(now, list), HomeProfile.cleanName(name))
+        files.store(profile.id).updateData { valuesFor(copyOf, list) }
+        profile
+    }
+
+    /** Lists [profile], made with [prepare] and whole now; false when the list filled up meanwhile. */
+    suspend fun publish(profile: HomeProfile): Boolean = view.mutex.withLock {
+        val now = main.data.first()
+        val list = profilesIn(now)
+        if (list.size >= HomeProfile.MAX_PROFILES || list.any { it.id == profile.id }) return@withLock false
+        main.edit {
+            it[LIST] = HomeProfile.encode(list + profile)
+            it[LAST_ID] = maxOf(now[LAST_ID] ?: 0L, profile.id)
+        }
+        true
+    }
+
+    /** Gives up a profile made with [prepare] and never listed: its own values go. */
+    suspend fun discard(profile: HomeProfile) = view.mutex.withLock {
+        if (profilesIn(main.data.first()).none { it.id == profile.id }) dropFile(profile.id)
+    }
+
+    private fun nextId(now: Preferences, list: List<HomeProfile>): Long = maxOf(now[LAST_ID] ?: 0L, list.maxOf { it.id }) + 1
+
+    /** A new profile's own values: [copyOf]'s without its bookkeeping ([HomeProfileKeys.NOT_COPIED]), or none. */
+    private suspend fun valuesFor(copyOf: Long?, list: List<HomeProfile>): Preferences =
+        if (copyOf != null && list.any { it.id == copyOf }) {
+            mutablePreferencesOf().apply { copy(view.profileValues(copyOf)) { it !in HomeProfileKeys.NOT_COPIED } }
+        } else {
+            emptyPreferences()
+        }
+
     suspend fun rename(id: Long, name: String) = editList { list ->
         list.map { if (it.id == id) it.copy(name = HomeProfile.cleanName(name)) else it }
     }

@@ -312,6 +312,7 @@
     <string name="settings_profile_empty">Пустой</string>
     <string name="settings_profile_explain">Профиль — это вид этого лаунчера, а не рабочий профиль Android. Приложения, не включённые в профиль, продолжают работать и присылать уведомления.</string>
     <string name="settings_profile_limit">Достигнут предел в 8 профилей</string>
+    <string name="settings_profile_create_failed">Не удалось создать профиль. Ничего не изменено.</string>
     <string name="settings_profile_create">Создать</string>
     <string name="settings_profile_edit">Изменить: %1$s</string>
     <string name="settings_profile_delete">Удалить профиль</string>

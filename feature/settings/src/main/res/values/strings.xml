@@ -304,6 +304,7 @@
     <string name="settings_profile_empty">Empty</string>
     <string name="settings_profile_explain">A profile is a view of this launcher, not Android\'s work profile. Apps a profile leaves out keep running and notifying.</string>
     <string name="settings_profile_limit">The limit of 8 profiles is reached</string>
+    <string name="settings_profile_create_failed">The profile could not be made. Nothing was changed.</string>
     <string name="settings_profile_create">Create</string>
     <string name="settings_profile_edit">Edit %1$s</string>
     <string name="settings_profile_delete">Delete profile</string>

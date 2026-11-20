@@ -252,18 +252,27 @@ class DrawerWallpaperStore internal constructor(
         }
     }
 
-    /** Gives the home profile [to] a copy of [from]'s picture, when [from] has one: a profile made as a copy. The
-     *  file keeps its name, which carries its lightness. */
-    suspend fun copy(from: Long, to: Long) = withContext(io) {
+    /**
+     * Gives the home profile [to] a copy of [from]'s picture, when [from] has one: a profile made as a copy. The
+     * file keeps its name, which carries its lightness. False when the picture could not be copied whole (no
+     * space left): nothing of it is left then. As a pick, the copy is written to a part-file (not a picture
+     * yet) and renamed when it is whole: written straight under the picture's name, half a file was taken for
+     * the profile's picture.
+     */
+    suspend fun copy(from: Long, to: Long): Boolean = withContext(io) {
         val source = dirOf(from).listFiles()?.filter { it.isFile && it.extension == "jpg" }?.maxByOrNull { it.lastModified() }
-            ?: return@withContext
+            ?: return@withContext true
         val target = dirOf(to)
-        runCatching {
-            target.mkdirs()
-            source.copyTo(File(target, source.name), overwrite = true)
+        val part = File(target, "${UUID.randomUUID()}$PART_SUFFIX")
+        val copied = runCatching {
+            check(target.isDirectory || target.mkdirs()) { "the picture's folder could not be made" }
+            source.copyTo(part, overwrite = true)
             // A picture an older build saved has its lightness in the shared file beside it.
             File(dirOf(from), LEGACY_LUMINANCE_FILE).takeIf { it.isFile }?.copyTo(File(target, LEGACY_LUMINANCE_FILE), overwrite = true)
-        }
+            synchronized(publishLock) { check(part.renameTo(File(target, source.name))) { "the copy could not be named" } }
+        }.isSuccess
+        if (!copied) part.delete()
+        copied
     }
 
     /** Removes the picture of the home profile [profile] with its folder: the profile was deleted. A pick or a
