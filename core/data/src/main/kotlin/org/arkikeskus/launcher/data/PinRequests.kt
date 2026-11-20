@@ -313,17 +313,21 @@ class PinRequestStore @Inject constructor(
      * Accepts a shortcut [request] where [decide] puts it on home as it is once the pin lock is ours —
      * decided there, not before: a backup restore holding the lock may have locked the desktop or
      * replaced home meanwhile. Not a [PinDecision.Confirm] → [ShortcutPinOutcome.Refused], nothing
-     * accepted.
+     * accepted. The home profile that is on stays on from the decision to the row
+     * ([HomeLayoutRepository.whileProfileStays], taken before the pin lock): the place was decided from
+     * that profile's rows, grid and lock, and the row is stored in the profile that is on.
      */
     suspend fun acceptShortcut(request: PinRequest, decide: suspend () -> CurrentPlacement): ShortcutPinOutcome =
-        ShortcutPinLock.withLock {
-            withContext(NonCancellable + Dispatchers.IO) {
-                val now = decide()
-                val placement = now.decision as? PinDecision.Confirm
-                    ?: return@withContext ShortcutPinOutcome.Refused(now.decision)
-                val item = request.item as? PinItem.Shortcut ?: return@withContext ShortcutPinOutcome.Failed
-                acceptShortcutLocked(request, item, placement, now.columns, now.rows)
-                    ?.let { ShortcutPinOutcome.Added(it) } ?: ShortcutPinOutcome.Failed
+        homeLayoutRepository.whileProfileStays {
+            ShortcutPinLock.withLock {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    val now = decide()
+                    val placement = now.decision as? PinDecision.Confirm
+                        ?: return@withContext ShortcutPinOutcome.Refused(now.decision)
+                    val item = request.item as? PinItem.Shortcut ?: return@withContext ShortcutPinOutcome.Failed
+                    acceptShortcutLocked(request, item, placement, now.columns, now.rows)
+                        ?.let { ShortcutPinOutcome.Added(it) } ?: ShortcutPinOutcome.Failed
+                }
             }
         }
 
@@ -386,31 +390,35 @@ class PinRequestStore @Inject constructor(
      * sweep held the other. The row goes to the decided rectangle, or to the first free one of its
      * size when that filled up meanwhile. The id leaves [pendingWidgetIds] either way: into the row,
      * or freed in the host — not a [PinDecision.Confirm] ([WidgetPinOutcome.Refused]), the system
-     * refused the accept or the row couldn't be stored ([WidgetPinOutcome.Failed]).
+     * refused the accept or the row couldn't be stored ([WidgetPinOutcome.Failed]). As for a shortcut
+     * ([acceptShortcut]), the home profile that is on stays on from the decision to the row.
      */
     suspend fun acceptBoundWidget(
         request: WidgetPinRequest, binder: WidgetBinder, appWidgetId: Int, decide: suspend () -> CurrentPlacement,
     ): WidgetPinOutcome = withContext(NonCancellable + Dispatchers.IO) {
-        // Under the guard the id goes from pending to stored in one step: the sweep sees it in one or the other.
-        val outcome = ShortcutPinLock.withLock {
-            pendingWidgetIds.guard {
-                val now = decide()
-                val placement = now.decision as? PinDecision.Confirm
-                    ?: return@guard WidgetPinOutcome.Refused(now.decision)
-                val item = request.item as? PinItem.Widget
-                if (item == null || !runCatching { request.accept(appWidgetId) }.getOrDefault(false)) {
-                    return@guard WidgetPinOutcome.Failed
+        // The order of the three: the profile's hold, the pin lock, the sweep's guard. Under the guard the
+        // id goes from pending to stored in one step: the sweep sees it in one or the other.
+        val outcome = homeLayoutRepository.whileProfileStays {
+            ShortcutPinLock.withLock {
+                pendingWidgetIds.guard {
+                    val now = decide()
+                    val placement = now.decision as? PinDecision.Confirm
+                        ?: return@guard WidgetPinOutcome.Refused(now.decision)
+                    val item = request.item as? PinItem.Widget
+                    if (item == null || !runCatching { request.accept(appWidgetId) }.getOrDefault(false)) {
+                        return@guard WidgetPinOutcome.Failed
+                    }
+                    runCatching {
+                        homeLayoutRepository.insertRequestedWidget(
+                            appWidgetId, item.provider,
+                            placement.page, placement.cellX, placement.cellY, placement.spanX, placement.spanY,
+                            now.columns, now.rows,
+                        )
+                    }.getOrNull()?.let { rowId ->
+                        pendingWidgetIds.remove(appWidgetId)
+                        WidgetPinOutcome.Added(rowId)
+                    } ?: WidgetPinOutcome.Failed
                 }
-                runCatching {
-                    homeLayoutRepository.insertRequestedWidget(
-                        appWidgetId, item.provider,
-                        placement.page, placement.cellX, placement.cellY, placement.spanX, placement.spanY,
-                        now.columns, now.rows,
-                    )
-                }.getOrNull()?.let { rowId ->
-                    pendingWidgetIds.remove(appWidgetId)
-                    WidgetPinOutcome.Added(rowId)
-                } ?: WidgetPinOutcome.Failed
             }
         }
         // An accepted request whose row failed leaves the id bound to nothing: freeing it unbinds.

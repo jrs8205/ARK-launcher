@@ -100,7 +100,8 @@ class HomeProfileStore(
     /**
      * Held by a switch, and by any work that is about "the profile that is on" from its first step to its
      * last: a restore (its settings, its rows and the list it leaves), an export, making a copy, deleting a
-     * profile, a change of the grid with the rows it moves. Without it a tap on another profile in the
+     * profile, a change of the grid with the rows it moves, another app's pin request from its last decision to
+     * its row. Without it a tap on another profile in the
      * middle put the rows in one profile and the rest in another. Taken before [ShortcutPinLock] by
      * whoever needs both; never the other way round.
      */
