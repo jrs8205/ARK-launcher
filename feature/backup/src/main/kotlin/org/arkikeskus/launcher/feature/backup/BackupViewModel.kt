@@ -9,17 +9,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.LastBackup
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.backup.BackupCodec
 import org.arkikeskus.launcher.data.backup.BackupRepository
+import org.arkikeskus.launcher.data.backup.ExportProfileChangedException
 import javax.inject.Inject
 
 sealed interface BackupEvent {
@@ -41,11 +41,16 @@ sealed interface BackupEvent {
     /** The home profiles were no longer the ones the question named when the file had been read: nothing
      *  was restored, and importing again asks with the profiles there are. */
     data object ProfilesChanged : BackupEvent
+
+    /** The home profile that is on was no longer the one the export's button named when the file was to be
+     *  written: nothing was exported, and exporting again writes the profile that is on. */
+    data object ExportProfileChanged : BackupEvent
     data class Failed(val message: String) : BackupEvent
 
     /** A message too long to read in a short snackbar: it stays until dismissed or timed out long. */
     val needsTimeToRead: Boolean
-        get() = this is ReadBlocked || this is ProfilesChanged || (this is Restored && profilesLeft > 0)
+        get() = this is ReadBlocked || this is ProfilesChanged || this is ExportProfileChanged ||
+            (this is Restored && profilesLeft > 0)
 }
 
 @HiltViewModel
@@ -64,15 +69,10 @@ class BackupViewModel @Inject constructor(
     val restoreProfiles: StateFlow<RestoreProfiles?> =
         lost.profiles().stateIn<RestoreProfiles?>(viewModelScope, SharingStarted.Eagerly, null)
 
-    /** Epoch-ms timestamp of the last successful local file export (0 = never), for the file card. */
-    private val _localLastBackupMs = MutableStateFlow(0L)
-    val localLastBackupMs: StateFlow<Long> = _localLastBackupMs.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            settings.localLastBackupTime.collect { time -> _localLastBackupMs.value = time }
-        }
-    }
+    /** When the home profile that is on was last exported to a file, WITH that profile (one value: the
+     *  screen shows the time only beside the profile it is of); null until it has been read. */
+    val lastBackup: StateFlow<LastBackup?> =
+        settings.localLastBackup.stateIn<LastBackup?>(viewModelScope, SharingStarted.Eagerly, null)
 
     private val appVersion: String
         get() = runCatching {
@@ -80,14 +80,15 @@ class BackupViewModel @Inject constructor(
         }.getOrNull() ?: "?"
 
     /**
-     * Writes the home profile that is on to [uri]. The document, the file and the time of the export are one
-     * profile's (`BackupRepository.export` holds it), and the result names that profile when there are several:
-     * the one the file is of, read where it was written.
+     * Writes the home profile [shownProfile] to [uri]: the one the export's button named when it was tapped.
+     * With another profile on by now (the system's file picker was open meanwhile) nothing is written, the
+     * empty file the picker made is removed where its provider allows, and the screen says so. The result
+     * names the profile the file is of when there are several.
      */
-    fun exportTo(uri: Uri) = viewModelScope.launch {
+    fun exportTo(uri: Uri, shownProfile: Long) = viewModelScope.launch {
         runCatching {
             withContext(Dispatchers.IO) {
-                backupRepository.export(createdAt = System.currentTimeMillis(), appVersion = appVersion) { doc ->
+                backupRepository.export(System.currentTimeMillis(), appVersion, expectedProfile = shownProfile) { doc ->
                     context.contentResolver.writeDocument(uri, BackupCodec.encode(doc).toByteArray())
                 }
             }
@@ -97,8 +98,13 @@ class BackupViewModel @Inject constructor(
             .onFailure {
                 if (it is kotlinx.coroutines.CancellationException) throw it
                 Log.w(TAG, "File export failed", it)
+                if (it is ExportProfileChangedException) {
+                    withContext(Dispatchers.IO) {
+                        runCatching { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) }
+                    }
+                }
                 // Blank message → the screen shows its localized generic failure text.
-                _events.emit(BackupEvent.Failed(it.message.orEmpty()))
+                _events.emit(exportFailureEvent(it))
             }
     }
 

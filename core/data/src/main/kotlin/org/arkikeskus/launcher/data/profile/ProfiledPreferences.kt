@@ -110,6 +110,17 @@ class ProfiledPreferences(
         updateProfileLocked(profileId, transform)
     }
 
+    /**
+     * [updateProfile] for a profile the list still names: false, with nothing written, when it does not (it
+     * was deleted meanwhile). The look at the list and the write are one step under [mutex], which a deletion
+     * holds too, so nothing is written for a profile that is gone (that would bring its store file back).
+     */
+    suspend fun updateListedProfile(profileId: Long, transform: (MutablePreferences) -> Unit): Boolean = mutex.withLock {
+        if (HomeProfile.decode(main.data.first()[LIST]).none { it.id == profileId }) return@withLock false
+        updateProfileLocked(profileId, transform)
+        true
+    }
+
     /** [updateProfile] for a caller that holds [mutex] already. */
     internal suspend fun updateProfileLocked(profileId: Long, transform: (MutablePreferences) -> Unit) {
         val store = if (profileId == mainStoreId(main.data.first())) main else files.store(profileId)

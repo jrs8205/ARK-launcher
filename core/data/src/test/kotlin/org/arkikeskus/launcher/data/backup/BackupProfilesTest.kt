@@ -9,12 +9,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.FakeAppRowResolver
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.IconPackRepository
+import org.arkikeskus.launcher.data.LastBackup
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.WidgetIdReleaser
 import org.arkikeskus.launcher.data.local.HomeItemDao
@@ -331,24 +333,74 @@ class BackupProfilesTest {
         assertThat(settings.localLastBackupTime.first()).isEqualTo(5L)
     }
 
-    /** The document, the file and the time are one profile's: a switch asked for while the file is being written
-     *  waits, so the time is not noted in a profile the file is not of. */
-    @Test fun aSwitchAskedForWhileTheFileIsWrittenWaitsForTheExport() = runTest(UnconfinedTestDispatcher()) {
+    /**
+     * The profile is held while its document is read, and not while the file is written: a file service that
+     * waits for its network must not keep every switch, page operation and pin request waiting with it. The
+     * time is still the exported profile's, noted by its id, though another profile is on by then.
+     */
+    @Test fun theProfileIsNotHeldWhileTheFileIsWrittenAndTheTimeIsStillTheExportedProfiles() = runTest {
         twoProfiles()
-
-        var switch: kotlinx.coroutines.Job? = null
+        var switched: Unit? = null
 
         val exported = repo().export(createdAt = 77L, appVersion = "test") {
-            switch = launch { store.setActive(1) }
+            switched = withTimeoutOrNull(1_000) { store.setActive(1) }
         }
-        switch!!.join()
 
+        assertThat(switched).isNotNull()
         assertThat(exported.id).isEqualTo(2L)
-        // The switch happened, after the export: the time is the second profile's, not the first's.
         assertThat(store.current()).isEqualTo(1L)
         assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
         store.setActive(2)
         assertThat(settings.localLastBackupTime.first()).isEqualTo(77L)
+    }
+
+    /** The export is asked for the profile its button named. With another one on, nothing is written and no
+     *  time is noted: the file would hold a profile the user did not choose. */
+    @Test fun anExportAskedForAnotherProfileThanTheOneThatIsOnWritesNothing() = runTest {
+        twoProfiles()
+        var written = false
+
+        assertThrows(ExportProfileChangedException::class.java) {
+            kotlinx.coroutines.runBlocking { repo().export(77L, "test", expectedProfile = 1) { written = true } }
+        }
+
+        assertThat(written).isFalse()
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+        store.setActive(1)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+    }
+
+    @Test fun anExportAskedForTheProfileThatIsOnGoesThrough() = runTest {
+        twoProfiles()
+
+        assertThat(repo().export(77L, "test", expectedProfile = 2) {}.id).isEqualTo(2L)
+    }
+
+    /** A profile deleted while its file was being written takes no time: nothing is written for a profile
+     *  that is gone (its store file would come back). */
+    @Test fun anExportOfAProfileDeletedWhileItsFileWasWrittenNotesNoTime() = runTest {
+        twoProfiles()
+
+        val exported = repo().export(createdAt = 77L, appVersion = "test") {
+            store.setActive(1)
+            assertThat(store.delete(2)).isTrue()
+        }
+
+        assertThat(exported.id).isEqualTo(2L)
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(files.stores.keys).doesNotContain(2L)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+    }
+
+    /** The time comes with the profile it is of, from one reading: a screen never shows one profile's time
+     *  beside another's name. */
+    @Test fun theLastExportComesWithTheProfileItIsOf() = runTest {
+        twoProfiles()
+        repo().export(createdAt = 77L, appVersion = "test") {}
+
+        assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 2, timeMs = 77L))
+        store.setActive(1)
+        assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 1, timeMs = 0L))
     }
 
     /** A file that could not be written is no export: no time is noted. */

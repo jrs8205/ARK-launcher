@@ -54,6 +54,9 @@ object ShortcutIconKey {
 /** The folders' own icons ([FolderIconKey] -> icon) of the home profile [homeProfileId]. */
 data class HomeFolderIcons(val homeProfileId: Long, val icons: Map<String, CustomIcon>)
 
+/** When the home profile [homeProfileId] was last exported to a file ([timeMs], epoch ms; 0 = never). */
+data class LastBackup(val homeProfileId: Long, val timeMs: Long)
+
 /**
  * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
  * `preferencesDataStore` in DataModule) so the repository's merge logic can be unit-tested on the
@@ -765,7 +768,28 @@ class SettingsRepository @Inject constructor(
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */
     val localLastBackupTime: Flow<Long> = dataStore.data.map { it[Keys.LOCAL_LAST_BACKUP] ?: 0L }
 
-    suspend fun setLocalLastBackup(timeMs: Long) = edit { it[Keys.LOCAL_LAST_BACKUP] = timeMs }
+    /**
+     * [localLastBackupTime] with the home profile it is of, from ONE reading of the settings: a screen that
+     * names the profile beside the time takes both from here, and never pairs one profile's time with
+     * another's name in the moment of a switch.
+     */
+    val localLastBackup: Flow<LastBackup> = dataStore.data
+        .map { LastBackup(ProfiledPreferences.activeId(it), it[Keys.LOCAL_LAST_BACKUP] ?: 0L) }
+        .distinctUntilChanged()
+
+    /**
+     * Notes [timeMs] as the last export of the home profile [profileId], whether it is on or not: the file was
+     * written after the profile's hold ended, and another profile may be on by now. Nothing is noted for a
+     * profile that was deleted meanwhile.
+     */
+    suspend fun setLocalLastBackup(profileId: Long, timeMs: Long) {
+        val view = profiles
+        if (view == null) {
+            edit { it[Keys.LOCAL_LAST_BACKUP] = timeMs }
+        } else {
+            view.updateListedProfile(profileId) { it[Keys.LOCAL_LAST_BACKUP] = timeMs }
+        }
+    }
 
     // --- First-run default layout + onboarding (device-local) ---
     suspend fun defaultLayoutSeededOnce(): Boolean = dataStore.data.first()[Keys.DEFAULT_LAYOUT_SEEDED] ?: false

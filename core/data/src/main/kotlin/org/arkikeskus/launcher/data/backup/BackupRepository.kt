@@ -42,6 +42,10 @@ data class ConfirmedProfiles(val activeId: Long, val otherIds: Set<Long>)
  */
 data class ExportedProfile(val id: Long, val name: String, val oneOfSeveral: Boolean)
 
+/** The home profile that is on is not the one the export was asked for (the one its button named): nothing
+ *  was written. */
+class ExportProfileChangedException : Exception("The home profile changed after the export was asked for")
+
 /** The profiles are not the ones the restore was agreed to with ([ConfirmedProfiles]): nothing was written. */
 class ProfilesChangedException : Exception("The home profiles changed after the restore was confirmed")
 
@@ -78,18 +82,37 @@ class BackupRepository @Inject constructor(
     /**
      * Exports the home profile that is on: its document ([exportDocument]) is handed to [write], and once that
      * has returned [createdAt] is noted as THAT profile's last export. Returns the profile the file is of, for
-     * the screen to name. All of it while the profile stays on: with a switch between the document, the file
-     * and the time, the time was noted in a profile the file is not of. What [write] throws is thrown, with no
-     * time noted. That the time itself cannot be noted does not undo the export: the file is written.
+     * the screen to name.
+     *
+     * The profile stays on only while the document is read and whose it is is noted. [write] runs AFTER the
+     * hold has ended: it hands the document to a file provider that may wait on a network without a limit, and
+     * everything that needs the profile (a switch, a page operation, a pin request, a restore) would wait with
+     * it. The time is therefore noted by the profile's id, whichever profile is on by then, and not at all for
+     * a profile deleted meanwhile.
+     *
+     * [expectedProfile] is the profile the export was asked for (the one its button named): with another one
+     * on, nothing is written and [ExportProfileChangedException] is thrown before [write] is called. What
+     * [write] throws is thrown, with no time noted. That the time itself cannot be noted does not undo the
+     * export: the file is written.
      */
-    suspend fun export(createdAt: Long, appVersion: String, write: suspend (BackupDocument) -> Unit): ExportedProfile =
-        whileProfileStays {
-            write(document(createdAt, appVersion))
-            runCatching { settings.setLocalLastBackup(createdAt) }
+    suspend fun export(
+        createdAt: Long,
+        appVersion: String,
+        expectedProfile: Long? = null,
+        write: suspend (BackupDocument) -> Unit,
+    ): ExportedProfile {
+        val (document, exported) = whileProfileStays {
             val active = homeItemDao.resolvedProfile()
+            if (expectedProfile != null && active != expectedProfile) throw ExportProfileChangedException()
             val list = profiles?.list().orEmpty()
-            ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
+            document(createdAt, appVersion) to
+                ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
         }
+        // The hold has ended: the file is written with nothing of the launcher's waiting on it.
+        write(document)
+        runCatching { settings.setLocalLastBackup(exported.id, createdAt) }
+        return exported
+    }
 
     /** Restores [doc] against the launchable apps on this device ([installedApps]: AppItem keys,
      *  "package/class/userSerial", from every profile). Blocking system queries: call off the main

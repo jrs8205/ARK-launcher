@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Test
 
@@ -275,7 +276,7 @@ class SettingsRepositoryTest {
     @Test
     fun `importRaw preserves device-local state and applies restored values`() = runTest {
         val repo = newRepository()
-        repo.setLocalLastBackup(123L)
+        repo.setLocalLastBackup(HomeProfile.FIRST_ID, 123L)
 
         repo.importRaw(mapOf("home_columns" to 5))
 

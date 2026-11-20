@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher.feature.backup
 
 import android.content.res.Resources
+import org.arkikeskus.launcher.data.LastBackup
+import org.arkikeskus.launcher.data.backup.ExportProfileChangedException
 
 /** [name] as a profile is shown everywhere: one the user never named has an empty stored name. */
 internal fun shownProfileName(res: Resources, name: String): String =
@@ -23,8 +25,22 @@ internal fun exportButtonText(res: Resources, profiles: RestoreProfiles?): Strin
     return res.getString(R.string.backup_export_profile, profile)
 }
 
-/** When the profile that is on was last exported ([formatted]), named as on the button when there are several. */
-internal fun lastBackupText(res: Resources, profiles: RestoreProfiles?, formatted: String): String {
+/**
+ * When the profile that is on was last exported, named as on the button when there are several; null when
+ * there is no such line to show: the profile was never exported, the profiles or the time have not been read,
+ * or the time is ANOTHER profile's than the one [profiles] says is on. The two arrive from two readings, and
+ * in the moment of a switch the new profile's name would stand beside the old one's time: a profile never
+ * exported would be shown as exported.
+ */
+internal fun lastBackupText(res: Resources, profiles: RestoreProfiles?, last: LastBackup?, format: (Long) -> String): String? {
+    if (profiles == null || last == null || last.timeMs <= 0L || last.homeProfileId != profiles.activeId) return null
+    val formatted = format(last.timeMs)
     val profile = exportedProfileName(res, profiles) ?: return res.getString(R.string.backup_last_time, formatted)
     return res.getString(R.string.backup_last_time_profile, profile, formatted)
+}
+
+/** What the screen shows for an export that failed with [error]. */
+internal fun exportFailureEvent(error: Throwable): BackupEvent = when (error) {
+    is ExportProfileChangedException -> BackupEvent.ExportProfileChanged
+    else -> BackupEvent.Failed(error.message.orEmpty())
 }

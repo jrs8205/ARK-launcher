@@ -31,6 +31,7 @@ internal fun backupEventMessage(res: Resources, event: BackupEvent): String = wh
     BackupEvent.ReadBlocked -> res.getString(R.string.backup_import_read_blocked)
     BackupEvent.ReadTimedOut -> res.getString(R.string.backup_import_timeout)
     BackupEvent.ProfilesChanged -> res.getString(R.string.backup_restore_profiles_changed)
+    BackupEvent.ExportProfileChanged -> res.getString(R.string.backup_export_profile_changed)
     is BackupEvent.Failed -> {
         val failed = res.getString(R.string.backup_failed)
         if (event.message.isBlank()) failed else "$failed: ${event.message}"

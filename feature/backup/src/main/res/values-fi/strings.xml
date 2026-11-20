@@ -32,4 +32,5 @@
     <string name="backup_export_profile">Vie profiili ”%1$s” tiedostoon</string>
     <string name="backup_exported_profile">Profiilin ”%1$s” varmuuskopio tallennettu</string>
     <string name="backup_last_time_profile">Profiilin ”%1$s” viimeisin varmuuskopio: %2$s</string>
+    <string name="backup_export_profile_changed">Profiili vaihtui ennen kuin varmuuskopio ehdittiin kirjoittaa, joten mitään ei viety. Vie uudelleen, niin nyt käytössä oleva profiili tallentuu.</string>
 </resources>

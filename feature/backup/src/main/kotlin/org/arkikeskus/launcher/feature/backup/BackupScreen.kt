@@ -31,6 +31,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -54,13 +55,9 @@ fun BackupScreen(
 
     // --- File-import state (rememberSaveable: the confirm dialog must survive rotation) ---
     var pendingImport by rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
-    val localLastBackupMs by viewModel.localLastBackupMs.collectAsStateWithLifecycle()
+    val lastBackup by viewModel.lastBackup.collectAsStateWithLifecycle()
 
     // --- File launchers ---
-    val createDoc = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri -> if (uri != null) viewModel.exportTo(uri) }
-
     val openDoc = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> if (uri != null) pendingImport = uri }
@@ -100,28 +97,20 @@ fun BackupScreen(
 
             // --- File section ---
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
-            val backupDefaultName = stringResource(R.string.backup_default_name)
             // A file holds the one profile that is on: with several profiles the button and the time below
             // say which (ExportTexts).
             val exportProfiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
-            Button(
-                onClick = { guarded { createDoc.launch(backupFileName(backupDefaultName, LocalDateTime.now())) } },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(exportButtonText(resources, exportProfiles)) }
+            ExportButton(exportProfiles, guarded = ::guarded, onExport = viewModel::exportTo)
             OutlinedButton(
                 onClick = { guarded { openDoc.launch(arrayOf("application/json")) } },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_import)) }
-            if (localLastBackupMs > 0L) {
-                val formatted = java.text.DateFormat.getDateTimeInstance(
-                    java.text.DateFormat.SHORT,
-                    java.text.DateFormat.SHORT,
-                ).format(java.util.Date(localLastBackupMs))
-                Text(
-                    lastBackupText(resources, exportProfiles, formatted),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+            // The time and the profile it is of are one value; the line shows only while that profile is the
+            // one the button names (ExportTexts).
+            lastBackupText(resources, exportProfiles, lastBackup) { timeMs ->
+                java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                    .format(java.util.Date(timeMs))
+            }?.let { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
         }
     }
 
@@ -141,5 +130,33 @@ fun BackupScreen(
  *  the previous one's name. ASCII digits in every locale, and no characters a file system rejects. */
 internal fun backupFileName(base: String, now: LocalDateTime): String =
     "$base-${now.format(BACKUP_NAME_TIME)}.json"
+
+/**
+ * The export button with the system's "create a file" picker behind it. An export is for the profile the
+ * button NAMES WHEN IT IS TAPPED ([profiles]' active one): that id is kept across the picker, and across a
+ * recreation of the screen under it, and goes to [onExport] with the file, whatever profile is on when the
+ * picker answers. The export itself refuses to write another profile than this one. Not enabled before the
+ * profiles are read: there would be no profile to hold the export to. [guarded] runs the launch of the
+ * picker (a phone without one must not take the screen down).
+ */
+@Composable
+internal fun ExportButton(profiles: RestoreProfiles?, guarded: (() -> Unit) -> Unit, onExport: (android.net.Uri, Long) -> Unit) {
+    var exportFor by rememberSaveable { mutableStateOf<Long?>(null) }
+    val createDoc = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri -> exportFor?.let { profile -> if (uri != null) onExport(uri, profile) } }
+    val defaultName = stringResource(R.string.backup_default_name)
+    Button(
+        onClick = {
+            exportFor = profiles?.activeId
+            guarded { createDoc.launch(backupFileName(defaultName, LocalDateTime.now())) }
+        },
+        enabled = profiles != null,
+        modifier = Modifier.fillMaxWidth().testTag(EXPORT_BUTTON_TAG),
+    ) { Text(exportButtonText(LocalResources.current, profiles)) }
+}
+
+/** The export button, for tests. */
+internal const val EXPORT_BUTTON_TAG = "backup-export"
 
 private val BACKUP_NAME_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm", Locale.ROOT)

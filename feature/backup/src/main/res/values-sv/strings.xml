@@ -32,4 +32,5 @@
     <string name="backup_export_profile">Exportera profilen ”%1$s” till fil</string>
     <string name="backup_exported_profile">Säkerhetskopian av profilen ”%1$s” har sparats</string>
     <string name="backup_last_time_profile">Senaste säkerhetskopian av ”%1$s”: %2$s</string>
+    <string name="backup_export_profile_changed">Profilen byttes innan säkerhetskopian hann skrivas, så ingenting exporterades. Exportera igen för att spara den profil som är aktiv nu.</string>
 </resources>

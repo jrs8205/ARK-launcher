@@ -36,4 +36,5 @@
     <string name="backup_export_profile">Eksportuj profil „%1$s” do pliku</string>
     <string name="backup_exported_profile">Zapisano kopię zapasową profilu „%1$s”</string>
     <string name="backup_last_time_profile">Ostatnia kopia profilu „%1$s”: %2$s</string>
+    <string name="backup_export_profile_changed">Profil został zmieniony, zanim zapisano kopię zapasową, więc nic nie wyeksportowano. Wyeksportuj ponownie, aby zapisać aktywny teraz profil.</string>
 </resources>

@@ -32,4 +32,5 @@
     <string name="backup_export_profile">Profil „%1$s“ in Datei exportieren</string>
     <string name="backup_exported_profile">Sicherung des Profils „%1$s“ gespeichert</string>
     <string name="backup_last_time_profile">Letzte Sicherung von „%1$s“: %2$s</string>
+    <string name="backup_export_profile_changed">Das Profil wurde gewechselt, bevor die Sicherung geschrieben wurde. Es wurde nichts exportiert. Exportiere erneut, um das jetzt aktive Profil zu sichern.</string>
 </resources>
