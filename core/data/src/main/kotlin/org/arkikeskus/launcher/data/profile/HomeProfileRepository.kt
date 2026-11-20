@@ -74,6 +74,24 @@ class HomeProfileRepository @Inject constructor(
     suspend fun switchTo(id: Long) = store.setActive(id)
 
     /**
+     * Saves a picture behind the app drawer for the home profile [profileId] with [save] (which names the
+     * same profile to the store), unless that profile is gone: false then, with nothing kept. The picture is
+     * picked in the system's picker, and the profile it was picked for can be deleted before the picker
+     * answers, or while the picture is read and saved. A picture saved for a profile that is not in the list
+     * could never be removed again, so one that was saved across the deletion is taken away with its folder.
+     * The profile is not held meanwhile: reading a picture from another app can take as long as it likes.
+     */
+    suspend fun setDrawerPicture(profileId: Long, save: suspend (DrawerWallpaperStore) -> Boolean): Boolean {
+        if (store.list().none { it.id == profileId }) return false
+        val saved = save(drawerPictures)
+        if (store.list().none { it.id == profileId }) {
+            drawerPictures.delete(profileId)
+            return false
+        }
+        return saved
+    }
+
+    /**
      * The number of columns of the home grid of the profile that is on. A smaller grid can leave icons past
      * its edge, so the rows are packed into it before the new size is stored. Both are one profile's: with a
      * tap on another profile between them, one profile's icons moved and the other's grid shrank over icons

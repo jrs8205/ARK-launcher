@@ -31,6 +31,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -122,7 +124,8 @@ internal fun DrawerRows(
             onColor = actions::setDrawerBackgroundColor,
             onColorOpacity = actions::setDrawerBackgroundOpacity,
             // For the home profile this page shows: the store behind the action follows a switch a moment late.
-            onPickPicture = { actions.importDrawerWallpaper(it, s.homeProfileId) },
+            // A pick is for the profile the picker was OPENED on (DrawerWallpaperRow keeps it).
+            onPickPicture = actions::importDrawerWallpaper,
             onClearPicture = { actions.clearDrawerWallpaper(s.homeProfileId) },
             onPictureDim = actions::setDrawerPictureDim,
             onBlur = actions::setBlurBehindDrawer,
@@ -256,7 +259,7 @@ internal fun DrawerPictureDimRow(value: Float, onValueChange: (Float) -> Unit) {
 internal class DrawerBackdropActions(
     val onColor: (Int?) -> Unit = {},
     val onColorOpacity: (Float) -> Unit = {},
-    val onPickPicture: (Uri) -> Unit = {},
+    val onPickPicture: (Uri, Long) -> Unit = { _, _ -> },
     val onClearPicture: () -> Unit = {},
     val onPictureDim: (Float) -> Unit = {},
     val onBlur: (Boolean) -> Unit = {},
@@ -286,7 +289,12 @@ internal fun DrawerBackdropRows(
         SettingRow("A11") { DrawerBackgroundRow(settings.drawerBackgroundOpacity, actions.onColorOpacity) }
     }
     SettingRow("A12") {
-        DrawerWallpaperRow(wallpaper = wallpaper, onPick = actions.onPickPicture, onClear = actions.onClearPicture)
+        DrawerWallpaperRow(
+            wallpaper = wallpaper,
+            profile = settings.homeProfileId,
+            onPick = actions.onPickPicture,
+            onClear = actions.onClearPicture,
+        )
     }
     if (hasPicture) SettingRow("A13") { DrawerPictureDimRow(settings.drawerPictureDim, actions.onPictureDim) }
     // Greyed with the reason where the system cannot blur behind the window (Android 11, a Fairphone 6 report),
@@ -315,10 +323,15 @@ internal const val DRAWER_WALLPAPER_REMOVE_TAG = "drawer-wallpaper-remove"
  *  a button to pick one from the gallery (the system photo picker, no permission), one to remove it. The
  *  picture stays on this phone: it is not in a backup. */
 @Composable
-internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: (Uri) -> Unit, onClear: () -> Unit) {
+internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, profile: Long, onPick: (Uri, Long) -> Unit, onClear: () -> Unit) {
     val p = LocalExpressivePalette.current
+    // The home profile the picker was opened for. The system's picker is open between the tap and the picture,
+    // and the page can show another profile by the time it answers (or have been recreated): the picture is for
+    // the profile of the tap. Handed the profile of the answer's moment, it replaced the OTHER profile's picture.
+    var pickFor by rememberSaveable { mutableStateOf<Long?>(null) }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) onPick(uri)
+        val target = pickFor
+        if (uri != null && target != null) onPick(uri, target)
     }
     Surface(
         color = p.surfaceHi,
@@ -343,7 +356,10 @@ internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: (Uri) -> Un
                 }
                 Spacer(Modifier.weight(1f))
                 TextButton(
-                    onClick = { runCatching { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) } },
+                    onClick = {
+                        pickFor = profile
+                        runCatching { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                    },
                     modifier = Modifier.testTag(DRAWER_WALLPAPER_PICK_TAG),
                 ) {
                     Text(stringResource(R.string.settings_drawer_wallpaper_pick), color = p.accent)

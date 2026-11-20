@@ -30,6 +30,7 @@ import org.arkikeskus.launcher.model.HomeProfile
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.io.File
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -409,6 +410,45 @@ class HomeProfileRepositoryTest {
 
         assertThat(copied.file.exists()).isFalse()
         assertThat(drawerPictures.current.value!!.file.exists()).isTrue()
+    }
+
+    /**
+     * Review round 4. A picture is picked for a profile while the system's picker is open, and the profile can
+     * be deleted before the picker answers. Nothing is kept for a profile that is gone: no picture is saved for
+     * it, and one saved while it was being deleted goes with it (nothing in the launcher could remove it later).
+     */
+    @Test fun aPictureForAProfileThatIsGoneIsNotKept() = runTest {
+        val work = created("Work", copyCurrent = false)
+        val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
+        var saves = 0
+
+        // Deleted while the picture was being read and saved: the save brings its folder back.
+        val whileSaving = profiles.setDrawerPicture(work.id) { store ->
+            assertThat(profiles.delete(work.id)).isTrue()
+            saves++
+            store.set(picture(Color.WHITE), work.id)
+        }
+        assertThat(whileSaving).isFalse()
+        assertThat(folder.exists()).isFalse()
+
+        // Deleted before the picker answered: the picture is not even read.
+        val after = profiles.setDrawerPicture(work.id) { store ->
+            saves++
+            store.set(picture(Color.WHITE), work.id)
+        }
+        assertThat(after).isFalse()
+        assertThat(saves).isEqualTo(1)
+        assertThat(folder.exists()).isFalse()
+    }
+
+    @Test fun aPictureForAProfileThatIsThereIsSavedThoughItIsNotTheOneThatIsOn() = runTest {
+        val work = created("Work", copyCurrent = false)
+
+        assertThat(profiles.setDrawerPicture(work.id) { it.set(picture(Color.BLACK), work.id) }).isTrue()
+
+        assertThat(drawerPictures.current.value).isNull()
+        drawerPictures.switchTo(work.id)
+        assertThat(drawerPictures.current.value).isNotNull()
     }
 
     /** Review round 3: what a screen asks of the layout it shows runs only while that profile is the one that

@@ -29,7 +29,7 @@ class DrawerWallpaperRowTest {
     private var cleared = 0
 
     private fun show(wallpaper: DrawerWallpaper?) {
-        compose.setContent { DrawerWallpaperRow(wallpaper = wallpaper, onPick = {}, onClear = { cleared++ }) }
+        compose.setContent { DrawerWallpaperRow(wallpaper = wallpaper, profile = 1, onPick = { _, _ -> }, onClear = { cleared++ }) }
         compose.waitForIdle()
     }
 

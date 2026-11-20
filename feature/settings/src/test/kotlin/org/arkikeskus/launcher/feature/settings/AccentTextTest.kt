@@ -91,7 +91,7 @@ class AccentTextTest {
     }
 
     @Test fun theDrawerPicturesButtons() {
-        show { DrawerWallpaperRow(wallpaper = null, onPick = {}, onClear = {}) }
+        show { DrawerWallpaperRow(wallpaper = null, profile = 1, onPick = { _, _ -> }, onClear = {}) }
         assertAccentText(res.getString(R.string.settings_drawer_wallpaper_pick))
     }
 

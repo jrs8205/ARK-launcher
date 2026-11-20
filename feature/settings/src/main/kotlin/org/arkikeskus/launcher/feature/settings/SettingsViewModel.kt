@@ -67,7 +67,10 @@ internal class SettingsViewModel @Inject constructor(
     val drawerWallpaperPicture: StateFlow<ShownDrawerWallpaper> = drawerWallpaper.shown
 
     /** Saves the picture at [uri] as the drawer's wallpaper in the home profile [profile], the one the page shows. */
-    override fun importDrawerWallpaper(uri: Uri, profile: Long) = update { drawerWallpaper.import(uri, profile) }
+    override fun importDrawerWallpaper(uri: Uri, profile: Long) = update {
+        // Not for a profile deleted while the picker was open (HomeProfileRepository.setDrawerPicture).
+        homeProfileRepository.setDrawerPicture(profile) { it.import(uri, profile) }
+    }
 
     override fun clearDrawerWallpaper(profile: Long) = update { drawerWallpaper.clear(profile) }
 
