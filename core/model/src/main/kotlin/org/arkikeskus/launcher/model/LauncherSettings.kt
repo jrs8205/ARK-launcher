@@ -96,6 +96,9 @@ data class LauncherSettings(
     /** The drawer's search field at the bottom, in reach of the thumb, with the "most used" card right
      *  above it (issue #33); at the top, as it always was, when false. */
     val drawerSearchAtBottom: Boolean = false,
+    /** "Most used" also counts apps opened elsewhere than in the launcher (a notification, a widget,
+     *  another app), read from Android's usage access when the user has given it (issue #33). Off by default. */
+    val countSystemUsage: Boolean = false,
     /** List the app drawer's folders A–Z (case aside) instead of in the user's own order. */
     val sortDrawerFolders: Boolean = false,
     /** Seat the app drawer's folders among the apps by name (issue #22) instead of leading the grid. */

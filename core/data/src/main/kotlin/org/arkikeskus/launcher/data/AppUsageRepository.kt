@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -41,6 +42,35 @@ class AppUsageRepository @Inject constructor(
         }
     }
 
+    /** The moment up to which Android's own record of opened apps has been counted in ([SystemUsageSync]);
+     *  0 = never. */
+    val systemSyncedTo: Flow<Long> = dataStore.data.map { it[Keys.SYSTEM_SYNCED_TO] ?: 0L }
+
+    /**
+     * Counts [openings] (an app's key and when it came to the front, oldest first) as launches, and notes that
+     * Android's record has been read up to [syncedTo]: one write, so a count is never stored without its time
+     * and read again. An opening within [SAME_LAUNCH_MS] of the app's stored last launch is the launch the
+     * launcher itself recorded a moment earlier (Android reports it too) and is not counted twice. An opening
+     * older than the stored last launch still counts, at that last launch's time: a score's time never moves
+     * back. Best effort, as [recordLaunch]: a refused write is dropped and read again at the next sync.
+     */
+    suspend fun recordOpenings(openings: List<Pair<String, Long>>, syncedTo: Long) {
+        try {
+            dataStore.edit { p ->
+                val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
+                for ((key, at) in openings) {
+                    val prev = stats[key]
+                    if (prev != null && kotlin.math.abs(at - prev.lastUsed) <= SAME_LAUNCH_MS) continue
+                    stats[key] = applyLaunch(prev, maxOf(at, prev?.lastUsed ?: at))
+                }
+                if (openings.isNotEmpty()) p[Keys.APP_USAGE] = serialize(stats)
+                p[Keys.SYSTEM_SYNCED_TO] = syncedTo
+            }
+        } catch (e: IOException) {
+            // Dropped: the stored time did not move, so the next sync reads the same span again.
+        }
+    }
+
     private fun parse(raw: String?): Map<String, UsageStat> =
         raw?.split("\n")?.filter { it.isNotEmpty() }?.mapNotNull { line ->
             val parts = line.split("\t")
@@ -55,6 +85,7 @@ class AppUsageRepository @Inject constructor(
 
     private object Keys {
         val APP_USAGE = stringPreferencesKey(USAGE_KEY)
+        val SYSTEM_SYNCED_TO = longPreferencesKey(SYSTEM_SYNC_KEY)
     }
 
     companion object {
@@ -62,6 +93,12 @@ class AppUsageRepository @Inject constructor(
          *  exclude this volatile, device-local data from a backup (it otherwise changed the Drive
          *  dedup hash on every launch → a redundant upload each run). */
         const val USAGE_KEY = "app_usage"
+
+        /** DataStore key name of the time Android's record was last read up to; this phone's own, as [USAGE_KEY]. */
+        const val SYSTEM_SYNC_KEY = "app_usage_system_synced_to"
+
+        /** Two reports of one launch (the launcher's own and Android's) are at most this far apart. */
+        const val SAME_LAUNCH_MS = 10_000L
 
         /** Half-life of the launch score; recent launches dominate within ~1–2 weeks. */
         const val HALF_LIFE_MS = 7L * 24 * 60 * 60 * 1000

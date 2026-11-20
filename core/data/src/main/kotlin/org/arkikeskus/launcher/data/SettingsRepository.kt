@@ -156,6 +156,7 @@ class SettingsRepository @Inject constructor(
             showFrequentApps = p[Keys.SHOW_FREQUENT_APPS] ?: false,
             drawerOpensAtTop = p[Keys.DRAWER_OPENS_AT_TOP] ?: true,
             drawerSearchAtBottom = p[Keys.DRAWER_SEARCH_AT_BOTTOM] ?: false,
+            countSystemUsage = p[Keys.COUNT_SYSTEM_USAGE] ?: false,
             sortDrawerFolders = p[Keys.SORT_DRAWER_FOLDERS] ?: false,
             mixDrawerFolders = p[Keys.MIX_DRAWER_FOLDERS] ?: false,
             folderColumns = (p[Keys.FOLDER_COLUMNS] ?: 4).coerceIn(MIN_FOLDER_COLUMNS, MAX_FOLDER_COLUMNS),
@@ -617,6 +618,7 @@ class SettingsRepository @Inject constructor(
     /** Whether the app drawer reopens at the top vs. remembers its last scroll position. */
     suspend fun setDrawerOpensAtTop(value: Boolean) = edit { it[Keys.DRAWER_OPENS_AT_TOP] = value }
     suspend fun setDrawerSearchAtBottom(value: Boolean) = edit { it[Keys.DRAWER_SEARCH_AT_BOTTOM] = value }
+    suspend fun setCountSystemUsage(value: Boolean) = edit { it[Keys.COUNT_SYSTEM_USAGE] = value }
     suspend fun setSortDrawerFolders(value: Boolean) = edit { it[Keys.SORT_DRAWER_FOLDERS] = value }
     suspend fun setMixDrawerFolders(value: Boolean) = edit { it[Keys.MIX_DRAWER_FOLDERS] = value }
     suspend fun setBlurBehindDrawer(value: Boolean) = edit { it[Keys.BLUR_BEHIND_DRAWER] = value }
@@ -867,6 +869,9 @@ class SettingsRepository @Inject constructor(
             val chameleonLastArgb = prefs[Keys.CHAMELEON_LAST_ARGB]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
+            // With them, the time Android's own record was read up to: cleared, the next read would count
+            // a week of openings a second time.
+            val usageSyncedTo = prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)]
             // Gallery images are files on this phone (not in a backup): keep them for the apps, the
             // pinned shortcuts and the home folders the backup picks no icon for. Not for drawer folders: their ids come back
             // (max + 1), so the folder the backup has under an id may not be the one with the picture.
@@ -908,6 +913,7 @@ class SettingsRepository @Inject constructor(
             if (unlockSound != null) prefs[Keys.UNLOCK_SOUND_URI] = unlockSound
             if (chameleonLastArgb != null) prefs[Keys.CHAMELEON_LAST_ARGB] = chameleonLastArgb
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
+            if (usageSyncedTo != null) prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)] = usageSyncedTo
             for ((name, images) in localImages) {
                 if (images.isEmpty()) continue
                 val key = stringPreferencesKey(name)
@@ -1001,6 +1007,7 @@ class SettingsRepository @Inject constructor(
         val SHOW_FREQUENT_APPS = booleanPreferencesKey("show_frequent_apps")
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val DRAWER_SEARCH_AT_BOTTOM = booleanPreferencesKey("drawer_search_at_bottom")
+        val COUNT_SYSTEM_USAGE = booleanPreferencesKey("count_system_usage")
         val SORT_DRAWER_FOLDERS = booleanPreferencesKey("sort_drawer_folders")
         val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
         val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
@@ -1121,7 +1128,7 @@ class SettingsRepository @Inject constructor(
             "hide_home_apps_from_drawer", "widget_inset_like_icons",
             "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
             "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
-            "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "drawer_search_at_bottom", "show_status_bar",
+            "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "drawer_search_at_bottom", "count_system_usage", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",
             "network_place_names", "infinite_scroll", "lock_sounds_enabled", "sort_drawer_folders",
@@ -1209,6 +1216,7 @@ class SettingsRepository @Inject constructor(
             "drive_interval_days", "drive_wifi_only", "drive_charging_only",
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
             "default_layout_seeded", "onboarding_done", "first_run_fresh", "people_held_notifications",
+            AppUsageRepository.SYSTEM_SYNC_KEY,
             "default_reminder_dismissed",
             // A picked lock/unlock sound is a content URI this phone holds a read grant for; another
             // phone could not play it.

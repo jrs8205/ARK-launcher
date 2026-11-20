@@ -72,8 +72,8 @@ object HomeProfileKeys {
         "show_notif_dots", "notif_dot_count", "notif_dot_scale", "notif_widget_count_style", "people_privacy",
         "pinned_people", "people_aliases", "people_batch_enabled", "people_batch_times", "people_show_apps",
         "people_held_notifications",
-        // Search and weather.
-        "search_contacts", "show_weather", "network_place_names", "weather_app_key",
+        // Search and weather, and how "most used" is counted.
+        "count_system_usage", "search_contacts", "show_weather", "network_place_names", "weather_app_key",
         // The apps' own names, icons and swipe actions: the same app looks the same in every profile.
         "hidden_apps", "custom_labels", "custom_icons", "shortcut_icons", "swipe_up_apps", "swipe_down_apps",
         // Settings' own state and this phone's bookkeeping.
