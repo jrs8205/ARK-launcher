@@ -111,6 +111,8 @@
     <string name="settings_permission_phone">État du téléphone</string>
     <string name="settings_permission_location">Position</string>
     <string name="settings_drawer_search">Afficher la barre de recherche</string>
+    <string name="settings_drawer_search_bottom">Champ de recherche en bas</string>
+    <string name="settings_drawer_search_bottom_desc">À portée du pouce. Les applications les plus utilisées s\'affichent alors juste au-dessus.</string>
     <string name="settings_hide_private_space">Masquer l\'espace privé lorsqu\'il est verrouillé</string>
     <string name="settings_hide_private_space_desc">Tant qu\'il est verrouillé, l\'onglet Privé n\'est pas affiché. Saisissez « espace privé » dans la recherche du tiroir d\'applications pour l\'ouvrir.</string>
     <string name="settings_hide_private_space_needs_search">Nécessite la recherche du tiroir d\'applications : un espace privé masqué s\'ouvre depuis celle-ci.</string>

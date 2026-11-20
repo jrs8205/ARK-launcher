@@ -111,6 +111,8 @@
     <string name="settings_permission_phone">Phone state</string>
     <string name="settings_permission_location">Location</string>
     <string name="settings_drawer_search">Show search</string>
+    <string name="settings_drawer_search_bottom">Search field at the bottom</string>
+    <string name="settings_drawer_search_bottom_desc">Within reach of the thumb. The most used apps then sit right above it.</string>
     <string name="settings_hide_private_space">Hide Private space when locked</string>
     <string name="settings_hide_private_space_desc">While it is locked, the Private tab is not shown. Type \"Private space\" in the app drawer\'s search to open it.</string>
     <string name="settings_hide_private_space_needs_search">Needs the app drawer\'s search field: a hidden Private space is opened through it.</string>

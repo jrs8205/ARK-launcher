@@ -93,6 +93,9 @@ data class LauncherSettings(
     /** Reopen the app drawer scrolled back to the top (Pixel-style) rather than remembering the last
      *  scroll position — keeps the "most used" row and A–Z start visible on every open. */
     val drawerOpensAtTop: Boolean = true,
+    /** The drawer's search field at the bottom, in reach of the thumb, with the "most used" card right
+     *  above it (issue #33); at the top, as it always was, when false. */
+    val drawerSearchAtBottom: Boolean = false,
     /** List the app drawer's folders A–Z (case aside) instead of in the user's own order. */
     val sortDrawerFolders: Boolean = false,
     /** Seat the app drawer's folders among the apps by name (issue #22) instead of leading the grid. */

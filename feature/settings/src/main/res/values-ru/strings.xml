@@ -111,6 +111,8 @@
     <string name="settings_permission_phone">Состояние телефона</string>
     <string name="settings_permission_location">Местоположение</string>
     <string name="settings_drawer_search">Показывать поиск</string>
+    <string name="settings_drawer_search_bottom">Поле поиска внизу</string>
+    <string name="settings_drawer_search_bottom_desc">В зоне досягаемости большого пальца. Часто используемые приложения тогда показаны прямо над ним.</string>
     <string name="settings_hide_private_space">Скрывать частное пространство, когда оно заблокировано</string>
     <string name="settings_hide_private_space_desc">Пока оно заблокировано, вкладка «Частные» не показывается. Чтобы открыть его, введите «частное пространство» в поиске списка приложений.</string>
     <string name="settings_hide_private_space_needs_search">Нужен поиск в списке приложений: скрытое частное пространство открывается через него.</string>

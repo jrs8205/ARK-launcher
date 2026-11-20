@@ -30,7 +30,8 @@ object HomeProfileKeys {
         "home_columns", "home_rows", "dock_enabled", "dock_columns", "drawer_columns", "folder_columns",
         // The app drawer's content.
         "drawer_folders", "sort_drawer_folders", "mix_drawer_folders", "hide_home_apps_from_drawer",
-        "show_frequent_apps", "show_drawer_search", "drawer_opens_at_top", "left_swipe_app_key",
+        "show_frequent_apps", "show_drawer_search", "drawer_opens_at_top", "drawer_search_at_bottom",
+        "left_swipe_app_key",
         // The look.
         "base_colour", "font_family", "use_themed_icons", "theme_all_icons", "icon_pack_package", "icon_shape",
         "icon_scale", "drawer_icon_scale", "app_label_scale", "app_label_color", "drawer_label_color",

@@ -111,6 +111,8 @@
     <string name="settings_permission_phone">Status do telefone</string>
     <string name="settings_permission_location">Local</string>
     <string name="settings_drawer_search">Mostrar pesquisa</string>
+    <string name="settings_drawer_search_bottom">Campo de pesquisa embaixo</string>
+    <string name="settings_drawer_search_bottom_desc">Ao alcance do polegar. Os apps mais usados ficam então logo acima dele.</string>
     <string name="settings_hide_private_space">Ocultar o espaço privado quando estiver bloqueado</string>
     <string name="settings_hide_private_space_desc">Enquanto estiver bloqueado, a guia Privado não é exibida. Digite «espaço privado» na pesquisa da gaveta de apps para abri-lo.</string>
     <string name="settings_hide_private_space_needs_search">Requer a pesquisa da gaveta de apps: um espaço privado oculto é aberto por ela.</string>

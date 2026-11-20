@@ -238,7 +238,7 @@ class ProfilesSectionTest {
         "D1" to listOf("dock_enabled"), "D2" to listOf("dock_columns"), "D3" to listOf("show_dock_labels"),
         "D4" to listOf("dock_opacity"), "D5" to listOf("dock_bottom_spacing"),
         "A1" to listOf("drawer_columns"), "A2" to listOf("show_drawer_labels"), "A3" to listOf("two_line_drawer_labels"),
-        "A4" to listOf("drawer_label_color"), "A6" to listOf("show_drawer_search"), "A22" to listOf("hide_private_space_locked"),
+        "A4" to listOf("drawer_label_color"), "A6" to listOf("show_drawer_search"), "A23" to listOf("drawer_search_at_bottom"), "A22" to listOf("hide_private_space_locked"),
         "Q1" to listOf("search_contacts"), "A7" to listOf("show_frequent_apps"), "A8" to listOf("hide_home_apps_from_drawer"),
         "A9" to listOf("drawer_opens_at_top"), "A10" to listOf("drawer_background_color"), "A11" to listOf("drawer_opacity"),
         "A12" to emptyList(), "A13" to listOf("drawer_picture_dim"), "A14" to listOf("blur_behind_drawer"),

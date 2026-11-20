@@ -28,6 +28,7 @@ internal interface SettingsActions {
     fun setHidePrivateSpaceWhenLocked(value: Boolean)
     fun setShowFrequentApps(value: Boolean)
     fun setDrawerOpensAtTop(value: Boolean)
+    fun setDrawerSearchAtBottom(value: Boolean)
     fun setSortDrawerFolders(value: Boolean)
     fun setMixDrawerFolders(value: Boolean)
     fun setBlurBehindDrawer(value: Boolean)

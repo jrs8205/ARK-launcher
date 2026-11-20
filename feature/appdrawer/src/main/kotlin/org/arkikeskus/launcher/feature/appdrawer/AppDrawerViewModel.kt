@@ -146,6 +146,8 @@ data class AppDrawerUiState(
     /** Labels may wrap onto a second line (Settings ▸ App drawer ▸ Two-line labels). */
     val twoLineLabels: Boolean = true,
     val drawerOpensAtTop: Boolean = true,
+    /** Issue #33: the search field at the bottom of the drawer, the "most used" card right above it. */
+    val searchAtBottom: Boolean = false,
     /** The folders listed A-Z rather than in the user's order; the editor hides its moves then. */
     val sortDrawerFolders: Boolean = false,
     /** The folders seated among the apps by name (issue #22); the editor hides its moves then too. */
@@ -262,6 +264,7 @@ class AppDrawerViewModel @Inject constructor(
             iconScale = settings.drawerIconScale,
             twoLineLabels = settings.twoLineDrawerLabels,
             drawerOpensAtTop = settings.drawerOpensAtTop,
+            searchAtBottom = settings.drawerSearchAtBottom,
             sortDrawerFolders = settings.sortDrawerFolders,
             mixDrawerFolders = settings.mixDrawerFolders,
             folderColumns = settings.folderColumns,

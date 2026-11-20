@@ -111,6 +111,8 @@
     <string name="settings_permission_phone">Estado del teléfono</string>
     <string name="settings_permission_location">Ubicación</string>
     <string name="settings_drawer_search">Mostrar búsqueda</string>
+    <string name="settings_drawer_search_bottom">Campo de búsqueda abajo</string>
+    <string name="settings_drawer_search_bottom_desc">Al alcance del pulgar. Las aplicaciones más usadas aparecen entonces justo encima.</string>
     <string name="settings_hide_private_space">Ocultar el espacio privado cuando esté bloqueado</string>
     <string name="settings_hide_private_space_desc">Mientras esté bloqueado, la pestaña Privado no se muestra. Escribe «espacio privado» en la búsqueda del cajón de aplicaciones para abrirlo.</string>
     <string name="settings_hide_private_space_needs_search">Necesita la búsqueda del cajón de aplicaciones: un espacio privado oculto se abre desde ella.</string>

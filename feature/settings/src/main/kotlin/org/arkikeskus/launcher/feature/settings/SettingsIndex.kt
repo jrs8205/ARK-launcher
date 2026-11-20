@@ -149,6 +149,7 @@ internal object SettingsIndex {
                 "A22", c, R.string.settings_hide_private_space, R.string.settings_hide_private_space_desc,
                 fallback = "A6", minSdk = 35, maxSdk = 35, needsPrivateSpace = true,
             )
+            row("A23", c, R.string.settings_drawer_search_bottom, R.string.settings_drawer_search_bottom_desc)
             row("Q1", c, R.string.settings_search_contacts)
             row("A7", c, R.string.settings_frequent_apps)
             row("A8", c, R.string.settings_hide_home_apps, R.string.settings_hide_home_apps_desc)
@@ -318,7 +319,7 @@ private val PER_PROFILE_ROWS: Set<String> = setOf(
     "AP1",
     "H1", "H2", "H3", "H4", "H7", "H8", "H9", "H10", "H13",
     "D1", "D2", "D3", "D4", "D5",
-    "A1", "A2", "A3", "A4", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16",
+    "A1", "A2", "A3", "A4", "A6", "A23", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16",
     "H5", "A5", "H6", "F1", "F2", "F3", "F4", "F5", "A18", "A19", "A20", "A21",
     "C1", "C2", "C3", "C4", "C5", "H16", "H17",
     "I1", "I2", "I3", "I4", "I5", "I6", "I7", "I8",

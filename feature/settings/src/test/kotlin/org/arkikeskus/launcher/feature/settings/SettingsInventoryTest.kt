@@ -109,7 +109,7 @@ class SettingsInventoryTest {
     private val allIds = SettingsIndex.entries.map { it.id }
     private val unconditionalIds = SettingsIndex.entries.filter { it.fallback == null }.map { it.id }
 
-    @Test fun theRegistryIsThe110Inventory() {
+    @Test fun theRegistryIsTheWholeInventory() {
         val expected = listOf(
             "T2" to "settings_set_default",
             "AP1" to "settings_base_colour", "AP2" to "settings_charging_animation",
@@ -123,7 +123,7 @@ class SettingsInventoryTest {
             "D4" to "settings_dock_bg", "D5" to "settings_dock_bottom_space",
             "A1" to "settings_columns", "A2" to "settings_show_labels", "A3" to "settings_two_line_labels",
             "A4" to "settings_label_color", "A6" to "settings_drawer_search",
-            "A22" to "settings_hide_private_space",
+            "A22" to "settings_hide_private_space", "A23" to "settings_drawer_search_bottom",
             "Q1" to "settings_search_contacts", "A7" to "settings_frequent_apps", "A8" to "settings_hide_home_apps",
             "A9" to "settings_drawer_open_top", "A10" to "settings_drawer_color", "A11" to "settings_drawer_bg",
             "A12" to "settings_drawer_wallpaper", "A13" to "settings_drawer_picture_dim",

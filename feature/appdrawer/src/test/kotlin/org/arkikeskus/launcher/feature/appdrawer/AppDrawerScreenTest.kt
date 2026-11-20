@@ -30,6 +30,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -436,6 +437,63 @@ class AppDrawerScreenTest {
         settle()
 
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
+    }
+
+    // --- Issue #33: the search field at the bottom -----------------------------------------------------
+
+    /** The drawer with the "most used" card showing the mail app; returns once it is laid out. */
+    private fun showWithAMostUsedApp(searchAtBottom: Boolean) {
+        runBlocking {
+            wiring.settingsRepository.setShowFrequentApps(true)
+            wiring.settingsRepository.setDrawerSearchAtBottom(searchAtBottom)
+        }
+        show()
+        awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
+        val mail = viewModel.uiState.value.apps.first { it.packageName == mailApp }
+        viewModel.onAppClick(mail) // a launch is what puts an app on the card
+        awaitState("the card has the app") { s -> s.searchAtBottom == searchAtBottom && s.frequentApps.any { it.key == mail.key } }
+        settle()
+    }
+
+    private fun boundsOf(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+
+    /** As it always was: the field leads the drawer and the "most used" card leads the grid under it. */
+    @Test fun byDefaultTheSearchFieldLeadsTheDrawerWithTheMostUsedAppsUnderIt() {
+        showWithAMostUsedApp(searchAtBottom = false)
+
+        val field = boundsOf(DRAWER_SEARCH_FIELD_TAG)
+        val card = boundsOf(DRAWER_FREQUENT_TAG)
+        assertThat(field.bottom).isAtMost(card.top)
+    }
+
+    /**
+     * Issue #33: on a tall phone the field at the top is out of the thumb's reach. Asked for, it sits at the
+     * bottom of the drawer, under the apps, and the "most used" card sits right above it instead of leading the
+     * grid: both in reach, and the apps' own grid above them.
+     */
+    @Test fun askedForTheSearchFieldSitsAtTheBottomWithTheMostUsedAppsRightAboveIt() {
+        showWithAMostUsedApp(searchAtBottom = true)
+
+        val field = boundsOf(DRAWER_SEARCH_FIELD_TAG)
+        val card = boundsOf(DRAWER_FREQUENT_TAG)
+        val root = compose.onRoot().fetchSemanticsNode().boundsInRoot
+        assertThat(card.bottom).isAtMost(field.top)
+        assertThat(field.top).isGreaterThan(root.height / 2)
+        // The card is no longer the grid's first item: the apps' own tiles are above it.
+        val tiles = compose.onAllNodesWithText(mailApp).fetchSemanticsNodes().map { it.boundsInRoot.top }
+        assertThat(tiles.min()).isLessThan(card.top)
+    }
+
+    /** A search covers the drawer with its results: the "most used" card gives its place to them. */
+    @Test fun whileSearchingTheMostUsedCardAboveTheBottomFieldIsGone() {
+        showWithAMostUsedApp(searchAtBottom = true)
+
+        viewModel.onQueryChange("mail")
+        awaitState("the search") { it.query == "mail" }
+        settle()
+
+        compose.onNodeWithTag(DRAWER_FREQUENT_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(DRAWER_SEARCH_FIELD_TAG).assertExists()
     }
 
     /** The same on the "most used" card, the drawer's third way to an app's menu: it never asked the lock (older

@@ -101,6 +101,16 @@ internal fun DrawerRows(
             )
         }
     }
+    SettingRow("A23") {
+        SwitchRow(
+            stringResource(R.string.settings_drawer_search_bottom),
+            stringResource(R.string.settings_drawer_search_bottom_desc),
+            s.drawerSearchAtBottom,
+            actions::setDrawerSearchAtBottom,
+            // Nothing to move while the field is off.
+            enabled = s.showDrawerSearch,
+        )
+    }
     ContactsSearchRow(s, actions)
     SettingRow("A7") {
         SwitchRow(stringResource(R.string.settings_frequent_apps), s.showFrequentApps, actions::setShowFrequentApps)

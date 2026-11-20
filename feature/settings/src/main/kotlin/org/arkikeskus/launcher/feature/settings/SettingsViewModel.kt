@@ -148,6 +148,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setHidePrivateSpaceWhenLocked(value: Boolean) = update { repository.setHidePrivateSpaceWhenLocked(value) }
     override fun setShowFrequentApps(value: Boolean) = update { repository.setShowFrequentApps(value) }
     override fun setDrawerOpensAtTop(value: Boolean) = update { repository.setDrawerOpensAtTop(value) }
+    override fun setDrawerSearchAtBottom(value: Boolean) = update { repository.setDrawerSearchAtBottom(value) }
     override fun setSortDrawerFolders(value: Boolean) = update { repository.setSortDrawerFolders(value) }
     override fun setMixDrawerFolders(value: Boolean) = update { repository.setMixDrawerFolders(value) }
     override fun setBlurBehindDrawer(value: Boolean) = update { repository.setBlurBehindDrawer(value) }

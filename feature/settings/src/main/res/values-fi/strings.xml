@@ -111,6 +111,8 @@
     <string name="settings_permission_phone">Puhelimen tila</string>
     <string name="settings_permission_location">Sijainti</string>
     <string name="settings_drawer_search">Näytä haku</string>
+    <string name="settings_drawer_search_bottom">Hakukenttä alareunassa</string>
+    <string name="settings_drawer_search_bottom_desc">Peukalon ulottuvilla. Eniten käytetyt sovellukset näkyvät silloin heti sen yläpuolella.</string>
     <string name="settings_hide_private_space">Piilota yksityinen tila lukittuna</string>
     <string name="settings_hide_private_space_desc">Lukittuna Yksityinen-välilehteä ei näytetä. Avaa se kirjoittamalla sovellusvalikon hakuun \"yksityinen tila\".</string>
     <string name="settings_hide_private_space_needs_search">Tarvitsee sovellusvalikon haun: piilotettu yksityinen tila avataan sen kautta.</string>

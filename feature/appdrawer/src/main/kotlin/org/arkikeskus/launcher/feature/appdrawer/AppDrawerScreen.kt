@@ -319,6 +319,7 @@ fun AppDrawerScreen(
         badgeShowCount = uiState.notificationDotCount,
         badgeScale = uiState.notificationDotScale,
         showSearch = uiState.showSearch,
+        searchAtBottom = uiState.searchAtBottom,
         onQueryChange = viewModel::onQueryChange,
         onFolderClick = { folder, bounds -> if (drawerOpen) folderCard = folder.id to bounds },
         onFolderLongClick = { if (drawerOpen) editFolderId = it.id },
@@ -511,6 +512,10 @@ fun AppDrawerScreen(
 /** The test tag of the card a tap opens a drawer folder as. */
 internal const val DRAWER_FOLDER_CARD_TAG = "drawer-folder-card"
 
+/** The drawer's search field and its "most used" card, for tests of where they sit. */
+internal const val DRAWER_SEARCH_FIELD_TAG = "drawer-search-field"
+internal const val DRAWER_FREQUENT_TAG = "drawer-most-used"
+
 /** The test tag of the scrolling list of apps on that card. */
 internal const val DRAWER_FOLDER_ROWS_TAG = "drawer-folder-rows"
 
@@ -540,6 +545,8 @@ private fun AppDrawerContent(
     badgeShowCount: Boolean,
     badgeScale: Float,
     showSearch: Boolean,
+    /** Issue #33: the search field under the apps, in reach of the thumb, the "most used" card right above it. */
+    searchAtBottom: Boolean,
     onQueryChange: (String) -> Unit,
     onFolderClick: (DrawerFolderUi, Rect) -> Unit,
     onFolderLongClick: (DrawerFolderUi) -> Unit,
@@ -648,7 +655,10 @@ private fun AppDrawerContent(
                 .nestedScroll(pullConnection),
         ) {
             DragHandle()
-            if (showSearch) {
+            // Issue #33: asked for, the field sits under the apps, in reach of the thumb on a tall phone, and the
+            // "most used" card sits right above it instead of leading the grid.
+            val fieldAtBottom = showSearch && searchAtBottom
+            val searchField: @Composable () -> Unit = {
                 // A pill in the container colour with what is read on a container; no underline. On a see-through
                 // drawer the pill is as see-through, and its text is what reads on what shows through it.
                 val palette = LocalExpressivePalette.current
@@ -664,9 +674,11 @@ private fun AppDrawerContent(
                     colors = field,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .testTag(DRAWER_SEARCH_FIELD_TAG),
                 )
             }
+            if (showSearch && !fieldAtBottom) searchField()
             val context = LocalContext.current
             val searching = query.isNotBlank()
             var gridWidthPx by remember { mutableStateOf(0) }
@@ -698,7 +710,7 @@ private fun AppDrawerContent(
             val entries = remember(folders, apps, mixFolders) { drawerEntries(folders, apps, mixFolders) }
             val idleContent: LazyGridScope.() -> Unit = {
                 run {
-                    if (frequentApps.isNotEmpty()) {
+                    if (frequentApps.isNotEmpty() && !fieldAtBottom) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "frequent" }) {
                             FrequentAppsCard(
                                 apps = frequentApps,
@@ -824,6 +836,7 @@ private fun AppDrawerContent(
             // work app hidden), also while a search covers the pages: the pager must not reopen on
             // that tab the next time it reappears. [selectedTab] is always one of [tabs].
             LaunchedEffect(tabs) { onSelectTab(selectedTab) }
+            val pages: @Composable () -> Unit = {
             if (searching) {
                 DrawerGrid(gridState, 0.dp, searchContent)
             } else {
@@ -874,6 +887,29 @@ private fun AppDrawerContent(
                         }
                     }
                 }
+            }
+            }
+            if (fieldAtBottom) {
+                Box(modifier = Modifier.weight(1f)) { pages() }
+                // On the Personal page only, as in the grid, and not over a search's results.
+                if (!searching && frequentApps.isNotEmpty() && selectedTab == DrawerTab.Personal) {
+                    Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
+                        FrequentAppsCard(
+                            apps = frequentApps,
+                            columns = columns,
+                            badges = badges,
+                            badgeShowCount = badgeShowCount,
+                            badgeScale = badgeScale,
+                            showLabels = showLabels,
+                            iconSize = drawerIconSize,
+                            onAppClick = onAppClick,
+                            onAppLongClick = onAppLongClick,
+                        )
+                    }
+                }
+                searchField()
+            } else {
+                pages()
             }
         }
     }
@@ -1495,7 +1531,8 @@ internal fun FrequentAppsCard(
         shadowElevation = p.shadow,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 10.dp),
+            .padding(bottom = 10.dp)
+            .testTag(DRAWER_FREQUENT_TAG),
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)) {
             Text(
