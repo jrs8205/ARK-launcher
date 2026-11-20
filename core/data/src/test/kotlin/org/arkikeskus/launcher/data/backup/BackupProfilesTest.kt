@@ -16,6 +16,7 @@ import org.arkikeskus.launcher.data.FakeAppRowResolver
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.WidgetIdReleaser
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.LauncherDatabase
@@ -63,8 +64,16 @@ class BackupProfilesTest {
 
     @After fun tearDown() = db.close()
 
-    private fun repo(homeItemDao: HomeItemDao = dao, drawerPictures: DrawerWallpaperStore? = null) =
-        BackupRepository(context, homeItemDao, settings, resolver, ScreensaverSettingsStore(context), store, drawerPictures)
+    private fun repo(
+        homeItemDao: HomeItemDao = dao,
+        drawerPictures: DrawerWallpaperStore? = null,
+        widgetIds: WidgetIdReleaser? = null,
+    ) = BackupRepository(context, homeItemDao, settings, resolver, ScreensaverSettingsStore(context), store, drawerPictures, widgetIds)
+
+    private fun widget(pkg: String, id: Int?, cellX: Int) = HomeItemEntity(
+        packageName = pkg, className = "", page = 0, cellX = cellX, cellY = 3, spanX = 2, spanY = 1,
+        appWidgetId = id, widgetProvider = "$pkg/.Widget",
+    )
 
     private fun app(pkg: String, cellX: Int) =
         HomeItemEntity(packageName = pkg, className = "Main", page = 0, cellX = cellX, cellY = 0)
@@ -217,6 +226,45 @@ class BackupProfilesTest {
         assertThat(doc.settings["base_colour"]).isEqualTo("green")
         assertThat(doc.settings["home_columns"]).isEqualTo(3)
         assertThat(doc.homeItems.map { it.packageName }).containsExactly("com.work", "com.chat")
+    }
+
+    /**
+     * The widgets of the profiles that were not on go with their rows, and no home screen shows them: nothing
+     * would free their ids before the next start, and their providers would go on updating widgets nobody
+     * sees. The restore frees them itself. The ids of the profile that is on are the home screen's to free:
+     * its host holds their views (it frees what no row holds when its rows change).
+     */
+    @Test fun aRestoreFreesTheWidgetIdsOfTheProfilesThatWereNotOn() = runTest {
+        twoProfiles()
+        dao.insert(widget("com.notes", 21, cellX = 0))
+        inHomeProfile(1) {
+            dao.insert(widget("com.clock", 11, cellX = 0))
+            dao.insert(widget("com.cal", 12, cellX = 2))
+            // A placeholder (a widget not set up yet) has no id to free.
+            dao.insert(widget("com.news", null, cellX = 0).copy(cellY = 4))
+        }
+        val freed = ArrayList<Int>()
+
+        repo(widgetIds = { freed += it }).restoreDocument(backup, installed)
+
+        assertThat(freed).containsExactly(11, 12)
+    }
+
+    /** A restore that wrote nothing frees nothing: every profile still has its widgets. */
+    @Test fun aFailedRestoreFreesNoWidgetId() = runTest {
+        twoProfiles()
+        inHomeProfile(1) { dao.insert(widget("com.clock", 11, cellX = 0)) }
+        val failing = object : HomeItemDao by dao {
+            override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) = throw IOException("disk full")
+        }
+        val freed = ArrayList<Int>()
+
+        assertThrows(IOException::class.java) {
+            kotlinx.coroutines.runBlocking { repo(failing, widgetIds = { freed += it }).restoreDocument(backup, installed) }
+        }
+
+        assertThat(freed).isEmpty()
+        assertThat(inHomeProfile(1) { dao.getAll() }.mapNotNull { it.appWidgetId }).containsExactly(11)
     }
 
     @Test fun aRestoreRemovesTheDrawerPicturesOfTheProfilesThatWent() = runTest {

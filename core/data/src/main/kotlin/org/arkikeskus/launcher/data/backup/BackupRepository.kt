@@ -13,6 +13,7 @@ import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.ShortcutPinLock
+import org.arkikeskus.launcher.data.WidgetIdReleaser
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.profile.HomeProfileStore
@@ -41,6 +42,7 @@ class BackupRepository @Inject constructor(
     private val screensaver: ScreensaverSettingsStore,
     private val profiles: HomeProfileStore? = null,
     private val drawerPictures: DrawerWallpaperStore? = null,
+    private val widgetIds: WidgetIdReleaser? = null,
 ) {
     /** Runs [work] while the home profile that is on stays on (a switch asked for meanwhile waits). */
     private suspend fun <T> whileProfileStays(work: suspend () -> T): T = profiles?.whileActiveStays { work() } ?: work()
@@ -138,6 +140,20 @@ class BackupRepository @Inject constructor(
                 runCatching { settings.rollbackImport(previousSettings, importedSettings) }
                 screensaverImport?.let { done -> runCatching { screensaver.rollbackImport(done) } }
                 throw t
+            }
+            // The widgets of the profiles that were not on went with their rows, and no home screen shows
+            // them: none would free their ids before the next start, and their providers would go on
+            // updating widgets nobody sees. An id a restored row holds stays (a backup carries none, so
+            // today that is no id). The ids of the profile that is on are left to the home screen, whose
+            // host holds their views: it frees what no row holds when its rows change.
+            widgetIds?.let { releaser ->
+                val active = homeItemDao.resolvedProfile()
+                val held = entities.mapNotNullTo(HashSet()) { it.appWidgetId }
+                previousLayout.filter { it.homeProfileId != active }
+                    .mapNotNull { it.appWidgetId }
+                    .filter { it !in held }
+                    .distinct()
+                    .forEach { id -> runCatching { releaser.release(id) } }
             }
             // The layout is the restored profile's alone now; the other profiles' settings go with their
             // rows. Last, and best effort: until here a failure leaves every profile as it was, and a
