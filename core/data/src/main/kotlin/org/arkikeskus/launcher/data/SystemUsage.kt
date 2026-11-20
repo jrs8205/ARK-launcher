@@ -93,7 +93,8 @@ fun appKeyFor(opening: AppOpening, apps: List<AppItem>): String? {
  * app drawer opens, which is when the card is looked at.
  *
  * Read: from the moment the user switched it on, the last [WINDOW_MS] at most, and never a moment twice (the
- * time read up to is stored). Not counted: the launcher itself, a package the launcher shows no app of, and
+ * time read up to is stored). Not counted: the launcher itself, a package the launcher shows no app of (nor
+ * is its screen "another app in front": the app under a dialog of the phone's own is opened once), and
  * anything of another user (Android does not tell of a work profile's or the private space's apps here, and
  * [apps] hands over the launcher's own user's apps only). A launch made in the launcher is in Android's record
  * too and in the score already: [AppUsageRepository.recordOpenings] leaves that report out. Nothing leaves the
@@ -144,7 +145,12 @@ class SystemUsageSync internal constructor(
         val from = maxOf(syncedTo, now - WINDOW_MS)
         if (from >= now) return@withLock
         val known = apps()
-        val counted = openingsOf(source.resumedBetween(from, now))
+        // Only the launcher and what it shows an app of can be "the app in front": a screen of anything else
+        // (a permission dialog of the phone's own, the share sheet, the recents screen) lies over an app, and
+        // the app coming back from under it was not opened again.
+        val shown = known.mapTo(HashSet()) { it.packageName }
+        val screens = source.resumedBetween(from, now).filter { it.packageName == ownPackage || it.packageName in shown }
+        val counted = openingsOf(screens)
             .filter { it.packageName != ownPackage }
             .mapNotNull { opening -> appKeyFor(opening, known)?.let { it to opening.timeMs } }
         usage.recordOpenings(counted, syncedTo = now)

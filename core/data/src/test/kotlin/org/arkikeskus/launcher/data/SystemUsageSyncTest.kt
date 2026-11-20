@@ -240,8 +240,8 @@ class SystemUsageSyncTest {
         assertThat(usage.ownLaunches.first()).isEmpty()
     }
 
-    /** Seen on an emulator too: an app opened twice from elsewhere within ten seconds came out as one launch
-     *  (the second was taken for a report of the first). Only a launch the launcher made itself is left out. */
+    /** An app opened twice from elsewhere within ten seconds is two launches (the second used to be taken for
+     *  a report of the first). Only a launch the launcher made itself is left out. */
     @Test fun twoOpeningsElsewhereAFewSecondsApartAreTwo() = runTest {
         switchOn()
         source.resumed += listOf(
@@ -253,6 +253,45 @@ class SystemUsageSyncTest {
         sync.sync(now)
 
         assertThat(scoreOf(maps)).isWithin(0.05f).of(2f)
+    }
+
+    /** Seen on an emulator: an app that asked for a permission as it opened came to the front twice within a
+     *  second, the phone's permission dialog between. A screen of something the launcher shows no app of (a
+     *  dialog of the phone's own, the share sheet, the recents screen) is not another app in front: the app
+     *  under it was opened once. */
+    @Test fun aScreenOfNoAppOverAnAppIsNotAnotherAppInFront() = runTest {
+        switchOn()
+        source.resumed += listOf(
+            screen("com.mail", "com.mail.Inbox", now - 60_000),
+            screen("com.android.permissioncontroller", "GrantPermissionsActivity", now - 59_500),
+            screen("com.mail", "com.mail.Inbox", now - 58_000),
+            screen("org.arkikeskus.launcher", "Home", now - 50_000),
+            // Left for the recents screen and came back to the same app: no other app was in front either.
+            screen("com.maps", "com.maps.Main", now - 40_000),
+            screen("com.android.recents", "RecentsActivity", now - 30_000),
+            screen("com.maps", "com.maps.Main", now - 28_000),
+        )
+
+        sync.sync(now)
+
+        assertThat(scoreOf(mail)).isWithin(0.05f).of(1f)
+        assertThat(scoreOf(maps)).isWithin(0.05f).of(1f)
+    }
+
+    /** The same app started in the launcher: its one launch answers for its one opening, and the second coming
+     *  to the front from under the dialog is not left over as an opening from elsewhere. */
+    @Test fun aLaunchInTheLauncherOfAnAppThatShowsADialogOfThePhonesIsOneLaunch() = runTest {
+        switchOn()
+        usage.recordLaunch(mail.key, at = now - 60_300)
+        source.resumed += listOf(
+            screen("com.mail", "com.mail.Inbox", now - 60_000),
+            screen("com.android.permissioncontroller", "GrantPermissionsActivity", now - 59_500),
+            screen("com.mail", "com.mail.Inbox", now - 58_000),
+        )
+
+        sync.sync(now)
+
+        assertThat(scoreOf(mail)).isWithin(0.05f).of(1f)
     }
 
     /** Android names the screen that came up, which need not be the entry the launcher started (an entry that
