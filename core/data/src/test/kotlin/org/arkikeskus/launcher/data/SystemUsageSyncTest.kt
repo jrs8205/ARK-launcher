@@ -35,10 +35,13 @@ class SystemUsageSyncTest {
     private class FakeUsage(var access: Boolean = true) : SystemUsageSource {
         val resumed = ArrayList<AppOpening>()
         val asked = ArrayList<Pair<Long, Long>>()
+
+        /** While set, Android does not answer (its service threw, or the user is still locked). */
+        var fails = false
         override fun hasAccess(): Boolean = access
-        override fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening> {
+        override fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening>? {
             asked += fromMs to toMs
-            return resumed.filter { it.timeMs in fromMs until toMs }
+            return if (fails) null else resumed.filter { it.timeMs in fromMs until toMs }
         }
     }
 
@@ -46,11 +49,19 @@ class SystemUsageSyncTest {
     private val store = CountingStore()
     private val usage = AppUsageRepository(store)
     private val settings = SettingsRepository(store)
+
+    /** The launcher's own user's apps as they can be told now; null when they cannot. */
+    private var known: List<AppItem>? = listOf(mail, mailCompose, maps)
+
+    /** Runs once, while a sync is reading: after it has read where the count stands, before it writes. */
+    private var duringRead: (suspend () -> Unit)? = null
     private val sync = SystemUsageSync(
         source = source,
         usage = usage,
-        enabled = { settings.settings.first().countSystemUsage },
-        apps = { listOf(mail, mailCompose, maps) },
+        apps = {
+            duringRead?.also { duringRead = null }?.invoke()
+            known
+        },
         ownPackage = "org.arkikeskus.launcher",
     )
 
@@ -333,6 +344,200 @@ class SystemUsageSyncTest {
         assertThat(scoreOf(maps, now + 60_000)).isWithin(0.05f).of(1f)
         // By then it is old: forgotten, as is any launch Android never reported (a work profile's app).
         assertThat(usage.ownLaunches.first()).isEmpty()
+    }
+
+    // --- a read is of one count, and only a read that was made moves it on ----------------------------------
+
+    /** The switch was turned off while Android's record was being read: that read is of a count that is no
+     *  longer on. Nothing of it is stored: no score, and no time for a count that is off. */
+    @Test fun aReadUnderWayWhenTheCountIsSwitchedOffStoresNothing() = runTest {
+        switchOn()
+        source.resumed += screen("com.maps", "com.maps.Main", now - 60_000)
+        duringRead = { settings.setCountSystemUsage(false) }
+
+        sync.sync(now)
+
+        assertThat(usage.usage.first()).isEmpty()
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(0L)
+        assertThat(usage.systemCount.first()).isNull()
+    }
+
+    /** Off and on again while the record was being read: the count that is on now started at that moment.
+     *  The read was made for the earlier one, and neither its openings nor its time replace the new start. */
+    @Test fun aReadUnderWayWhenTheCountIsSwitchedOffAndOnAgainIsNotOfTheNewCount() = runTest {
+        switchOn()
+        source.resumed += screen("com.maps", "com.maps.Main", now - 60_000)
+        duringRead = {
+            settings.setCountSystemUsage(false)
+            settings.setCountSystemUsage(true, now = now + 5_000)
+        }
+
+        sync.sync(now)
+
+        assertThat(usage.usage.first()).isEmpty()
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(now + 5_000)
+    }
+
+    /** Android did not answer (its service threw, the user is still locked after a restart). That is not
+     *  "nothing came to the front": the time read up to stays, and the next read that is answered brings what
+     *  came to the front meanwhile. */
+    @Test fun aReadThatWasNotAnsweredIsMadeAgain() = runTest {
+        switchOn()
+        source.resumed += screen("com.maps", "com.maps.Main", now - 60_000)
+        source.fails = true
+
+        sync.sync(now)
+
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(start)
+        assertThat(usage.usage.first()).isEmpty()
+
+        source.fails = false
+        sync.sync(now + 60_000)
+
+        assertThat(source.asked.last()).isEqualTo(start to now + 60_000)
+        assertThat(scoreOf(maps, now + 60_000)).isWithin(0.05f).of(1f)
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(now + 60_000)
+    }
+
+    /** The launcher's own apps could not be told (the listing failed, or has not come): no opening could be
+     *  known for an app, so the span is not taken for read either. */
+    @Test fun withoutTheAppsNothingCountsAsRead() = runTest {
+        switchOn()
+        source.resumed += screen("com.maps", "com.maps.Main", now - 60_000)
+        val apps = known
+        known = null
+
+        sync.sync(now)
+
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(start)
+
+        known = apps
+        sync.sync(now + 60_000)
+
+        assertThat(scoreOf(maps, now + 60_000)).isWithin(0.05f).of(1f)
+    }
+
+    /** An empty list of the launcher's own user's apps is a listing that failed, never the truth. */
+    @Test fun theLaunchersOwnUsersAppsAreNeverNone() {
+        val work = AppItem("com.maps", "com.maps.Main", android.os.UserHandle.getUserHandleForUid(10 * 100_000), 10L, "Maps")
+
+        assertThat(appsOfUser(listOf(mail, work, maps), user)).containsExactly(mail, maps).inOrder()
+        assertThat(appsOfUser(emptyList(), user)).isNull()
+        assertThat(appsOfUser(listOf(work), user)).isNull()
+    }
+
+    // --- the app in front, from one read to the next ----------------------------------------------------------
+
+    /** One read ended with mail's inbox in front, and the next begins with a message opened in it: the same
+     *  app's next screen, with no other app between. It is the one opening it was in a single read. */
+    @Test fun theAppInFrontWhenAReadEndsIsStillInFrontWhenTheNextBegins() = runTest {
+        switchOn()
+        source.resumed += screen("com.mail", "com.mail.Inbox", now - 1_000)
+        sync.sync(now)
+        assertThat(usage.systemCount.first()?.inFront).isEqualTo("com.mail")
+
+        source.resumed += screen("com.mail", "com.mail.Thread", now + 1_000)
+        sync.sync(now + 60_000)
+
+        assertThat(scoreOf(mail, now + 60_000)).isWithin(0.05f).of(1f)
+        assertThat(usage.usage.first().keys).containsExactly(mail.key)
+
+        // A read with nothing in it leaves the app in front where it was; the launcher between makes the
+        // app's next coming to the front an opening again.
+        sync.sync(now + 120_000)
+        source.resumed += listOf(
+            screen("org.arkikeskus.launcher", "Home", now + 130_000),
+            screen("com.mail", "com.mail.Inbox", now + 140_000),
+        )
+        sync.sync(now + 180_000)
+
+        assertThat(scoreOf(mail, now + 180_000)).isWithin(0.05f).of(2f)
+    }
+
+    /** After a pause longer than what is read back, the stretch between was never read: what was in front
+     *  before it says nothing of what is in front after it. */
+    @Test fun theAppInFrontIsForgottenOverAStretchThatWasNotRead() = runTest {
+        switchOn(at = now - 30 * day)
+        source.resumed += screen("com.mail", "com.mail.Inbox", now - 20 * day - 1_000)
+        sync.sync(now - 20 * day)
+
+        source.resumed += screen("com.mail", "com.mail.Inbox", now - 1_000)
+        sync.sync(now)
+
+        assertThat(source.asked.last()).isEqualTo(now - 7 * day to now)
+        assertThat(usage.usage.first().getValue(mail.key).lastUsed).isEqualTo(now - 1_000)
+    }
+
+    // --- which report is the launcher's own launch ------------------------------------------------------------
+
+    /** Mail was opened from a notification, and five seconds later its other entry was started in the launcher.
+     *  Android's report of the launch comes AFTER the launch: what came to the front before it was another
+     *  opening, the notification's, and is counted for itself. */
+    @Test fun whatCameToTheFrontBeforeALaunchIsNotThatLaunchsReport() = runTest {
+        switchOn()
+        source.resumed += listOf(
+            screen("com.mail", "com.mail.Inbox", now - 60_000), // from the notification
+            screen("org.arkikeskus.launcher", "Home", now - 57_000),
+            screen("com.mail", "com.mail.Compose", now - 54_700), // the launch below, as Android saw it
+        )
+        usage.recordLaunch(mailCompose.key, at = now - 55_000)
+
+        sync.sync(now)
+
+        assertThat(scoreOf(mail)).isWithin(0.05f).of(1f)
+        assertThat(scoreOf(mailCompose)).isWithin(0.05f).of(1f)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+    }
+
+    /** Of two comings to the front that could be a launch's report, the one that IS the entry the launcher
+     *  started is it; the other one is counted for the entry it came up as. */
+    @Test fun theScreenTheLauncherStartedIsItsReportBeforeAnotherOfTheSameApp() = runTest {
+        switchOn()
+        usage.recordLaunch(mailCompose.key, at = now - 60_000)
+        source.resumed += listOf(
+            screen("com.mail", "com.mail.Inbox", now - 59_000),
+            screen("org.arkikeskus.launcher", "Home", now - 58_000),
+            screen("com.mail", "com.mail.Compose", now - 57_000),
+        )
+
+        sync.sync(now)
+
+        assertThat(scoreOf(mail)).isWithin(0.05f).of(1f)
+        assertThat(scoreOf(mailCompose)).isWithin(0.05f).of(1f)
+    }
+
+    /** A work profile's app is started in the launcher too, and scored as it always was. Android tells nothing
+     *  of it here, so its launch is not remembered for a report that cannot come: on a phone where the access
+     *  is never given, such launches would push the personal ones out, and those would count twice later. */
+    @Test fun aWorkAppsLaunchIsScoredButNotRememberedForAReport() = runTest {
+        switchOn()
+        val workMaps = "com.maps/com.maps.Main/10"
+
+        usage.recordLaunch(workMaps, at = now - 60_000, androidReports = false)
+        usage.recordLaunch(maps.key, at = now - 50_000)
+
+        assertThat(usage.usage.first().keys).containsExactly(workMaps, maps.key)
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now - 50_000)
+    }
+
+    // --- an opening read late ---------------------------------------------------------------------------------
+
+    /** The app was started from the dock today, and the read then brings an opening of nearly a week ago (a
+     *  notification's). With a half-life of a week that opening is worth about half a launch by now, not a
+     *  whole one: the order of "most used" must not depend on when the drawer happened to be opened. */
+    @Test fun anOpeningReadLateCountsForWhatItIsWorthByNow() = runTest {
+        switchOn(at = now - 7 * day)
+        source.resumed += listOf(
+            screen("com.maps", "com.maps.Main", now - 7 * day + 3_600_000),
+            screen("org.arkikeskus.launcher", "Home", now - 6 * day),
+            screen("com.maps", "com.maps.Main", now - 59_700),
+        )
+        usage.recordLaunch(maps.key, at = now - 60_000)
+
+        sync.sync(now)
+
+        assertThat(scoreOf(maps)).isWithin(0.02f).of(1.5f)
+        assertThat(usage.usage.first().getValue(maps.key).lastUsed).isEqualTo(now - 60_000)
     }
 
     /** The launches remembered for the next read are few: past [AppUsageRepository.MAX_OWN_LAUNCHES] the oldest

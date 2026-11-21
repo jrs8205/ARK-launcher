@@ -18,6 +18,21 @@ import kotlin.math.pow
 data class UsageStat(val score: Float, val lastUsed: Long)
 
 /**
+ * The count of apps opened elsewhere as the store holds it, read in one piece: which switching-on it is of
+ * ([period]: the number of times the count has been switched on or off), the moment Android's record has been
+ * read up to ([syncedTo]; the moment it was switched on, until the first read; 0 = no start noted), and the
+ * package that was in front at that moment ([inFront]; null when none is known).
+ */
+data class SystemCount(val period: Long, val syncedTo: Long, val inFront: String?)
+
+/**
+ * An app that came to the front as Android reported it, for the count: the launcher entry it counts for
+ * ([key]), when ([at]), and whether that entry IS the screen that came up ([exact]) and not the package's first
+ * entry standing for a screen inside the app.
+ */
+data class CountedOpening(val key: String, val at: Long, val exact: Boolean = true)
+
+/**
  * Tracks how often each app is launched, as a time-decayed "frecency" score. Each launch decays the
  * existing score to now and adds 1; ranking decays every score to now for a fair comparison, so a
  * one-off launch fades below apps used regularly. Stored in the same [DataStore] as the other
@@ -29,18 +44,21 @@ class AppUsageRepository @Inject constructor(
 ) {
     val usage: Flow<Map<String, UsageStat>> = dataStore.data.map { parse(it[Keys.APP_USAGE]) }
 
-    /** Records a launch of [key] at [at] (now): decays its stored score to then, and adds 1. While apps opened
-     *  elsewhere are counted too ([COUNTING_KEY]), the launch is also remembered until Android's record of that
-     *  moment has been read ([ownLaunches]): Android reports this launch as well, and it is one launch. Best
-     *  effort: a write the storage refuses (a full disk) is dropped — the caller fires this on the application
-     *  scope, where an escaping exception would kill the home process after every app launch. */
-    suspend fun recordLaunch(key: String, at: Long = System.currentTimeMillis()) {
+    /** Records a launch of [key] at [at] (the moment it was asked for): decays its stored score to then, and
+     *  adds 1. While apps opened elsewhere are counted too ([COUNTING_KEY]), a launch Android reports as well
+     *  ([androidReports]) is also remembered until Android's record of that moment has been read
+     *  ([ownLaunches]): it is one launch. Android tells the launcher only of the user it runs as, so a work
+     *  profile's app is never remembered so: no report could ever answer for it, and it would only take the
+     *  room of a launch that one does. Best effort: a write the storage refuses (a full disk) is dropped — the
+     *  caller fires this on the application scope, where an escaping exception would kill the home process
+     *  after every app launch. */
+    suspend fun recordLaunch(key: String, at: Long = System.currentTimeMillis(), androidReports: Boolean = true) {
         try {
             dataStore.edit { p ->
                 val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
                 stats[key] = applyLaunch(stats[key], at)
                 p[Keys.APP_USAGE] = serialize(stats)
-                if (p[Keys.COUNTING] == true) {
+                if (androidReports && p[Keys.COUNTING] == true) {
                     val launches = parseLaunches(p[Keys.OWN_LAUNCHES]) + (key to at)
                     p[Keys.OWN_LAUNCHES] = serializeLaunches(launches.takeLast(MAX_OWN_LAUNCHES))
                 }
@@ -54,44 +72,61 @@ class AppUsageRepository @Inject constructor(
      *  the moment the count was switched on, until the first read. 0 = not counting, or no start noted. */
     val systemSyncedTo: Flow<Long> = dataStore.data.map { it[Keys.SYSTEM_SYNCED_TO] ?: 0L }
 
+    /** The count of apps opened elsewhere as it stands ([SystemCount]); null while it is switched off. */
+    val systemCount: Flow<SystemCount?> = dataStore.data.map { p -> if (p[Keys.COUNTING] == true) countIn(p) else null }
+
+    private fun countIn(p: Preferences) =
+        SystemCount(p[Keys.COUNTING_PERIOD] ?: 0L, p[Keys.SYSTEM_SYNCED_TO] ?: 0L, p[Keys.SYSTEM_FRONT])
+
     /** The launches made in the launcher that Android's record may still report (an app's key and when,
      *  oldest first): every one since [systemSyncedTo], [MAX_OWN_LAUNCHES] at most. Empty while apps opened
      *  elsewhere are not counted. */
     internal val ownLaunches: Flow<List<Pair<String, Long>>> = dataStore.data.map { parseLaunches(it[Keys.OWN_LAUNCHES]) }
 
     /**
-     * Counts [openings] (an app's key and when it came to the front, oldest first) as launches, and notes that
-     * Android's record has been read up to [syncedTo]: one write, so a count is never stored without its time
-     * and read again. An opening within [SAME_LAUNCH_MS] of a launch the launcher made itself of the same app
-     * ([ownLaunches]) is Android's report of that launch, in the score already: it is left out, and that launch
-     * answers for no other report. An opening older than the app's stored last launch counts at that last
-     * launch's time: a score's time never moves back. Best effort, as [recordLaunch]: a refused write is
-     * dropped and read again at the next sync.
+     * Counts [openings] (oldest first) as launches, and notes that Android's record has been read up to
+     * [syncedTo], with [inFront] the package in front at that moment: ONE write, so a count is never stored
+     * without its time and read again.
+     *
+     * The write holds only for the count the read was made for ([read]: what [systemCount] gave before the
+     * reading began). If the switch was turned meanwhile (off, or off and on again: another
+     * [SystemCount.period]), or the time read up to is no longer where this read started, nothing is written:
+     * the openings are of a count that is no longer on, and their time would replace the new one's start.
+     *
+     * An opening that is Android's report of a launch the launcher made itself ([ownLaunches]) is in the score
+     * already and is left out. A launch's report is an opening of the same app at the launch's moment or within
+     * [SAME_LAUNCH_MS] after it, never before it: what came to the front before the launch was asked for is
+     * another opening. Of several, it is the one that came up as the very entry the launcher started
+     * ([CountedOpening.exact]), else the first. One launch answers for one report. An opening older than the
+     * app's stored last launch adds what it is worth by then ([applyOpening]). Best effort, as [recordLaunch]:
+     * a refused write is dropped and read again at the next sync.
      */
-    suspend fun recordOpenings(openings: List<Pair<String, Long>>, syncedTo: Long) {
+    suspend fun recordOpenings(read: SystemCount, openings: List<CountedOpening>, syncedTo: Long, inFront: String?) {
         try {
             dataStore.edit { p ->
-                val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
-                val own = parseLaunches(p[Keys.OWN_LAUNCHES]).toMutableList()
-                for ((key, at) in openings) {
-                    val app = appOf(key)
-                    val reported = own.indexOfFirst { (launched, then) ->
-                        appOf(launched) == app && kotlin.math.abs(at - then) <= SAME_LAUNCH_MS
-                    }
-                    if (reported >= 0) {
-                        own.removeAt(reported)
-                        continue
-                    }
-                    val prev = stats[key]
-                    stats[key] = applyLaunch(prev, maxOf(at, prev?.lastUsed ?: at))
+                if (p[Keys.COUNTING] != true) return@edit
+                val stored = countIn(p)
+                if (stored.period != read.period || stored.syncedTo != read.syncedTo) return@edit
+                val left = openings.toMutableList()
+                val unanswered = ArrayList<Pair<String, Long>>()
+                for (launch in parseLaunches(p[Keys.OWN_LAUNCHES]).sortedBy { it.second }) {
+                    val (launched, then) = launch
+                    val app = appOf(launched)
+                    val reports = left.indices.filter { appOf(left[it].key) == app && left[it].at in then..then + SAME_LAUNCH_MS }
+                    val report = reports.firstOrNull { left[it].exact && left[it].key == launched } ?: reports.firstOrNull()
+                    if (report != null) left.removeAt(report) else unanswered += launch
                 }
-                if (openings.isNotEmpty()) p[Keys.APP_USAGE] = serialize(stats)
+                if (left.isNotEmpty()) {
+                    val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
+                    for ((key, at) in left) stats[key] = applyOpening(stats[key], at)
+                    p[Keys.APP_USAGE] = serialize(stats)
+                }
                 // A launch of the last moments may be reported only in the next read. An older one that no
-                // report answered was never going to be reported (a work profile's app, a launch that showed
-                // nothing): it goes.
-                val waiting = own.filter { (_, then) -> then > syncedTo - SAME_LAUNCH_MS }
+                // report answered was never going to be reported (a launch that showed nothing): it goes.
+                val waiting = unanswered.filter { (_, then) -> then > syncedTo - SAME_LAUNCH_MS }
                 if (waiting.isEmpty()) p.remove(Keys.OWN_LAUNCHES) else p[Keys.OWN_LAUNCHES] = serializeLaunches(waiting)
                 p[Keys.SYSTEM_SYNCED_TO] = syncedTo
+                if (inFront == null) p.remove(Keys.SYSTEM_FRONT) else p[Keys.SYSTEM_FRONT] = inFront
             }
         } catch (e: IOException) {
             // Dropped: the stored time did not move, so the next sync reads the same span again.
@@ -131,6 +166,8 @@ class AppUsageRepository @Inject constructor(
         val SYSTEM_SYNCED_TO = longPreferencesKey(SYSTEM_SYNC_KEY)
         val OWN_LAUNCHES = stringPreferencesKey(OWN_LAUNCHES_KEY)
         val COUNTING = booleanPreferencesKey(COUNTING_KEY)
+        val SYSTEM_FRONT = stringPreferencesKey(SYSTEM_FRONT_KEY)
+        val COUNTING_PERIOD = longPreferencesKey(COUNTING_PERIOD_KEY)
     }
 
     companion object {
@@ -146,6 +183,15 @@ class AppUsageRepository @Inject constructor(
          *  ([ownLaunches]); this phone's own, as [USAGE_KEY]. */
         const val OWN_LAUNCHES_KEY = "app_usage_own_launches"
 
+        /** DataStore key name of the package that was in front at the moment Android's record was last read
+         *  up to ([SystemCount.inFront]); this phone's own, as [USAGE_KEY]. */
+        const val SYSTEM_FRONT_KEY = "app_usage_system_front"
+
+        /** DataStore key name of the number of times the count has been switched on or off
+         *  ([SystemCount.period]). It only ever grows, and stays while the count is off: a read made for one
+         *  switching-on is never taken for another's. This phone's own, as [USAGE_KEY]. */
+        const val COUNTING_PERIOD_KEY = "app_usage_counting_period"
+
         /** DataStore key name of the setting "Count apps opened elsewhere" ([SettingsRepository] owns it). */
         const val COUNTING_KEY = "count_system_usage"
 
@@ -159,16 +205,20 @@ class AppUsageRepository @Inject constructor(
          * The setting "Count apps opened elsewhere" went from [was] to [on] at [now], in [prefs] (the caller's
          * own write of the setting). Turned on, the count starts at that moment: what was opened before is not
          * read, since the launcher's own launches of that time are in the scores and were not remembered one
-         * by one. Turned off, the bookkeeping goes. Left on, nothing changes.
+         * by one. Turned off, the bookkeeping goes. Left on, nothing changes. Either way round it is another
+         * [SystemCount.period] from then on: a read of Android's record that was under way is not this
+         * count's, and its result is dropped ([recordOpenings]).
          */
         fun countingSwitched(prefs: MutablePreferences, was: Boolean, on: Boolean, now: Long) {
             if (was && on) return
             prefs.remove(Keys.OWN_LAUNCHES)
+            prefs.remove(Keys.SYSTEM_FRONT)
             if (on) prefs[Keys.SYSTEM_SYNCED_TO] = now else prefs.remove(Keys.SYSTEM_SYNCED_TO)
+            if (was != on) prefs[Keys.COUNTING_PERIOD] = (prefs[Keys.COUNTING_PERIOD] ?: 0L) + 1
         }
 
-        /** Two reports of one launch (the launcher's own, made as it starts the app, and Android's, made when
-         *  the app's screen is up) are at most this far apart. */
+        /** Android's report of a launch made in the launcher (made when the app's screen is up) comes at most
+         *  this long after the launcher's own note of it (the moment the start was asked for), never before. */
         const val SAME_LAUNCH_MS = 10_000L
 
         /** Half-life of the launch score; recent launches dominate within ~1–2 weeks. */
@@ -184,6 +234,17 @@ class AppUsageRepository @Inject constructor(
         fun applyLaunch(prev: UsageStat?, atMillis: Long): UsageStat {
             val decayed = prev?.let { currentScore(it, atMillis) } ?: 0f
             return UsageStat(decayed + 1f, atMillis)
+        }
+
+        /**
+         * The stat after an opening at [atMillis] that is counted only now, read from Android's record. One at
+         * or after the stored last launch is a launch like any ([applyLaunch]). An OLDER one adds what a launch
+         * of its age is worth at the stored time (a half-life before it, half a launch), and that time stays: a
+         * score's time never moves back, and an opening weighs the same whether it is read at once or late.
+         */
+        fun applyOpening(prev: UsageStat?, atMillis: Long): UsageStat {
+            if (prev == null || atMillis >= prev.lastUsed) return applyLaunch(prev, atMillis)
+            return UsageStat(prev.score + currentScore(UsageStat(1f, atMillis), prev.lastUsed), prev.lastUsed)
         }
     }
 }

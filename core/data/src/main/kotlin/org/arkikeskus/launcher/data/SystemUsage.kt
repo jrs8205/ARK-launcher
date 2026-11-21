@@ -6,6 +6,7 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.os.Process
+import android.os.UserHandle
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -28,8 +29,11 @@ interface SystemUsageSource {
     fun hasAccess(): Boolean
 
     /** The screens that came to the front between [fromMs] and [toMs], oldest first; nothing without access.
-     *  Only the user the launcher runs as: a work profile's and the private space's apps are not in it. */
-    fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening>
+     *  Only the user the launcher runs as: a work profile's and the private space's apps are not in it.
+     *  Null when Android could not be asked or did not answer (the service is missing, the call threw, the
+     *  user is still locked after a restart): that is not "nothing came to the front", and the caller must
+     *  not take the span for read. */
+    fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening>?
 }
 
 /** [SystemUsageSource] from Android's usage statistics. */
@@ -42,12 +46,13 @@ class AndroidSystemUsageSource @Inject constructor(@ApplicationContext private v
     }.getOrDefault(false)
 
     // The permission is declared in the app's manifest (this module declares none of the launcher's own). It
-    // is a special access, not a runtime permission: without it Android answers with nothing, and a refusal
-    // thrown instead ends in the empty list too.
+    // is a special access, not a runtime permission: without it Android answers with nothing. A refusal
+    // thrown instead, a missing service and no answer at all (Android gives none while the user is still
+    // locked after a restart) are no answer: null, never the empty list.
     @SuppressLint("MissingPermission")
-    override fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening> = runCatching {
-        val manager = context.getSystemService(UsageStatsManager::class.java) ?: return emptyList()
-        val events = manager.queryEvents(fromMs, toMs) ?: return emptyList()
+    override fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening>? = runCatching {
+        val manager = context.getSystemService(UsageStatsManager::class.java) ?: return null
+        val events = manager.queryEvents(fromMs, toMs) ?: return null
         val resumed = ArrayList<AppOpening>()
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
@@ -57,23 +62,32 @@ class AndroidSystemUsageSource @Inject constructor(@ApplicationContext private v
             }
         }
         resumed
-    }.getOrDefault(emptyList())
+    }.getOrNull()
 }
 
 /**
  * One opening per change of the app in front. An app's own screens following one another are one opening (the
  * first of them); the app coming to the front again after another one was there, the launcher included, is a
- * new one. [resumed] is in time order.
+ * new one. [resumed] is in time order. [inFront] is the package that was in front before the first of them
+ * (where the read before this one ended), null when that is not known: its next screen is no opening either.
  */
-fun openingsOf(resumed: List<AppOpening>): List<AppOpening> {
+fun openingsOf(resumed: List<AppOpening>, inFront: String? = null): List<AppOpening> {
     val openings = ArrayList<AppOpening>()
-    var inFront: String? = null
+    var front = inFront
     for (screen in resumed) {
-        if (screen.packageName != inFront) openings += screen
-        inFront = screen.packageName
+        if (screen.packageName != front) openings += screen
+        front = screen.packageName
     }
     return openings
 }
+
+/**
+ * The apps of [all] an opening may count for: those of [user], the user the launcher runs as (Android tells of
+ * no other user's here). Null when there is none: the launcher's own user always has apps, so an empty list is
+ * a listing that failed or has not come, and nothing can be told from it of what was opened.
+ */
+internal fun appsOfUser(all: List<AppItem>, user: UserHandle = Process.myUserHandle()): List<AppItem>? =
+    all.filter { it.user == user }.takeIf { it.isNotEmpty() }
 
 /**
  * The app of [apps] that [opening] counts for: the launcher entry that IS the screen that came to the front
@@ -104,56 +118,67 @@ fun appKeyFor(opening: AppOpening, apps: List<AppItem>): String? {
 class SystemUsageSync internal constructor(
     private val source: SystemUsageSource,
     private val usage: AppUsageRepository,
-    private val enabled: suspend () -> Boolean,
-    /** The apps an opening may count for: the launcher's own user's, never the private space's. */
-    private val apps: suspend () -> List<AppItem>,
+    /** The apps an opening may count for: the launcher's own user's, never the private space's. Null when
+     *  they cannot be told right now ([appsOfUser]). */
+    private val apps: suspend () -> List<AppItem>?,
     private val ownPackage: String,
 ) {
     @Inject constructor(
         @ApplicationContext context: Context,
         source: SystemUsageSource,
         usage: AppUsageRepository,
-        settings: SettingsRepository,
         appRepository: AppRepository,
-        resolver: AppRowResolver,
     ) : this(
         source = source,
         usage = usage,
-        enabled = { settings.settings.first().countSystemUsage },
-        apps = {
-            val own = resolver.ownUserSerial()
-            appRepository.apps.first().filter { it.userSerial == own }
-        },
+        apps = { appsOfUser(appRepository.apps.first()) },
         ownPackage = context.packageName,
     )
 
     /** One sync at a time: two at once would both read from the same stored time and count twice. */
     private val running = Mutex()
 
-    /** Counts what came to the front since the last sync, up to [now]. Does nothing while the switch is off or
-     *  access is not given; the stored time then stays (the moment the switch was turned on, before the first
-     *  read), and at most [WINDOW_MS] is read once the access is there. */
+    /**
+     * Counts what came to the front since the last sync, up to [now]. Does nothing while the switch is off or
+     * access is not given; the stored time then stays (the moment the switch was turned on, before the first
+     * read), and at most [WINDOW_MS] is read once the access is there.
+     *
+     * The read is of ONE count: where it stands is read first, in one piece ([AppUsageRepository.systemCount]),
+     * and the result is stored only if that is still the count that is on
+     * ([AppUsageRepository.recordOpenings]). The switch can be turned while Android is being asked. And only a
+     * read that was made moves the time on: when the launcher's apps cannot be told, or Android does not
+     * answer, nothing is stored and the same span is read again at the next sync.
+     */
     suspend fun sync(now: Long = System.currentTimeMillis()) = running.withLock {
-        if (!enabled() || !source.hasAccess()) return@withLock
-        val syncedTo = usage.systemSyncedTo.first()
-        if (syncedTo <= 0L) {
+        val count = usage.systemCount.first() ?: return@withLock
+        if (!source.hasAccess()) return@withLock
+        if (count.syncedTo <= 0L) {
             // On, but no start was noted (the setting's own switch notes one): the count starts here.
             // Nothing is read back, as the launcher's own launches before this moment were not remembered.
-            usage.recordOpenings(emptyList(), syncedTo = now)
+            usage.recordOpenings(count, emptyList(), syncedTo = now, inFront = null)
             return@withLock
         }
-        val from = maxOf(syncedTo, now - WINDOW_MS)
+        val from = maxOf(count.syncedTo, now - WINDOW_MS)
         if (from >= now) return@withLock
-        val known = apps()
+        val known = apps() ?: return@withLock
+        val resumed = source.resumedBetween(from, now) ?: return@withLock
         // Only the launcher and what it shows an app of can be "the app in front": a screen of anything else
         // (a permission dialog of the phone's own, the share sheet, the recents screen) lies over an app, and
         // the app coming back from under it was not opened again.
         val shown = known.mapTo(HashSet()) { it.packageName }
-        val screens = source.resumedBetween(from, now).filter { it.packageName == ownPackage || it.packageName in shown }
-        val counted = openingsOf(screens)
+        val screens = resumed.filter { it.packageName == ownPackage || it.packageName in shown }
+        // The app in front where the read before this one ended is still in front where this one begins: its
+        // next screen is no new opening. Not so over a stretch that was never read (a pause longer than the
+        // window): what was in front before it says nothing of now.
+        val before = count.inFront.takeIf { from == count.syncedTo }
+        val entries = known.mapTo(HashSet()) { it.packageName to it.className }
+        val counted = openingsOf(screens, inFront = before)
             .filter { it.packageName != ownPackage }
-            .mapNotNull { opening -> appKeyFor(opening, known)?.let { it to opening.timeMs } }
-        usage.recordOpenings(counted, syncedTo = now)
+            .mapNotNull { opening ->
+                val key = appKeyFor(opening, known) ?: return@mapNotNull null
+                CountedOpening(key, opening.timeMs, exact = (opening.packageName to opening.className) in entries)
+            }
+        usage.recordOpenings(count, counted, syncedTo = now, inFront = screens.lastOrNull()?.packageName ?: before)
     }
 
     companion object {

@@ -34,10 +34,14 @@ class StartingLauncherApps : ShadowLauncherApps() {
     @Implementation
     protected fun startMainActivity(component: ComponentName, user: UserHandle, sourceBounds: Rect?, opts: Bundle?) {
         started += component to user
+        whileStarting?.invoke()
     }
 
     companion object {
         val started = mutableListOf<Pair<ComponentName, UserHandle>>()
+
+        /** Runs as an app is started: the time the start itself takes. */
+        var whileStarting: (() -> Unit)? = null
     }
 }
 

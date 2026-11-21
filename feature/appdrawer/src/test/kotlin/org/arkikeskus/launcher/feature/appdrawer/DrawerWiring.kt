@@ -150,7 +150,7 @@ internal class DrawerWiring(
                 override fun hasAccess() = false
                 override fun resumedBetween(fromMs: Long, toMs: Long) = emptyList<org.arkikeskus.launcher.data.AppOpening>()
             },
-            appUsageRepository, settingsRepository, appRepository, source,
+            appUsageRepository, appRepository,
         ),
     )
 

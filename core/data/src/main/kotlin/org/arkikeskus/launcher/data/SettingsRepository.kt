@@ -876,11 +876,14 @@ class SettingsRepository @Inject constructor(
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
             // With them, while apps opened elsewhere are counted: the time Android's own record was read up
-            // to and the launcher's own launches since then. Cleared, the next read would count openings a
-            // second time.
+            // to, the app in front then and the launcher's own launches since. Cleared, the next read would
+            // count openings a second time. And which switching-on the count is of, on or off: that number
+            // only ever grows, so a read made for an earlier count is never taken for a later one.
             val wasCounting = prefs[Keys.COUNT_SYSTEM_USAGE] ?: false
             val usageSyncedTo = prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)]
             val ownLaunches = prefs[stringPreferencesKey(AppUsageRepository.OWN_LAUNCHES_KEY)]
+            val usageFront = prefs[stringPreferencesKey(AppUsageRepository.SYSTEM_FRONT_KEY)]
+            val countingPeriod = prefs[longPreferencesKey(AppUsageRepository.COUNTING_PERIOD_KEY)]
             // Gallery images are files on this phone (not in a backup): keep them for the apps, the
             // pinned shortcuts and the home folders the backup picks no icon for. Not for drawer folders: their ids come back
             // (max + 1), so the folder the backup has under an id may not be the one with the picture.
@@ -925,9 +928,11 @@ class SettingsRepository @Inject constructor(
             // The count's bookkeeping stays only where the count goes on as it was. A file that turns the
             // switch on is the switch turned on: the count starts now.
             val counting = prefs[Keys.COUNT_SYSTEM_USAGE] ?: false
+            if (countingPeriod != null) prefs[longPreferencesKey(AppUsageRepository.COUNTING_PERIOD_KEY)] = countingPeriod
             if (wasCounting && counting) {
                 if (usageSyncedTo != null) prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)] = usageSyncedTo
                 if (ownLaunches != null) prefs[stringPreferencesKey(AppUsageRepository.OWN_LAUNCHES_KEY)] = ownLaunches
+                if (usageFront != null) prefs[stringPreferencesKey(AppUsageRepository.SYSTEM_FRONT_KEY)] = usageFront
             } else {
                 AppUsageRepository.countingSwitched(prefs, was = wasCounting, on = counting, now = System.currentTimeMillis())
             }
@@ -1234,6 +1239,7 @@ class SettingsRepository @Inject constructor(
             "auto_update_enabled", "update_last_check", "update_last_notified_version",
             "default_layout_seeded", "onboarding_done", "first_run_fresh", "people_held_notifications",
             AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY,
+            AppUsageRepository.SYSTEM_FRONT_KEY, AppUsageRepository.COUNTING_PERIOD_KEY,
             "default_reminder_dismissed",
             // A picked lock/unlock sound is a content URI this phone holds a read grant for; another
             // phone could not play it.

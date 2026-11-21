@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.data
 
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.Process
 import android.os.UserHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -85,11 +86,18 @@ class AppRepository @Inject constructor(
     /** Launches [appItem] (from [sourceBounds] with [options], see [LauncherAppsSource.launch]); on
      *  success, records the launch for the "most used" ranking (fire-and-forget). An app of the private
      *  space is never recorded, whoever starts it here: the ranking is written to the disk under the
-     *  app's key (the drawer starts such apps through [PrivateSpaceRepository.launch], which counts nothing). */
+     *  app's key (the drawer starts such apps through [PrivateSpaceRepository.launch], which counts nothing).
+     *
+     *  The launch is recorded at the moment it was ASKED for, read before the start: Android's own report of
+     *  it (read later, while apps opened elsewhere are counted) can only come after that moment, and that is
+     *  how the two are known for one launch ([AppUsageRepository.recordOpenings]). Android reports only the
+     *  apps of the user the launcher runs as: a work profile's app is scored, and waits for no report. */
     fun launch(appItem: AppItem, sourceBounds: Rect? = null, options: Bundle? = null): Result<Unit> {
+        val asked = System.currentTimeMillis()
         val result = source.launch(appItem, sourceBounds, options)
         if (result.isSuccess && !privateSpace.isPrivate(appItem.userSerial)) {
-            scope.launch { appUsageRepository.recordLaunch(appItem.key) }
+            val ownUser = appItem.user == Process.myUserHandle()
+            scope.launch { appUsageRepository.recordLaunch(appItem.key, at = asked, androidReports = ownUser) }
         }
         return result
     }

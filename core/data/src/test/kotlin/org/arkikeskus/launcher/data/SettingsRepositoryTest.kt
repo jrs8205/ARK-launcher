@@ -273,24 +273,31 @@ class SettingsRepositoryTest {
         assertThat(settings.settings.first().homeColumns).isEqualTo(5)
     }
 
-    /** Issue #33: the count of apps opened elsewhere keeps two things of this phone's own beside the scores:
-     *  the moment Android's record was read up to, and the launcher's own launches since then. A backup holds
-     *  neither, and a restore that leaves the switch on keeps both. */
+    /** Issue #33: the count of apps opened elsewhere keeps things of this phone's own beside the scores: the
+     *  moment Android's record was read up to, the app that was in front then, which switching-on the count
+     *  is of, and the launcher's own launches since. A backup holds none of them, and a restore that leaves
+     *  the switch on keeps them all: it is the same count going on. */
     @Test
     fun `the bookkeeping of counting apps opened elsewhere stays on this phone across a restore`() = runTest {
         val store = InMemoryDataStore()
         val settings = SettingsRepository(store)
         val usage = AppUsageRepository(store)
         settings.setCountSystemUsage(true, now = 1_000L)
+        usage.recordOpenings(usage.systemCount.first()!!, emptyList(), syncedTo = 1_500L, inFront = "com.example")
         usage.recordLaunch("com.example/Main/0", at = 2_000L)
+        val count = usage.systemCount.first()
+        assertThat(count).isEqualTo(SystemCount(period = 1, syncedTo = 1_500L, inFront = "com.example"))
 
         val backup = settings.exportRaw()
-        assertThat(backup.keys).containsNoneOf(AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY)
+        assertThat(backup.keys).containsNoneOf(
+            AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY,
+            AppUsageRepository.SYSTEM_FRONT_KEY, AppUsageRepository.COUNTING_PERIOD_KEY,
+        )
         assertThat(backup["count_system_usage"]).isEqualTo(true)
 
         settings.importRaw(backup)
 
-        assertThat(usage.systemSyncedTo.first()).isEqualTo(1_000L)
+        assertThat(usage.systemCount.first()).isEqualTo(count)
         assertThat(usage.ownLaunches.first()).containsExactly("com.example/Main/0" to 2_000L)
     }
 
@@ -309,12 +316,17 @@ class SettingsRepositoryTest {
                 "count_system_usage" to true,
                 AppUsageRepository.SYSTEM_SYNC_KEY to 5,
                 AppUsageRepository.OWN_LAUNCHES_KEY to "com.other/Main/0\t7",
+                AppUsageRepository.SYSTEM_FRONT_KEY to "com.other",
+                AppUsageRepository.COUNTING_PERIOD_KEY to 99,
             ),
         )
 
         assertThat(settings.settings.first().countSystemUsage).isTrue()
         assertThat(usage.systemSyncedTo.first()).isAtLeast(before)
         assertThat(usage.ownLaunches.first()).isEmpty()
+        // The first switching-on of this phone's count, with no app known to be in front: nothing of the file's.
+        assertThat(usage.systemCount.first()?.period).isEqualTo(1L)
+        assertThat(usage.systemCount.first()?.inFront).isNull()
 
         usage.recordLaunch("com.example/Main/0", at = 3_000L)
         assertThat(usage.ownLaunches.first()).hasSize(1)
@@ -323,6 +335,11 @@ class SettingsRepositoryTest {
         assertThat(settings.settings.first().countSystemUsage).isFalse()
         assertThat(usage.systemSyncedTo.first()).isEqualTo(0L)
         assertThat(usage.ownLaunches.first()).isEmpty()
+
+        // Switched on once more, it is the third change of the switch: the number went on through the
+        // restore that switched it off, so a read made for the first count is not taken for this one.
+        settings.setCountSystemUsage(true, now = 9_000L)
+        assertThat(usage.systemCount.first()).isEqualTo(SystemCount(period = 3, syncedTo = 9_000L, inFront = null))
     }
 
     @Test

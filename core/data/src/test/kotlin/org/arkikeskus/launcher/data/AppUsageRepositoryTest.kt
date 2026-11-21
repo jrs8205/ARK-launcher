@@ -56,6 +56,23 @@ class AppUsageRepositoryTest {
         assertThat(stat.lastUsed).isEqualTo(half)
     }
 
+    /** An opening that is read late (Android's record of it, after a newer launch was already scored) adds
+     *  what one launch of that age is worth at the newer launch's time, and the score's time stays. */
+    @Test
+    fun `an opening older than the last launch adds what it is worth by then`() {
+        val prev = UsageStat(score = 1f, lastUsed = half)
+        val stat = AppUsageRepository.applyOpening(prev, 0L)
+        assertThat(stat.score).isWithin(0.001f).of(1.5f) // 1 + one launch a half-life old
+        assertThat(stat.lastUsed).isEqualTo(half)
+    }
+
+    @Test
+    fun `an opening newer than the last launch is a launch`() {
+        val prev = UsageStat(score = 1f, lastUsed = 0L)
+        assertThat(AppUsageRepository.applyOpening(prev, half)).isEqualTo(AppUsageRepository.applyLaunch(prev, half))
+        assertThat(AppUsageRepository.applyOpening(null, 5L)).isEqualTo(UsageStat(1f, 5L))
+    }
+
     @Test
     fun `a recently used app outranks an older more-used app`() {
         val day = 24L * 60 * 60 * 1000
