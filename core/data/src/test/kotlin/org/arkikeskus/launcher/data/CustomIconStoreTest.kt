@@ -107,6 +107,36 @@ class CustomIconStoreTest {
         assertThat(source.drawable(fresh)).isNotNull()
     }
 
+    /**
+     * Review round 10. "Unused" is what no place that can name a picture names. The profiles' own stores are such
+     * places, and when they cannot be listed (an I/O error) the set of used pictures is not known whole: the
+     * sweep then deleted the folder pictures of a profile whose listing was already lost. Nothing is deleted
+     * until every place was read, at the start or when a picture is replaced.
+     */
+    @Test fun nothingIsDeletedWhileTheProfilesStoresCannotBeListed() = runTest {
+        val files = org.arkikeskus.launcher.data.profile.FakeHomeProfileFiles()
+        val view = org.arkikeskus.launcher.data.profile.ProfiledPreferences(org.arkikeskus.launcher.data.profile.CountingStore(), files)
+        val ofProfiles = CustomIconStore(SettingsRepository(view, view), source)
+        val first = image()
+        val unused = image()
+        ofProfiles.setFolderIcon(FolderIconKey.home(3), first)
+        for (old in listOf(first, unused)) File(context.filesDir, "custom_icons/${old.name}").setLastModified(1_000L)
+        files.failIds = java.io.IOException("the folder could not be read")
+
+        ofProfiles.deleteUnusedPictures(savedBefore = 2_000L)
+        // And a picture that is replaced meanwhile is kept too: whether something else still shows it is not known.
+        ofProfiles.setFolderIcon(FolderIconKey.home(3), pack)
+
+        assertThat(source.drawable(unused)).isNotNull()
+        assertThat(source.drawable(first)).isNotNull()
+
+        // Readable again, the sweep takes both.
+        files.failIds = null
+        ofProfiles.deleteUnusedPictures(savedBefore = 2_000L)
+        assertThat(source.drawable(unused)).isNull()
+        assertThat(source.drawable(first)).isNull()
+    }
+
     /** Issue #23: a shortcut's picture counts as used, and clearing it deletes its file like an app's. */
     @Test fun aShortcutsPictureIsKeptBySweepAndDeletedWhenCleared() = runTest {
         val picture = image()

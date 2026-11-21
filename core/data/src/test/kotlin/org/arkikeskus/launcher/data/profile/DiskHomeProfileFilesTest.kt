@@ -73,6 +73,27 @@ class DiskHomeProfileFilesTest {
         assertThat(files.ids()).containsExactly(12L)
     }
 
+    /**
+     * Review round 10. A folder that cannot be read gives no listing at all (null), and that was read as "no
+     * stores": the pictures of a profile the list had already lost were then used by nobody. It is a failure,
+     * and says so; a folder that is not there yet is the one case of "none".
+     */
+    @Test fun aFolderThatCannotBeReadIsNotAFolderWithNoStores(): Unit = runBlocking {
+        files.store(3).edit { it[baseColour] = "red" }
+        val unreadable = DiskHomeProfileFiles(context, scope, namesIn = { null })
+
+        val failure = runCatching { unreadable.ids() }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(java.io.IOException::class.java)
+        assertThat(files.ids()).containsExactly(3L)
+    }
+
+    @Test fun beforeAnyStoreWasWrittenThereAreNone(): Unit = runBlocking {
+        context.preferencesDataStoreFile("home_profile_0").parentFile?.deleteRecursively()
+
+        assertThat(DiskHomeProfileFiles(context, scope, namesIn = { error("there is no folder to read") }).ids()).isEmpty()
+    }
+
     @Test fun deletingAProfileThatNeverWroteAnythingIsFine() = runBlocking {
         files.delete(5)
 

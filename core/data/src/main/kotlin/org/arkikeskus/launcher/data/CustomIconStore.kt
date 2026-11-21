@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data
 
 import android.content.Context
+import java.io.IOException
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -51,8 +52,14 @@ class CustomIconStore @Inject constructor(
      *  closed mid-import. Only those saved before [savedBefore] (the launcher's start): one saved since
      *  may still be waiting in an open dialog. */
     suspend fun deleteUnusedPictures(savedBefore: Long) {
-        source.files.deleteUnused(usedPictures(), savedBefore)
+        // Nothing goes unless every place that can name a picture was read: "unused" is what none of them
+        // names, and a place that could not be read may name any of them. The next start tries again.
+        val used = usedPicturesOrNull() ?: return
+        source.files.deleteUnused(used, savedBefore)
     }
+
+    /** [usedPictures], or null when it could not be found out whole (the profiles' stores could not be listed). */
+    private suspend fun usedPicturesOrNull(): Set<String>? = try { usedPictures() } catch (e: IOException) { null }
 
     /** The saved pictures some app, shortcut or folder shows: the folders of EVERY home profile, since a
      *  profile that is not showing still uses its pictures. */
@@ -64,7 +71,10 @@ class CustomIconStore @Inject constructor(
     /** Deletes the picture [old] was, once [new] has taken its place, unless something still shows it: a
      *  home profile made as a copy of another has its folders' pictures in common with it. */
     private suspend fun dropReplaced(old: CustomIcon?, new: CustomIcon?) {
-        if (old is CustomIcon.FromFile && old != new && old.name !in usedPictures()) source.files.delete(old)
+        if (old !is CustomIcon.FromFile || old == new) return
+        // Kept when it cannot be told whether something still shows it; the start-up sweep takes it later.
+        val used = usedPicturesOrNull() ?: return
+        if (old.name !in used) source.files.delete(old)
     }
 }
 

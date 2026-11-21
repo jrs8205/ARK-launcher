@@ -13,6 +13,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
 
 /**
  * The stores of the home profiles whose own values are not in the settings file itself: one per profile id.
@@ -25,7 +27,11 @@ interface HomeProfileFiles {
     /** Closes the store of [profileId] and removes what it kept. */
     suspend fun delete(profileId: Long)
 
-    /** The profiles a store is kept for right now, whether the list of profiles names them or not. */
+    /**
+     * The profiles a store is kept for right now, whether the list of profiles names them or not. Throws an
+     * [IOException] when that cannot be found out: "none" is an answer, and it is what decides that a
+     * picture is used by nobody.
+     */
     suspend fun ids(): List<Long>
 }
 
@@ -33,6 +39,8 @@ interface HomeProfileFiles {
 class DiskHomeProfileFiles(
     private val context: Context,
     private val scope: CoroutineScope,
+    /** The names in a folder, or null when the folder could not be read ([File.list]). */
+    private val namesIn: (File) -> Array<String>? = { it.list() },
 ) : HomeProfileFiles {
     private class Open(val store: DataStore<Preferences>, val job: Job)
 
@@ -64,7 +72,14 @@ class DiskHomeProfileFiles(
 
     override suspend fun ids(): List<Long> = withContext(Dispatchers.IO) {
         val folder = context.preferencesDataStoreFile(fileName(0)).parentFile
-        folder?.listFiles().orEmpty().mapNotNull { STORE_FILE.matchEntire(it.name)?.groupValues?.get(1)?.toLongOrNull() }.sorted()
+            ?: throw IOException("the profiles' stores have no folder")
+        // No folder yet: no store was ever written (a store makes the folder with its first write).
+        if (!folder.exists()) return@withContext emptyList()
+        // A folder that is there and gives no listing could not be READ (an I/O error): that is not an
+        // empty folder. Taken for one, the pictures of a profile whose listing was already lost were
+        // "used by nobody" and were deleted at the start.
+        val names = namesIn(folder) ?: throw IOException("the profiles' stores could not be listed")
+        names.mapNotNull { STORE_FILE.matchEntire(it)?.groupValues?.get(1)?.toLongOrNull() }.sorted()
     }
 
     private fun fileName(profileId: Long) = "home_profile_$profileId"

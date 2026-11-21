@@ -19,6 +19,7 @@ import org.arkikeskus.launcher.data.di.ApplicationScope
 import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
 import org.arkikeskus.launcher.model.HomeProfile
 import java.io.File
+import java.io.IOException
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -286,15 +287,21 @@ class DrawerWallpaperStore internal constructor(
         copied
     }
 
-    /** The home profiles a picture is kept for, whether the list of profiles names them or not. */
+    /** The home profiles a picture is kept for, whether the list of profiles names them or not. Throws an
+     *  [IOException] when the folders cannot be listed: "none" must not be said of what could not be read
+     *  (an id would be given to a new profile over a picture that is kept under it). */
     suspend fun profilesWithPictures(): Set<Long> = withContext(io) {
-        context.filesDir.listFiles().orEmpty().mapNotNullTo(HashSet()) { dir ->
+        val folders = context.filesDir.listFiles() ?: throw IOException("the pictures' folders could not be listed")
+        folders.mapNotNullTo(HashSet()) { dir ->
             val id = when {
                 dir.name == FIRST_DIR -> HomeProfile.FIRST_ID
                 dir.name.startsWith(FIRST_DIR + "_") -> dir.name.removePrefix(FIRST_DIR + "_").toLongOrNull()
                 else -> null
             }
-            id?.takeIf { dir.isDirectory && dir.listFiles().orEmpty().any { it.extension == "jpg" } }
+            id?.takeIf {
+                dir.isDirectory &&
+                    (dir.listFiles() ?: throw IOException("a profile's pictures could not be listed")).any { it.extension == "jpg" }
+            }
         }
     }
 

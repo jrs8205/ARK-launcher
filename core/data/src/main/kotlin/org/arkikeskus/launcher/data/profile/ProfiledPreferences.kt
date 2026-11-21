@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data.profile
 
 import androidx.datastore.core.DataStore
+import java.io.IOException
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -150,11 +151,14 @@ class ProfiledPreferences(
     }
 
     /** Every profile something of its own is kept for: those the list in [shared] names, in its order, then
-     *  those being made, then those whose own store is still there unlisted. For a caller that holds [mutex]. */
-    private suspend fun everyProfile(shared: Preferences): List<Long> {
-        val listed = HomeProfile.decode(shared[LIST]).map { it.id }
-        return (listed + beingMade + files.ids()).distinct()
-    }
+     *  those being made, then those whose own store is still there unlisted. Throws when the stores cannot
+     *  be listed ([HomeProfileFiles.ids]): a reader that deletes what "no profile" names must not be told
+     *  of fewer profiles than there are. For a caller that holds [mutex]. */
+    private suspend fun everyProfile(shared: Preferences): List<Long> = (namedOrBeingMade(shared) + files.ids()).distinct()
+
+    /** The profiles the list in [shared] names, in its order, then those being made. */
+    private fun namedOrBeingMade(shared: Preferences): List<Long> =
+        (HomeProfile.decode(shared[LIST]).map { it.id } + beingMade).distinct()
 
     /**
      * Runs [transform] on the own values of every profile [valuesOfEveryProfile] reads: those the list names
@@ -165,7 +169,11 @@ class ProfiledPreferences(
      * that holds [mutex].
      */
     suspend fun updateEveryProfile(transform: (MutablePreferences) -> Unit) = mutex.withLock {
-        for (id in everyProfile(main.data.first())) updateProfileLocked(id, transform)
+        val shared = main.data.first()
+        // A correction, not a deletion: when the unlisted stores cannot be listed, the profiles there are
+        // still get it (a store nobody names is shown to nobody meanwhile).
+        val ids = try { everyProfile(shared) } catch (e: IOException) { namedOrBeingMade(shared) }
+        for (id in ids) updateProfileLocked(id, transform)
     }
 
     /** Runs [transform] on the own values of [profileId] alone, whether it is on or not; anything it sets

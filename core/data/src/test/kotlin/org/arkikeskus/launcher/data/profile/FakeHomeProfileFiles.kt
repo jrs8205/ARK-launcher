@@ -57,7 +57,13 @@ class FakeHomeProfileFiles : HomeProfileFiles {
 
     override fun store(profileId: Long): CountingStore = stores.getOrPut(profileId) { CountingStore() }
 
-    override suspend fun ids(): List<Long> = stores.keys.sorted()
+    /** While set, the stores cannot be listed: every [ids] fails with it. */
+    var failIds: Throwable? = null
+
+    override suspend fun ids(): List<Long> {
+        failIds?.let { throw it }
+        return stores.keys.sorted()
+    }
 
     override suspend fun delete(profileId: Long) {
         failDelete?.let { throw it }
