@@ -890,7 +890,9 @@ private fun AppDrawerContent(
             }
             }
             if (fieldAtBottom) {
-                Box(modifier = Modifier.weight(1f)) { pages() }
+                // A column, not a box: with a second tab the pages are a tab row and the pager under it
+                // (DrawerTabPages emits both into its caller's column), and a box laid the pager over the row.
+                Column(modifier = Modifier.weight(1f)) { pages() }
                 // On the Personal page only, as in the grid, and not over a search's results.
                 if (!searching && frequentApps.isNotEmpty() && selectedTab == DrawerTab.Personal) {
                     Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
