@@ -49,6 +49,7 @@ import androidx.compose.ui.test.moveBy
 import kotlinx.coroutines.flow.first
 import org.arkikeskus.launcher.ui.ADD_APPS_SEARCH_TAG
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import android.os.Process
 import kotlinx.coroutines.test.TestScope
 import org.junit.After
@@ -252,6 +253,56 @@ class AppDrawerScreenTest {
         assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools")
         compose.onNodeWithText(context.getString(R.string.folder_delete_confirm)).performClick()
         awaitState("the folder is gone") { it.folders.isEmpty() }
+    }
+
+    /**
+     * Review round 7. The editor remembered its folder by the id alone and took the profile anew from whatever
+     * state it was drawn from. A copy of a profile has folders with the same ids: with the switch to the copy
+     * made while the editor's "Delete?" was open, the editor showed the copy's folder with that question still
+     * up, and "Delete" removed the folder of the profile the user had never asked about. What is open is of the
+     * profile it was opened on, and goes when another one comes on.
+     */
+    @Test fun aFoldersEditorAndItsQuestionGoWhenAnotherProfileComesOn() {
+        showWithFolder()
+        val copy = runBlocking {
+            (wiring.homeProfiles.create("Copy", copyCurrent = true) as HomeProfileRepository.Created.Done).profile.id
+        }
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+        compose.onNodeWithText(context.getString(R.string.folder_delete)).performClick()
+        settle()
+        compose.onNodeWithText(context.getString(R.string.folder_delete_title)).assertExists()
+
+        // The switch that had been waiting is made while the question is open.
+        runBlocking { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
+        awaitState("the copy is on") { it.homeProfileId == copy && it.folders.size == 1 }
+        settle()
+
+        compose.onNodeWithText(context.getString(R.string.folder_delete_title)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.folder_delete_confirm)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.folder_delete)).assertDoesNotExist()
+        // The copy's folder, of the same id, is as it was; held again, it opens its own editor.
+        assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools")
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        settle()
+        compose.onNodeWithText(context.getString(R.string.folder_delete)).assertExists()
+    }
+
+    /** The same for an app's menu: opened on one profile's drawer, it is gone when another profile comes on. */
+    @Test fun anAppsMenuGoesWhenAnotherProfileComesOn() {
+        show()
+        awaitText(mailApp)
+        val copy = runBlocking {
+            (wiring.homeProfiles.create("Copy", copyCurrent = true) as HomeProfileRepository.Created.Done).profile.id
+        }
+        compose.onNodeWithText(mailApp).performTouchInput { longClick() }
+        awaitText(appInfo())
+
+        runBlocking { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
+        awaitState("the copy is on") { it.homeProfileId == copy }
+        settle()
+
+        compose.onNodeWithText(appInfo()).assertDoesNotExist()
     }
 
     /** The long-press is the only way to the editor, so TalkBack must say what it does. */

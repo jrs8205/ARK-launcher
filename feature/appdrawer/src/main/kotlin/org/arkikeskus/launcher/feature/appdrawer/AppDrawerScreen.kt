@@ -180,7 +180,15 @@ fun AppDrawerScreen(
             android.widget.Toast.makeText(context, notice.message, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
-    var menuTarget by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    // What the drawer has open (an app's menu, a folder's card, a folder's editor with the questions it asks) is
+    // remembered WITH the home profile whose drawer it was opened on ([OpenedOn]): it is drawn only from a state of
+    // that profile, and closed when another profile comes on. An app or a folder's id alone does not say whose it
+    // is: a profile made as a copy has folders with the same ids, and an editor left open over a switch that was
+    // waiting showed the copy's folder, with the question "Delete?" the user had been asked about the other one.
+    // The profile is the one drawn when the thing is opened, also for a handler a gesture kept from an earlier
+    // composition.
+    val drawnProfile by rememberUpdatedState(uiState.homeProfileId)
+    var menuTarget by remember { mutableStateOf<OpenedOn<Pair<AppItem, Rect>>?>(null) }
     // A tapped app opens with a zoom from its icon (AppLaunchSources).
     val launchSources = LocalAppLaunchSources.current
     // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
@@ -188,8 +196,14 @@ fun AppDrawerScreen(
     var renameTarget by remember { mutableStateOf<AppItem?>(null) }
     // A tapped folder shows its apps in a card by the tile (id + the tile's root bounds); a
     // long-pressed one opens its editor. Two surfaces, so a tap can never change the folder.
-    var folderCard by remember { mutableStateOf<Pair<Long, Rect>?>(null) }
-    var editFolderId by remember { mutableStateOf<Long?>(null) }
+    var folderCard by remember { mutableStateOf<OpenedOn<Pair<Long, Rect>>?>(null) }
+    var editFolder by remember { mutableStateOf<OpenedOn<Long>?>(null) }
+    LaunchedEffect(uiState.homeProfileId) {
+        val now = uiState.homeProfileId
+        if (menuTarget?.profile != now) menuTarget = null
+        if (folderCard?.profile != now) folderCard = null
+        if (editFolder?.profile != now) editFolder = null
+    }
     val windowHeightPx = LocalWindowInfo.current.containerSize.height
     // The drawer fills the window and shows its own picture's centre at the window's aspect: that part's lightness.
     val windowAspect = LocalWindowInfo.current.containerSize.let { if (it.height > 0) it.width.toFloat() / it.height else 0f }
@@ -232,7 +246,7 @@ fun AppDrawerScreen(
             menuTarget = null
             renameTarget = null
             folderCard = null
-            editFolderId = null
+            editFolder = null
         }
     }
 
@@ -246,7 +260,7 @@ fun AppDrawerScreen(
             menuTarget = null
             renameTarget = null
             folderCard = null
-            editFolderId = null
+            editFolder = null
             focusManager.clearFocus()
             viewModel.onQueryChange("")
         }
@@ -321,10 +335,10 @@ fun AppDrawerScreen(
         showSearch = uiState.showSearch,
         searchAtBottom = uiState.searchAtBottom,
         onQueryChange = viewModel::onQueryChange,
-        onFolderClick = { folder, bounds -> if (drawerOpen) folderCard = folder.id to bounds },
-        onFolderLongClick = { if (drawerOpen) editFolderId = it.id },
+        onFolderClick = { folder, bounds -> if (drawerOpen) folderCard = OpenedOn(drawnProfile, folder.id to bounds) },
+        onFolderLongClick = { if (drawerOpen) editFolder = OpenedOn(drawnProfile, it.id) },
         onAppClick = { openApp(it) },
-        onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = app to bounds },
+        onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = OpenedOn(drawnProfile, app to bounds) },
         onDrawerDrag = onDrawerDrag,
         onDrawerSettle = onDrawerSettle,
         dragController = dragController,
@@ -389,7 +403,7 @@ fun AppDrawerScreen(
         )
     }
 
-    val menu = menuTarget
+    val menu = menuTarget?.takeIf { it.profile == uiState.homeProfileId }?.what
     if (menu != null) {
         val (app, bounds) = menu
         // The ONE state this menu is drawn from: its rows say what the menu offers ("Remove from home" for an
@@ -470,11 +484,11 @@ fun AppDrawerScreen(
     } }
 
     // Close the folder's card/editor if its folder was deleted (or all members removed and it's gone).
-    LaunchedEffect(editFolderId, folderCard, uiState.folders) {
-        if (editFolderId != null && uiState.folders.none { it.id == editFolderId }) editFolderId = null
-        if (folderCard != null && uiState.folders.none { it.id == folderCard?.first }) folderCard = null
+    LaunchedEffect(editFolder, folderCard, uiState.folders) {
+        if (editFolder != null && uiState.folders.none { it.id == editFolder?.what }) editFolder = null
+        if (folderCard != null && uiState.folders.none { it.id == folderCard?.what?.first }) folderCard = null
     }
-    val card = folderCard
+    val card = folderCard?.takeIf { it.profile == uiState.homeProfileId }?.what
     val cardFolder = card?.let { (id, _) -> uiState.folders.firstOrNull { it.id == id } }
     if (card != null && cardFolder != null) {
         DrawerFolderCard(
@@ -488,16 +502,17 @@ fun AppDrawerScreen(
             onAppClick = { if (openApp(it)) folderCard = null },
             // The menu asks the desktop's lock itself (AppActionPopup): locked, it puts no app on the home
             // screen or the dock from here either.
-            onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = app to bounds },
+            onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = OpenedOn(drawnProfile, app to bounds) },
             onDismiss = { folderCard = null },
         )
     }
-    // The ONE state the editor is drawn from: the folder it shows is a folder of that state's home profile, and
-    // every change below is asked for that profile. A folder's id alone does not say which folder is meant: a
-    // profile made as a copy has folders with the same ids.
+    // The ONE state the editor is drawn from, and only while it is a state of the profile the editor was opened
+    // on: the folder it shows is that profile's folder, and every change below is asked for that profile. A
+    // folder's id alone does not say which folder is meant: a profile made as a copy has folders with the same ids.
     val edited = uiState
+    val editing = editFolder?.takeIf { it.profile == edited.homeProfileId }
     val editedProfile = edited.homeProfileId
-    val openFolder = editFolderId?.let { id -> edited.folders.firstOrNull { it.id == id } }
+    val openFolder = editing?.let { opened -> edited.folders.firstOrNull { it.id == opened.what } }
     if (openFolder != null) OpaqueDrawerSurface {
         DrawerFolderSheet(
             folder = openFolder,
@@ -508,7 +523,7 @@ fun AppDrawerScreen(
             badgeScale = edited.notificationDotScale,
             onRename = { viewModel.renameDrawerFolder(openFolder.id, it, editedProfile) },
             onSetIcon = { viewModel.setDrawerFolderIcon(openFolder.id, it, editedProfile) },
-            onAppClick = { if (openApp(it)) editFolderId = null },
+            onAppClick = { if (openApp(it)) editFolder = null },
             onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key, editedProfile) },
             onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys, editedProfile) },
             onSortByName = { viewModel.sortDrawerFolderByName(openFolder.id, editedProfile) },
@@ -522,9 +537,9 @@ fun AppDrawerScreen(
             canMoveLater = edited.folders.indexOf(openFolder) < edited.folders.lastIndex,
             onDelete = {
                 viewModel.deleteDrawerFolder(openFolder.id, editedProfile)
-                editFolderId = null
+                editFolder = null
             },
-            onDismiss = { editFolderId = null },
+            onDismiss = { editFolder = null },
         )
     }
     }
@@ -542,6 +557,10 @@ internal const val DRAWER_FREQUENT_TAG = "drawer-most-used"
 
 /** The test tag of the scrolling list of apps on that card. */
 internal const val DRAWER_FOLDER_ROWS_TAG = "drawer-folder-rows"
+
+/** What the drawer has open ([what]: an app's menu, a folder's card, a folder's editor) with the home profile
+ *  whose drawer it was opened on. */
+private data class OpenedOn<T>(val profile: Long, val what: T)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

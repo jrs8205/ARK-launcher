@@ -320,7 +320,7 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        repositoryOver(tapped).setHomeColumns(4)
+        assertThat(repositoryOver(tapped).setHomeColumns(4, profileId = 1)).isTrue()
 
         // The profile that was on: four columns, and its icon inside them.
         assertThat(view.profileValues(1)[columns]).isEqualTo(4)
@@ -328,6 +328,37 @@ class HomeProfileRepositoryTest {
         // The other one keeps its grid and its icon in the fifth column.
         assertThat(view.profileValues(work.id)[columns]).isEqualTo(5)
         assertThat(rowsOf(work.id).single().cellX).isEqualTo(4)
+    }
+
+    /**
+     * Review round 7. The steppers of the grid's size are on a Settings page that shows one profile's grid, and
+     * what they ask can wait behind a switch. The hold keeps a switch out of the middle of the work, not out of
+     * its start: a smaller grid asked for the first profile packed the icons of the one that had come on. The
+     * change names its profile, and is not made for another.
+     */
+    @Test fun aGridSizeAskedForAProfileThatIsNotOnAnyMoreChangesNoGridAndMovesNoIcon() = runTest {
+        val columns = intPreferencesKey("home_columns")
+        val rows = intPreferencesKey("home_rows")
+        settings.setHomeColumns(5)
+        settings.setHomeRows(6)
+        dao.insert(app("com.mail", 4))
+        val work = created("Work", copyCurrent = true)
+        // The switch the user asked for first is made before the steppers' changes get their turn.
+        store.setActive(work.id)
+
+        assertThat(profiles.setHomeColumns(4, profileId = 1)).isFalse()
+        assertThat(profiles.setHomeRows(3, profileId = 1)).isFalse()
+
+        for (profile in listOf(1L, work.id)) {
+            assertThat(view.profileValues(profile)[columns]).isEqualTo(5)
+            assertThat(view.profileValues(profile)[rows]).isEqualTo(6)
+            assertThat(rowsOf(profile).single().cellX).isEqualTo(4)
+        }
+        // Asked for the profile that is on, it is made, for that one alone.
+        assertThat(profiles.setHomeColumns(4, profileId = work.id)).isTrue()
+        assertThat(view.profileValues(work.id)[columns]).isEqualTo(4)
+        assertThat(rowsOf(work.id).single().cellX).isLessThan(4)
+        assertThat(rowsOf(1).single().cellX).isEqualTo(4)
     }
 
     @Test fun deletingAProfileFreesTheWidgetIdsItHeld() = runTest {
@@ -688,6 +719,36 @@ class HomeProfileRepositoryTest {
         assertThat(source.drawable(picked)).isNotNull()
         profiles.switchTo(copy.id)
         assertThat(settings.folderIcons.first()[FolderIconKey.drawer(games)]).isEqualTo(picked)
+    }
+
+    /**
+     * Review round 7. A deletion takes the profile's rows in one transaction and then pins the shortcuts they
+     * had again as the other profiles still have them, reading each app's set from the rows that are left. A
+     * reading that failed there threw before the deletion had been told its rows were gone: it answered that
+     * the profile was whole (its home screen was empty), kept it in the list and did not let go of its
+     * widgets. The pins are a separate matter: the deletion is finished, and the other app's set is pinned.
+     */
+    @Test fun aDeletionWhoseShortcutsCannotBePinnedAgainIsStillFinishedAndLetsGoOfItsWidgets() = runTest {
+        val work = created("Work", copyCurrent = false)
+        inHomeProfile(work.id) {
+            dao.insert(shortcut("com.mail", "inbox", 0))
+            dao.insert(shortcut("com.chat", "team", 1))
+            dao.insert(widget("com.clock", 51, 0))
+        }
+        dao.insert(shortcut("com.chat", "family", 0))
+        val oneSetUnreadable = object : HomeItemDao by dao {
+            override suspend fun shortcutIdsOfEveryProfile(pkg: String, user: Long): List<String> {
+                if (pkg == "com.mail") throw java.io.IOException("disk I/O error")
+                return dao.shortcutIdsOfEveryProfile(pkg, user)
+            }
+        }
+
+        assertThat(repositoryOver(oneSetUnreadable).delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
+
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(rowsOf(work.id)).isEmpty()
+        assertThat(released).containsExactly(51)
+        assertThat(resolver.pins["com.chat" to 0L]).containsExactly("family")
     }
 
     /**

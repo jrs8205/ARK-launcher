@@ -198,6 +198,32 @@ class SettingsAcrossProfilesTest {
         assertThat(view.profileValues(2)[leftSwipe]).isEqualTo("old/new.M/0")
     }
 
+    /**
+     * Review round 7. A copy's own values are written before the copy is listed (its rows and pictures come in
+     * between). The repair of an app's key that changed read the profiles being made, but wrote only the listed
+     * ones: run in that moment, it corrected the source and left the copy with the old key in its swipe action
+     * and its drawer folders.
+     */
+    @Test fun aRenamedAppKeyReachesACopyThatIsBeingMade() = runTest {
+        val leftSwipe = stringPreferencesKey("left_swipe_app_key")
+        settings.setLeftSwipeAppKey("old/old.M/0")
+        val copy = store.prepare("Work", copyOf = 1)!!
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(view.profileValues(copy.id)[leftSwipe]).isEqualTo("old/old.M/0")
+
+        settings.renameAppKeys(mapOf("old/old.M/0" to "old/new.M/0"))
+
+        assertThat(view.profileValues(1)[leftSwipe]).isEqualTo("old/new.M/0")
+        assertThat(view.profileValues(copy.id)[leftSwipe]).isEqualTo("old/new.M/0")
+        // Listed with the new key, and nothing is written for a profile that was given up.
+        assertThat(store.publish(copy)).isTrue()
+        assertThat(view.profileValues(copy.id)[leftSwipe]).isEqualTo("old/new.M/0")
+        val givenUp = store.prepare("Play", copyOf = 1)!!
+        store.discard(givenUp)
+        settings.renameAppKeys(mapOf("old/new.M/0" to "old/newer.M/0"))
+        assertThat(view.profileValues(givenUp.id)[leftSwipe]).isNull()
+    }
+
     @Test fun aCopysFolderIconsMoveInThatProfileThoughTheProfileChangesMeanwhile() = runTest {
         val home = CustomIcon.FromFile("home.png")
         val work = CustomIcon.FromFile("work.png")

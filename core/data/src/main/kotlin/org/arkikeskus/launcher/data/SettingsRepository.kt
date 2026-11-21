@@ -447,11 +447,6 @@ class SettingsRepository @Inject constructor(
      */
     private suspend fun ownValuesOfEveryProfile(): List<Preferences> = profiles?.valuesOfEveryProfile().orEmpty()
 
-    private suspend fun everyProfileId(): List<Long> {
-        profiles ?: return emptyList()
-        return HomeProfile.decode(dataStore.data.first()[stringPreferencesKey(HomeProfileKeys.LIST)]).map { it.id }
-    }
-
     /** Icons the user picked for pinned shortcuts ([ShortcutIconKey] -> icon), shown in place of the
      *  icon the app pinned them with (issue #23: a browser's web shortcuts dressed from an icon pack). */
     val shortcutIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.SHORTCUT_ICONS]) }
@@ -787,8 +782,9 @@ class SettingsRepository @Inject constructor(
         // What every profile shares (and, through the view, the own values of the profile that is on).
         edit(rename)
         // Then each profile's own drawer folders and left-swipe app, by its id: also the one that was on a
-        // moment ago, for which this is the same change again.
-        for (id in everyProfileId()) profiles!!.updateProfile(id, rename)
+        // moment ago, for which this is the same change again, and a copy that is being made, whose values
+        // are written before it is listed ([referencedAppKeys] reads the same profiles).
+        profiles?.updateEveryProfile(rename)
     }
 
     /** Timestamp (epoch ms) of the last successful local file export; 0 if never. */

@@ -186,10 +186,10 @@ internal class SettingsViewModel @Inject constructor(
     override fun setFolderColumns(value: Int) = update { repository.setFolderColumns(value) }
     // Shrinking the grid can leave shortcuts at an out-of-range cell; they are packed back on-screen before
     // the new (smaller) size reaches the home screen, so nothing draws off-grid. The packing and the new size
-    // are one home profile's (HomeProfileRepository.setHomeColumns).
-    override fun setHomeColumns(value: Int) = update { homeProfileRepository.setHomeColumns(value) }
+    // are one home profile's, the one whose grid the page showed (HomeProfileRepository.setHomeColumns).
+    override fun setHomeColumns(value: Int, profile: Long) = update { homeProfileRepository.setHomeColumns(value, profile) }
 
-    override fun setHomeRows(value: Int) = update { homeProfileRepository.setHomeRows(value) }
+    override fun setHomeRows(value: Int, profile: Long) = update { homeProfileRepository.setHomeRows(value, profile) }
     override fun setShowDockLabels(value: Boolean) = update { repository.setShowDockLabels(value) }
     override fun setShowHomeLabels(value: Boolean) = update { repository.setShowHomeLabels(value) }
     override fun setShowDrawerLabels(value: Boolean) = update { repository.setShowDrawerLabels(value) }

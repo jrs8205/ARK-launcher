@@ -37,6 +37,10 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
+import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
+import org.arkikeskus.launcher.data.profile.DiskHomeProfileFiles
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
+import org.arkikeskus.launcher.data.profile.HomeProfileStore
 import org.arkikeskus.launcher.data.search.AppSearchProvider
 import kotlinx.coroutines.flow.MutableSharedFlow
 import org.arkikeskus.launcher.data.search.PrivateSpaceSearchProvider
@@ -88,16 +92,27 @@ internal class DrawerWiring(
         .invoke(null, context, LauncherDatabase::class.java)
         .let { builder -> builder.javaClass.getMethod("allowMainThreadQueries").invoke(builder) }
         .let { builder -> builder.javaClass.getMethod("build").invoke(builder) as LauncherDatabase }
-    private val dao = LauncherDatabase::class.java.getMethod("homeItemDao").invoke(db) as HomeItemDao
-
-    private val dataStore: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
+    /** The settings file itself. Everything but the profile list reads and writes it through [dataStore]. */
+    private val settingsFile: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
         val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
         val produceFile: () -> File = { file }
         factory.methods
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
             .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
     }
-    val settingsRepository = SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, null) as SettingsRepository
+    private val profileFiles = DiskHomeProfileFiles(context, dataStoreScope)
+
+    /** The settings as the launcher sees them: what the home profiles share, with the own values of the one
+     *  that is on. With one profile this is the settings file itself. */
+    private val dataStore: Any = Class.forName("org.arkikeskus.launcher.data.profile.ProfiledPreferences")
+        .constructors.single().newInstance(settingsFile, profileFiles)
+    private val profileStore =
+        HomeProfileStore::class.java.constructors.single().newInstance(settingsFile, dataStore, profileFiles) as HomeProfileStore
+
+    /** The rows of the home profile that is on. */
+    private val dao = LauncherDatabase::class.java.getMethod("homeItemDao", ActiveHomeProfile::class.java).invoke(db, profileStore) as HomeItemDao
+    val settingsRepository =
+        SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, dataStore) as SettingsRepository
     private val appUsageRepository = AppUsageRepository::class.java.constructors.single().newInstance(dataStore) as AppUsageRepository
 
     private val iconPacks = IconPackRepository(context)
@@ -128,6 +143,9 @@ internal class DrawerWiring(
     val privateSpaceRepository = PrivateSpaceRepository(noProfiles, workProfileRepository, source, settingsRepository, appScope)
     val appRepository = AppRepository(source, settingsRepository, appUsageRepository, workProfileRepository, privateSpaceRepository, appScope)
     val homeLayoutRepository = HomeLayoutRepository(db, dao, source)
+
+    /** Making and switching home profiles, as Settings does. */
+    val homeProfiles = HomeProfileRepository(profileStore, homeLayoutRepository, settingsRepository, source, DrawerWallpaperStore(context)) { }
 
     fun viewModel(): AppDrawerViewModel = AppDrawerViewModel(
         context,

@@ -41,8 +41,11 @@ internal interface SettingsActions {
     fun setBaseColour(colour: String)
     fun setThemeAllIcons(value: Boolean)
     fun setFolderColumns(value: Int)
-    fun setHomeColumns(value: Int)
-    fun setHomeRows(value: Int)
+    /** The home grid's columns, for the home profile [profile]: the one whose grid the stepper showed. */
+    fun setHomeColumns(value: Int, profile: Long)
+
+    /** As [setHomeColumns], for the rows. */
+    fun setHomeRows(value: Int, profile: Long)
     fun setShowDockLabels(value: Boolean)
     fun setShowHomeLabels(value: Boolean)
     fun setShowDrawerLabels(value: Boolean)

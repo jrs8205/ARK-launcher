@@ -111,12 +111,24 @@ class HomeProfileRepository @Inject constructor(
      * Deletes the rows of the home profile [id]; the shortcuts they had pinned are pinned again as the other
      * profiles still have them, under the lock every pin change takes and off the caller's thread (these are
      * calls into the system, and Settings asks from the main thread). For a caller that holds the profile.
+     *
+     * The rows go in one transaction, and what they held is returned whatever becomes of the pinning after it:
+     * the sets are read one app at a time once the rows have gone, and a reading that failed there used to
+     * leave the caller without an answer. A deletion then said the profile was whole while its home screen
+     * was empty, and did not let go of its widgets. An app's set that cannot be read or pinned now is left as
+     * the system has it: at worst it keeps a pin no home screen shows, until that app's pins next change.
      */
     private suspend fun dropRows(id: Long): DeletedProfileRows = ShortcutPinLock.withLock {
         val gone = layout.deleteProfile(id)
         withContext(Dispatchers.IO) {
             for ((packageName, userSerial) in gone.shortcutOwners) {
-                resolver.pinShortcuts(packageName, userSerial, layout.homeShortcutIds(packageName, userSerial))
+                try {
+                    resolver.pinShortcuts(packageName, userSerial, layout.homeShortcutIds(packageName, userSerial))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Left as the system has it; the other apps' sets are still pinned.
+                }
             }
         }
         gone
@@ -185,22 +197,31 @@ class HomeProfileRepository @Inject constructor(
     }
 
     /**
-     * The number of columns of the home grid of the profile that is on. A smaller grid can leave icons past
-     * its edge, so the rows are packed into it before the new size is stored. Both are one profile's: with a
-     * tap on another profile between them, one profile's icons moved and the other's grid shrank over icons
-     * nobody moved.
+     * The number of columns of the home grid of the home profile [profileId]: the one whose grid the Settings
+     * page showed when the user changed it. A smaller grid can leave icons past its edge, so the rows are
+     * packed into it before the new size is stored. Both are one profile's: with a tap on another profile
+     * between them, one profile's icons moved and the other's grid shrank over icons nobody moved.
+     *
+     * False, with nothing changed, when [profileId] is not the profile that is on once the hold is had. The
+     * hold only keeps a switch from happening in the middle: a change asked for one profile's grid can wait
+     * behind a switch, and it then packed the icons of the profile that came on, and could shrink its widgets,
+     * for a size the user had chosen while looking at the other one.
      */
-    suspend fun setHomeColumns(value: Int) = store.whileActiveStays {
+    suspend fun setHomeColumns(value: Int, profileId: Long): Boolean = store.whileActiveStays { active ->
+        if (active != profileId) return@whileActiveStays false
         val now = settings.settings.first()
         if (value < now.homeColumns) layout.reflow(value, now.homeRows)
         settings.setHomeColumns(value)
+        true
     }
 
     /** As [setHomeColumns], for the rows. */
-    suspend fun setHomeRows(value: Int) = store.whileActiveStays {
+    suspend fun setHomeRows(value: Int, profileId: Long): Boolean = store.whileActiveStays { active ->
+        if (active != profileId) return@whileActiveStays false
         val now = settings.settings.first()
         if (value < now.homeRows) layout.reflow(now.homeColumns, value)
         settings.setHomeRows(value)
+        true
     }
 
     /** Names [id] anew. False when the storage did not take the change: the name is as it was ([switchTo]). */

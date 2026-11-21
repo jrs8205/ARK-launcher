@@ -38,10 +38,15 @@ internal fun HomeGridRows(s: LauncherSettings, actions: SettingsActions) {
     var showHomeMarkerPicker by rememberSaveable { mutableStateOf(false) }
     var showPageSpeedPicker by rememberSaveable { mutableStateOf(false) }
     SettingRow("H1") {
-        StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS, actions::setHomeColumns)
+        // The grid's size is changed for the profile these values are of: a smaller grid moves its icons.
+        StepperRow(stringResource(R.string.settings_columns), s.homeColumns, SettingsRepository.MIN_COLUMNS, SettingsRepository.MAX_COLUMNS) {
+            actions.setHomeColumns(it, s.homeProfileId)
+        }
     }
     SettingRow("H2") {
-        StepperRow(stringResource(R.string.settings_rows), s.homeRows, SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS, actions::setHomeRows)
+        StepperRow(stringResource(R.string.settings_rows), s.homeRows, SettingsRepository.MIN_ROWS, SettingsRepository.MAX_ROWS) {
+            actions.setHomeRows(it, s.homeProfileId)
+        }
     }
     SettingRow("H3") {
         SwitchRow(stringResource(R.string.settings_show_labels), s.showHomeLabels, actions::setShowHomeLabels)

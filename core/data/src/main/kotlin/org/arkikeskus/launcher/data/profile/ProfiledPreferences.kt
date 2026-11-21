@@ -122,6 +122,19 @@ class ProfiledPreferences(
         }
     }
 
+    /**
+     * Runs [transform] on the own values of every profile [valuesOfEveryProfile] reads: those the list names
+     * and those that are being made ([making]), in one holding of [mutex]. What is corrected in every profile
+     * (an app's key that changed) must reach the same profiles a reader of every profile sees: written to the
+     * listed ones alone, a copy whose values were already written and which was listed a moment later kept
+     * the old key in its folders and its swipe action, while its source had the new one. Not for a caller
+     * that holds [mutex].
+     */
+    suspend fun updateEveryProfile(transform: (MutablePreferences) -> Unit) = mutex.withLock {
+        val listed = HomeProfile.decode(main.data.first()[LIST]).map { it.id }
+        for (id in listed + beingMade.filter { it !in listed }) updateProfileLocked(id, transform)
+    }
+
     /** Runs [transform] on the own values of [profileId] alone, whether it is on or not; anything it sets
      *  that is not a profile's own is dropped. */
     suspend fun updateProfile(profileId: Long, transform: (MutablePreferences) -> Unit) = mutex.withLock {
