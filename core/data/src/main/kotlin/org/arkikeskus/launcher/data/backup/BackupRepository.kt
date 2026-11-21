@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
@@ -19,6 +21,8 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.profile.HomeProfileStore
 import org.arkikeskus.launcher.data.screensaver.DreamPreferences
 import org.arkikeskus.launcher.data.screensaver.ScreensaverSettingsStore
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -94,25 +98,63 @@ class BackupRepository @Inject constructor(
      * on, nothing is written and [ExportProfileChangedException] is thrown before [write] is called. What
      * [write] throws is thrown, with no time noted. That the time itself cannot be noted does not undo the
      * export: the file is written.
+     *
+     * A write can be slow, so another export can be asked for while one is still being written. [target] is
+     * where this one writes (the picked document; any value that is equal for the same place): exports to the
+     * SAME place go one after another, each reading its document only when the one before has finished, so the
+     * place ends up holding the later export and not whichever was written slowest. Exports to different places
+     * do not wait for one another (a place that never answers must not stop every other export), and of those
+     * the time noted is that of the export whose document was read LAST: an older one finishing afterwards does
+     * not put its time over it. No profile is held while any of this waits.
      */
     suspend fun export(
         createdAt: Long,
         appVersion: String,
         expectedProfile: Long? = null,
+        target: Any? = null,
         write: suspend (BackupDocument) -> Unit,
     ): ExportedProfile {
-        val (document, exported) = whileProfileStays {
+        val place = target?.let { exportPlaces.computeIfAbsent(it) { Mutex() } } ?: return exportNow(createdAt, appVersion, expectedProfile, write)
+        return place.withLock { exportNow(createdAt, appVersion, expectedProfile, write) }
+    }
+
+    /** One export, for a caller that has its place to itself ([export]). */
+    private suspend fun exportNow(
+        createdAt: Long,
+        appVersion: String,
+        expectedProfile: Long?,
+        write: suspend (BackupDocument) -> Unit,
+    ): ExportedProfile {
+        val read = whileProfileStays {
             val active = homeItemDao.resolvedProfile()
             if (expectedProfile != null && active != expectedProfile) throw ExportProfileChangedException()
             val list = profiles?.list().orEmpty()
-            document(createdAt, appVersion) to
-                ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
+            val exported = ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
+            // Numbered as its document is read, under the hold: the higher number has the later document.
+            Triple(document(createdAt, appVersion), exported, exportsRead.incrementAndGet())
         }
+        val (document, exported, number) = read
         // The hold has ended: the file is written with nothing of the launcher's waiting on it.
         write(document)
-        runCatching { settings.setLocalLastBackup(exported.id, createdAt) }
+        timeNoting.withLock {
+            if (number > (timeNotedFor[exported.id] ?: 0L)) {
+                runCatching { settings.setLocalLastBackup(exported.id, createdAt) }.onSuccess { timeNotedFor[exported.id] = number }
+            }
+        }
         return exported
     }
+
+    /** The lock of each place an export has been written to in this process ([export]); a handful at most. */
+    private val exportPlaces = ConcurrentHashMap<Any, Mutex>()
+
+    /** How many exports' documents have been read: each export's number, in the order they were read. */
+    private val exportsRead = AtomicLong()
+
+    /** The number of the export whose time is noted for each home profile, changed under [timeNoting]. By
+     *  number and not by the times themselves: a clock that was set back must not keep a later export's time
+     *  from being noted. */
+    private val timeNotedFor = HashMap<Long, Long>()
+    private val timeNoting = Mutex()
 
     /** Restores [doc] against the launchable apps on this device ([installedApps]: AppItem keys,
      *  "package/class/userSerial", from every profile). Blocking system queries: call off the main

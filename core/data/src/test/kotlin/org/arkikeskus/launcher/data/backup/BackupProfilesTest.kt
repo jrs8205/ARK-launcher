@@ -5,10 +5,14 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.CustomIconStore
@@ -390,6 +394,89 @@ class BackupProfilesTest {
         assertThat(store.list().map { it.id }).containsExactly(1L)
         assertThat(files.stores.keys).doesNotContain(2L)
         assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
+    }
+
+    /**
+     * Review round 5. An export to a slow place (a cloud folder) is still being written when another export is
+     * made to another place and finishes at once. The time of the last export is the LATER export's: the slow
+     * one finishing afterwards used to put its own, older time over it.
+     */
+    @Test fun ofTwoExportsThatOverlapTheTimeNotedIsTheLaterOnes() = kotlinx.coroutines.runBlocking<Unit> {
+        twoProfiles()
+        val repository = repo()
+        val slowIsWriting = CompletableDeferred<Unit>()
+        val slowMayFinish = CompletableDeferred<Unit>()
+
+        val slow = async(Dispatchers.Default) {
+            repository.export(createdAt = 1_000L, appVersion = "test", target = "cloud") {
+                slowIsWriting.complete(Unit)
+                slowMayFinish.await()
+            }
+        }
+        withTimeout(5_000) { slowIsWriting.await() }
+        repository.export(createdAt = 2_000L, appVersion = "test", target = "phone") {}
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(2_000L)
+
+        slowMayFinish.complete(Unit)
+        withTimeout(5_000) { slow.await() }
+
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(2_000L)
+    }
+
+    /**
+     * Review round 5. Two exports to the SAME file, the first still being written: the second waits for it, so
+     * the file ends up holding the later export. Written side by side, the slow first one finished last and
+     * left the older copy in the file.
+     */
+    @Test fun ofTwoExportsToTheSameFileTheLaterOneIsWhatTheFileHolds() = kotlinx.coroutines.runBlocking<Unit> {
+        twoProfiles()
+        val repository = repo()
+        val firstIsWriting = CompletableDeferred<Unit>()
+        val firstMayFinish = CompletableDeferred<Unit>()
+        var inTheFile = 0L
+
+        val first = async(Dispatchers.Default) {
+            repository.export(createdAt = 1_000L, appVersion = "test", target = "content://docs/backup.json") {
+                firstIsWriting.complete(Unit)
+                firstMayFinish.await()
+                inTheFile = it.createdAt
+            }
+        }
+        withTimeout(5_000) { firstIsWriting.await() }
+        val second = async(Dispatchers.Default) {
+            repository.export(createdAt = 2_000L, appVersion = "test", target = "content://docs/backup.json") { inTheFile = it.createdAt }
+        }
+        // The second gets the time to write, if it does not wait for the first.
+        val wroteBesideTheFirst = withTimeoutOrNull(500) { second.await() } != null
+        firstMayFinish.complete(Unit)
+        withTimeout(5_000) { first.await(); second.await() }
+
+        assertThat(wroteBesideTheFirst).isFalse()
+        assertThat(inTheFile).isEqualTo(2_000L)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(2_000L)
+    }
+
+    /** Exports to different files do not wait for one another: a place that never answers must not keep the
+     *  user from exporting anywhere else. */
+    @Test fun anExportToAnotherFileDoesNotWaitForOneThatIsStillBeingWritten() = kotlinx.coroutines.runBlocking<Unit> {
+        twoProfiles()
+        val repository = repo()
+        val stuckIsWriting = CompletableDeferred<Unit>()
+        val stuckMayFinish = CompletableDeferred<Unit>()
+
+        val stuck = async(Dispatchers.Default) {
+            repository.export(createdAt = 1_000L, appVersion = "test", target = "cloud") {
+                stuckIsWriting.complete(Unit)
+                stuckMayFinish.await()
+            }
+        }
+        withTimeout(5_000) { stuckIsWriting.await() }
+
+        val other = withTimeoutOrNull(5_000) { repository.export(createdAt = 2_000L, appVersion = "test", target = "phone") {} }
+
+        assertThat(other).isNotNull()
+        stuckMayFinish.complete(Unit)
+        withTimeout(5_000) { stuck.await() }
     }
 
     /** The time comes with the profile it is of, from one reading: a screen never shows one profile's time

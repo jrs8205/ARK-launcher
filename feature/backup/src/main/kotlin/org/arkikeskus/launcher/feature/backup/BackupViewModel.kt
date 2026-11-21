@@ -83,7 +83,8 @@ class BackupViewModel @Inject constructor(
     fun exportTo(uri: Uri, shownProfile: Long) = viewModelScope.launch {
         _events.emit(
             exportToDocument(context.contentResolver, uri) { write ->
-                backupRepository.export(System.currentTimeMillis(), appVersion, expectedProfile = shownProfile, write = write)
+                // The document is the export's place: two exports to one file go one after the other.
+                backupRepository.export(System.currentTimeMillis(), appVersion, expectedProfile = shownProfile, target = uri, write = write)
             },
         )
     }
