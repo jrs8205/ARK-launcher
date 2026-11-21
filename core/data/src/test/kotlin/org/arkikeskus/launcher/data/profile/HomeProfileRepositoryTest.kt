@@ -101,6 +101,36 @@ class HomeProfileRepositoryTest {
 
     private fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
 
+    /**
+     * Review round 10. What a restore's question calls "home screens no longer in the list" is everything kept
+     * under an id the list does not name: rows, a profile's own values, its drawer picture. Read from the rows
+     * alone, what a restore that died left behind (values and a picture, no rows any more) was never named again
+     * and never removed.
+     */
+    @Test fun whatIsKeptUnderAnIdTheListDoesNotNameIsUnlistedWhateverItIs() = runTest {
+        dao.insert(app("com.mail", 0))
+        assertThat(profiles.unlistedHomeScreens.first()).isEmpty()
+
+        inHomeProfile(4) { dao.insert(app("com.left", 0)) }
+        files.store(5).updateData { it.toMutablePreferences().apply { this[androidx.datastore.preferences.core.stringPreferencesKey("base_colour")] = "green" } }
+        drawerPictures.set(picture(Color.RED), 6)
+        // The rows changed last but one; a listed profile's own things are never among them.
+        created("Work", copyCurrent = false)
+
+        assertThat(profiles.unlistedHomeScreens.first()).containsExactly(4L, 5L, 6L)
+    }
+
+    /** While the stores cannot be listed the question's value is what CAN be read (the rows), and reading it
+     *  fails nothing: the restore reads the same for itself, and it is the one that must not go on. */
+    @Test fun whatCannotBeListedIsLeftOutOfTheQuestionsValue() = runTest {
+        dao.insert(app("com.mail", 0))
+        inHomeProfile(4) { dao.insert(app("com.left", 0)) }
+        files.store(5).updateData { it.toMutablePreferences().apply { this[androidx.datastore.preferences.core.stringPreferencesKey("base_colour")] = "green" } }
+        files.failIds = java.io.IOException("the folder could not be read")
+
+        assertThat(profiles.unlistedHomeScreens.first()).containsExactly(4L)
+    }
+
     @Test fun aCopyHasTheLayoutTheLookAndTheFolderIconsOfItsSource() = runTest {
         settings.setBaseColour("blue")
         settings.setHomeColumns(5)

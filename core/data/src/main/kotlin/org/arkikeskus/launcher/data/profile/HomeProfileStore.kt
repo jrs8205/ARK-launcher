@@ -262,6 +262,16 @@ class HomeProfileStore(
     }
 
     /**
+     * The ids an own store is kept for though the list does not name them: of a profile whose listing was
+     * lost, of an attempt at a profile that died, of a profile whose store could not be removed. Throws when
+     * the stores cannot be listed ([HomeProfileFiles.ids]).
+     */
+    suspend fun unlistedStores(): Set<Long> = view.mutex.withLock {
+        val listed = profilesIn(main.data.first()).mapTo(HashSet()) { it.id }
+        files.ids().filterTo(HashSet()) { it !in listed }
+    }
+
+    /**
      * Drops the own stores of [ids] that the list does not name: profiles whose listing was lost with a
      * damaged settings file, and whose home screens a restore has just replaced with the user's word. A
      * listed profile is left alone.

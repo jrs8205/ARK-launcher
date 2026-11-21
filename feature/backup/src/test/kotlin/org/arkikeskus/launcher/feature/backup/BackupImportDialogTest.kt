@@ -11,6 +11,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
+import org.arkikeskus.launcher.data.backup.ConfirmedProfiles
 import org.arkikeskus.launcher.model.HomeProfile
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,8 @@ class BackupImportDialogTest {
         compose.onNodeWithText(restoreConfirmText(res, shown)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).performSemanticsAction(SemanticsActions.OnClick)
 
-        assertThat(handed.single().confirmed.otherIds).containsExactly(2L, 5L, 7L)
+        // Each as what the question said it was: the named profile, and the two that have no name.
+        assertThat(handed.single().confirmed).isEqualTo(ConfirmedProfiles(activeId = 1, otherIds = setOf(2L), unlistedIds = setOf(5L, 7L)))
         // With none of them the question is as it was.
         assertThat(restoreConfirmText(res, RestoreProfiles(1, emptyList()))).isEqualTo(res.getString(R.string.backup_restore_confirm_msg))
         assertThat(restoreConfirmText(res, listOf("Work"))).doesNotContain(unlisted)
@@ -90,7 +92,7 @@ class BackupImportDialogTest {
         val profiles = profilesARestoreDeletes(listOf(HomeProfile(1, ""), HomeProfile(2, "Work")), activeId = 1, unlisted = setOf(1L, 2L, 9L))
 
         assertThat(profiles.unlisted).containsExactly(9L)
-        assertThat(profiles.confirmed.otherIds).containsExactly(2L, 9L)
+        assertThat(profiles.confirmed).isEqualTo(ConfirmedProfiles(activeId = 1, otherIds = setOf(2L), unlistedIds = setOf(9L)))
     }
 
     /** Before the profiles have been read the question cannot say what goes: Restore waits, Cancel does not. */

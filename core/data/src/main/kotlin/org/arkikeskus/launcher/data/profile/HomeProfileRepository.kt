@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data.profile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -45,13 +46,20 @@ class HomeProfileRepository @Inject constructor(
     val activeId: Flow<Long> = store.id
 
     /**
-     * The profiles a home screen is kept for in the database though the list does not name them: after a
-     * damaged settings file the list is one profile again, and the others' rows are still there. Nothing shows
-     * them and nothing takes their ids ([create]); a restore replaces every row, so its question names them.
+     * The ids something is kept under though the list does not name them: a home screen's rows, a profile's
+     * own values, its drawer picture. After a damaged settings file the list is one profile again and the
+     * others' things are still there; a copy or a restore that died leaves such things too. Nothing shows
+     * them and nothing takes their ids ([create]); a restore removes them all, so its question says so.
+     *
+     * Read again whenever the rows or the list change. What cannot be listed right now is left out here:
+     * the restore reads the same for itself before it writes, and refuses when the two do not agree.
      */
     val unlistedHomeScreens: Flow<Set<Long>> =
-        combine(layout.profilesWithRowsNow, store.profiles) { withRows, listed -> withRows - listed.mapTo(HashSet()) { it.id } }
-            .distinctUntilChanged()
+        combine(layout.profilesWithRowsNow, store.profiles) { withRows, listed ->
+            val stores = try { store.unlistedStores() } catch (e: IOException) { emptySet() }
+            val pictures = try { drawerPictures.profilesWithPictures() } catch (e: IOException) { emptySet() }
+            withRows + stores + pictures - listed.mapTo(HashSet()) { it.id }
+        }.distinctUntilChanged()
 
     sealed interface Created {
         data class Done(val profile: HomeProfile) : Created

@@ -23,9 +23,9 @@ import javax.inject.Inject
  * is also the one an export writes, under its stored name [activeName] (empty until the user names it): with
  * other profiles beside it the backup screen says which profile its file is of ([exportedProfileName]).
  *
- * [unlisted] are the profiles a home screen is still kept for though the list does not name them (the list
- * was lost with a damaged settings file): a restore replaces every home screen there is, so they go too, and
- * the question says so. They have no names to show.
+ * [unlisted] are the ids something is still kept under though the list does not name them (a home screen's
+ * rows, a profile's own values or picture; the list was lost with a damaged settings file, or a copy or a
+ * restore died): a restore removes all of it, and the question says so. They have no names to show.
  */
 data class RestoreProfiles(
     val activeId: Long,
@@ -36,9 +36,9 @@ data class RestoreProfiles(
     /** The names the question shows (an unnamed one is empty here; [restoreConfirmText] names it). */
     val names: List<String> get() = deleted.map { it.name }
 
-    /** What the restore is held to once the question is answered: these profiles and these home screens, or
-     *  nothing is written. */
-    val confirmed: ConfirmedProfiles get() = ConfirmedProfiles(activeId, deleted.map { it.id }.toSet() + unlisted)
+    /** What the restore is held to once the question is answered: these profiles and these home screens, each
+     *  as what the question said it was, or nothing is written. */
+    val confirmed: ConfirmedProfiles get() = ConfirmedProfiles(activeId, deleted.map { it.id }.toSet(), unlisted)
 }
 
 /** The profiles a restore would meet now ([RestoreProfiles]); [deleted][RestoreProfiles.deleted] is empty for a

@@ -657,12 +657,97 @@ class BackupProfilesTest {
         main.updateData { androidx.datastore.preferences.core.emptyPreferences() }
         assertThat(files.ids()).contains(2L)
 
-        repo().restoreDocument(backup, installed, ConfirmedProfiles(activeId = 1, otherIds = setOf(2L)))
+        repo().restoreDocument(backup, installed, ConfirmedProfiles(activeId = 1, otherIds = emptySet(), unlistedIds = setOf(2L)))
 
         assertThat(dao.getAllOfEveryProfile().map { it.homeProfileId }.toSet()).containsExactly(1L)
         assertThat(store.list().map { it.id }).containsExactly(1L)
         assertThat(files.ids()).doesNotContain(2L)
         assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+    }
+
+    /**
+     * Review round 10 (P1). The question says two different things: "these profiles go" (by name) and "home
+     * screens no longer in the list go". The restore compared the two as ONE set of ids. What a copy that died
+     * left under an id is passed over when the next profile is made, so a new, named profile can take that
+     * very id while the backup file is being read: the set was still {2}, and the restore deleted a profile
+     * made after the question, on the word given for some left-over rows. Each set is held to its own.
+     */
+    @Test fun whatWasAgreedToAsUnlistedIsNoLeaveToDeleteAProfileMadeUnderItsIdSince() = runTest {
+        dao.insert(app("com.first", 0))
+        // What a copy that died left under id 2: rows, never listed. The question had the sentence for them.
+        inHomeProfile(2) { dao.insert(app("com.left", 0)) }
+        val agreed = ConfirmedProfiles(activeId = 1, otherIds = emptySet(), unlistedIds = setOf(2L))
+        // While the file is read, a profile is made and takes that id.
+        assertThat(store.create("Work", copyOf = null)?.id).isEqualTo(2L)
+        val before = dao.getAllOfEveryProfile()
+
+        val failure = runCatching { repo().restoreDocument(backup, installed, agreed) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ProfilesChangedException::class.java)
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""), HomeProfile(2, "Work")).inOrder()
+        assertThat(dao.getAllOfEveryProfile()).containsExactlyElementsIn(before)
+    }
+
+    /** And the other way round: a profile named in the question whose listing was lost since is not deleted as
+     *  "something unlisted" without the question having said so. */
+    @Test fun aProfileAgreedToByNameIsNotDeletedAsUnlistedOnceItsListingIsLost() = runTest {
+        twoProfiles()
+        store.setActive(1)
+        val agreed = ConfirmedProfiles(activeId = 1, otherIds = setOf(2L))
+        main.updateData { androidx.datastore.preferences.core.emptyPreferences() }
+        val before = dao.getAllOfEveryProfile()
+
+        val failure = runCatching { repo().restoreDocument(backup, installed, agreed) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ProfilesChangedException::class.java)
+        assertThat(dao.getAllOfEveryProfile()).containsExactlyElementsIn(before)
+    }
+
+    /**
+     * Review round 10. A restore that died after its rows were written and before it removed what was left of
+     * an unlisted profile (its own values, its drawer picture) left those on the disk for good: "unlisted" was
+     * read from the rows, which were gone, so no later restore named them or removed them, and the pictures
+     * those values name stayed in use. Unlisted is everything kept under an id the list does not name, so the
+     * next restore's question has the sentence again and that restore finishes the job.
+     */
+    @Test fun whatARestoreThatDiedLeftOfAnUnlistedProfileIsFoundAndRemovedByTheNextRestore() = runTest {
+        dao.insert(app("com.first", 0))
+        val pictures = DrawerWallpaperStore(context)
+        fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+        // No row is under ids 2 and 3 any more: an own store is under 2, a drawer picture under 3.
+        files.store(2).updateData { it.toMutablePreferences().apply { this[androidx.datastore.preferences.core.stringPreferencesKey("base_colour")] = "green" } }
+        pictures.set(picture(Color.RED), 3)
+        assertThat(pictures.profilesWithPictures()).contains(3L)
+
+        // Agreed to without them, the restore refuses: it would remove what the question did not mention.
+        val refused = runCatching {
+            repo(drawerPictures = pictures).restoreDocument(backup, installed, ConfirmedProfiles(activeId = 1, otherIds = emptySet()))
+        }.exceptionOrNull()
+        assertThat(refused).isInstanceOf(ProfilesChangedException::class.java)
+
+        repo(drawerPictures = pictures)
+            .restoreDocument(backup, installed, ConfirmedProfiles(activeId = 1, otherIds = emptySet(), unlistedIds = setOf(2L, 3L)))
+
+        assertThat(files.ids()).doesNotContain(2L)
+        assertThat(pictures.profilesWithPictures()).doesNotContain(3L)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+    }
+
+    /** A restore that cannot find out what is kept under the unlisted ids does not go on as if there were
+     *  nothing: it fails before its first write. */
+    @Test fun aRestoreThatCannotListTheProfilesStoresWritesNothing() = runTest {
+        twoProfiles()
+        val before = dao.getAllOfEveryProfile()
+        files.failIds = IOException("the folder could not be read")
+
+        val failure = runCatching {
+            repo().restoreDocument(backup, installed, ConfirmedProfiles(activeId = 2, otherIds = setOf(1L)))
+        }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(IOException::class.java)
+        assertThat(dao.getAllOfEveryProfile()).containsExactlyElementsIn(before)
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L)
     }
 
     @Test fun aRestoreAgreedToWithTheProfilesThereAreGoesThrough() = runTest {

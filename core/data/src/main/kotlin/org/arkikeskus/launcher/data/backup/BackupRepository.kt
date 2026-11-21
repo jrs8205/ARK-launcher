@@ -35,11 +35,17 @@ data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: 
 
 /**
  * The home profiles as a restore's question showed them: the one that is on ([activeId]), which the restore
- * fills with the backup, and the others ([otherIds]), which it deletes: every other profile the list names,
- * and every other one a home screen is kept for in the database though the list does not name it (after a
- * damaged settings file the list is one profile, and the others' home screens are still there).
+ * fills with the backup; the others the list names ([otherIds]), which it deletes and which the question
+ * named one by one; and the ids something is kept under though the list does not name them ([unlistedIds]:
+ * a home screen's rows, a profile's own values or its drawer picture, left by a damaged settings file, a
+ * copy that died or a restore that died), which go too and of which the question had its own sentence.
+ *
+ * The two sets are agreed to APART and are compared apart. An id can move from one to the other between the
+ * question and the restore (what an attempt left under an id is passed over when the next profile is made,
+ * so a new, named profile can take that id): compared as one set, "what is left under id 2 goes" was taken
+ * for leave to delete the profile made under id 2 since.
  */
-data class ConfirmedProfiles(val activeId: Long, val otherIds: Set<Long>)
+data class ConfirmedProfiles(val activeId: Long, val otherIds: Set<Long>, val unlistedIds: Set<Long> = emptySet())
 
 /**
  * The home profile an export wrote (a backup file holds one profile, the one that is on): its [id], its stored
@@ -221,15 +227,22 @@ class BackupRepository @Inject constructor(
             // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
             // was read after the question, and a profile made meanwhile would go without a word. Under the
             // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
-            // And the profiles a home screen is kept for in the database, listed or not: the rows below come
+            // And the ids something is kept under though the list does not name them: the rows below come
             // with the ids their backup gave them, so EVERY row there is goes first, whoever's it is. A home
             // screen whose profile the list had lost went then without ever having been in the question.
+            // Not the rows alone: what a restore that died after its rows left of such a profile (its own
+            // values, its picture) is found by this too, so the next restore names it and finishes the job.
+            // Each set against its own ([ConfirmedProfiles]): a listed profile is never deleted on the
+            // word given for something unlisted, nor the other way round.
             var unlisted = emptySet<Long>()
             if (confirmed != null && profiles != null) {
                 val active = profiles.current()
                 val listed = profiles.list().map { it.id }.toSet() - active
-                unlisted = homeItemDao.profileIds().toSet() - active - listed
-                if (active != confirmed.activeId || (listed + unlisted) != confirmed.otherIds) throw ProfilesChangedException()
+                val kept = homeItemDao.profileIds().toSet() + profiles.unlistedStores() + drawerPictures?.profilesWithPictures().orEmpty()
+                unlisted = kept - active - listed
+                if (active != confirmed.activeId || listed != confirmed.otherIds || unlisted != confirmed.unlistedIds) {
+                    throw ProfilesChangedException()
+                }
             }
             val previousSettings = settings.snapshot()
             // The rows of EVERY home profile: a restore replaces them all (what a backup file describes
