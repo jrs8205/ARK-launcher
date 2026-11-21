@@ -189,7 +189,7 @@ class HomeProfileStoreTest {
     }
 
     /** The list is what says which profiles there are: once it is written the others are gone. A store file of
-     *  theirs that cannot be removed then is never read again (ids are not reused), and must not turn a
+     *  theirs that cannot be removed then is no profile's any more (ids are not reused), and must not turn a
      *  removal that happened into a failure. */
     @Test fun keepOnlyActiveRemovesTheOthersThoughAFileOfTheirsCannotBeDeleted() = runTest {
         val stubborn = object : HomeProfileFiles by files {

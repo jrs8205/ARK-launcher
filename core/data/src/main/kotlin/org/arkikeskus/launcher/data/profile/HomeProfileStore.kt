@@ -226,8 +226,11 @@ class HomeProfileStore(
 
     /**
      * Removes the store file of [id], a profile the list no longer has. The list is what says which profiles
-     * there are, so the profile is gone whether or not its file can be removed: a file left behind is never
-     * read again (ids are not reused), and failing here would report a removal that happened as one that did not.
+     * there are, so the profile is gone whether or not its file can be removed: a file left behind is no
+     * profile's any more (nothing shows it, and its id is not given again), and failing here would report a
+     * removal that happened as one that did not. What such a file names is still counted as in use
+     * ([ProfiledPreferences.valuesOfEveryProfile] cannot tell it from the store of a profile whose listing
+     * was lost): its folders' pictures stay on the disk for as long as the file does.
      */
     private suspend fun dropFile(id: Long) {
         try {
