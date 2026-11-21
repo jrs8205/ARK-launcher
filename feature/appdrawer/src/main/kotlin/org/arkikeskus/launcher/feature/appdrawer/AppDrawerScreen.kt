@@ -434,7 +434,13 @@ fun AppDrawerScreen(
                 } else {
                     null
                 },
-                PopupAction(stringResource(R.string.hide_app), LauncherIcons.VisibilityOff) { viewModel.hideApp(app) },
+                // Not for an app that is hidden already (one the search found because it was asked to find
+                // hidden apps, discussion #34): there is nothing left to hide. It is shown again in Settings.
+                if (app.key in shown.hiddenApps) {
+                    null
+                } else {
+                    PopupAction(stringResource(R.string.hide_app), LauncherIcons.VisibilityOff) { viewModel.hideApp(app) }
+                },
                 PopupAction(stringResource(R.string.uninstall), LauncherIcons.Delete, keptWhenLocked = true) {
                     AppActions.uninstall(context, app)
                 },

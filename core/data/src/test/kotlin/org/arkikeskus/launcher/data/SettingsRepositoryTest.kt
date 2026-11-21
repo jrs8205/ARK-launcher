@@ -572,6 +572,24 @@ class SettingsRepositoryTest {
         assertThat(repo.drawerFolders.first()).hasSize(2)
     }
 
+    /** Discussion #34: finding hidden apps in the search is asked for, never on by itself; it is a setting like
+     *  any other, so a backup carries it. */
+    @Test
+    fun `searchHiddenApps defaults to false, round-trips and restores from a backup`() = runTest {
+        val repo = newRepository()
+        assertThat(repo.settings.first().searchHiddenApps).isFalse()
+
+        repo.setSearchHiddenApps(true)
+        assertThat(repo.settings.first().searchHiddenApps).isTrue()
+
+        val restored = newRepository()
+        restored.importRaw(repo.exportRaw())
+        assertThat(restored.settings.first().searchHiddenApps).isTrue()
+
+        repo.setSearchHiddenApps(false)
+        assertThat(repo.settings.first().searchHiddenApps).isFalse()
+    }
+
     @Test
     fun `twoLineHomeLabels defaults to false and round-trips`() = runTest {
         val repo = newRepository()

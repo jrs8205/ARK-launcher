@@ -82,6 +82,9 @@ data class LauncherSettings(
     val iconShape: IconShape = IconShape.SYSTEM,
     /** Include contacts in app-drawer search (gated by READ_CONTACTS; requested when enabled). */
     val searchContacts: Boolean = false,
+    /** The app-drawer search also finds the apps the user has hidden (discussion #34). Off unless asked for:
+     *  an app is often hidden so that it is not come across. Hidden apps stay out of the lists either way. */
+    val searchHiddenApps: Boolean = false,
     /** App key launched by the left-edge home swipe (Settings ▸ Eleet); blank = gesture disabled. */
     val leftSwipeAppKey: String = "",
     /** App key opened by a tap on the smartspace weather line (Settings > Home); blank = plain text. */

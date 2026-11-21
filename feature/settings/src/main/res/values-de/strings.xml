@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Benötigt die Suche der App-Übersicht: Ein ausgeblendetes vertrauliches Profil wird darüber geöffnet.</string>
     <string name="settings_drawer_search_private_note">Ein ausgeblendetes vertrauliches Profil wird über diese Suche geöffnet.</string>
     <string name="settings_hidden_apps">Apps ausblenden</string>
+    <string name="settings_search_hidden_apps">Ausgeblendete Apps in der Suche finden</string>
+    <string name="settings_search_hidden_apps_desc">Ausgeblendete Apps erscheinen, wenn du nach ihrem Namen suchst. In der App-Liste bleiben sie ausgeblendet.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d ausgeblendet</item>
         <item quantity="other">%d ausgeblendet</item>

@@ -163,6 +163,7 @@ internal object SettingsIndex {
             row("A15", c, R.string.settings_blur_strength, fallback = "A14")
             row("A16", c, R.string.settings_drawer_icon_size)
             row("A17", c, R.string.settings_hidden_apps)
+            row("A25", c, R.string.settings_search_hidden_apps, R.string.settings_search_hidden_apps_desc)
         }
         // Every folder setting, wherever its folders are (1.2.1; a Telegram request). The rows that came from the
         // home screen's and the app drawer's pages keep the ids they had there (H5, H6, A5, A18 to A21).

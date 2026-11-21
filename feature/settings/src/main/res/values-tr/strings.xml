@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Uygulama çekmecesinin araması gerekir: gizli özel alan onun üzerinden açılır.</string>
     <string name="settings_drawer_search_private_note">Gizli özel alan bu arama üzerinden açılır.</string>
     <string name="settings_hidden_apps">Uygulamaları gizle</string>
+    <string name="settings_search_hidden_apps">Aramada gizli uygulamaları da bul</string>
+    <string name="settings_search_hidden_apps_desc">Gizli uygulamalar adlarıyla arandığında görünür. Uygulama listesinde gizli kalmaya devam ederler.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d gizli</item>
         <item quantity="other">%d gizli</item>

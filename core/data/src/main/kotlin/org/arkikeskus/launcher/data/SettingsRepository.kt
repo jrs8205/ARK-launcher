@@ -150,6 +150,7 @@ class SettingsRepository @Inject constructor(
             // A missing id, or one a newer version stored, reads as the system's shape.
             iconShape = IconShape.fromId(p[Keys.ICON_SHAPE]),
             searchContacts = p[Keys.SEARCH_CONTACTS] ?: false,
+            searchHiddenApps = p[Keys.SEARCH_HIDDEN_APPS] ?: false,
             leftSwipeAppKey = p[Keys.LEFT_SWIPE_APP_KEY] ?: "",
             weatherAppKey = p[Keys.WEATHER_APP_KEY] ?: "",
             desktopLocked = p[Keys.DESKTOP_LOCKED] ?: false,
@@ -624,6 +625,9 @@ class SettingsRepository @Inject constructor(
     /** Locks/unlocks the desktop layout (blocks moving/removing/adding home + dock items). */
     suspend fun setDesktopLocked(value: Boolean) = edit { it[Keys.DESKTOP_LOCKED] = value }
 
+    /** Whether the app-drawer search also finds hidden apps (discussion #34). */
+    suspend fun setSearchHiddenApps(value: Boolean) = edit { it[Keys.SEARCH_HIDDEN_APPS] = value }
+
     /** Toggles the "most used" row in the app drawer. */
     suspend fun setShowFrequentApps(value: Boolean) = edit { it[Keys.SHOW_FREQUENT_APPS] = value }
 
@@ -1042,6 +1046,7 @@ class SettingsRepository @Inject constructor(
         val DRAWER_OPENS_AT_TOP = booleanPreferencesKey("drawer_opens_at_top")
         val DRAWER_SEARCH_AT_BOTTOM = booleanPreferencesKey("drawer_search_at_bottom")
         val COUNT_SYSTEM_USAGE = booleanPreferencesKey(AppUsageRepository.COUNTING_KEY)
+        val SEARCH_HIDDEN_APPS = booleanPreferencesKey("search_hidden_apps")
         val SORT_DRAWER_FOLDERS = booleanPreferencesKey("sort_drawer_folders")
         val MIX_DRAWER_FOLDERS = booleanPreferencesKey("mix_drawer_folders")
         val FOLDER_COLUMNS = intPreferencesKey("folder_columns")
@@ -1161,7 +1166,7 @@ class SettingsRepository @Inject constructor(
             "dock_enabled", "show_drawer_search", "swipe_up_drawer", "swipe_down_notif", "folder_swipe_first_app",
             "hide_home_apps_from_drawer", "widget_inset_like_icons",
             "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_page_indicator",
-            "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts",
+            "show_notif_dots", "notif_dot_count", "use_themed_icons", "search_contacts", "search_hidden_apps",
             "desktop_locked", "show_frequent_apps", "drawer_opens_at_top", "drawer_search_at_bottom", "count_system_usage", "show_status_bar",
             "show_weather", "hide_system_status_bar", "double_tap_lock", "widget_tonal_background",
             "two_line_home_labels", "two_line_drawer_labels", "people_batch_enabled", "people_show_apps",

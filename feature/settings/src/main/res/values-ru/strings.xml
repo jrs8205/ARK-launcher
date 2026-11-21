@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Нужен поиск в списке приложений: скрытое частное пространство открывается через него.</string>
     <string name="settings_drawer_search_private_note">Скрытое частное пространство открывается через этот поиск.</string>
     <string name="settings_hidden_apps">Скрыть приложения</string>
+    <string name="settings_search_hidden_apps">Искать и скрытые приложения</string>
+    <string name="settings_search_hidden_apps_desc">Скрытые приложения появляются, если искать их по названию. В списке приложений они остаются скрытыми.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d приложение скрыто</item>
         <item quantity="few">%d приложения скрыты</item>

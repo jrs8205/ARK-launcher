@@ -63,6 +63,7 @@ internal interface SettingsActions {
     fun setIconPack(pkg: String)
     fun setIconShape(shape: IconShape)
     fun setSearchContacts(value: Boolean)
+    fun setSearchHiddenApps(value: Boolean)
     fun setLeftSwipeAppKey(key: String?)
     fun setWeatherAppKey(key: String?)
     fun setPageSwitchSpeed(speed: String)

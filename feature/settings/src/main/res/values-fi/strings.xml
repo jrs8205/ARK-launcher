@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Tarvitsee sovellusvalikon haun: piilotettu yksityinen tila avataan sen kautta.</string>
     <string name="settings_drawer_search_private_note">Piilotettu yksityinen tila avataan tämän haun kautta.</string>
     <string name="settings_hidden_apps">Piilota sovelluksia</string>
+    <string name="settings_search_hidden_apps">Hae myös piilotettuja sovelluksia</string>
+    <string name="settings_search_hidden_apps_desc">Piilotetut sovellukset löytyvät, kun haet niitä nimellä. Sovellusluettelossa ne pysyvät piilossa.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d piilotettu</item>
         <item quantity="other">%d piilotettua</item>

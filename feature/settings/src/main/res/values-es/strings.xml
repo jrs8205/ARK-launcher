@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Necesita la búsqueda del cajón de aplicaciones: un espacio privado oculto se abre desde ella.</string>
     <string name="settings_drawer_search_private_note">Un espacio privado oculto se abre desde esta búsqueda.</string>
     <string name="settings_hidden_apps">Ocultar aplicaciones</string>
+    <string name="settings_search_hidden_apps">Buscar también aplicaciones ocultas</string>
+    <string name="settings_search_hidden_apps_desc">Las aplicaciones ocultas aparecen cuando las buscas por su nombre. Siguen sin mostrarse en la lista de aplicaciones.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d oculta</item>
         <item quantity="many">%d ocultas</item>

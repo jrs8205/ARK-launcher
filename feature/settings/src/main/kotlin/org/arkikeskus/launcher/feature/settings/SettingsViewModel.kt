@@ -187,6 +187,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setIconPack(pkg: String) = update { repository.setIconPackPackage(pkg) }
     override fun setIconShape(shape: IconShape) = update { repository.setIconShape(shape) }
     override fun setSearchContacts(value: Boolean) = update { repository.setSearchContacts(value) }
+    override fun setSearchHiddenApps(value: Boolean) = update { repository.setSearchHiddenApps(value) }
 
     /** Sets (or clears, for null) the app launched by the left-edge home swipe. */
     override fun setLeftSwipeAppKey(key: String?) = update { repository.setLeftSwipeAppKey(key) }

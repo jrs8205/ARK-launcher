@@ -128,7 +128,7 @@ class SettingsInventoryTest {
             "A9" to "settings_drawer_open_top", "A10" to "settings_drawer_color", "A11" to "settings_drawer_bg",
             "A12" to "settings_drawer_wallpaper", "A13" to "settings_drawer_picture_dim",
             "A14" to "settings_blur_behind_drawer", "A15" to "settings_blur_strength",
-            "A16" to "settings_drawer_icon_size", "A17" to "settings_hidden_apps",
+            "A16" to "settings_drawer_icon_size", "A17" to "settings_hidden_apps", "A25" to "settings_search_hidden_apps",
             // Every folder setting is on the Folders page (1.2.1); the rows kept the ids they had on their old pages.
             "H5" to "settings_home_folder_names", "A5" to "settings_drawer_folder_names", "H6" to "settings_folder_columns",
             "F1" to "settings_folder_app_names", "F2" to "settings_folder_icon_size", "F3" to "settings_folder_spacing",

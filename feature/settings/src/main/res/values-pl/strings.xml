@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Wymaga wyszukiwarki w szufladzie aplikacji: ukrytą przestrzeń prywatną otwiera się przez nią.</string>
     <string name="settings_drawer_search_private_note">Ukrytą przestrzeń prywatną otwiera się przez to wyszukiwanie.</string>
     <string name="settings_hidden_apps">Ukryj aplikacje</string>
+    <string name="settings_search_hidden_apps">Szukaj też ukrytych aplikacji</string>
+    <string name="settings_search_hidden_apps_desc">Ukryte aplikacje pojawiają się, gdy wyszukasz je po nazwie. Na liście aplikacji nadal są ukryte.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d ukryta aplikacja</item>
         <item quantity="few">%d ukryte aplikacje</item>

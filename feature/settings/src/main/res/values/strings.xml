@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Needs the app drawer\'s search field: a hidden Private space is opened through it.</string>
     <string name="settings_drawer_search_private_note">A hidden Private space is opened through this search.</string>
     <string name="settings_hidden_apps">Hide apps</string>
+    <string name="settings_search_hidden_apps">Find hidden apps in search</string>
+    <string name="settings_search_hidden_apps_desc">Hidden apps show up when you search for them by name. They still stay out of the app list.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d hidden</item>
         <item quantity="other">%d hidden</item>

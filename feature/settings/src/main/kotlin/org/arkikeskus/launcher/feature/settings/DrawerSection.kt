@@ -153,6 +153,15 @@ internal fun DrawerRows(
             description = pluralStringResource(R.plurals.settings_hidden_apps_desc, hiddenKeys.size, hiddenKeys.size),
         ) { onOpenHiddenApps() }
     }
+    // Discussion #34. Right under the hidden apps it is about; off unless asked for.
+    SettingRow("A25") {
+        SwitchRow(
+            stringResource(R.string.settings_search_hidden_apps),
+            stringResource(R.string.settings_search_hidden_apps_desc),
+            s.searchHiddenApps,
+            actions::setSearchHiddenApps,
+        )
+    }
 }
 
 /**

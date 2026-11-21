@@ -243,6 +243,7 @@ class ProfilesSectionTest {
         "A9" to listOf("drawer_opens_at_top"), "A10" to listOf("drawer_background_color"), "A11" to listOf("drawer_opacity"),
         "A12" to emptyList(), "A13" to listOf("drawer_picture_dim"), "A14" to listOf("blur_behind_drawer"),
         "A15" to listOf("drawer_blur_strength"), "A16" to listOf("drawer_icon_scale"), "A17" to listOf("hidden_apps"),
+        "A25" to listOf("search_hidden_apps"),
         "H5" to listOf("show_home_folder_names"), "A5" to listOf("show_drawer_folder_names"), "H6" to listOf("folder_columns"),
         "F1" to listOf("folder_show_labels"), "F2" to listOf("folder_icon_scale"), "F3" to listOf("folder_spacing"),
         "F4" to listOf("folder_background_color"), "F5" to listOf("folder_background_opacity"),

@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Kräver applådans sökfält: ett dolt privat utrymme öppnas via det.</string>
     <string name="settings_drawer_search_private_note">Ett dolt privat utrymme öppnas via den här sökningen.</string>
     <string name="settings_hidden_apps">Dölj appar</string>
+    <string name="settings_search_hidden_apps">Hitta dolda appar i sökningen</string>
+    <string name="settings_search_hidden_apps_desc">Dolda appar visas när du söker efter dem med namn. I applistan förblir de dolda.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d dold</item>
         <item quantity="other">%d dolda</item>

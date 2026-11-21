@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Requer a pesquisa da gaveta de apps: um espaço privado oculto é aberto por ela.</string>
     <string name="settings_drawer_search_private_note">Um espaço privado oculto é aberto por esta pesquisa.</string>
     <string name="settings_hidden_apps">Ocultar apps</string>
+    <string name="settings_search_hidden_apps">Encontrar apps ocultos na busca</string>
+    <string name="settings_search_hidden_apps_desc">Os apps ocultos aparecem quando você os procura pelo nome. Eles continuam fora da lista de apps.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d oculto</item>
         <item quantity="many">%d ocultos</item>

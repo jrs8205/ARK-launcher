@@ -180,6 +180,54 @@ class AppDrawerScreenTest {
         compose.onNodeWithText(addApps()).assertExists()
     }
 
+    // --- Discussion #34: the search can find hidden apps -----------------------------------------------------
+
+    /** The drawer with the mail app hidden; returns its key once the lists are without it. */
+    private fun showWithMailHidden(): String {
+        show()
+        awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
+        val mail = viewModel.uiState.value.apps.first { it.packageName == mailApp }
+        runBlocking { wiring.settingsRepository.setAppHidden(mail.key, true) }
+        awaitState("the hidden app left the list") { s -> s.apps.none { it.packageName == mailApp } }
+        return mail.key
+    }
+
+    private fun search(query: String) {
+        viewModel.onQueryChange(query)
+        awaitState("the search for '$query' is answered") { it.query == query && !it.searchPending }
+        settle()
+    }
+
+    /** As it always was: a hidden app is hidden from the search too. */
+    @Test fun aHiddenAppIsNotFoundByTheSearchUnlessThatIsAskedFor() {
+        showWithMailHidden()
+
+        search("mail")
+
+        assertThat(viewModel.uiState.value.apps.map { it.packageName }).doesNotContain(mailApp)
+        compose.onNodeWithText(mailApp).assertDoesNotExist()
+    }
+
+    /** Asked for in Settings, the search finds the hidden app by its name; the app list still does not show it,
+     *  and its menu does not offer to hide what is hidden already. */
+    @Test fun askedForTheSearchFindsAHiddenAppThatTheListStillDoesNotShow() {
+        showWithMailHidden()
+        runBlocking { wiring.settingsRepository.setSearchHiddenApps(true) }
+
+        search("mail")
+
+        assertThat(viewModel.uiState.value.apps.map { it.packageName }).containsExactly(mailApp)
+        compose.onNodeWithText(mailApp).performTouchInput { longClick() }
+        awaitText(appInfo())
+        compose.onNodeWithText(context.getString(R.string.hide_app)).assertDoesNotExist()
+        // An app that is not hidden keeps the row.
+        compose.onNodeWithText(appInfo()).assertExists()
+
+        viewModel.onQueryChange("")
+        awaitState("the idle drawer") { it.query.isEmpty() && it.apps.isNotEmpty() }
+        assertThat(viewModel.uiState.value.apps.map { it.packageName }).doesNotContain(mailApp)
+    }
+
     @Test fun homeTakesTheFolderCardWithTheDrawer() {
         showWithFolder()
         compose.onNodeWithText("Tools").performClick()

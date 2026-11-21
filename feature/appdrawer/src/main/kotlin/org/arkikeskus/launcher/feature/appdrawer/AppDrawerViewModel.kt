@@ -103,6 +103,9 @@ data class AppDrawerUiState(
     /** Visible dock capacity — the drawer hides "Add to dock" once this many entries exist. */
     val dockColumns: Int = 4,
     val homeKeys: Set<String> = emptySet(),
+    /** The apps the user has hidden. None of them is in the lists; a search shows one only when the user has
+     *  asked the search to find hidden apps (discussion #34), and its menu then does not offer to hide it. */
+    val hiddenApps: Set<String> = emptySet(),
     /** Every app on the home surface as shown ([homeSurfaceKeys]): what [hideHomeApps] takes out of the list. */
     val onHomeKeys: Set<String> = emptySet(),
     /** Apps on the home surface leave the list (the search still finds them). */
@@ -280,8 +283,8 @@ class AppDrawerViewModel @Inject constructor(
             settingsRepository.drawerFolders,
             workProfileRepository.workProfile,
         ) { state, hidden, folders, profile ->
-            // Hidden apps leave every list (the search results too: AppSearchProvider filters them
-            // itself), the work profile's apps go to the Work grid, folders take their members out
+            // Hidden apps leave every list (the search results too, unless the user asked the search to find
+            // them: AppSearchProvider decides), the work profile's apps go to the Work grid, folders take their members out
             // of the Personal grid only. While searching keep a flat list so folder members stay
             // findable.
             // With the setting on, apps on the home surface are hidden like hidden apps, but only from the
@@ -295,6 +298,7 @@ class AppDrawerViewModel @Inject constructor(
                 sortFolders = state.sortDrawerFolders,
             )
             state.copy(
+                hiddenApps = hidden,
                 apps = partition.personal,
                 workApps = partition.work,
                 folders = partition.folders,

@@ -118,6 +118,8 @@
     <string name="settings_hide_private_space_needs_search">Nécessite la recherche du tiroir d\'applications : un espace privé masqué s\'ouvre depuis celle-ci.</string>
     <string name="settings_drawer_search_private_note">Un espace privé masqué s\'ouvre depuis cette recherche.</string>
     <string name="settings_hidden_apps">Masquer des applications</string>
+    <string name="settings_search_hidden_apps">Trouver les applications masquées dans la recherche</string>
+    <string name="settings_search_hidden_apps_desc">Les applications masquées apparaissent quand vous les cherchez par leur nom. Elles restent absentes de la liste des applications.</string>
     <plurals name="settings_hidden_apps_desc">
         <item quantity="one">%d application masquée</item>
         <item quantity="many">%d applications masquées</item>
