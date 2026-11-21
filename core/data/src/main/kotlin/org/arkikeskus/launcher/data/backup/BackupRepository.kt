@@ -106,9 +106,14 @@ class BackupRepository @Inject constructor(
      * do not wait for one another (a place that never answers must not stop every other export), and of those
      * the time noted is that of the export whose document was read LAST: an older one finishing afterwards does
      * not put its time over it. No profile is held while any of this waits.
+     *
+     * [createdAt] is the clock, read when the export's document is read, with its place's lock held: the
+     * document, the export's number and the time that is noted are then of one moment. Read by the caller
+     * before the wait for the place, an export that had waited for a slow one carried an old time and the
+     * highest number, and put that old time over a later export's.
      */
     suspend fun export(
-        createdAt: Long,
+        createdAt: () -> Long,
         appVersion: String,
         expectedProfile: Long? = null,
         target: Any? = null,
@@ -120,7 +125,7 @@ class BackupRepository @Inject constructor(
 
     /** One export, for a caller that has its place to itself ([export]). */
     private suspend fun exportNow(
-        createdAt: Long,
+        createdAt: () -> Long,
         appVersion: String,
         expectedProfile: Long?,
         write: suspend (BackupDocument) -> Unit,
@@ -130,15 +135,18 @@ class BackupRepository @Inject constructor(
             if (expectedProfile != null && active != expectedProfile) throw ExportProfileChangedException()
             val list = profiles?.list().orEmpty()
             val exported = ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
-            // Numbered as its document is read, under the hold: the higher number has the later document.
-            Triple(document(createdAt, appVersion), exported, exportsRead.incrementAndGet())
+            // Timed and numbered as its document is read, under the hold: the higher number has the later
+            // document and the later time.
+            val at = createdAt()
+            Triple(document(at, appVersion), exported, exportsRead.incrementAndGet() to at)
         }
-        val (document, exported, number) = read
+        val (document, exported, order) = read
+        val (number, at) = order
         // The hold has ended: the file is written with nothing of the launcher's waiting on it.
         write(document)
         timeNoting.withLock {
             if (number > (timeNotedFor[exported.id] ?: 0L)) {
-                runCatching { settings.setLocalLastBackup(exported.id, createdAt) }.onSuccess { timeNotedFor[exported.id] = number }
+                runCatching { settings.setLocalLastBackup(exported.id, at) }.onSuccess { timeNotedFor[exported.id] = number }
             }
         }
         return exported

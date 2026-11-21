@@ -317,7 +317,7 @@ class BackupProfilesTest {
         twoProfiles()
         var written: BackupDocument? = null
 
-        val exported = repo().export(createdAt = 77L, appVersion = "test") { written = it }
+        val exported = repo().export(createdAt = { 77L }, appVersion = "test") { written = it }
 
         assertThat(exported).isEqualTo(ExportedProfile(id = 2, name = "Work", oneOfSeveral = true))
         assertThat(written!!.homeItems.map { it.packageName }).containsExactly("com.work", "com.chat")
@@ -331,7 +331,7 @@ class BackupProfilesTest {
     @Test fun anExportOfTheOnlyProfileIsNotOneOfSeveral() = runTest {
         dao.insert(app("com.first", 0))
 
-        val exported = repo().export(createdAt = 5L, appVersion = "test") {}
+        val exported = repo().export(createdAt = { 5L }, appVersion = "test") {}
 
         assertThat(exported).isEqualTo(ExportedProfile(id = 1, name = "", oneOfSeveral = false))
         assertThat(settings.localLastBackupTime.first()).isEqualTo(5L)
@@ -346,7 +346,7 @@ class BackupProfilesTest {
         twoProfiles()
         var switched: Unit? = null
 
-        val exported = repo().export(createdAt = 77L, appVersion = "test") {
+        val exported = repo().export(createdAt = { 77L }, appVersion = "test") {
             switched = withTimeoutOrNull(1_000) { store.setActive(1) }
         }
 
@@ -365,7 +365,7 @@ class BackupProfilesTest {
         var written = false
 
         assertThrows(ExportProfileChangedException::class.java) {
-            kotlinx.coroutines.runBlocking { repo().export(77L, "test", expectedProfile = 1) { written = true } }
+            kotlinx.coroutines.runBlocking { repo().export({ 77L }, "test", expectedProfile = 1) { written = true } }
         }
 
         assertThat(written).isFalse()
@@ -377,7 +377,7 @@ class BackupProfilesTest {
     @Test fun anExportAskedForTheProfileThatIsOnGoesThrough() = runTest {
         twoProfiles()
 
-        assertThat(repo().export(77L, "test", expectedProfile = 2) {}.id).isEqualTo(2L)
+        assertThat(repo().export({ 77L }, "test", expectedProfile = 2) {}.id).isEqualTo(2L)
     }
 
     /** A profile deleted while its file was being written takes no time: nothing is written for a profile
@@ -385,7 +385,7 @@ class BackupProfilesTest {
     @Test fun anExportOfAProfileDeletedWhileItsFileWasWrittenNotesNoTime() = runTest {
         twoProfiles()
 
-        val exported = repo().export(createdAt = 77L, appVersion = "test") {
+        val exported = repo().export(createdAt = { 77L }, appVersion = "test") {
             store.setActive(1)
             assertThat(store.delete(2)).isTrue()
         }
@@ -408,13 +408,13 @@ class BackupProfilesTest {
         val slowMayFinish = CompletableDeferred<Unit>()
 
         val slow = async(Dispatchers.Default) {
-            repository.export(createdAt = 1_000L, appVersion = "test", target = "cloud") {
+            repository.export(createdAt = { 1_000L }, appVersion = "test", target = "cloud") {
                 slowIsWriting.complete(Unit)
                 slowMayFinish.await()
             }
         }
         withTimeout(5_000) { slowIsWriting.await() }
-        repository.export(createdAt = 2_000L, appVersion = "test", target = "phone") {}
+        repository.export(createdAt = { 2_000L }, appVersion = "test", target = "phone") {}
         assertThat(settings.localLastBackupTime.first()).isEqualTo(2_000L)
 
         slowMayFinish.complete(Unit)
@@ -436,7 +436,7 @@ class BackupProfilesTest {
         var inTheFile = 0L
 
         val first = async(Dispatchers.Default) {
-            repository.export(createdAt = 1_000L, appVersion = "test", target = "content://docs/backup.json") {
+            repository.export(createdAt = { 1_000L }, appVersion = "test", target = "content://docs/backup.json") {
                 firstIsWriting.complete(Unit)
                 firstMayFinish.await()
                 inTheFile = it.createdAt
@@ -444,7 +444,7 @@ class BackupProfilesTest {
         }
         withTimeout(5_000) { firstIsWriting.await() }
         val second = async(Dispatchers.Default) {
-            repository.export(createdAt = 2_000L, appVersion = "test", target = "content://docs/backup.json") { inTheFile = it.createdAt }
+            repository.export(createdAt = { 2_000L }, appVersion = "test", target = "content://docs/backup.json") { inTheFile = it.createdAt }
         }
         // The second gets the time to write, if it does not wait for the first.
         val wroteBesideTheFirst = withTimeoutOrNull(500) { second.await() } != null
@@ -456,6 +456,47 @@ class BackupProfilesTest {
         assertThat(settings.localLastBackupTime.first()).isEqualTo(2_000L)
     }
 
+    /**
+     * Review round 6. Three exports of one profile. The first writes slowly to file A; the second, to A too,
+     * waits for it; the third goes to file B and finishes at once. The second is the last to read its document,
+     * so the time of the last export is the moment ITS document was read: not the moment it was asked for,
+     * which is before the third's (the time of the last export went back by that, with no clock set back).
+     */
+    @Test fun anExportThatWaitedForItsFileIsTimedWhenItsDocumentIsRead() = kotlinx.coroutines.runBlocking<Unit> {
+        twoProfiles()
+        val repository = repo()
+        val clock = java.util.concurrent.atomic.AtomicLong(1_000L)
+        val firstIsWriting = CompletableDeferred<Unit>()
+        val firstMayFinish = CompletableDeferred<Unit>()
+        var inFileA = 0L
+
+        val first = async(Dispatchers.Default) {
+            repository.export(createdAt = clock::get, appVersion = "test", target = "A") {
+                firstIsWriting.complete(Unit)
+                firstMayFinish.await()
+                inFileA = it.createdAt
+            }
+        }
+        withTimeout(5_000) { firstIsWriting.await() }
+        clock.set(2_000L)
+        val second = async(Dispatchers.Default) {
+            repository.export(createdAt = clock::get, appVersion = "test", target = "A") { inFileA = it.createdAt }
+        }
+        // Asked for at 2 000, it waits for A; given the time to get there.
+        withTimeoutOrNull(300) { second.await() }
+        clock.set(3_000L)
+        repository.export(createdAt = clock::get, appVersion = "test", target = "B") {}
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(3_000L)
+
+        clock.set(4_000L)
+        firstMayFinish.complete(Unit)
+        withTimeout(5_000) { first.await(); second.await() }
+
+        // The file's own time, the time shown and the export that was last are one export's.
+        assertThat(inFileA).isEqualTo(4_000L)
+        assertThat(settings.localLastBackupTime.first()).isEqualTo(4_000L)
+    }
+
     /** Exports to different files do not wait for one another: a place that never answers must not keep the
      *  user from exporting anywhere else. */
     @Test fun anExportToAnotherFileDoesNotWaitForOneThatIsStillBeingWritten() = kotlinx.coroutines.runBlocking<Unit> {
@@ -465,14 +506,14 @@ class BackupProfilesTest {
         val stuckMayFinish = CompletableDeferred<Unit>()
 
         val stuck = async(Dispatchers.Default) {
-            repository.export(createdAt = 1_000L, appVersion = "test", target = "cloud") {
+            repository.export(createdAt = { 1_000L }, appVersion = "test", target = "cloud") {
                 stuckIsWriting.complete(Unit)
                 stuckMayFinish.await()
             }
         }
         withTimeout(5_000) { stuckIsWriting.await() }
 
-        val other = withTimeoutOrNull(5_000) { repository.export(createdAt = 2_000L, appVersion = "test", target = "phone") {} }
+        val other = withTimeoutOrNull(5_000) { repository.export(createdAt = { 2_000L }, appVersion = "test", target = "phone") {} }
 
         assertThat(other).isNotNull()
         stuckMayFinish.complete(Unit)
@@ -483,7 +524,7 @@ class BackupProfilesTest {
      *  beside another's name. */
     @Test fun theLastExportComesWithTheProfileItIsOf() = runTest {
         twoProfiles()
-        repo().export(createdAt = 77L, appVersion = "test") {}
+        repo().export(createdAt = { 77L }, appVersion = "test") {}
 
         assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 2, timeMs = 77L))
         store.setActive(1)
@@ -495,7 +536,7 @@ class BackupProfilesTest {
         twoProfiles()
 
         assertThrows(IOException::class.java) {
-            kotlinx.coroutines.runBlocking { repo().export(createdAt = 77L, appVersion = "test") { throw IOException("no space") } }
+            kotlinx.coroutines.runBlocking { repo().export(createdAt = { 77L }, appVersion = "test") { throw IOException("no space") } }
         }
 
         assertThat(settings.localLastBackupTime.first()).isEqualTo(0L)
@@ -505,7 +546,7 @@ class BackupProfilesTest {
     @Test fun anExportWhoseTimeCouldNotBeNotedIsStillAnExport() = runTest {
         twoProfiles()
 
-        val exported = repo().export(createdAt = 77L, appVersion = "test") {
+        val exported = repo().export(createdAt = { 77L }, appVersion = "test") {
             files.store(2).failWrites = IOException("disk full")
             main.failWrites = IOException("disk full")
         }

@@ -84,7 +84,7 @@ class BackupViewModel @Inject constructor(
         _events.emit(
             exportToDocument(context.contentResolver, uri) { write ->
                 // The document is the export's place: two exports to one file go one after the other.
-                backupRepository.export(System.currentTimeMillis(), appVersion, expectedProfile = shownProfile, target = uri, write = write)
+                backupRepository.export(System::currentTimeMillis, appVersion, expectedProfile = shownProfile, target = uri, write = write)
             },
         )
     }
