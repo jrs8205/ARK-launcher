@@ -155,6 +155,31 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertDoesNotExist()
     }
 
+    /** Issue #32: a drawer folder's apps stand in the order they were added, which soon looks like no order.
+     *  The editor sorts them by name on request, as a home folder's editor does. */
+    @Test fun theEditorSortsTheFoldersAppsByName() {
+        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        show()
+        val members = listOf(notesApp, mailApp, docsApp)
+        awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
+        val byPackage = viewModel.uiState.value.apps.associateBy { it.packageName }
+        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, members.map { byPackage.getValue(it).key }) }
+        awaitState("the folder holds the three as they were added") { s ->
+            s.folders.firstOrNull()?.apps?.map { it.packageName } == members
+        }
+        settle()
+        compose.onNodeWithText("Tools").performTouchInput { longClick() }
+        awaitText(addApps())
+
+        compose.onNodeWithText(context.getString(R.string.folder_sort_by_name)).performClick()
+
+        awaitState("the folder's apps are in the order of their names") { s ->
+            s.folders.firstOrNull()?.apps?.map { it.packageName } == listOf(docsApp, mailApp, notesApp)
+        }
+        // The editor stays open: sorting is one of its actions, not a way out of it.
+        compose.onNodeWithText(addApps()).assertExists()
+    }
+
     @Test fun homeTakesTheFolderCardWithTheDrawer() {
         showWithFolder()
         compose.onNodeWithText("Tools").performClick()

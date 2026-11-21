@@ -12,6 +12,7 @@
     <string name="folder_name_label">Kansion nimi</string>
     <string name="folder_add_apps">Lisää sovelluksia</string>
     <string name="folder_delete">Poista kansio</string>
+    <string name="folder_sort_by_name">Järjestä A–Ö</string>
     <string name="folder_remove_hint">Paina sovellusta pitkään poistaaksesi sen kansiosta</string>
     <string name="folder_add">Lisää</string>
     <string name="folder_cancel">Peruuta</string>

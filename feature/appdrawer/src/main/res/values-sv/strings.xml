@@ -12,6 +12,7 @@
     <string name="folder_name_label">Mappnamn</string>
     <string name="folder_add_apps">Lägg till appar</string>
     <string name="folder_delete">Radera mapp</string>
+    <string name="folder_sort_by_name">Sortera A–Ö</string>
     <string name="folder_remove_hint">Tryck länge på en app för att ta bort den från mappen</string>
     <string name="folder_add">Lägg till</string>
     <string name="folder_cancel">Avbryt</string>

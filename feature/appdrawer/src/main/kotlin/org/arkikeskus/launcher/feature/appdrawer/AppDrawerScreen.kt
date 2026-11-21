@@ -494,6 +494,7 @@ fun AppDrawerScreen(
             onAppClick = { if (openApp(it)) editFolderId = null },
             onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key) },
             onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys) },
+            onSortByName = { viewModel.sortDrawerFolderByName(openFolder.id) },
             // Sorted A-Z the order is not the user's to change, and one folder has nowhere to go.
             onMove = if (uiState.sortDrawerFolders || uiState.mixDrawerFolders || uiState.folders.size < 2) {
                 null
@@ -1394,9 +1395,9 @@ private fun LayoutCoordinates.boundsInRootOf(host: View): Rect {
     )
 }
 
-/** The folder editor sheet: rename, member apps (tap launches, long-press removes), add apps, delete
- *  (asked first) and, when the order is the user's ([onMove] given), a step earlier or later among
- *  the folders. */
+/** The folder editor sheet: rename, member apps (tap launches, long-press removes), add apps, sort them
+ *  A-Z, delete (asked first) and, when the order is the user's ([onMove] given), a step earlier or later
+ *  among the folders. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun DrawerFolderSheet(
@@ -1412,6 +1413,8 @@ private fun DrawerFolderSheet(
     onAppClick: (AppItem) -> Unit,
     onRemoveApp: (AppItem) -> Unit,
     onAddApps: (List<String>) -> Unit,
+    /** "Sort A-Z" (issue #32): the folder's apps into the order of their names, once. */
+    onSortByName: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     onMove: ((by: Int) -> Unit)? = null,
@@ -1457,10 +1460,16 @@ private fun DrawerFolderSheet(
                 DrawerFolderMembers(folder.apps, columns, badges, badgeShowCount, badgeScale, onAppClick, onRemoveApp)
             }
             Spacer(Modifier.height(12.dp))
+            // What fills and orders the folder on one line, what removes it on a line of its own, as in a home
+            // folder's editor: three buttons side by side do not fit a narrow phone in every language.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { showAdd = true }) { Text(stringResource(R.string.folder_add_apps)) }
-                TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.folder_delete)) }
+                // Issue #32. With fewer than two apps there is no order to put them in.
+                if (folder.apps.size > 1) {
+                    TextButton(onClick = onSortByName) { Text(stringResource(R.string.folder_sort_by_name)) }
+                }
             }
+            TextButton(onClick = { confirmDelete = true }) { Text(stringResource(R.string.folder_delete)) }
             // A row of its own: beside the two text buttons the chevrons overflowed the sheet in
             // Finnish and French (and in English at a large font scale).
             if (onMove != null) {

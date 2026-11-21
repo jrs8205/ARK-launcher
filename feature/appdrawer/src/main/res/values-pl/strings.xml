@@ -12,6 +12,7 @@
     <string name="folder_name_label">Nazwa folderu</string>
     <string name="folder_add_apps">Dodaj aplikacje</string>
     <string name="folder_delete">Usuń folder</string>
+    <string name="folder_sort_by_name">Sortuj A–Z</string>
     <string name="folder_remove_hint">Przytrzymaj aplikację, aby usunąć ją z folderu</string>
     <string name="folder_add">Dodaj</string>
     <string name="folder_cancel">Anuluj</string>

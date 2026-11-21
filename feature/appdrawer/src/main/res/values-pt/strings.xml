@@ -12,6 +12,7 @@
     <string name="folder_name_label">Nome da pasta</string>
     <string name="folder_add_apps">Adicionar apps</string>
     <string name="folder_delete">Excluir pasta</string>
+    <string name="folder_sort_by_name">Ordenar A–Z</string>
     <string name="folder_remove_hint">Toque e segure um app para removê-lo da pasta</string>
     <string name="folder_add">Adicionar</string>
     <string name="folder_cancel">Cancelar</string>

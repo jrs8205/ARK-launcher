@@ -641,6 +641,14 @@ class AppDrawerViewModel @Inject constructor(
     fun removeAppFromDrawerFolder(id: Long, key: String) =
         viewModelScope.launch { settingsRepository.removeAppFromDrawerFolder(id, key) }
 
+    /** The folder editor's "Sort A-Z" (issue #32): the folder's apps in the order of their names, capitals
+     *  aside, as the drawer lists apps and as a home folder's editor sorts its own. Done once: an app added
+     *  later goes to the end again. */
+    fun sortDrawerFolderByName(id: Long) = viewModelScope.launch {
+        val byName = appRepository.apps.first().sortedBy { it.label.lowercase() }.map { it.key }
+        settingsRepository.sortDrawerFolder(id, byName)
+    }
+
     /** Moves a drawer folder one place earlier ([by] = -1) or later (+1) among the folders. */
     fun moveDrawerFolder(id: Long, by: Int) =
         viewModelScope.launch { settingsRepository.moveDrawerFolder(id, by) }

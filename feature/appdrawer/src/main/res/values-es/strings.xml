@@ -12,6 +12,7 @@
     <string name="folder_name_label">Nombre de la carpeta</string>
     <string name="folder_add_apps">Agregar aplicaciones</string>
     <string name="folder_delete">Eliminar carpeta</string>
+    <string name="folder_sort_by_name">Ordenar A–Z</string>
     <string name="folder_remove_hint">Mantén pulsada una aplicación para quitarla de la carpeta</string>
     <string name="folder_add">Agregar</string>
     <string name="folder_cancel">Cancelar</string>

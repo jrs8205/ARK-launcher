@@ -513,6 +513,18 @@ class SettingsRepository @Inject constructor(
         folders.map { f -> if (f.id == id) f.copy(appKeys = f.appKeys - key) else f }
     }
 
+    /**
+     * Puts the apps of the drawer folder [id] in the order of [keysInOrder] (app keys): the editor's "Sort
+     * A-Z" (issue #32), as a home folder's ([HomeLayoutRepository.sortFolder]). An app the list does not name
+     * (one that is not installed right now, and so has no name to sort by) keeps its place after the named
+     * ones. Done once: an app added later goes to the end again.
+     */
+    suspend fun sortDrawerFolder(id: Long, keysInOrder: List<String>) = editFolders { folders ->
+        val rank = keysInOrder.withIndex().associate { (index, key) -> key to index }
+        // sortedBy is stable: the unnamed apps stay in the order they had.
+        folders.map { f -> if (f.id == id) f.copy(appKeys = f.appKeys.sortedBy { rank[it] ?: Int.MAX_VALUE }) else f }
+    }
+
     /** Moves a drawer folder [by] places among the folders (negative = earlier), stopping at the ends. */
     suspend fun moveDrawerFolder(id: Long, by: Int) = editFolders { folders ->
         val from = folders.indexOfFirst { it.id == id }

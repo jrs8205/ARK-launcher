@@ -550,6 +550,28 @@ class SettingsRepositoryTest {
         assertThat(folder.appKeys).containsExactly("com.a/A/0", "com.b/B/0").inOrder()
     }
 
+    /** Issue #32: the apps inside a drawer folder can be put in the order of their names, as a home folder's.
+     *  The caller hands the order (the app list's, A to Z); an app it does not name stays after the named ones,
+     *  in the order it had; the other folders are not touched. */
+    @Test
+    fun `a drawer folder's apps are put in the order given, the unnamed after them`() = runTest {
+        val repo = newRepository()
+        val tools = repo.createDrawerFolder("Tools")
+        val games = repo.createDrawerFolder("Games")
+        repo.addAppsToDrawerFolder(tools, listOf("com.notes/N/0", "com.gone/G/0", "com.mail/M/0", "com.old/O/0", "com.docs/D/0"))
+        repo.addAppsToDrawerFolder(games, listOf("com.zebra/Z/0", "com.ant/A/0"))
+
+        repo.sortDrawerFolder(tools, listOf("com.ant/A/0", "com.docs/D/0", "com.mail/M/0", "com.notes/N/0", "com.zebra/Z/0"))
+
+        val folders = repo.drawerFolders.first().associateBy { it.id }
+        assertThat(folders.getValue(tools).appKeys)
+            .containsExactly("com.docs/D/0", "com.mail/M/0", "com.notes/N/0", "com.gone/G/0", "com.old/O/0").inOrder()
+        assertThat(folders.getValue(games).appKeys).containsExactly("com.zebra/Z/0", "com.ant/A/0").inOrder()
+        // A folder that is not there: nothing happens.
+        repo.sortDrawerFolder(99, listOf("com.ant/A/0"))
+        assertThat(repo.drawerFolders.first()).hasSize(2)
+    }
+
     @Test
     fun `twoLineHomeLabels defaults to false and round-trips`() = runTest {
         val repo = newRepository()

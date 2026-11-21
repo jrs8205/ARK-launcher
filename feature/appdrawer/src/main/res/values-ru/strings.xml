@@ -12,6 +12,7 @@
     <string name="folder_name_label">Название папки</string>
     <string name="folder_add_apps">Добавить приложения</string>
     <string name="folder_delete">Удалить папку</string>
+    <string name="folder_sort_by_name">Сортировать А–Я</string>
     <string name="folder_remove_hint">Нажмите и удерживайте приложение, чтобы убрать его из папки</string>
     <string name="folder_add">Добавить</string>
     <string name="folder_cancel">Отмена</string>

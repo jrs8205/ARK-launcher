@@ -12,6 +12,7 @@
     <string name="folder_name_label">Klasör adı</string>
     <string name="folder_add_apps">Uygulama ekle</string>
     <string name="folder_delete">Klasörü sil</string>
+    <string name="folder_sort_by_name">A–Z sırala</string>
     <string name="folder_remove_hint">Klasörden çıkarmak için uygulamayı basılı tutun</string>
     <string name="folder_add">Ekle</string>
     <string name="folder_cancel">İptal</string>

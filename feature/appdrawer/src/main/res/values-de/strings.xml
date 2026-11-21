@@ -12,6 +12,7 @@
     <string name="folder_name_label">Ordnername</string>
     <string name="folder_add_apps">Apps hinzufügen</string>
     <string name="folder_delete">Ordner löschen</string>
+    <string name="folder_sort_by_name">A–Z sortieren</string>
     <string name="folder_remove_hint">Halte eine App gedrückt, um sie aus dem Ordner zu entfernen</string>
     <string name="folder_add">Hinzufügen</string>
     <string name="folder_cancel">Abbrechen</string>
