@@ -339,10 +339,19 @@ class HomeLayoutRepository @Inject constructor(
         RemainingPins(row.packageName, row.userSerial, remaining, removedShortcutId = row.shortcutId.orEmpty())
     }
 
-    /** Runs [block] once in each home profile that has a row; what each run gave, in the profiles' order.
-     *  For what is true of the phone, not of a profile: an app is uninstalled from every profile. */
-    private suspend fun <T> inEveryProfile(block: suspend () -> T): List<T> =
+    /**
+     * Runs [block] once in each home profile that has a row; what each run gave, in the profiles' order.
+     * For what is true of the phone, not of a profile: an app is uninstalled from every profile.
+     *
+     * ONE transaction, from the listing of the profiles to the last of them: a copy of a profile is a
+     * transaction too ([copyProfile]), so it is made wholly before this or wholly after it. With the
+     * profiles listed first and each then changed in a transaction of its own, a copy made in between took
+     * its source's rows as they were (the row of an app that was being removed among them) and was not one
+     * of the profiles listed: the row stayed in the copy, showing nothing and holding its cell.
+     */
+    private suspend fun <T> inEveryProfile(block: suspend () -> T): List<T> = db.withTransaction {
         dao.profileIds().map { profile -> inHomeProfile(profile) { block() } }
+    }
 
     /**
      * Repacks the top-level home items (apps, folders, widgets) into a [columns]-wide grid via

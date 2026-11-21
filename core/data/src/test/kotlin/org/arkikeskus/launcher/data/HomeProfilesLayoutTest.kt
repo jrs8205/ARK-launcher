@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.data
 
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemDao
@@ -55,6 +56,54 @@ class HomeProfilesLayoutTest {
         HomeItemEntity(packageName = pkg, className = "", page = 0, cellX = cellX, cellY = 2, shortcutId = id)
 
     private suspend fun rowsOf(profile: Long) = inHomeProfile(profile) { dao.getAll() }
+
+    /**
+     * Review round 9. An uninstalled app's rows go from every profile. The profiles were listed first and each
+     * then changed in a transaction of its own: a copy of a profile made in between took its source's rows as
+     * they were, the gone app's among them, and was not one of the profiles listed. The row stayed in the copy,
+     * showing nothing and holding its cell. The listing and the changes are one transaction now, and a copy,
+     * which is a transaction too, is made wholly before it or wholly after it.
+     */
+    @Test fun theProfilesAreListedInsideTheTransactionTheirRowsAreChangedIn() = runTest {
+        dao.insert(app("com.gone", 0))
+        dao.insert(app("com.stays", 1))
+        var listedInATransaction: Boolean? = null
+        val watching = object : HomeItemDao by dao {
+            override suspend fun profileIds(): List<Long> {
+                listedInATransaction = db.inTransaction()
+                return dao.profileIds()
+            }
+        }
+        val sweeping = HomeLayoutRepository(db, watching, resolver)
+
+        assertThat(sweeping.removeAppRowsForPackage("com.gone", 0L)).isEqualTo(1)
+
+        assertThat(listedInATransaction).isTrue()
+        assertThat(rowsOf(1).map { it.packageName }).containsExactly("com.stays")
+    }
+
+    /** The same from the copy's side: asked for while the rows are being removed, it is made after them and has
+     *  nothing of the app that is gone. */
+    @Test fun aCopyAskedForWhileAnAppsRowsAreRemovedHasNoneOfThem() = runTest {
+        dao.insert(app("com.gone", 0))
+        dao.insert(app("com.stays", 1))
+        var copy: kotlinx.coroutines.Deferred<Map<Long, Long>>? = null
+        val copying = object : HomeItemDao by dao {
+            override suspend fun profileIds(): List<Long> {
+                val ids = dao.profileIds()
+                // The profiles are listed: the copy is asked for right now, on a thread of its own.
+                copy = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
+                    .async { repo.copyProfile(from = 1, to = 2) }
+                return ids
+            }
+        }
+
+        HomeLayoutRepository(db, copying, resolver).removeAppRowsForPackage("com.gone", 0L)
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { copy!!.await() }
+
+        assertThat(rowsOf(1).map { it.packageName }).containsExactly("com.stays")
+        assertThat(rowsOf(2).map { it.packageName }).containsExactly("com.stays")
+    }
 
     @Test fun theSweepSeesEveryProfilesWidgets() = runTest {
         dao.insert(widget("com.clock", 11, cellX = 0))
