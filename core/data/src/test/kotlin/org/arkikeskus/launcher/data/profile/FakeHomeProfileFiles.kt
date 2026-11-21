@@ -57,6 +57,8 @@ class FakeHomeProfileFiles : HomeProfileFiles {
 
     override fun store(profileId: Long): CountingStore = stores.getOrPut(profileId) { CountingStore() }
 
+    override suspend fun ids(): List<Long> = stores.keys.sorted()
+
     override suspend fun delete(profileId: Long) {
         failDelete?.let { throw it }
         stores.remove(profileId)

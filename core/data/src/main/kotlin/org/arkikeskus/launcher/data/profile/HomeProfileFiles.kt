@@ -24,6 +24,9 @@ interface HomeProfileFiles {
 
     /** Closes the store of [profileId] and removes what it kept. */
     suspend fun delete(profileId: Long)
+
+    /** The profiles a store is kept for right now, whether the list of profiles names them or not. */
+    suspend fun ids(): List<Long>
 }
 
 /** [HomeProfileFiles] on the disk: `home_profile_<id>` beside the settings file. */
@@ -59,5 +62,15 @@ class DiskHomeProfileFiles(
         withContext(Dispatchers.IO) { context.preferencesDataStoreFile(fileName(profileId)).delete() }
     }
 
+    override suspend fun ids(): List<Long> = withContext(Dispatchers.IO) {
+        val folder = context.preferencesDataStoreFile(fileName(0)).parentFile
+        folder?.listFiles().orEmpty().mapNotNull { STORE_FILE.matchEntire(it.name)?.groupValues?.get(1)?.toLongOrNull() }.sorted()
+    }
+
     private fun fileName(profileId: Long) = "home_profile_$profileId"
+
+    private companion object {
+        /** A profile's store on the disk: [fileName] with the extension a preferences store gets. */
+        val STORE_FILE = Regex("""home_profile_(\d+)\.preferences_pb""")
+    }
 }

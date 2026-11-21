@@ -95,6 +95,28 @@ class SettingsAcrossProfilesTest {
         assertThat(settings.settings.first().baseColour).isEqualTo("blue")
     }
 
+    /**
+     * Review round 9. The pictures that are in use are asked of every profile, and "every profile" was the list.
+     * The list is in the settings file; a settings file that was damaged reads as one profile, while the other
+     * profiles' own stores are still on the disk and still name their folders' pictures. Those pictures were
+     * taken for unused at the next start and deleted. A profile whose store is still there is asked too.
+     */
+    @Test fun theFolderPicturesOfAProfileTheListLostAreStillInUse() = runTest {
+        val home = CustomIcon.FromFile("home.png")
+        val work = CustomIcon.FromFile("work.png")
+        settings.setFolderIcon(FolderIconKey.drawer(1), home)
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setFolderIcon(FolderIconKey.drawer(1), work)
+        store.setActive(1)
+        assertThat(settings.folderIconsOfEveryProfile()).containsExactly(home, work)
+
+        main.updateData { androidx.datastore.preferences.core.emptyPreferences() }
+
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(settings.folderIconsOfEveryProfile()).contains(work)
+    }
+
     @Test fun anExportHasNoneOfTheReservedKeys() = runTest {
         settings.setBaseColour("blue")
         store.rename(1, "Home")

@@ -54,6 +54,25 @@ class DiskHomeProfileFilesTest {
         assertThat(files.store(2).data.first().asMap()).isEmpty()
     }
 
+    /**
+     * The profiles a file is kept for are read from the disk itself, not from the list of profiles (which is in
+     * the settings file and is lost with it): the files that are there, by the ids in their names, and nothing
+     * else that happens to lie beside them.
+     */
+    @Test fun theProfilesAFileIsKeptForAreThoseOfTheFilesOnTheDisk(): Unit = runBlocking {
+        assertThat(files.ids()).isEmpty()
+        files.store(3).edit { it[baseColour] = "red" }
+        files.store(12).edit { it[baseColour] = "green" }
+        // The settings file itself, and a file whose name only resembles a profile's.
+        context.preferencesDataStoreFile("settings").apply { parentFile?.mkdirs() }.writeBytes(ByteArray(0))
+        context.preferencesDataStoreFile("home_profile_x").writeBytes(ByteArray(0))
+
+        assertThat(files.ids()).containsExactly(3L, 12L).inOrder()
+
+        files.delete(3)
+        assertThat(files.ids()).containsExactly(12L)
+    }
+
     @Test fun deletingAProfileThatNeverWroteAnythingIsFine() = runBlocking {
         files.delete(5)
 

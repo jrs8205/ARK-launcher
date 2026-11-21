@@ -137,14 +137,23 @@ class ProfiledPreferences(
      * one profile at a time without it, a reader looked a profile up in its own store, the delete went by,
      * and the store it then read was gone: no values, and the pictures those values name were taken for unused.
      * Not for a caller that holds [mutex].
+     *
+     * And after those, of every profile whose own store is still on the disk though the list does not name it
+     * ([everyProfile]): the list is in the settings file, and a settings file that was damaged reads as one
+     * profile, while the other profiles' stores are still there and still name their folders' pictures. Read
+     * from the list alone, those pictures were taken for unused at the next start and deleted.
      */
     suspend fun valuesOfEveryProfile(): List<Preferences> = mutex.withLock {
         val shared = main.data.first()
         val inMain = mainStoreId(shared)
+        everyProfile(shared).map { id -> perProfileOf(if (id == inMain) shared else files.store(id).data.first()) }
+    }
+
+    /** Every profile something of its own is kept for: those the list in [shared] names, in its order, then
+     *  those being made, then those whose own store is still there unlisted. For a caller that holds [mutex]. */
+    private suspend fun everyProfile(shared: Preferences): List<Long> {
         val listed = HomeProfile.decode(shared[LIST]).map { it.id }
-        (listed + beingMade.filter { it !in listed }).map { id ->
-            perProfileOf(if (id == inMain) shared else files.store(id).data.first())
-        }
+        return (listed + beingMade + files.ids()).distinct()
     }
 
     /**
@@ -156,8 +165,7 @@ class ProfiledPreferences(
      * that holds [mutex].
      */
     suspend fun updateEveryProfile(transform: (MutablePreferences) -> Unit) = mutex.withLock {
-        val listed = HomeProfile.decode(main.data.first()[LIST]).map { it.id }
-        for (id in listed + beingMade.filter { it !in listed }) updateProfileLocked(id, transform)
+        for (id in everyProfile(main.data.first())) updateProfileLocked(id, transform)
     }
 
     /** Runs [transform] on the own values of [profileId] alone, whether it is on or not; anything it sets
