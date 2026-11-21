@@ -854,6 +854,35 @@ class AppDrawerScreenTest {
         awaitState("automatic again") { it.labelColor == null }
     }
 
+    /**
+     * Review round 10. The store of the drawer pictures follows a profile switch a moment late: it reads the new
+     * profile's picture from the disk first. The drawer joined the new profile's folders and colours with
+     * whatever picture the store showed, so an open drawer drew the previous profile's own picture for that
+     * moment. The picture is taken only while it is the picture of the profile the state is of. (Here the store
+     * the drawer reads never follows the switch at all, which holds that moment still.)
+     */
+    @Test fun theDrawerDoesNotShowAnotherProfilesPicture() {
+        val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
+        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
+        show()
+        awaitState("the first profile's picture") { it.homeProfileId == 1L && it.wallpaper != null }
+        compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertExists()
+        val work = runBlocking {
+            (wiring.homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile.id
+        }
+
+        runBlocking { assertThat(wiring.homeProfiles.switchTo(work)).isTrue() }
+        awaitState("Work is on") { it.homeProfileId == work }
+        settle()
+
+        assertThat(wiring.drawerWallpaper.shown.value.profile).isEqualTo(1L)
+        assertThat(viewModel.uiState.value.wallpaper).isNull()
+        compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
+        // Back on the first profile, its picture is its own again.
+        runBlocking { assertThat(wiring.homeProfiles.switchTo(1)).isTrue() }
+        awaitState("the first profile's picture again") { it.homeProfileId == 1L && it.wallpaper != null }
+    }
+
     /** A Telegram request after 0.9.9: the user's own picture reaches the drawer with its lightness, and is drawn under
      *  the surface; removed, the drawer is back to the system wallpaper. */
     @Test fun theDrawerShowsTheUsersOwnPictureWhileOneIsSet() {

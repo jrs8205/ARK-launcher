@@ -352,8 +352,10 @@ class AppDrawerViewModel @Inject constructor(
                 .map { it.first }
             state.copy(frequentApps = ranked)
         }
-    }.combine(drawerWallpaper.current) { state, wallpaper ->
-        state.copy(wallpaper = wallpaper)
+    }.combine(drawerWallpaper.shown) { state, shown ->
+        // Only while it is the picture of the profile this state is of: the store follows a switch a moment
+        // late (it reads the disk first), and the previous profile's picture is not this one's.
+        state.copy(wallpaper = shown.of(state.homeProfileId))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

@@ -13,6 +13,8 @@ import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.LauncherAppsSource
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.ShownDrawerWallpaper
+import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.DrawerSurface
 import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.model.drawerSurface
@@ -72,16 +74,7 @@ class LauncherShellViewModel @Inject constructor(
 
     /** The status-bar settings the system bars' glyph colour depends on (see SystemBarContrast). */
     val statusBars: StateFlow<StatusBarSettings> = settingsRepository.settings
-        .combine(drawerWallpaper.current) { it, picture ->
-            StatusBarSettings(
-                ownBarShown = it.showStatusBar,
-                systemBarHidden = it.hideSystemStatusBar,
-                scrimOpacity = it.statusBarScrimOpacity,
-                drawerSurface = drawerSurface(it.drawerBackgroundColor, it.drawerBackgroundOpacity, picture != null, it.drawerPictureDim),
-                drawerPicture = picture,
-                glassOpacity = if (it.homeGlassPanel) it.homeGlassOpacity else null,
-            )
-        }
+        .combine(drawerWallpaper.shown, ::statusBarSettings)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())
 
     /** The long-press delay setting, applied once at the shell root for every press site under it. */
@@ -93,6 +86,25 @@ class LauncherShellViewModel @Inject constructor(
     val drawerBlur: StateFlow<DrawerBlur> = settingsRepository.settings
         .map { DrawerBlur(enabled = it.blurBehindDrawer, strength = it.drawerBlurStrength) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DrawerBlur())
+}
+
+/**
+ * [StatusBarSettings] of [settings] and the drawer picture the store shows ([shown]). The picture counts only
+ * while it is the picture of the home profile the settings are of: the store follows a profile switch a moment
+ * late, and the previous profile's picture says nothing of this profile's drawer.
+ */
+internal fun statusBarSettings(settings: LauncherSettings, shown: ShownDrawerWallpaper): StatusBarSettings {
+    val picture = shown.of(settings.homeProfileId)
+    return StatusBarSettings(
+        ownBarShown = settings.showStatusBar,
+        systemBarHidden = settings.hideSystemStatusBar,
+        scrimOpacity = settings.statusBarScrimOpacity,
+        drawerSurface = drawerSurface(
+            settings.drawerBackgroundColor, settings.drawerBackgroundOpacity, picture != null, settings.drawerPictureDim,
+        ),
+        drawerPicture = picture,
+        glassOpacity = if (settings.homeGlassPanel) settings.homeGlassOpacity else null,
+    )
 }
 
 /** The wallpaper blur behind the rising drawer: on or off, and its radius as a multiple of the 0.9.9 blur. */
