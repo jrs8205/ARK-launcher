@@ -79,8 +79,8 @@ internal class SettingsViewModel @Inject constructor(
 
     /** A profile that could not be made whole is not made at all, and the screen says so: it would otherwise
      *  just not appear in the list. */
-    override fun createHomeProfile(name: String, copyCurrent: Boolean) = update {
-        if (homeProfileRepository.create(name, copyCurrent) == HomeProfileRepository.Created.Failed) {
+    override fun createHomeProfile(name: String, copyOf: Long?) = update {
+        if (homeProfileRepository.create(name, copyOf) == HomeProfileRepository.Created.Failed) {
             _notices.trySend(SettingsNotice.PROFILE_NOT_MADE)
         }
     }

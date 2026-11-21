@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.data.profile
 
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -257,12 +258,70 @@ class HomeProfileStoreTest {
 
     @Test fun anEmptyProfileIsEmptyThoughAnInterruptedCopyLeftAFileUnderItsId() = runTest {
         // A copy that died after its values were written and before it was listed: the id is given again.
-        files.store(2).edit { it[baseColour] = "blue"; it[homeColumns] = 6 }
+        main.edit { it[baseColour] = "blue"; it[homeColumns] = 6 }
+        assertThat(store.prepare("Copy", copyOf = 1)!!.id).isEqualTo(2L)
+        assertThat(view.profileValues(2)[baseColour]).isEqualTo("blue")
+        view.made(2)
 
         val made = store.create("Evening", copyOf = null)!!
 
         assertThat(made.id).isEqualTo(2L)
         assertThat(view.profileValues(2).asMap()).isEmpty()
+    }
+
+    /**
+     * Review round 8 (P1). An id that something is kept under is not given, unless its own store says it was an
+     * attempt that died: after a damaged settings file the list is one profile again, and the other profiles'
+     * values are still in their stores. The new profile's values are not written over them.
+     */
+    @Test fun anIdThatAProfilesValuesAreKeptUnderIsNotGivenToTheNextProfile() = runTest {
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        view.edit { it[baseColour] = "green" }
+        store.setActive(1)
+        main.updateData { emptyPreferences() }
+
+        val made = store.create("New", copyOf = null)!!
+
+        assertThat(made.id).isEqualTo(3L)
+        assertThat(view.profileValues(2)[baseColour]).isEqualTo("green")
+        // What the caller knows to be kept under an id (layout rows, pictures) passes it over too.
+        assertThat(store.prepare("Next", copyOf = null, kept = setOf(4L, 5L))!!.id).isEqualTo(6L)
+    }
+
+    /** A profile is marked as being made only until it is listed: its own values never show the mark, and a
+     *  listed profile's store does not carry it. */
+    @Test fun theMarkOfBeingMadeIsGoneOnceTheProfileIsListedAndIsNeverOneOfItsValues() = runTest {
+        val beingMade = androidx.datastore.preferences.core.booleanPreferencesKey(HomeProfileKeys.BEING_MADE)
+        val profile = store.prepare("Work", copyOf = null)!!
+        assertThat(files.store(profile.id).now[beingMade]).isTrue()
+        assertThat(view.profileValues(profile.id).asMap()).isEmpty()
+
+        assertThat(store.publish(profile)).isTrue()
+
+        assertThat(files.store(profile.id).now[beingMade]).isNull()
+    }
+
+    /**
+     * Review round 8. A profile's own store that nothing reads any more is dropped after the list has been
+     * written. A store that could not be removed threw from there: a restore lost the ids of the profiles it had
+     * just removed (their pictures were then never cleared), and a deletion was reported as not done.
+     */
+    @Test fun aStoreThatCannotBeRemovedUndoesNeitherADeletionNorARestoresClearing() = runTest {
+        store.create("Work", copyOf = null)
+        store.create("Evening", copyOf = null)
+        store.setActive(2)
+        files.failDelete = java.io.IOException("the file is in use")
+
+        // The first profile's values are in the settings file: Work's move there, and its own store is left.
+        assertThat(store.delete(1)).isTrue()
+        assertThat(store.list().map { it.id }).containsExactly(2L, 3L).inOrder()
+        assertThat(main.now[mainStore]).isEqualTo(2L)
+
+        store.setActive(3)
+        assertThat(store.keepOnlyActive()).containsExactly(2L)
+        assertThat(store.list().map { it.id }).containsExactly(3L)
+        assertThat(main.now[mainStore]).isEqualTo(3L)
     }
 
     @Test fun aSwitchWaitsWhileSomeoneNeedsTheProfileToStay() = runTest {

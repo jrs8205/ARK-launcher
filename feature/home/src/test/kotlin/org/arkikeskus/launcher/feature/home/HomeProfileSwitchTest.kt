@@ -75,7 +75,7 @@ class HomeProfileSwitchTest {
         dao.insert(row(calc, cellX = 1, container = homeFolder))
         settingsRepository.setFolderIcon(FolderIconKey.home(homeFolder), CustomIcon.FromPack("com.pack", "home"))
 
-        val work = (homeProfiles.create("Work", copyCurrent = false) as HomeProfileRepository.Created.Done).profile.id
+        val work = (homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile.id
         homeProfiles.switchTo(work)
         settingsRepository.settings.first { it.homeProfileId == work }
         settingsRepository.setHomeColumns(5)

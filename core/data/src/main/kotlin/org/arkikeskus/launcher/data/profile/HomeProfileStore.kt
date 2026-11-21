@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data.profile
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -61,31 +62,12 @@ class HomeProfileStore(
     suspend fun list(): List<HomeProfile> = profilesIn(main.data.first())
 
     /**
-     * A new profile after the others, with a copy of [copyOf]'s own values or with none. Null when the
-     * list is full. It is not switched to.
+     * A new profile after the others, with a copy of [copyOf]'s own values or with none: [prepare] and
+     * [publish] in one, for a caller that has nothing else to make of it. Null when the list is full. It is
+     * not switched to.
      */
-    suspend fun create(name: String, copyOf: Long?): HomeProfile? = view.mutex.withLock {
-        val now = main.data.first()
-        val list = profilesIn(now)
-        if (list.size >= HomeProfile.MAX_PROFILES) return@withLock null
-        val id = maxOf(now[LAST_ID] ?: 0L, list.maxOf { it.id }) + 1
-        val profile = HomeProfile(id, HomeProfile.cleanName(name))
-        // Its values before its place in the list: a profile that is listed always has what it shows. An
-        // empty one's file is written too: a copy that died between its values and its place in the list
-        // left a file under this very id, which an empty profile would otherwise show as its own.
-        // A copy takes its source's own values but not its bookkeeping ([HomeProfileKeys.NOT_COPIED]).
-        val source = if (copyOf != null && list.any { it.id == copyOf }) {
-            mutablePreferencesOf().apply { copy(view.profileValues(copyOf)) { it !in HomeProfileKeys.NOT_COPIED } }
-        } else {
-            emptyPreferences()
-        }
-        files.store(id).updateData { source }
-        main.edit {
-            it[LIST] = HomeProfile.encode(list + profile)
-            it[LAST_ID] = id
-        }
-        profile
-    }
+    suspend fun create(name: String, copyOf: Long?): HomeProfile? =
+        prepare(name, copyOf)?.takeIf { publish(it) }
 
     /**
      * The first half of [create]: the profile a new one will be, with its own values written (a copy of
@@ -95,19 +77,25 @@ class HomeProfileStore(
      * shows its source's look over an empty home screen. Its id is given again until a profile is listed
      * with it, so whoever makes the rest first clears what an earlier attempt left under that id.
      *
+     * The id is one that NOTHING IS KEPT UNDER, or only what an attempt that died left ([freeId]). [kept] are
+     * the ids the caller knows something is kept under outside the settings (layout rows, pictures). The
+     * profile's own store says that it is being made ([HomeProfileKeys.BEING_MADE]) until [publish].
+     *
      * A write that fails (a full disk) is thrown to the caller, with what it may have left of the file taken
      * away first: there is no profile to give up ([discard]) when this did not return one.
      */
-    suspend fun prepare(name: String, copyOf: Long?): HomeProfile? = view.mutex.withLock {
+    suspend fun prepare(name: String, copyOf: Long?, kept: Set<Long> = emptySet()): HomeProfile? = view.mutex.withLock {
         val now = main.data.first()
         val list = profilesIn(now)
         if (list.size >= HomeProfile.MAX_PROFILES) return@withLock null
-        val profile = HomeProfile(nextId(now, list), HomeProfile.cleanName(name))
+        val profile = HomeProfile(freeId(now, list, kept), HomeProfile.cleanName(name))
         // Known as being made BEFORE its values are written: from that write on they name pictures (a copy's
         // folders show its source's), and whoever asks which pictures are in use must find them named.
         view.making(profile.id)
         try {
-            files.store(profile.id).updateData { valuesFor(copyOf, list) }
+            files.store(profile.id).updateData {
+                valuesFor(copyOf, list).toMutablePreferences().apply { this[BEING_MADE] = true }.toPreferences()
+            }
         } catch (e: Exception) {
             view.made(profile.id)
             dropFile(profile.id)
@@ -121,6 +109,10 @@ class HomeProfileStore(
         val now = main.data.first()
         val list = profilesIn(now)
         if (list.size >= HomeProfile.MAX_PROFILES || list.any { it.id == profile.id }) return@withLock false
+        // Whole now, and said so in its own store BEFORE it is listed: listed first, a profile whose mark was
+        // never taken out would look like an attempt that died to whoever reads its store after the list was
+        // lost, and be cleared. (Dying between the two leaves it unlisted and unmarked: kept, never taken.)
+        files.store(profile.id).updateData { it.toMutablePreferences().apply { remove(BEING_MADE) }.toPreferences() }
         main.edit {
             it[LIST] = HomeProfile.encode(list + profile)
             it[LAST_ID] = maxOf(now[LAST_ID] ?: 0L, profile.id)
@@ -136,7 +128,30 @@ class HomeProfileStore(
         if (profilesIn(main.data.first()).none { it.id == profile.id }) dropFile(profile.id)
     }
 
-    private fun nextId(now: Preferences, list: List<HomeProfile>): Long = maxOf(now[LAST_ID] ?: 0L, list.maxOf { it.id }) + 1
+    /**
+     * The id a new profile gets: the first one after every id the list has and remembers having given, that
+     * nothing is kept under. The list and its memory are in the settings file, and a settings file that was
+     * damaged reads as empty: one unnamed first profile, no memory of any id. The other profiles' own stores,
+     * their layout rows and their pictures are elsewhere and are still there. Counted from the list alone,
+     * the next profile got the id of one of them, its values were written over that profile's, and its
+     * maker cleared that profile's home screen as if it were its own left-overs.
+     *
+     * So an id is passed over when anything is kept under it: values in its own store, or what the caller
+     * knows of ([kept]: layout rows, pictures). The one exception is an id whose store says it was being made
+     * ([HomeProfileKeys.BEING_MADE]): that is an attempt that died half-way, never a profile anyone used, and
+     * it is given again for its maker to clear.
+     */
+    private suspend fun freeId(now: Preferences, list: List<HomeProfile>, kept: Set<Long>): Long {
+        var id = maxOf(now[LAST_ID] ?: 0L, list.maxOf { it.id }) + 1
+        while (isKeptUnder(id, kept)) id++
+        return id
+    }
+
+    private suspend fun isKeptUnder(id: Long, kept: Set<Long>): Boolean {
+        val own = files.store(id).data.first()
+        if (own[BEING_MADE] == true) return false
+        return id in kept || own.asMap().isNotEmpty()
+    }
 
     /** A new profile's own values: [copyOf]'s without its bookkeeping ([HomeProfileKeys.NOT_COPIED]), or none. */
     private suspend fun valuesFor(copyOf: Long?, list: List<HomeProfile>): Preferences =
@@ -247,7 +262,9 @@ class HomeProfileStore(
      * Makes [profileId], whose own values are in a store of its own, the profile that lives in the settings
      * file: in ONE write its values replace the per-profile values there (those of a profile that is going)
      * and the list becomes [list]. Only then is its own store dropped; if that never happens the left-over
-     * store is never read, since the settings file now says where the values are.
+     * store is never read, since the settings file now says where the values are. So a store that cannot be
+     * removed fails nothing ([dropFile]): thrown from here, a deletion that had happened was reported as one
+     * that had not, and a restore lost the list of the profiles it had removed (their pictures stayed).
      */
     private suspend fun moveIntoMain(profileId: Long, list: List<HomeProfile>) {
         val own = view.profileValues(profileId)
@@ -257,7 +274,7 @@ class HomeProfileStore(
             p[MAIN_STORE] = profileId
             p[LIST] = HomeProfile.encode(list)
         }
-        files.delete(profileId)
+        dropFile(profileId)
     }
 
     private fun MutablePreferences.removePerProfile() {
@@ -277,5 +294,6 @@ class HomeProfileStore(
         val MAIN_STORE = longPreferencesKey(HomeProfileKeys.MAIN_STORE)
         val LIST = stringPreferencesKey(HomeProfileKeys.LIST)
         val LAST_ID = longPreferencesKey(HomeProfileKeys.LAST_ID)
+        val BEING_MADE = booleanPreferencesKey(HomeProfileKeys.BEING_MADE)
     }
 }

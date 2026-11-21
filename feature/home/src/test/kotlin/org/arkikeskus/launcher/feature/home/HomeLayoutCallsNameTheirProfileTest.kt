@@ -171,7 +171,7 @@ class HomeLayoutCallsNameTheirProfileTest {
         try {
             val viewModel = wiring.homeViewModel()
             wiring.seed()
-            val copy = (wiring.homeProfiles.create("Copy", copyCurrent = true) as HomeProfileRepository.Created.Done).profile.id
+            val copy = (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
             assertThat(wiring.homeProfiles.switchTo(copy)).isTrue()
             wiring.settingsRepository.settings.first { it.homeProfileId == copy }
             awaitUntil("the copy on screen") { viewModel.uiState.first().let { it.loaded && it.homeProfileId == copy } }

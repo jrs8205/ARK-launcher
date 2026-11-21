@@ -107,8 +107,9 @@ internal interface SettingsActions {
     fun setHomeGlassOpacity(value: Float)
     fun setStatusBarScrimOpacity(value: Float)
 
-    /** A new home profile named [name]: a copy of the one in use ([copyCurrent]) or an empty one. */
-    fun createHomeProfile(name: String, copyCurrent: Boolean)
+    /** A new home profile named [name]: a copy of the profile [copyOf] (the one the page showed as in use
+     *  when the user asked), or for null an empty one. */
+    fun createHomeProfile(name: String, copyOf: Long?)
     fun switchHomeProfile(id: Long)
     fun renameHomeProfile(id: Long, name: String)
     fun deleteHomeProfile(id: Long)

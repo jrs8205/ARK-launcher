@@ -120,7 +120,8 @@ class ProfilesSectionTest {
         compose.onNodeWithText(text(R.string.settings_profile_empty)).performClick()
         compose.onNodeWithText(text(R.string.settings_profile_create)).performClick()
 
-        assertThat(calls("createHomeProfile")).containsExactly(listOf("Work", true), listOf("Evening", false)).inOrder()
+        // The copy names the profile the page shows as in use; an empty one names none.
+        assertThat(calls("createHomeProfile")).containsExactly(listOf("Work", 1L), listOf("Evening", null)).inOrder()
     }
 
     /** A name that runs over its limit in the middle of an emoji loses the whole emoji, in the field already:
@@ -134,7 +135,7 @@ class ProfilesSectionTest {
         val shown = compose.onNode(hasSetTextAction()).fetchSemanticsNode().config.getOrNull(SemanticsProperties.EditableText)?.text
         assertThat(shown).isEqualTo("x".repeat(23))
         compose.onNodeWithText(text(R.string.settings_profile_create)).performClick()
-        assertThat(calls("createHomeProfile")).containsExactly(listOf("x".repeat(23), true))
+        assertThat(calls("createHomeProfile")).containsExactly(listOf("x".repeat(23), 1L))
     }
 
     @Test fun aProfileIsRenamed() {

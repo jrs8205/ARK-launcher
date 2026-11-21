@@ -52,9 +52,13 @@ class FakeHomeProfileFiles : HomeProfileFiles {
     val stores = HashMap<Long, CountingStore>()
     val deleted = mutableListOf<Long>()
 
+    /** While set, no store can be removed: every [delete] fails with it. */
+    var failDelete: Throwable? = null
+
     override fun store(profileId: Long): CountingStore = stores.getOrPut(profileId) { CountingStore() }
 
     override suspend fun delete(profileId: Long) {
+        failDelete?.let { throw it }
         stores.remove(profileId)
         deleted += profileId
     }

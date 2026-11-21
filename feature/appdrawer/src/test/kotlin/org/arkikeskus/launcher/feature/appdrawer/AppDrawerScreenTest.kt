@@ -265,7 +265,7 @@ class AppDrawerScreenTest {
     @Test fun aFoldersEditorAndItsQuestionGoWhenAnotherProfileComesOn() {
         showWithFolder()
         val copy = runBlocking {
-            (wiring.homeProfiles.create("Copy", copyCurrent = true) as HomeProfileRepository.Created.Done).profile.id
+            (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
         }
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
         settle()
@@ -293,7 +293,7 @@ class AppDrawerScreenTest {
         show()
         awaitText(mailApp)
         val copy = runBlocking {
-            (wiring.homeProfiles.create("Copy", copyCurrent = true) as HomeProfileRepository.Created.Done).profile.id
+            (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
         }
         compose.onNodeWithText(mailApp).performTouchInput { longClick() }
         awaitText(appInfo())

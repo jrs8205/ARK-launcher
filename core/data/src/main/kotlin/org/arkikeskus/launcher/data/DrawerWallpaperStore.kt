@@ -286,6 +286,18 @@ class DrawerWallpaperStore internal constructor(
         copied
     }
 
+    /** The home profiles a picture is kept for, whether the list of profiles names them or not. */
+    suspend fun profilesWithPictures(): Set<Long> = withContext(io) {
+        context.filesDir.listFiles().orEmpty().mapNotNullTo(HashSet()) { dir ->
+            val id = when {
+                dir.name == FIRST_DIR -> HomeProfile.FIRST_ID
+                dir.name.startsWith(FIRST_DIR + "_") -> dir.name.removePrefix(FIRST_DIR + "_").toLongOrNull()
+                else -> null
+            }
+            id?.takeIf { dir.isDirectory && dir.listFiles().orEmpty().any { it.extension == "jpg" } }
+        }
+    }
+
     /** Removes the picture of the home profile [profile] with its folder: the profile was deleted. A pick or a
      *  removal on its way there loses its ticket: nothing is saved for a profile that is gone. */
     suspend fun delete(profile: Long) = withContext(io) {

@@ -102,7 +102,9 @@ internal fun ProfilesRows(s: LauncherSettings, lists: SettingsLists, actions: Se
         NewProfileDialog(
             onCreate = { name, copy ->
                 creating = false
-                actions.createHomeProfile(name, copy)
+                // "A copy of the one in use" is the profile this page shows as in use: named, so that the copy
+                // is of it whichever profile is on when the making gets its turn.
+                actions.createHomeProfile(name, if (copy) s.homeProfileId else null)
             },
             onDismiss = { creating = false },
         )

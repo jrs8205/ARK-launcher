@@ -11,6 +11,7 @@ import org.arkikeskus.launcher.data.DeletedProfileRows
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.ShortcutIconKey
 import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.WidgetIdReleaser
 import org.arkikeskus.launcher.model.HomeProfile
@@ -59,9 +60,12 @@ class HomeProfileRepository @Inject constructor(
     suspend fun <T> whileProfileStays(work: suspend () -> T): T = store.whileActiveStays { work() }
 
     /**
-     * A new profile after the others: a copy of the one that is on ([copyCurrent]: its look, its layout, its
-     * drawer folders and pictures; an app widget arrives as a placeholder to set up again), or an empty one
-     * with the default look. It is not switched to, and cannot be until it is whole: a tap on it the moment
+     * A new profile after the others: a copy of the profile [copyOf] (its look, its layout, its drawer folders
+     * and pictures; an app widget arrives as a placeholder to set up again), or, for null, an empty one with
+     * the default look. [copyOf] is the profile the user saw named as the one to copy when confirming, handed
+     * over by the screen: not whichever profile is on when this gets its turn, which after a switch that was
+     * waiting is another one (a copy of the wrong profile was then made and reported as done). A source that
+     * is gone by then makes nothing ([Created.Failed]). It is not switched to, and cannot be until it is whole: a tap on it the moment
      * it was listed showed it before its rows and its drawer picture were there.
      *
      * It is LISTED LAST, when its values, its rows and its picture are all there. Listed first, a process that
@@ -71,13 +75,20 @@ class HomeProfileRepository @Inject constructor(
      * is given, and that one starts by clearing it. (Nothing sweeps unlisted rows at a start: the list is
      * read from a file that reads as empty when it is damaged, and such a sweep would then delete every
      * profile's home screen but the first.)
+     *
+     * For the same reason the id is never one that something is kept under, unless its own store says it was
+     * an attempt that died ([HomeProfileStore.prepare]): after a damaged settings file the list is one profile
+     * again, and the other profiles' rows and pictures are still there under their ids. What is cleared below
+     * is therefore only ever an attempt's left-overs.
      */
-    suspend fun create(name: String, copyCurrent: Boolean): Created = withContext(NonCancellable) {
-        store.whileActiveStays { source ->
+    suspend fun create(name: String, copyOf: Long?): Created = withContext(NonCancellable) {
+        store.whileActiveStays {
             // Its own values are the first thing written, and that write fails as any other can (a full disk):
             // nothing is made of the profile then, and the store leaves nothing of the attempt.
             val profile = try {
-                store.prepare(name, copyOf = source.takeIf { copyCurrent }) ?: return@whileActiveStays Created.Full
+                if (copyOf != null && store.list().none { it.id == copyOf }) return@whileActiveStays Created.Failed
+                val kept = layout.profilesWithRows() + drawerPictures.profilesWithPictures()
+                store.prepare(name, copyOf, kept) ?: return@whileActiveStays Created.Full
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -87,11 +98,11 @@ class HomeProfileRepository @Inject constructor(
                 // What an attempt that died left under this id (an id is given again until it is listed).
                 dropRows(profile.id)
                 drawerPictures.delete(profile.id)
-                if (copyCurrent) {
-                    val folderIds = layout.copyProfile(from = source, to = profile.id)
+                if (copyOf != null) {
+                    val folderIds = layout.copyProfile(from = copyOf, to = profile.id)
                     // A home folder's own icon is filed by its row id, and the copy's folders are new rows.
                     settings.moveHomeFolderIcons(profile.id, folderIds)
-                    check(drawerPictures.copy(from = source, to = profile.id)) { "the drawer's picture could not be copied" }
+                    check(drawerPictures.copy(from = copyOf, to = profile.id)) { "the drawer's picture could not be copied" }
                 }
                 check(store.publish(profile)) { "the list of profiles filled up" }
                 Created.Done(profile)
@@ -117,13 +128,23 @@ class HomeProfileRepository @Inject constructor(
      * leave the caller without an answer. A deletion then said the profile was whole while its home screen
      * was empty, and did not let go of its widgets. An app's set that cannot be read or pinned now is left as
      * the system has it: at worst it keeps a pin no home screen shows, until that app's pins next change.
+     *
+     * The icon the user picked for a pinned shortcut is one value for every profile, filed by the shortcut: it
+     * goes with the shortcut's LAST copy, here as when one shortcut is removed from a home screen. Left behind,
+     * the same shortcut pinned again later wore the old icon, and a gallery picture stayed in use for ever.
      */
     private suspend fun dropRows(id: Long): DeletedProfileRows = ShortcutPinLock.withLock {
         val gone = layout.deleteProfile(id)
         withContext(Dispatchers.IO) {
             for ((packageName, userSerial) in gone.shortcutOwners) {
                 try {
-                    resolver.pinShortcuts(packageName, userSerial, layout.homeShortcutIds(packageName, userSerial))
+                    val left = layout.homeShortcutIds(packageName, userSerial)
+                    resolver.pinShortcuts(packageName, userSerial, left)
+                    for ((pkg, shortcutId, serial) in gone.shortcuts) {
+                        if (pkg != packageName || serial != userSerial || shortcutId in left) continue
+                        val key = ShortcutIconKey.of(pkg, shortcutId, serial)
+                        if (key in settings.shortcutIcons.first()) settings.setShortcutIcon(key, null)
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

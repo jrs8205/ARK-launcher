@@ -19,6 +19,15 @@ object HomeProfileKeys {
     /** The highest home profile id ever given (a Long), so an id is never used twice. */
     const val LAST_ID = "home_profile_last_id"
 
+    /**
+     * In a profile's OWN store, while that profile is being made (a Boolean): its values are written and it is
+     * not listed yet. Taken out again just before it is listed. It tells what an attempt that died left under
+     * an id (which the next profile may clear and take) from a profile that was whole once and whose listing
+     * was lost with a damaged settings file (which nothing may clear). Not one of a profile's own values: it
+     * is never seen through the settings and never in a backup.
+     */
+    const val BEING_MADE = "home_profile_being_made"
+
     /** The profile bookkeeping itself: on neither side, never in a backup's settings, never set by an import. */
     val RESERVED: Set<String> = setOf(ACTIVE, MAIN_STORE, LIST, LAST_ID)
 

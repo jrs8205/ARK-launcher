@@ -95,8 +95,9 @@ class HomeProfileRepositoryTest {
 
     private suspend fun rowsOf(profile: Long) = inHomeProfile(profile) { dao.getAll() }
 
+    /** A new profile: a copy of the one that is on, as the page that shows it would ask, or an empty one. */
     private suspend fun created(name: String, copyCurrent: Boolean): HomeProfile =
-        (profiles.create(name, copyCurrent) as HomeProfileRepository.Created.Done).profile
+        (profiles.create(name, copyOf = if (copyCurrent) store.current() else null) as HomeProfileRepository.Created.Done).profile
 
     private fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
 
@@ -173,7 +174,7 @@ class HomeProfileRepositoryTest {
     @Test fun theListIsFullAtItsLimit() = runTest {
         repeat(HomeProfile.MAX_PROFILES - 1) { created("P$it", copyCurrent = false) }
 
-        assertThat(profiles.create("One too many", copyCurrent = true)).isEqualTo(HomeProfileRepository.Created.Full)
+        assertThat(profiles.create("One too many", copyOf = 1)).isEqualTo(HomeProfileRepository.Created.Full)
         assertThat(profiles.profiles.first()).hasSize(HomeProfile.MAX_PROFILES)
         assertThat(dao.profileIds()).isEmpty()
     }
@@ -231,7 +232,7 @@ class HomeProfileRepositoryTest {
         main.afterWrite = { now ->
             if (HomeProfile.decode(now[stringPreferencesKey(HomeProfileKeys.LIST)]).size == 2) caller.cancel()
         }
-        caller = launch { profiles.create("Work", copyCurrent = true) }
+        caller = launch { profiles.create("Work", copyOf = 1) }
         caller.join()
         main.afterWrite = null
 
@@ -299,7 +300,7 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        repositoryOver(watching).create("Work", copyCurrent = true)
+        repositoryOver(watching).create("Work", copyOf = 1)
 
         assertThat(onWhileTheRowsWereCopied).containsExactly(1L, 1L)
         // The tap is honoured once the copy is whole.
@@ -474,7 +475,7 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        assertThat(repositoryOver(blocking).create("Work", copyCurrent = true)).isEqualTo(HomeProfileRepository.Created.Failed)
+        assertThat(repositoryOver(blocking).create("Work", copyOf = 1)).isEqualTo(HomeProfileRepository.Created.Failed)
 
         assertThat(store.list().map { it.id }).containsExactly(1L)
         assertThat(rowsOf(2)).isEmpty()
@@ -503,10 +504,11 @@ class HomeProfileRepositoryTest {
         val repository = HomeProfileRepository(store, layout, settings, resolver, paced) {}
         dao.insert(app("com.mail", 0))
 
-        val making = async(Dispatchers.Default) { repository.create("Work", copyCurrent = true) }
+        val making = async(Dispatchers.Default) { repository.create("Work", copyOf = 1) }
         val listedWhileItsPictureWasStillToCome = try {
-            // The picture store's first piece of work: clearing what an earlier attempt left under the id.
-            withTimeout(5_000) { while (!io.runOne()) delay(5) }
+            // The picture store's first two pieces of work: saying which profiles it keeps a picture for (an id
+            // something is kept under is not given), and clearing what an earlier attempt left under the id.
+            repeat(2) { withTimeout(5_000) { while (!io.runOne()) delay(5) } }
             withTimeout(5_000) { while (rowsOf(2).isEmpty()) delay(5) }
             // Its rows are copied; the copy of its picture waits in the paced store's queue.
             store.list().map { it.id }
@@ -526,9 +528,13 @@ class HomeProfileRepositoryTest {
         assertThat(store.list().map { it.id }).containsExactly(1L, 2L).inOrder()
     }
 
-    /** An attempt that died half-way left rows and a picture under the id the next profile gets (an id is given
-     *  again until a profile is listed with it): the next profile starts without them, a copy or an empty one. */
+    /** An attempt that died half-way left its values (which say it was being made), rows and a picture under the
+     *  id the next profile gets (an id is given again until a profile is listed with it): the next profile starts
+     *  without them, a copy or an empty one. */
     @Test fun whatAnAttemptThatDiedLeftUnderAnIdIsNotInTheNextProfileOfThatId() = runTest {
+        assertThat(store.prepare("Dead", copyOf = 1)!!.id).isEqualTo(2L)
+        // The process died here: nothing in memory knows of the attempt any more.
+        view.made(2)
         inHomeProfile(2) { dao.insert(app("com.ghost", 3)) }
         val leftover = File(context.filesDir, "drawer_wallpaper_2").apply { mkdirs() }
         File(leftover, "ghost-0.500.jpg").writeBytes(ByteArray(10))
@@ -713,12 +719,106 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        val copy = (repositoryOver(meanwhile).create("Work", copyCurrent = true) as HomeProfileRepository.Created.Done).profile
+        val copy = (repositoryOver(meanwhile).create("Work", copyOf = 1) as HomeProfileRepository.Created.Done).profile
 
         assertThat(replaced).isTrue()
         assertThat(source.drawable(picked)).isNotNull()
         profiles.switchTo(copy.id)
         assertThat(settings.folderIcons.first()[FolderIconKey.drawer(games)]).isEqualTo(picked)
+    }
+
+    /**
+     * Review round 8 (P1). The list of profiles and the memory of the ids given are in the settings file, and a
+     * settings file that was damaged is read as empty: one unnamed profile again. The other profiles' layouts,
+     * their own values and their pictures are kept elsewhere and are still there. The next profile used to get the
+     * id of one of them: its values were written over that profile's and its home screen was cleared as the
+     * left-overs of an attempt. Nothing that is kept under an id is touched now: the new profile gets another id.
+     */
+    @Test fun aProfileWhoseListingWasLostKeepsItsHomeScreenItsValuesAndItsPictureWhenTheNextOneIsMade() = runTest {
+        val colour = androidx.datastore.preferences.core.stringPreferencesKey("base_colour")
+        val work = created("Work", copyCurrent = false)
+        val evening = created("Evening", copyCurrent = false)
+        val night = created("Night", copyCurrent = false)
+        // Work has a home screen, Evening a look of its own, Night only a picture.
+        inHomeProfile(work.id) { dao.insert(app("com.chat", 0)) }
+        store.setActive(evening.id)
+        settings.setBaseColour("green")
+        store.setActive(1)
+        val nightsPicture = File(File(context.filesDir, "drawer_wallpaper_${night.id}").apply { mkdirs() }, "night-0.500.jpg")
+        nightsPicture.writeBytes(ByteArray(10))
+
+        // The settings file is damaged and replaced by an empty one.
+        main.updateData { androidx.datastore.preferences.core.emptyPreferences() }
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+
+        val made = created("New", copyCurrent = false)
+
+        assertThat(made.id).isEqualTo(5L)
+        assertThat(rowsOf(work.id).map { it.packageName }).containsExactly("com.chat")
+        assertThat(view.profileValues(evening.id)[colour]).isEqualTo("green")
+        assertThat(nightsPicture.exists()).isTrue()
+        nightsPicture.parentFile!!.deleteRecursively()
+    }
+
+    /**
+     * Review round 8. "A copy of the current profile" is confirmed on a page that shows one profile, and the
+     * making can get its turn after a switch that was waiting. The copy is of the profile the page named, not of
+     * the one that came on; and a source that is gone by then makes nothing.
+     */
+    @Test fun aCopyIsOfTheProfileThePageNamedThoughAnotherOneIsOnWhenItIsMade() = runTest {
+        val colour = androidx.datastore.preferences.core.stringPreferencesKey("base_colour")
+        settings.setBaseColour("blue")
+        dao.insert(app("com.mail", 0))
+        val work = created("Work", copyCurrent = false)
+        inHomeProfile(work.id) { dao.insert(app("com.chat", 2)) }
+        store.setActive(work.id)
+        settings.setBaseColour("green")
+
+        val copy = (profiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile
+
+        assertThat(rowsOf(copy.id).map { it.packageName }).containsExactly("com.mail")
+        assertThat(view.profileValues(copy.id)[colour]).isEqualTo("blue")
+        assertThat(store.current()).isEqualTo(work.id)
+        assertThat(profiles.create("Of nothing", copyOf = 99)).isEqualTo(HomeProfileRepository.Created.Failed)
+        assertThat(store.list().map { it.id }).containsExactly(1L, work.id, copy.id).inOrder()
+    }
+
+    /**
+     * Review round 8. The icon the user picked for a pinned shortcut is one value for every profile. A profile's
+     * deletion left it behind when the shortcut was on that profile's home screen alone: pinned again later, the
+     * shortcut wore the old icon. It goes with the shortcut's last copy, and stays while another profile has one.
+     */
+    @Test fun aDeletedProfilesShortcutLosesItsOwnIconUnlessAnotherProfileStillHasTheShortcut() = runTest {
+        val work = created("Work", copyCurrent = false)
+        inHomeProfile(work.id) {
+            dao.insert(shortcut("com.mail", "inbox", 0))
+            dao.insert(shortcut("com.chat", "team", 1))
+        }
+        dao.insert(shortcut("com.chat", "team", 0))
+        val onlyThere = org.arkikeskus.launcher.data.ShortcutIconKey.of("com.mail", "inbox", 0)
+        val inBoth = org.arkikeskus.launcher.data.ShortcutIconKey.of("com.chat", "team", 0)
+        settings.setShortcutIcon(onlyThere, CustomIcon.FromPack("com.pack", "letter"))
+        settings.setShortcutIcon(inBoth, CustomIcon.FromPack("com.pack", "people"))
+
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
+
+        assertThat(settings.shortcutIcons.first().keys).containsExactly(inBoth)
+    }
+
+    /**
+     * Review round 8. Deleting the profile whose values live in the settings file moves the next one's values
+     * there, writes the list, and then drops that profile's own store, which nothing reads any more. A store
+     * that could not be removed threw: the deletion, which had happened, was reported as unfinished.
+     */
+    @Test fun aDeletionIsDoneThoughTheStoreNobodyReadsAnyMoreCannotBeRemoved() = runTest {
+        val work = created("Work", copyCurrent = false)
+        store.setActive(work.id)
+        files.failDelete = java.io.IOException("the file is in use")
+
+        assertThat(profiles.delete(1)).isEqualTo(HomeProfileRepository.Deleted.Done)
+
+        assertThat(store.list().map { it.id }).containsExactly(work.id)
+        assertThat(store.current()).isEqualTo(work.id)
     }
 
     /**
@@ -800,13 +900,13 @@ class HomeProfileRepositoryTest {
         }
 
         noSpace()
-        assertThat(profiles.create("Work", copyCurrent = true)).isEqualTo(HomeProfileRepository.Created.Failed)
+        assertThat(profiles.create("Work", copyOf = 1)).isEqualTo(HomeProfileRepository.Created.Failed)
         // Nothing is left of the attempt, and the list is as it was.
         assertThat(files.stores.keys).doesNotContain(2L)
         assertThat(store.list().map { it.id }).containsExactly(1L)
 
         noSpace()
-        assertThat(profiles.create("Evening", copyCurrent = false)).isEqualTo(HomeProfileRepository.Created.Failed)
+        assertThat(profiles.create("Evening", copyOf = null)).isEqualTo(HomeProfileRepository.Created.Failed)
         assertThat(files.stores.keys).doesNotContain(2L)
         assertThat(store.list().map { it.id }).containsExactly(1L)
         // With room again the next profile is made, under the same id.

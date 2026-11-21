@@ -36,8 +36,13 @@ internal data class SweepPlan(val delete: Set<Long>, val remap: Map<Long, String
 data class PushPlacement(val page: Int, val cellX: Int, val cellY: Int, val moved: Map<Long, Pair<Int, Int>>)
 
 /** What the rows of a deleted home profile held of the phone's own: the (package, user) pairs whose pinned
- *  sets in the system have changed, and the widget ids the rows had bound. */
-data class DeletedProfileRows(val shortcutOwners: Set<Pair<String, Long>>, val widgetIds: Set<Int>)
+ *  sets in the system have changed, the widget ids the rows had bound, and the pinned shortcuts themselves
+ *  ([shortcuts]: package, shortcut id, user), whose own icons go with their last copy. */
+data class DeletedProfileRows(
+    val shortcutOwners: Set<Pair<String, Long>>,
+    val widgetIds: Set<Int>,
+    val shortcuts: Set<Triple<String, String, Long>> = emptySet(),
+)
 
 /** The layout rows of one home profile. An empty layout still says whose it is. */
 data class HomeLayout(val profileId: Long, val items: List<HomeItemEntity>)
@@ -927,6 +932,9 @@ class HomeLayoutRepository @Inject constructor(
         true
     }
 
+    /** The home profiles that have a layout row at all, whether the list of profiles names them or not. */
+    suspend fun profilesWithRows(): Set<Long> = dao.profileIds().toSet()
+
     /** Removes a placed widget row (the host id is freed by the caller). */
     suspend fun removeWidget(rowId: Long) {
         dao.deleteById(rowId)
@@ -1068,10 +1076,11 @@ class HomeLayoutRepository @Inject constructor(
      */
     suspend fun deleteProfile(profile: Long): DeletedProfileRows = db.withTransaction {
         val rows = inHomeProfile(profile) { dao.getAll() }
-        val owners = rows.filter { it.containerId == HOME && it.isShortcut }.map { it.packageName to it.userSerial }.toSet()
+        val pinned = rows.filter { it.containerId == HOME && it.isShortcut }
+        val owners = pinned.map { it.packageName to it.userSerial }.toSet()
         val widgets = rows.mapNotNull { it.appWidgetId }.toSet()
         dao.deleteProfile(profile)
-        DeletedProfileRows(owners, widgets)
+        DeletedProfileRows(owners, widgets, pinned.mapTo(HashSet()) { Triple(it.packageName, it.shortcutId!!, it.userSerial) })
     }
 
     /** Atomically sets a widget row's full grid bounds (used by both move and resize). If the target
