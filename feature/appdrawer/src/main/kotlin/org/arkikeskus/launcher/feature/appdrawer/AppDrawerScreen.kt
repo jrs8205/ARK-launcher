@@ -348,6 +348,7 @@ fun AppDrawerScreen(
         onDropOnHome = { app, page, cellX, cellY ->
             viewModel.addToHomeAt(app, page, cellX, cellY, defaultFolderName, uiState.homeProfileId)
         },
+        homeProfileId = uiState.homeProfileId,
         onDropFolderOnHome = { folder, page, cellX, cellY ->
             viewModel.addFolderToHomeAt(folder, page, cellX, cellY, uiState.homeProfileId)
         },
@@ -600,6 +601,8 @@ private fun AppDrawerContent(
     dragController: HomeDragController,
     onDragOutStart: () -> Unit,
     onDropOnHome: (AppItem, Int, Int, Int) -> Unit,
+    /** The home profile whose drawer this is: a folder is lifted in it, and its drag ends when another comes on. */
+    homeProfileId: Long,
     /** A folder dragged out of the drawer and dropped on a home cell: a copy of it is made there. */
     onDropFolderOnHome: (DrawerFolderUi, Int, Int, Int) -> Unit,
     /** An icon released over the dock where it can land (see [HomeDragController.dockAccepts]). */
@@ -792,6 +795,7 @@ private fun AppDrawerContent(
                                 onDropOnHome = { page, cellX, cellY -> onDropFolderOnHome(entry.folder, page, cellX, cellY) },
                                 haptics = haptics,
                                 locked = locked,
+                                profile = homeProfileId,
                             )
                             is DrawerEntry.App -> DrawerAppCell(entry.app, badges, badgeShowCount, badgeScale, showLabels,
                                 drawerIconSize, onAppClick, onAppLongClick, dragController, onDragOutStart, onDropOnHome,
@@ -1050,13 +1054,20 @@ private fun DrawerFolderTile(
     onDropOnHome: (page: Int, cellX: Int, cellY: Int) -> Unit,
     haptics: androidx.compose.ui.hapticfeedback.HapticFeedback,
     locked: Boolean,
+    /** The home profile whose folder this is. */
+    profile: Long,
     tileSize: Dp = 56.dp,
     badgeCount: Int = 0,
     badgeShowCount: Boolean = true,
     badgeScale: Float = 1f,
 ) {
-    // The gesture lives as long as the folder's id and acts on the folder as it is NOW (its apps and its icon
-    // change under it), through the callbacks as they are now.
+    // The gesture lives as long as the folder's id in ONE home profile, and acts on the folder as it is NOW
+    // (its apps and its icon change under it), through the callbacks as they are now. Another profile's
+    // folder of the same id (a copy has one) is another folder: with the gesture living on over a switch,
+    // the finger still showed the folder it had lifted while the callbacks were the other profile's already,
+    // and the release dropped THAT folder on the home screen. With another profile the gesture starts anew,
+    // and what was lifted is let go (the `finally` of the drag).
+    val currentProfile by rememberUpdatedState(profile)
     val currentFolder by rememberUpdatedState(folder)
     val currentOnClick by rememberUpdatedState(onClick)
     val currentOnLongClick by rememberUpdatedState(onLongClick)
@@ -1083,7 +1094,7 @@ private fun DrawerFolderTile(
             .keyClickable(onClick = { currentOnClick(bounds) }, onLongClick = { currentOnLongClick() })
             // The app tiles' gesture: nothing is consumed until the hold completes, so a quick drag still
             // scrolls the grid.
-            .pointerInput(folder.id, locked) {
+            .pointerInput(folder.id, locked, profile) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val slop = viewConfiguration.touchSlop
@@ -1150,8 +1161,9 @@ private fun DrawerFolderTile(
                             }
                             if (dragController.moving) dragController.update(origin + change.position)
                         }
-                        // Nothing on release once HOME cancelled the lift.
-                        val live = completed && dragController.owns(token)
+                        // Nothing on release once HOME cancelled the lift, or with another profile on than
+                        // the one the folder was lifted in ([profile] is this gesture's own, its key).
+                        val live = completed && dragController.owns(token) && currentProfile == profile
                         when {
                             !live -> Unit
                             // Released where it was lifted: the editor.

@@ -288,6 +288,54 @@ class AppDrawerScreenTest {
         compose.onNodeWithText(context.getString(R.string.folder_delete)).assertExists()
     }
 
+    /**
+     * Review round 9. And a folder that is being dragged out of the drawer is of the profile it was lifted in.
+     * The tile's gesture lived as long as the folder's id; a copy of a profile has a folder of the same id, so
+     * over a switch made mid-drag the gesture went on: the finger still showed the folder it had lifted, the
+     * drop was the other profile's folder, and that profile's home screen took it. The drag ends with the
+     * switch and the release places nothing.
+     */
+    @Test fun aFolderBeingDraggedIsLetGoWhenAnotherProfileComesOnAndItsReleasePlacesNothing() {
+        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        show()
+        val members = listOf(mailApp, mapsApp)
+        awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
+        val byPackage = viewModel.uiState.value.apps.associateBy { it.packageName }
+        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, members.map { byPackage.getValue(it).key }) }
+        awaitState("the folder holds the two") { s -> s.folders.firstOrNull()?.apps?.size == 2 }
+        val copy = runBlocking {
+            (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
+        }
+        settle()
+        // The whole window is home grid: wherever the finger is let go, it is over a cell.
+        drag.gridBounds = Rect(0f, 0f, 10_000f, 10_000f)
+        drag.columns = 4
+        drag.rows = 5
+        val longPress = 2_000L
+
+        compose.onNodeWithText("Tools").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(longPress)
+        compose.waitForIdle()
+        compose.onNodeWithText("Tools").performTouchInput { repeat(10) { moveBy(Offset(0f, 12f), delayMillis = 16) } }
+        compose.waitForIdle()
+        assertThat(drag.draggedDrawerFolder?.name).isEqualTo("Tools")
+        assertThat(drag.moving).isTrue()
+
+        // The switch that had been waiting is made while the folder is in the air.
+        runBlocking { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
+        awaitState("the copy is on") { it.homeProfileId == copy && it.folders.firstOrNull()?.apps?.size == 2 }
+        settle()
+
+        assertThat(drag.draggedDrawerFolder).isNull()
+        assertThat(drag.isDragging).isFalse()
+        compose.onNodeWithText("Tools").performTouchInput { up() }
+        settle()
+        Thread.sleep(300)
+        settle()
+        val rows = runBlocking { wiring.homeLayoutRepository.profilesWithRows() }
+        assertThat(rows).isEmpty()
+    }
+
     /** The same for an app's menu: opened on one profile's drawer, it is gone when another profile comes on. */
     @Test fun anAppsMenuGoesWhenAnotherProfileComesOn() {
         show()
