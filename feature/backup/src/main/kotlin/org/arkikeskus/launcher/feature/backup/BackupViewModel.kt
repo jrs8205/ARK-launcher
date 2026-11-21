@@ -2,24 +2,19 @@ package org.arkikeskus.launcher.feature.backup
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.LastBackup
 import org.arkikeskus.launcher.data.SettingsRepository
-import org.arkikeskus.launcher.data.backup.BackupCodec
 import org.arkikeskus.launcher.data.backup.BackupRepository
-import org.arkikeskus.launcher.data.backup.ExportProfileChangedException
 import javax.inject.Inject
 
 sealed interface BackupEvent {
@@ -81,31 +76,16 @@ class BackupViewModel @Inject constructor(
 
     /**
      * Writes the home profile [shownProfile] to [uri]: the one the export's button named when it was tapped.
-     * With another profile on by now (the system's file picker was open meanwhile) nothing is written, the
-     * empty file the picker made is removed where its provider allows, and the screen says so. The result
-     * names the profile the file is of when there are several.
+     * With another profile on by now (the system's file picker was open meanwhile) nothing is written and the
+     * screen says so; the picked document is left as it was ([exportToDocument]). The result names the profile
+     * the file is of when there are several.
      */
     fun exportTo(uri: Uri, shownProfile: Long) = viewModelScope.launch {
-        runCatching {
-            withContext(Dispatchers.IO) {
-                backupRepository.export(System.currentTimeMillis(), appVersion, expectedProfile = shownProfile) { doc ->
-                    context.contentResolver.writeDocument(uri, BackupCodec.encode(doc).toByteArray())
-                }
-            }
-        }.onSuccess { exported ->
-            _events.emit(BackupEvent.Exported(uri.lastPathSegment ?: "", profile = exported.name.takeIf { exported.oneOfSeveral }))
-        }
-            .onFailure {
-                if (it is kotlinx.coroutines.CancellationException) throw it
-                Log.w(TAG, "File export failed", it)
-                if (it is ExportProfileChangedException) {
-                    withContext(Dispatchers.IO) {
-                        runCatching { android.provider.DocumentsContract.deleteDocument(context.contentResolver, uri) }
-                    }
-                }
-                // Blank message → the screen shows its localized generic failure text.
-                _events.emit(exportFailureEvent(it))
-            }
+        _events.emit(
+            exportToDocument(context.contentResolver, uri) { write ->
+                backupRepository.export(System.currentTimeMillis(), appVersion, expectedProfile = shownProfile, write = write)
+            },
+        )
     }
 
     /** Restores [uri], held to the profiles its question showed ([asked]). */
