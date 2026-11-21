@@ -27,9 +27,10 @@ class DrawerWallpaperRowTest {
 
     private val res = RuntimeEnvironment.getApplication().resources
     private var cleared = 0
+    private var asked = 0
 
     private fun show(wallpaper: DrawerWallpaper?) {
-        compose.setContent { DrawerWallpaperRow(wallpaper = wallpaper, profile = 1, onPick = { _, _ -> }, onClear = { cleared++ }) }
+        compose.setContent { DrawerWallpaperRow(wallpaper = wallpaper, onPick = { asked++ }, onClear = { cleared++ }) }
         compose.waitForIdle()
     }
 
@@ -38,7 +39,8 @@ class DrawerWallpaperRowTest {
 
         compose.onNodeWithText(res.getString(R.string.settings_drawer_wallpaper)).assertIsDisplayed()
         compose.onNodeWithText(res.getString(R.string.settings_drawer_wallpaper_none)).assertIsDisplayed()
-        compose.onNodeWithTag(DRAWER_WALLPAPER_PICK_TAG).assertIsDisplayed()
+        compose.onNodeWithTag(DRAWER_WALLPAPER_PICK_TAG).assertIsDisplayed().performClick()
+        assertThat(asked).isEqualTo(1)
         compose.onNodeWithTag(DRAWER_WALLPAPER_REMOVE_TAG).assertDoesNotExist()
         compose.onNodeWithTag(DRAWER_WALLPAPER_PREVIEW_TAG).assertDoesNotExist()
     }

@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,6 +129,7 @@ internal fun DrawerRows(
     SettingRow("A9") {
         SwitchRow(stringResource(R.string.settings_drawer_open_top), s.drawerOpensAtTop, actions::setDrawerOpensAtTop)
     }
+    val picturePicker = LocalDrawerPicturePicker.current
     DrawerBackdropRows(
         settings = s,
         wallpaper = drawerWallpaper,
@@ -136,8 +138,9 @@ internal fun DrawerRows(
             onColor = actions::setDrawerBackgroundColor,
             onColorOpacity = actions::setDrawerBackgroundOpacity,
             // For the home profile this page shows: the store behind the action follows a switch a moment late.
-            // A pick is for the profile the picker was OPENED on (DrawerWallpaperRow keeps it).
-            onPickPicture = actions::importDrawerWallpaper,
+            // A pick is for the profile the picker was OPENED on: the request is kept above the pages
+            // ([DrawerPicturePicker]), which start anew with another profile.
+            onPickPicture = { picturePicker.ask(s.homeProfileId) },
             onClearPicture = { actions.clearDrawerWallpaper(s.homeProfileId) },
             onPictureDim = actions::setDrawerPictureDim,
             onBlur = actions::setBlurBehindDrawer,
@@ -313,7 +316,7 @@ internal fun DrawerPictureDimRow(value: Float, onValueChange: (Float) -> Unit) {
 internal class DrawerBackdropActions(
     val onColor: (Int?) -> Unit = {},
     val onColorOpacity: (Float) -> Unit = {},
-    val onPickPicture: (Uri, Long) -> Unit = { _, _ -> },
+    val onPickPicture: () -> Unit = {},
     val onClearPicture: () -> Unit = {},
     val onPictureDim: (Float) -> Unit = {},
     val onBlur: (Boolean) -> Unit = {},
@@ -345,7 +348,6 @@ internal fun DrawerBackdropRows(
     SettingRow("A12") {
         DrawerWallpaperRow(
             wallpaper = wallpaper,
-            profile = settings.homeProfileId,
             onPick = actions.onPickPicture,
             onClear = actions.onClearPicture,
         )
@@ -373,20 +375,48 @@ internal const val DRAWER_WALLPAPER_PREVIEW_TAG = "drawer-wallpaper-preview"
 internal const val DRAWER_WALLPAPER_PICK_TAG = "drawer-wallpaper-pick"
 internal const val DRAWER_WALLPAPER_REMOVE_TAG = "drawer-wallpaper-remove"
 
-/** The user's own picture behind the app drawer (a Telegram request after 0.9.9): a preview of the one set,
- *  a button to pick one from the gallery (the system photo picker, no permission), one to remove it. The
- *  picture stays on this phone: it is not in a backup. */
+/**
+ * The request for a picture behind the drawer: [ask] opens the system's photo picker (no permission) for the
+ * home profile it names.
+ */
+internal class DrawerPicturePicker(val ask: (profile: Long) -> Unit)
+
+/** The [DrawerPicturePicker] of the Settings screen the rows are on; one that opens nothing where there is none. */
+internal val LocalDrawerPicturePicker = staticCompositionLocalOf { DrawerPicturePicker { } }
+
+/**
+ * A [DrawerPicturePicker] whose pictures go to [onPick] with the profile they were asked for.
+ *
+ * The system's picker is open between the tap and the picture, and the page can show another profile by the
+ * time it answers: the picture is for the profile of the tap. Handed the profile of the answer's moment, it
+ * replaced the OTHER profile's picture.
+ *
+ * Called ABOVE the pages, never on one. A page starts anew with another profile (its key), and what it keeps is
+ * restored after a recreation only under the same key: with the request kept on the page, a profile switch
+ * and a recreation under the open picker left nothing registered for its answer and no profile to give it
+ * to, and the picture the user picked went nowhere.
+ */
 @Composable
-internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, profile: Long, onPick: (Uri, Long) -> Unit, onClear: () -> Unit) {
-    val p = LocalExpressivePalette.current
-    // The home profile the picker was opened for. The system's picker is open between the tap and the picture,
-    // and the page can show another profile by the time it answers (or have been recreated): the picture is for
-    // the profile of the tap. Handed the profile of the answer's moment, it replaced the OTHER profile's picture.
+internal fun rememberDrawerPicturePicker(onPick: (Uri, Long) -> Unit): DrawerPicturePicker {
     var pickFor by rememberSaveable { mutableStateOf<Long?>(null) }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val target = pickFor
         if (uri != null && target != null) onPick(uri, target)
     }
+    return remember(gallery) {
+        DrawerPicturePicker { profile ->
+            pickFor = profile
+            runCatching { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+        }
+    }
+}
+
+/** The user's own picture behind the app drawer (a Telegram request after 0.9.9): a preview of the one set,
+ *  a button to pick one from the gallery ([onPick]: the screen's [DrawerPicturePicker]), one to remove it. The
+ *  picture stays on this phone: it is not in a backup. */
+@Composable
+internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, onPick: () -> Unit, onClear: () -> Unit) {
+    val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
         shape = expressiveCardShape(),
@@ -409,13 +439,7 @@ internal fun DrawerWallpaperRow(wallpaper: DrawerWallpaper?, profile: Long, onPi
                     Text(stringResource(R.string.settings_drawer_wallpaper_none), color = p.dim, fontSize = 14.sp)
                 }
                 Spacer(Modifier.weight(1f))
-                TextButton(
-                    onClick = {
-                        pickFor = profile
-                        runCatching { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
-                    },
-                    modifier = Modifier.testTag(DRAWER_WALLPAPER_PICK_TAG),
-                ) {
+                TextButton(onClick = onPick, modifier = Modifier.testTag(DRAWER_WALLPAPER_PICK_TAG)) {
                     Text(stringResource(R.string.settings_drawer_wallpaper_pick), color = p.accent)
                 }
                 if (wallpaper != null) {

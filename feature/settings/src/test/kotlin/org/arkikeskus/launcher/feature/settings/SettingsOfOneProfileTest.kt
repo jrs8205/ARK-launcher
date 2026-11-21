@@ -61,6 +61,22 @@ class SettingsOfOneProfileTest {
 
     private fun text(id: Int) = res.getString(id)
 
+    /**
+     * Review round 9. The settings and the drawer's folders are read separately; after a switch the new profile's
+     * settings can be there before its folders. The page showed the OLD profile's folders then: one opened in
+     * that moment stayed open when the new profile had a folder of the same id, and its new name went to that
+     * one. The folders are taken only while they are of the profile the page shows.
+     */
+    @Test fun theFoldersPageTakesOnlyTheFoldersOfTheProfileItShows() {
+        val ofFirst = FoldersOfProfile(profile = 1, folders = listOf(DrawerFolder(1, "Tools", emptyList())))
+
+        assertThat(drawerFoldersShown(ofFirst, profile = 1)).isEqualTo(ofFirst.folders)
+        // The second profile's settings are there, the folders are still the first one's: none yet.
+        assertThat(drawerFoldersShown(ofFirst, profile = 2)).isNull()
+        assertThat(drawerFoldersShown(null, profile = 1)).isNull()
+        assertThat(drawerFoldersShown(ofFirst, profile = null)).isNull()
+    }
+
     private fun calls(name: String) = recorded.calls.filter { it.first == name }
 
     @Test fun aFoldersDeleteQuestionGoesWhenAnotherProfileComesOnAndDeletesNothingOfIt() {

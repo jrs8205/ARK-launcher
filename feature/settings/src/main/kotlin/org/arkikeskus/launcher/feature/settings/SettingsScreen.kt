@@ -64,7 +64,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
     val drawerWallpaper by viewModel.drawerWallpaperPicture.collectAsStateWithLifecycle()
     val allApps by viewModel.apps.collectAsStateWithLifecycle()
     val hiddenKeys by viewModel.hiddenKeys.collectAsStateWithLifecycle()
-    val drawerFolders by viewModel.drawerFolders.collectAsStateWithLifecycle()
+    val drawerFolders by viewModel.drawerFoldersOfProfile.collectAsStateWithLifecycle()
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
     val privateSpaceSeen by viewModel.privateSpaceSeen.collectAsStateWithLifecycle()
     val homeProfiles by viewModel.homeProfiles.collectAsStateWithLifecycle()
@@ -82,7 +82,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
         lists = SettingsLists(
             apps = allApps,
             hiddenKeys = hiddenKeys,
-            drawerFolders = drawerFolders,
+            // The folders of the profile the page is about, or none yet: never another profile's.
+            drawerFolders = drawerFoldersShown(drawerFolders, s?.homeProfileId),
             iconPacks = iconPacks,
             // The picture of the profile the page is about, or none: never another profile's ([ShownDrawerWallpaper]).
             drawerWallpaper = s?.let { drawerWallpaper.of(it.homeProfileId) },
@@ -114,6 +115,21 @@ internal fun SettingsWhenRead(
     }
     SettingsContent(s = s, lists = lists, actions = actions, modifier = modifier, openPage = openPage)
 }
+
+/** The drawer's folders as they were read, with the home profile they are of. */
+data class FoldersOfProfile(val profile: Long, val folders: List<DrawerFolder>)
+
+/**
+ * The folders the Folders page shows: those of [read] while they are of [profile], the profile whose values the
+ * page shows; null (as while they load) otherwise.
+ *
+ * The settings and the folders are read separately, and after a profile switch one arrives before the other.
+ * With the new profile's settings and still the old one's folders, the page offered the old profile's folder;
+ * opened then, its page stayed open when the new profile had a folder of the same id (a copy has), and the
+ * name typed for the one was written to the other: the page's writes go to the profile it shows.
+ */
+internal fun drawerFoldersShown(read: FoldersOfProfile?, profile: Long?): List<DrawerFolder>? =
+    read?.takeIf { it.profile == profile }?.folders
 
 /** What the page shows besides the settings themselves: the apps, what is hidden, the drawer's folders (null while
  *  they load), the installed icon packs, the user's own picture behind the drawer, whether the launcher sees
@@ -221,6 +237,9 @@ internal fun SettingsContent(
     val composedFor = remember { longArrayOf(s.homeProfileId) }
     if (lifecycleState == Lifecycle.State.RESUMED) composedFor[0] = s.homeProfileId
     val pagesOf = composedFor[0]
+    // Asked for on a page, kept here: above the pages' key, where a profile switch does not start it anew and a
+    // recreation restores it ([rememberDrawerPicturePicker]).
+    val picturePicker = rememberDrawerPicturePicker(actions::importDrawerWallpaper)
     val palette = settingsPalette(currentBasePalette())
     // With two or more home profiles Settings says which one it is editing, and marks the rows that are its own.
     val severalProfiles = lists.homeProfiles.size >= 2
@@ -231,6 +250,7 @@ internal fun SettingsContent(
     CompositionLocalProvider(
         LocalExpressivePalette provides palette,
         LocalSettingJumps provides jumps,
+        LocalDrawerPicturePicker provides picturePicker,
         LocalHomeProfileRowMarks provides severalProfiles,
         // So AppIcons in the pickers (left-edge app, hidden apps) match the selected icon pack / themed
         // icons like every other surface.

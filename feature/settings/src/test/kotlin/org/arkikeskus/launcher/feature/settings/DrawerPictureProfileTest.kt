@@ -85,6 +85,51 @@ class DrawerPictureProfileTest {
         assertThat(recorded.calls).contains("importDrawerWallpaper" to listOf(picked, 2L))
     }
 
+    /**
+     * Review round 9. And the activity can be recreated under the open picker after such a switch. The pages
+     * start anew with another profile (their key), and what a page keeps is restored only under the same key: the
+     * picker's registration and the profile it was opened for were kept on the page, so after the switch and
+     * the recreation nothing waited for the answer, and the picked picture went nowhere. The request is kept
+     * above the pages.
+     */
+    @Test fun aPickReachesTheProfileItWasAskedForThoughTheProfileChangedAndThePageWasRecreatedUnderThePicker() {
+        val launched = mutableListOf<Int>()
+        val registry = object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(code: Int, contract: ActivityResultContract<I, O>, input: I, options: ActivityOptionsCompat?) {
+                launched += code
+            }
+        }
+        val owner = object : ActivityResultRegistryOwner {
+            override val activityResultRegistry: ActivityResultRegistry = registry
+        }
+        var settings by mutableStateOf(LauncherSettings(homeProfileId = 2))
+        val tester = androidx.compose.ui.test.junit4.StateRestorationTester(compose)
+        tester.setContent {
+            CompositionLocalProvider(LocalActivityResultRegistryOwner provides owner) {
+                SettingsContent(s = settings, lists = SettingsLists(), actions = recorded.actions, blurAvailability = BlurAvailability.AVAILABLE)
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(categoryTag(SettingsCategory.DRAWER.key)).performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(DRAWER_WALLPAPER_PICK_TAG).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertThat(launched).hasSize(1)
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
+
+        // The other profile comes on, and the page is recreated, both under the open picker.
+        settings = LauncherSettings(homeProfileId = 1)
+        compose.waitForIdle()
+        tester.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        val picked = Uri.parse("content://media/picker/0/picture/1")
+        compose.runOnUiThread { registry.dispatchResult(launched.single(), picked) }
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        compose.waitForIdle()
+
+        assertThat(recorded.calls).contains("importDrawerWallpaper" to listOf(picked, 2L))
+    }
+
     @Test fun aRemovalNamesTheProfileThePageShows() {
         compose.setContent {
             SettingsContent(

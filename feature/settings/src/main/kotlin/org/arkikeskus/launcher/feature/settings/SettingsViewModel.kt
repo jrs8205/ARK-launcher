@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -146,9 +147,12 @@ internal class SettingsViewModel @Inject constructor(
     /** Creates a new empty folder in the app drawer (named [name]); it's filled from the drawer. */
     override fun createDrawerFolder(name: String) = update { repository.createDrawerFolder(name) }
 
-    /** The drawer's folders, for the Folders page; null until the store has answered, so a folder's
-     *  page restored after process death is not closed on an empty list it never had. */
-    val drawerFolders: StateFlow<List<DrawerFolder>?> = repository.drawerFolders
+    /** The drawer's folders, for the Folders page, with the home profile they are of (the page takes them only
+     *  while that is the profile it shows, [drawerFoldersShown]); null until the store has answered, so a
+     *  folder's page restored after process death is not closed on an empty list it never had. */
+    val drawerFoldersOfProfile: StateFlow<FoldersOfProfile?> = repository.folderIconsOfProfile
+        .map { FoldersOfProfile(it.homeProfileId, it.drawerFolders) }
+        .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     override fun renameDrawerFolder(id: Long, name: String) = update { repository.renameDrawerFolder(id, name) }
