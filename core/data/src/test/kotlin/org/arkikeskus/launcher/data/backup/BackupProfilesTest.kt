@@ -6,6 +6,7 @@ import android.graphics.Color
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -443,7 +444,8 @@ class BackupProfilesTest {
             }
         }
         withTimeout(5_000) { firstIsWriting.await() }
-        val second = async(Dispatchers.Default) {
+        // Begun right here, on this thread, up to its first wait: it has asked for the file when the next line runs.
+        val second = async(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
             repository.export(createdAt = { 2_000L }, appVersion = "test", target = "content://docs/backup.json") { inTheFile = it.createdAt }
         }
         // The second gets the time to write, if it does not wait for the first.
@@ -479,11 +481,14 @@ class BackupProfilesTest {
         }
         withTimeout(5_000) { firstIsWriting.await() }
         clock.set(2_000L)
-        val second = async(Dispatchers.Default) {
+        // Asked for at 2 000, and begun right here, on this thread, up to its first wait: the wait for A, which the
+        // first export holds. So it IS waiting there before the clock moves on, whatever the machine's load is
+        // (started on another thread and given a moment, it could begin only at 4 000, and an export that read
+        // its time before the wait would then pass this test too).
+        val second = async(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
             repository.export(createdAt = clock::get, appVersion = "test", target = "A") { inFileA = it.createdAt }
         }
-        // Asked for at 2 000, it waits for A; given the time to get there.
-        withTimeoutOrNull(300) { second.await() }
+        assertThat(second.isCompleted).isFalse()
         clock.set(3_000L)
         repository.export(createdAt = clock::get, appVersion = "test", target = "B") {}
         assertThat(settings.localLastBackupTime.first()).isEqualTo(3_000L)
