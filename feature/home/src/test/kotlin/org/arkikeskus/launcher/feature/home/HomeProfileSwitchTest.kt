@@ -323,7 +323,7 @@ class HomeProfileSwitchTest {
             awaitUntil("Work on screen") { seen.last().loaded && seen.last().homeProfileId == work }
             val item = org.arkikeskus.launcher.ui.AppShortcuts.Item("com.mail", "inbox", user, 0L, "Inbox", "Inbox", icon = null)
 
-            var switched: Unit? = Unit
+            var switched: Boolean? = true
             val pin = ShortcutPinLock.withLock {
                 val pin = viewModel.pinShortcut(item, profile = work)
                 // Time for the pin to come to the lock this test holds; it holds its profile meanwhile.

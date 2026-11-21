@@ -35,6 +35,9 @@ class DrawerAddsToItsProfileTest {
     private suspend fun DrawerWiring.inDock() =
         homeLayoutRepository.homeItems.first().firstOrNull { it.containerId == DOCK && it.packageName == mail.packageName }
 
+    /** A pause between two writes of the settings file (see where it is used). */
+    private fun betweenWrites() = Thread.sleep(200)
+
     private suspend fun awaitUntil(what: String, done: suspend () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!done()) {
@@ -152,13 +155,19 @@ class DrawerAddsToItsProfileTest {
         installFakeApp(context, "com.mail", "Mail")
         val wiring = DrawerWiring(context, this)
         try {
-            val viewModel = wiring.viewModel()
             val settings = wiring.settingsRepository
             val notes = "com.notes/com.notes.Main/0"
             val mailKey = "com.mail/com.mail.Main/0"
+            // The settings here are a real file, and each write renames a new file over it. On Windows that
+            // rename fails now and then when it comes right on the heels of another write or of a first read
+            // ("Unable to rename ... .tmp"): the writes of this test are spaced out, and the folder is stored
+            // before the view model begins to read.
             val id = settings.createDrawerFolder("Tools")
+            betweenWrites()
             settings.addAppsToDrawerFolder(id, listOf(notes, mailKey))
+            betweenWrites()
             suspend fun folders() = settings.drawerFolders.first()
+            val viewModel = wiring.viewModel()
 
             val refused = listOf(
                 viewModel.sortDrawerFolderByName(id, profile = 2),
@@ -176,6 +185,7 @@ class DrawerAddsToItsProfileTest {
             // For the profile that is on: sorted by the apps' names, then renamed.
             viewModel.sortDrawerFolderByName(id, profile = 1)
             awaitUntil("the folder sorted") { folders().single().appKeys == listOf(mailKey, notes) }
+            betweenWrites()
             viewModel.renameDrawerFolder(id, "Other", profile = 1)
             awaitUntil("the folder renamed") { folders().single().name == "Other" }
             wiring.clear(viewModel)
