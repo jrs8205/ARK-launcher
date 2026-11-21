@@ -6,6 +6,7 @@ import android.os.Process
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.arkikeskus.launcher.model.AppItem
 import org.junit.Test
@@ -30,6 +31,9 @@ class DrawerAddsToItsProfileTest {
     private suspend fun DrawerWiring.onHome() =
         homeLayoutRepository.homeItems.first().firstOrNull { it.containerId == HOME && it.packageName == mail.packageName }
 
+    private suspend fun DrawerWiring.inDock() =
+        homeLayoutRepository.homeItems.first().firstOrNull { it.containerId == DOCK && it.packageName == mail.packageName }
+
     private suspend fun awaitUntil(what: String, done: suspend () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!done()) {
@@ -49,6 +53,55 @@ class DrawerAddsToItsProfileTest {
             awaitUntil("the answer") { asked.isCompleted }
 
             assertThat(wiring.onHome()).isNull()
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * The app's menu is drawn from one profile's rows: "Remove from home" is offered because the app is on THAT
+     * profile's home screen. With another profile on by the time it is tapped, the same app on the other
+     * profile's home screen stays: the menu never offered to remove it from there.
+     */
+    @Test fun anAppRemovedFromHomeForAProfileThatIsNotOnStays() = runTest {
+        val wiring = DrawerWiring(context, this)
+        try {
+            val viewModel = wiring.viewModel()
+            viewModel.addToHome(mail, profile = 1)
+            awaitUntil("the app on home") { wiring.onHome() != null }
+
+            val asked = viewModel.removeFromHome(mail, profile = 2)
+            awaitUntil("the answer") { asked.isCompleted }
+            assertThat(wiring.onHome()).isNotNull()
+
+            viewModel.removeFromHome(mail, profile = 1)
+            awaitUntil("the app gone from home") { wiring.onHome() == null }
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /** The same for the menu's two dock actions: each is asked for the profile the menu was drawn from. */
+    @Test fun theDockIsChangedOnlyForTheProfileThatIsOn() = runTest {
+        val wiring = DrawerWiring(context, this)
+        try {
+            val viewModel = wiring.viewModel()
+
+            val added = viewModel.addToDock(mail, profile = 2)
+            awaitUntil("the answer") { added.isCompleted }
+            assertThat(wiring.inDock()).isNull()
+
+            viewModel.addToDock(mail, profile = 1)
+            awaitUntil("the app in the dock") { wiring.inDock() != null }
+
+            val removed = viewModel.removeFromDock(mail, profile = 2)
+            awaitUntil("the answer") { removed.isCompleted }
+            assertThat(wiring.inDock()).isNotNull()
+
+            viewModel.removeFromDock(mail, profile = 1)
+            awaitUntil("the app gone from the dock") { wiring.inDock() == null }
             wiring.clear(viewModel)
         } finally {
             wiring.close()

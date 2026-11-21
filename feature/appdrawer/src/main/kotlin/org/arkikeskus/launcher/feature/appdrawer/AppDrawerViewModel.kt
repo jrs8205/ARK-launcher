@@ -486,7 +486,19 @@ class AppDrawerViewModel @Inject constructor(
             .onFailure { Log.w("AppDrawerViewModel", "Failed to launch ${appItem.key}", it) }
             .isSuccess
 
-    fun addToDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
+    /**
+     * What the app's menu asks to be changed on the layout of the home profile [profile], the one the menu was
+     * drawn from ([AppDrawerUiState.homeProfileId] of the state that said what the menu offers). [work] runs
+     * while that profile is on and stays on; with another one on by now it does not run: the menu offered
+     * "Remove from home" or "Add to dock" for the rows of ITS profile, and says nothing of another's.
+     */
+    private suspend fun onLayoutOf(profile: Long, work: suspend () -> Unit) {
+        homeLayoutRepository.whileProfileIsOn(profile) { work() }
+    }
+
+    /** "Add to dock" of the app's menu, for the home profile [profile] ([onLayoutOf]). */
+    fun addToDock(appItem: AppItem, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.addToDock(appItem) } }
 
     /**
      * A drawer icon released on the dock at [target] (see [HomeDragController.dockTargetAt]): onto a
@@ -518,7 +530,9 @@ class AppDrawerViewModel @Inject constructor(
         }
     }
 
-    fun removeFromDock(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
+    /** "Remove from dock" of the app's menu, for the home profile [profile] ([onLayoutOf]). */
+    fun removeFromDock(appItem: AppItem, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.removeFromDock(appItem) } }
 
     /**
      * What the drawer, drawn from the state of the home profile [profile], asks to be ADDED to its layout. [work] is given that
@@ -571,7 +585,9 @@ class AppDrawerViewModel @Inject constructor(
         (folder.icon as? CustomIcon.FromPack)?.let { customIcons.setFolderIcon(FolderIconKey.home(id), it) }
     }
 
-    fun removeFromHome(appItem: AppItem) = viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
+    /** "Remove from home" of the app's menu, for the home profile [profile] ([onLayoutOf]). */
+    fun removeFromHome(appItem: AppItem, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.removeFromHome(appItem) } }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell).

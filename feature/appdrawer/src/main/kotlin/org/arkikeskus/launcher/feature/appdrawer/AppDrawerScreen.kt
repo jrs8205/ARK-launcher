@@ -386,11 +386,17 @@ fun AppDrawerScreen(
     val menu = menuTarget
     if (menu != null) {
         val (app, bounds) = menu
-        val inHome = app.key in uiState.homeKeys
-        val inDock = app.key in uiState.dockKeys
+        // The ONE state this menu is drawn from: its rows say what the menu offers ("Remove from home" for an
+        // app that is there), and its home profile is the one every action below is asked for. An action reads
+        // nothing of the state again when it is tapped: the profile can be switched while the menu is open, and
+        // "Remove from home" offered for one profile must not remove the app from another's home screen.
+        val shown = uiState
+        val menuProfile = shown.homeProfileId
+        val inHome = app.key in shown.homeKeys
+        val inDock = app.key in shown.dockKeys
         // A full visible dock can't show another favorite — offering "Add to dock" would appear to
         // do nothing (the new favorite lands in the invisible hidden tail). Hide the add action then.
-        val dockFull = uiState.dockKeys.size + uiState.dockFolders >= uiState.dockColumns
+        val dockFull = shown.dockKeys.size + shown.dockFolders >= shown.dockColumns
         // Anchor to the icon's edge (not its centre) so the popup clears it with a small gap: below
         // the cell for top-half icons, above it for bottom-half ones.
         val preferAbove = bounds.center.y > windowHeightPx / 2
@@ -413,17 +419,17 @@ fun AppDrawerScreen(
                     stringResource(if (inHome) R.string.remove_from_home else R.string.add_to_home),
                     if (inHome) LauncherIcons.Close else LauncherIcons.Add,
                 ) {
-                    if (inHome) viewModel.removeFromHome(app) else viewModel.addToHome(app, uiState.homeProfileId)
+                    if (inHome) viewModel.removeFromHome(app, menuProfile) else viewModel.addToHome(app, menuProfile)
                 },
                 // Offer "Remove from dock" for a member, "Add to dock" only when a visible slot is
                 // free; a full dock hides the add action instead of appearing to do nothing.
                 if (inDock) {
                     PopupAction(stringResource(R.string.remove_from_dock), LauncherIcons.Close) {
-                        viewModel.removeFromDock(app)
+                        viewModel.removeFromDock(app, menuProfile)
                     }
                 } else if (!dockFull) {
                     PopupAction(stringResource(R.string.add_to_dock), LauncherIcons.Add) {
-                        viewModel.addToDock(app)
+                        viewModel.addToDock(app, menuProfile)
                     }
                 } else {
                     null
@@ -434,7 +440,7 @@ fun AppDrawerScreen(
                 },
             ),
             onDismiss = { menuTarget = null },
-            onPinShortcut = { item -> viewModel.pinShortcut(item, uiState.homeProfileId) },
+            onPinShortcut = { item -> viewModel.pinShortcut(item, menuProfile) },
             onWidgets = if (uiState.desktopLocked) null else onShowWidgets?.let { { it(app) } },
             // Opened at the lift, under the still-held finger (issue #12).
             held = dragController.isDragging,
