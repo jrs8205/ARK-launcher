@@ -290,6 +290,8 @@
     <string name="base_colour_yellow">Keltainen</string>
     <string name="base_colour_red">Punainen</string>
     <string name="base_colour_black">Musta</string>
+    <string name="base_colour_classic">Klassinen</string>
+    <string name="base_colour_classic_desc">Harmaat pinnat ja aiemman ilmeen lämmin oranssi</string>
     <string name="base_colour_chameleon">Kameleontti</string>
     <string name="base_colour_chameleon_desc">Seuraa taustakuvaasi</string>
     <string name="settings_cat_screensaver">Näytönsäästäjä</string>

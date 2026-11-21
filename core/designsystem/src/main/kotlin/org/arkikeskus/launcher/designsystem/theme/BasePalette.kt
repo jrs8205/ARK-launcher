@@ -6,13 +6,16 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import kotlin.math.abs
 
-/** What a palette is computed from: one hue of the colour circle, or no colour at all. */
+/** What a palette is computed from: one hue of the colour circle, no colour at all, or the look before 1.1.0. */
 sealed interface PaletteSeed {
     /** [hue] in degrees (any value, wrapped into the circle), [saturation] of the fill, 0..1. */
     data class Hue(val hue: Float, val saturation: Float = 0.96f) : PaletteSeed
 
     /** The monochrome look: black, white and greys. */
     data object Mono : PaletteSeed
+
+    /** The colours of the look before 1.1.0 (issue #28): neutral grey surfaces and one warm orange. */
+    data object Classic : PaletteSeed
 }
 
 /**
@@ -72,12 +75,12 @@ private const val CONTAINER_STEPS = 40
  * The palette of [seed] for a dark or a light screen. A seed that is not a usable number (a hue
  * converted from a colour that had none) gives the monochrome palette rather than a random hue.
  */
-fun basePalette(seed: PaletteSeed, dark: Boolean): BasePalette =
-    if (seed is PaletteSeed.Hue && seed.hue.isFinite() && seed.saturation.isFinite()) {
+fun basePalette(seed: PaletteSeed, dark: Boolean): BasePalette = when {
+    seed is PaletteSeed.Classic -> classic(dark)
+    seed is PaletteSeed.Hue && seed.hue.isFinite() && seed.saturation.isFinite() ->
         tinted(((seed.hue % 360f) + 360f) % 360f, seed.saturation.coerceIn(0f, 1f), dark)
-    } else {
-        mono(dark)
-    }
+    else -> mono(dark)
+}
 
 /**
  * The fill as a foreground on [surface] (a title, an icon tint): itself where it reads as text,
@@ -164,6 +167,53 @@ private fun mono(dark: Boolean): BasePalette {
         onFill = if (dark) Color.Black else Color.White,
         container = grey(if (dark) 0.22f else 0.84f),
         onContainer = grey(if (dark) 0.96f else 0.08f),
+        error = readable(if (dark) DarkError else LightError, text, listOf(background, card)),
+    )
+}
+
+/** The orange of the look before 1.1.0, and what is written on it. */
+private val ClassicOrange = Color(0xFFE2714A)
+private val ClassicOnOrange = Color(0xFF1A1C1E)
+
+/**
+ * The colours of the look before 1.1.0 (issue #28): the neutral greys its hand-made surfaces had, and its one
+ * warm orange where the colour is. The surfaces, the texts and the orange are that look's own values. Where
+ * that look did not keep what every palette here keeps, the rule wins and the colour stays as close as it allows:
+ *
+ * - it wrote white on the orange (3.1:1); the orange carries dark content;
+ * - on a light screen the orange stood 2.9:1 from the card; there it is the same orange made deeper by
+ *   hundredths, as far as it takes to stand out from the card and the page as a control;
+ * - on a light screen a switch that was off had a white thumb on a light grey track; its thumb is the
+ *   descriptions' grey, as in every other palette.
+ *
+ * On a light screen the card is the LIGHTER of the two surfaces, as it was: the one palette where it is.
+ * A container (that look laid a veil of the text's colour over the card) is a grey of its own, told from both.
+ */
+private fun classic(dark: Boolean): BasePalette {
+    val background = Color(if (dark) 0xFF0C0E13 else 0xFFECEEF2)
+    val card = Color(if (dark) 0xFF1D222B else 0xFFF4F6F9)
+    val text = Color(if (dark) 0xFFE9EBEE else 0xFF1A1C1E)
+    val dim = Color(if (dark) 0xFF9AA1AB else 0xFF5B616A)
+    var fill = ClassicOrange
+    for (step in 0..FILL_STEPS) {
+        fill = if (step == 0) ClassicOrange else Color.Black.copy(alpha = step / 100f).compositeOver(ClassicOrange)
+        val standsOut = contrast(fill, card) >= CONTROL_CONTRAST && contrast(fill, background) >= CONTROL_CONTRAST
+        if (standsOut && contrast(ClassicOnOrange, fill) >= TEXT_CONTRAST) break
+    }
+    return BasePalette(
+        seed = PaletteSeed.Classic,
+        dark = dark,
+        background = background,
+        card = card,
+        text = text,
+        dim = dim,
+        faint = Color(if (dark) 0xFF6C7079 else 0xFF9499A1),
+        track = Color(if (dark) 0xFF3A404A else 0xFFC8CCD3),
+        offThumb = if (dark) Color(0xFFAEB4BD) else dim,
+        fill = fill,
+        onFill = ClassicOnOrange,
+        container = Color(if (dark) 0xFF303640 else 0xFFD5DAE2),
+        onContainer = text,
         error = readable(if (dark) DarkError else LightError, text, listOf(background, card)),
     )
 }

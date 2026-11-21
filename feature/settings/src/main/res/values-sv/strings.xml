@@ -290,6 +290,8 @@
     <string name="base_colour_yellow">Gul</string>
     <string name="base_colour_red">Röd</string>
     <string name="base_colour_black">Svart</string>
+    <string name="base_colour_classic">Klassisk</string>
+    <string name="base_colour_classic_desc">Grå ytor och det tidigare utseendets varma orange</string>
     <string name="base_colour_chameleon">Kameleont</string>
     <string name="base_colour_chameleon_desc">Följer din bakgrundsbild</string>
     <string name="settings_cat_screensaver">Skärmsläckare</string>

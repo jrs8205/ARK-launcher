@@ -79,6 +79,8 @@ class AppearanceSectionTest {
             if (key == LauncherSettings.BASE_COLOUR_TEAL) node.assertIsSelected() else node.assertIsNotSelected()
         }
         compose.onAllNodesWithText(res.getString(R.string.base_colour_chameleon_desc)).onFirst().assertExists()
+        // Classic says what it is: its swatch alone would be taken for the Orange choice.
+        compose.onAllNodesWithText(res.getString(R.string.base_colour_classic_desc)).onFirst().assertExists()
     }
 
     @Test fun everyChoiceCarriesItsNameForTheScreenReader() {
@@ -89,6 +91,7 @@ class AppearanceSectionTest {
             LauncherSettings.BASE_COLOUR_ROSE to "Rose", LauncherSettings.BASE_COLOUR_TEAL to "Teal",
             LauncherSettings.BASE_COLOUR_YELLOW to "Yellow", LauncherSettings.BASE_COLOUR_RED to "Red",
             LauncherSettings.BASE_COLOUR_BLACK to "Black", LauncherSettings.BASE_COLOUR_CHAMELEON to "Chameleon",
+            LauncherSettings.BASE_COLOUR_CLASSIC to "Classic",
         )
         assertThat(names.keys).containsExactlyElementsIn(LauncherSettings.BASE_COLOURS)
         for ((key, name) in names) {
@@ -103,7 +106,10 @@ class AppearanceSectionTest {
         show(selected = LauncherSettings.BASE_COLOUR_ORANGE, onPick = { picked += it })
         compose.onNodeWithTag(baseColourTag(LauncherSettings.BASE_COLOUR_VIOLET)).performScrollTo().performClick()
         compose.onNodeWithTag(baseColourTag(LauncherSettings.BASE_COLOUR_CHAMELEON)).performScrollTo().performClick()
-        assertThat(picked).containsExactly(LauncherSettings.BASE_COLOUR_VIOLET, LauncherSettings.BASE_COLOUR_CHAMELEON).inOrder()
+        compose.onNodeWithTag(baseColourTag(LauncherSettings.BASE_COLOUR_CLASSIC)).performScrollTo().performClick()
+        assertThat(picked).containsExactly(
+            LauncherSettings.BASE_COLOUR_VIOLET, LauncherSettings.BASE_COLOUR_CHAMELEON, LauncherSettings.BASE_COLOUR_CLASSIC,
+        ).inOrder()
     }
 
     @Test fun everyChoiceIsATouchTargetOfAtLeast48Dp() {

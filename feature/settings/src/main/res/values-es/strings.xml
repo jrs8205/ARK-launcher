@@ -294,6 +294,8 @@
     <string name="base_colour_yellow">Amarillo</string>
     <string name="base_colour_red">Rojo</string>
     <string name="base_colour_black">Negro</string>
+    <string name="base_colour_classic">Clásico</string>
+    <string name="base_colour_classic_desc">Superficies grises y el naranja cálido del aspecto anterior</string>
     <string name="base_colour_chameleon">Camaleón</string>
     <string name="base_colour_chameleon_desc">Sigue tu fondo de pantalla</string>
     <string name="settings_cat_screensaver">Salvapantallas</string>

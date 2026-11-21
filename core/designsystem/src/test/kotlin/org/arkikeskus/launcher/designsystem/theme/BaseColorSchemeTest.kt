@@ -16,7 +16,7 @@ class BaseColorSchemeTest {
     // Every whole hue at every strength a seed can have: the presets use 0.85, 0.90, 0.96 and 1, and a
     // seed built by hand may carry any other.
     private val seeds: List<PaletteSeed> = listOf(0f, 0.3f, 0.6f, 0.85f, 0.9f, 0.96f, 1f)
-        .flatMap { s -> (0 until 360).map { PaletteSeed.Hue(it.toFloat(), s) } } + PaletteSeed.Mono
+        .flatMap { s -> (0 until 360).map { PaletteSeed.Hue(it.toFloat(), s) } } + PaletteSeed.Classic + PaletteSeed.Mono
 
     private fun everyPalette(check: (BasePalette, String) -> Unit) =
         seeds.forEach { s -> listOf(true, false).forEach { d -> check(basePalette(s, d), "$s dark=$d") } }

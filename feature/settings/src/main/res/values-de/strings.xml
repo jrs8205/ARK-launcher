@@ -290,6 +290,8 @@
     <string name="base_colour_yellow">Gelb</string>
     <string name="base_colour_red">Rot</string>
     <string name="base_colour_black">Schwarz</string>
+    <string name="base_colour_classic">Klassisch</string>
+    <string name="base_colour_classic_desc">Graue Flächen und das warme Orange des früheren Designs</string>
     <string name="base_colour_chameleon">Chamäleon</string>
     <string name="base_colour_chameleon_desc">Folgt deinem Hintergrundbild</string>
     <string name="settings_cat_screensaver">Bildschirmschoner</string>

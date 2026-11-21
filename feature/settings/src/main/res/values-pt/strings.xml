@@ -294,6 +294,8 @@
     <string name="base_colour_yellow">Amarelo</string>
     <string name="base_colour_red">Vermelho</string>
     <string name="base_colour_black">Preto</string>
+    <string name="base_colour_classic">Clássico</string>
+    <string name="base_colour_classic_desc">Superfícies cinza e o laranja quente do visual anterior</string>
     <string name="base_colour_chameleon">Camaleão</string>
     <string name="base_colour_chameleon_desc">Segue o seu papel de parede</string>
     <string name="settings_cat_screensaver">Proteção de tela</string>

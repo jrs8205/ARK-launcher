@@ -26,7 +26,7 @@ class BasePaletteModesTest {
     }
 
     @Test fun `the accent text reads on the page and on a card alike`() {
-        val seeds = (0 until 360).map { PaletteSeed.Hue(it.toFloat()) } + PaletteSeed.Mono
+        val seeds = (0 until 360).map { PaletteSeed.Hue(it.toFloat()) } + PaletteSeed.Mono + PaletteSeed.Classic
         for (seed in seeds) for (dark in listOf(true, false)) {
             val p = basePalette(seed, dark)
             assertWithMessage("$seed dark=$dark page").that(contrast(p.accentText, p.background)).isAtLeast(4.5f)

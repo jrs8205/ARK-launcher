@@ -37,6 +37,7 @@ class DrawerFillRulesTest {
                 "yellow" to PaletteSeed.Hue(46f, 1f),
                 "blue" to PaletteSeed.Hue(220f),
                 "black" to PaletteSeed.Mono,
+                "classic" to PaletteSeed.Classic,
                 "the drawer's own hue" to chameleonSeed(argb.toInt()),
             )
             for ((name, seed) in seeds) for (dark in listOf(true, false)) {

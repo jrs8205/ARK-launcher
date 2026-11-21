@@ -33,7 +33,9 @@ class DrawerSearchFieldColoursTest {
     // Behind the drawer: a black wallpaper, dark ones, the mid grey where black and white text swap, a light one, white.
     private val behind = listOf(0f, 0.05f, 0.11f, 0.18f, 0.5f, 1f)
 
-    private val seeds = listOf("orange" to DefaultPaletteSeed, "blue" to PaletteSeed.Hue(220f), "black" to PaletteSeed.Mono)
+    private val seeds = listOf(
+        "orange" to DefaultPaletteSeed, "blue" to PaletteSeed.Hue(220f), "black" to PaletteSeed.Mono, "classic" to PaletteSeed.Classic,
+    )
 
     private fun ratio(a: Color, b: Color) = contrastRatio(a.luminance(), b.luminance())
 

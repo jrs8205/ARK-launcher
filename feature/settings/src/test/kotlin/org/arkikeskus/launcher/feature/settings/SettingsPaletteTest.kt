@@ -29,6 +29,7 @@ class SettingsPaletteTest {
         "blue" to PaletteSeed.Hue(220f),
         "teal" to PaletteSeed.Hue(182f),
         "black" to PaletteSeed.Mono,
+        "classic" to PaletteSeed.Classic,
     )
 
     private fun everyPalette(check: (String, org.arkikeskus.launcher.ui.expressive.ExpressivePalette) -> Unit) {

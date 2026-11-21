@@ -67,6 +67,7 @@ internal fun baseColourName(key: String): Int = when (key) {
     LauncherSettings.BASE_COLOUR_YELLOW -> R.string.base_colour_yellow
     LauncherSettings.BASE_COLOUR_RED -> R.string.base_colour_red
     LauncherSettings.BASE_COLOUR_BLACK -> R.string.base_colour_black
+    LauncherSettings.BASE_COLOUR_CLASSIC -> R.string.base_colour_classic
     LauncherSettings.BASE_COLOUR_CHAMELEON -> R.string.base_colour_chameleon
     else -> R.string.base_colour_orange
 }
@@ -86,8 +87,9 @@ internal fun AppearanceRows(s: LauncherSettings, actions: SettingsActions) {
 }
 
 /**
- * The base colour: nine named colours in a grid and the Chameleon, which follows the wallpaper, as a row of its own
- * with the line that says so. A tap applies at once; the whole launcher, this page included, takes the colour. On a
+ * The base colour: nine named colours in a grid, then Classic (the greys and the orange of the look before 1.1.0)
+ * and the Chameleon (which follows the wallpaper), each as a row of its own with the line that says what it is.
+ * A tap applies at once; the whole launcher, this page included, takes the colour. On a
  * narrow screen or with large text the grid is two columns wide so that no name is cut.
  */
 @Composable
@@ -111,7 +113,9 @@ internal fun BaseColourCard(selected: String, onPick: (String) -> Unit) {
                 color = p.dim, fontSize = 12.5.sp,
                 modifier = Modifier.padding(horizontal = 6.dp).padding(bottom = 8.dp),
             )
-            val fixed = LauncherSettings.BASE_COLOURS.filter { it != LauncherSettings.BASE_COLOUR_CHAMELEON }
+            val fixed = LauncherSettings.BASE_COLOURS.filter {
+                it != LauncherSettings.BASE_COLOUR_CHAMELEON && it != LauncherSettings.BASE_COLOUR_CLASSIC
+            }
             val names = fixed.map { stringResource(baseColourName(it)) }
             // A name is one word and cannot wrap, so the grid is as many columns wide as the widest name allows in
             // this language at this text size: three, two, or a plain list.
@@ -139,6 +143,13 @@ internal fun BaseColourCard(selected: String, onPick: (String) -> Unit) {
                             }
                         }
                     }
+                    // Its swatch alone would be taken for the Orange choice: the line says what differs.
+                    BaseColourRowOption(
+                        LauncherSettings.BASE_COLOUR_CLASSIC,
+                        description = stringResource(R.string.base_colour_classic_desc),
+                        selected == LauncherSettings.BASE_COLOUR_CLASSIC,
+                        dark,
+                    ) { onPick(LauncherSettings.BASE_COLOUR_CLASSIC) }
                     BaseColourRowOption(
                         LauncherSettings.BASE_COLOUR_CHAMELEON,
                         description = stringResource(R.string.base_colour_chameleon_desc),
@@ -254,11 +265,15 @@ private fun BaseColourSwatch(key: String, selected: Boolean, dark: Boolean) {
 
 /**
  * What a swatch is painted with: a hue's own fill in the current mode; Black as the near-black its light look fills
- * with (in dark its fill is white, which would not say "black"); the Chameleon as every hue at once, since its
- * colour is the wallpaper's.
+ * with (in dark its fill is white, which would not say "black"); Classic as its grey card and its orange side by
+ * side, since the grey is what tells it from Orange; the Chameleon as every hue at once, since its colour is the
+ * wallpaper's.
  */
 private fun swatchBrush(key: String, dark: Boolean): Brush = when (key) {
     LauncherSettings.BASE_COLOUR_BLACK -> SolidColor(basePalette(PaletteSeed.Mono, dark = false).fill)
+    LauncherSettings.BASE_COLOUR_CLASSIC -> basePalette(PaletteSeed.Classic, dark).let { classic ->
+        Brush.horizontalGradient(0f to classic.card, 0.5f to classic.card, 0.5f to classic.fill, 1f to classic.fill)
+    }
     LauncherSettings.BASE_COLOUR_CHAMELEON -> Brush.sweepGradient(
         (CHAMELEON_HUES + CHAMELEON_HUES.first()).map { basePalette(PaletteSeed.Hue(it), dark).fill },
     )

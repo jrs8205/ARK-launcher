@@ -84,7 +84,10 @@ class ExpressivePaletteTest {
         assertThat(paletteSeed(LauncherSettings.BASE_COLOUR_RED, null)).isEqualTo(hue(355f, 0.90f))
         assertThat(paletteSeed(LauncherSettings.BASE_COLOUR_BLACK, 0xFF1F8EF1.toInt())).isEqualTo(PaletteSeed.Mono)
         // Every choice of the setting is covered: none falls through to the default by accident.
-        assertThat(LauncherSettings.BASE_COLOURS).hasSize(10)
+        assertThat(LauncherSettings.BASE_COLOURS).hasSize(11)
+        // Classic is a palette of its own, whatever the wallpaper.
+        assertThat(paletteSeed(LauncherSettings.BASE_COLOUR_CLASSIC, 0xFF1F8EF1.toInt())).isEqualTo(PaletteSeed.Classic)
+        assertThat(paletteSeed(LauncherSettings.BASE_COLOUR_CLASSIC, null)).isEqualTo(PaletteSeed.Classic)
     }
 
     @Test fun theChameleonFollowsTheWallpaperAndAnUnknownChoiceIsTheDefault() {

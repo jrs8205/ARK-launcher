@@ -7,7 +7,7 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Test
 
 /**
- * The base colour the whole launcher is coloured from: orange until the user chooses, one of ten
+ * The base colour the whole launcher is coloured from: orange until the user chooses, one of eleven
  * known values, part of the backup. The colour the Chameleon last took from the wallpaper is this
  * phone's own and stays out of it.
  */
@@ -23,12 +23,20 @@ class BaseColourSettingsTest {
         assertThat(repo.settings.first().baseColour).isEqualTo(LauncherSettings.BASE_COLOUR_ORANGE)
     }
 
-    @Test fun `there are ten base colours and orange is the first and the default`() {
+    @Test fun `there are eleven base colours and orange is the first and the default`() {
         assertThat(LauncherSettings.BASE_COLOURS).containsExactly(
-            "orange", "blue", "green", "violet", "rose", "teal", "yellow", "red", "black", "chameleon",
+            "orange", "blue", "green", "violet", "rose", "teal", "yellow", "red", "black", "classic", "chameleon",
         ).inOrder()
         assertThat(LauncherSettings.BASE_COLOUR_DEFAULT).isEqualTo("orange")
         assertThat(LauncherSettings().baseColour).isEqualTo("orange")
+    }
+
+    /** Issue #28: the Classic choice is stored and read back as any other. */
+    @Test fun `classic is a base colour that is stored and read back`() = runTest {
+        val repo = newRepository()
+        repo.setBaseColour(LauncherSettings.BASE_COLOUR_CLASSIC)
+        assertThat(repo.settings.first().baseColour).isEqualTo("classic")
+        assertThat(repo.exportRaw()).containsEntry("base_colour", "classic")
     }
 
     @Test fun `the base colour travels in the backup`() = runTest {

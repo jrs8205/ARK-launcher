@@ -298,6 +298,8 @@
     <string name="base_colour_yellow">Жёлтый</string>
     <string name="base_colour_red">Красный</string>
     <string name="base_colour_black">Чёрный</string>
+    <string name="base_colour_classic">Классический</string>
+    <string name="base_colour_classic_desc">Серые поверхности и тёплый оранжевый прежнего оформления</string>
     <string name="base_colour_chameleon">Хамелеон</string>
     <string name="base_colour_chameleon_desc">Следует за обоями</string>
     <string name="settings_cat_screensaver">Заставка</string>

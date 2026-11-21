@@ -294,6 +294,8 @@
     <string name="base_colour_yellow">Jaune</string>
     <string name="base_colour_red">Rouge</string>
     <string name="base_colour_black">Noir</string>
+    <string name="base_colour_classic">Classique</string>
+    <string name="base_colour_classic_desc">Surfaces grises et l’orange chaud de l’ancienne apparence</string>
     <string name="base_colour_chameleon">Caméléon</string>
     <string name="base_colour_chameleon_desc">Suit votre fond d’écran</string>
     <string name="settings_cat_screensaver">Économiseur d\'écran</string>

@@ -7,7 +7,8 @@ import org.arkikeskus.launcher.model.LauncherSettings
 
 /**
  * The seed of the stored [baseColour] choice (one of [LauncherSettings.BASE_COLOURS]). The eight
- * hues are fixed; Black has none; the Chameleon takes its hue from [wallpaperArgb], the wallpaper's
+ * hues are fixed; Black has none; Classic is the palette of the look before 1.1.0, not a hue; the
+ * Chameleon takes its hue from [wallpaperArgb], the wallpaper's
  * main colour, and is monochrome while there is none. A choice this version does not know is the
  * default colour.
  */
@@ -21,6 +22,7 @@ fun paletteSeed(baseColour: String, wallpaperArgb: Int?): PaletteSeed = when (ba
     LauncherSettings.BASE_COLOUR_YELLOW -> PaletteSeed.Hue(46f, 1f)
     LauncherSettings.BASE_COLOUR_RED -> PaletteSeed.Hue(355f, 0.90f)
     LauncherSettings.BASE_COLOUR_BLACK -> PaletteSeed.Mono
+    LauncherSettings.BASE_COLOUR_CLASSIC -> PaletteSeed.Classic
     LauncherSettings.BASE_COLOUR_CHAMELEON -> chameleonSeed(wallpaperArgb)
     else -> DefaultPaletteSeed
 }

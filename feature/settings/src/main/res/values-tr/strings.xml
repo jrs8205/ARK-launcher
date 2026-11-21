@@ -290,6 +290,8 @@
     <string name="base_colour_yellow">Sarı</string>
     <string name="base_colour_red">Kırmızı</string>
     <string name="base_colour_black">Siyah</string>
+    <string name="base_colour_classic">Klasik</string>
+    <string name="base_colour_classic_desc">Gri yüzeyler ve önceki görünümün sıcak turuncusu</string>
     <string name="base_colour_chameleon">Bukalemun</string>
     <string name="base_colour_chameleon_desc">Duvar kâğıdınızı takip eder</string>
     <string name="settings_cat_screensaver">Ekran koruyucu</string>
