@@ -65,6 +65,9 @@ fun SettingsScreen(modifier: Modifier = Modifier, openPage: String? = null) {
     val iconPacks by viewModel.iconPacks.collectAsStateWithLifecycle()
     val privateSpaceSeen by viewModel.privateSpaceSeen.collectAsStateWithLifecycle()
     val homeProfiles by viewModel.homeProfiles.collectAsStateWithLifecycle()
+    // Told after each composition: what the user changes on this page is changed for the profile it shows.
+    val shownProfile = s?.homeProfileId
+    androidx.compose.runtime.SideEffect { viewModel.pageShows(shownProfile) }
     val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.runtime.LaunchedEffect(viewModel) {
         viewModel.notices.collect { notice ->

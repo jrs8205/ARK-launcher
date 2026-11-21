@@ -53,6 +53,48 @@ class SettingsAcrossProfilesTest {
         assertThat(settings.settings.first().longPressScale).isEqualTo(0.5f)
     }
 
+    /**
+     * Review round 7, carried through to every setting of a Settings page. The page shows one profile's values,
+     * and a change made on it can get its turn after a switch that was waiting. A change made FOR a profile
+     * writes a profile's own values only while that profile is on: with another one on they are left out (the
+     * other profile keeps its look, and the first is not written behind its back either), and what every
+     * profile shares is written all the same.
+     */
+    @Test fun aChangeMadeForAProfileThatIsNotOnAnyMoreChangesNoProfilesOwnValues() = runTest {
+        settings.setBaseColour("blue")
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setBaseColour("green")
+
+        // The second profile is on (its values are in a store of its own); the change was made on the first's page.
+        writingForHomeProfile(1) {
+            settings.setBaseColour("red")
+            settings.setLongPressScale(1.5f)
+        }
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+        assertThat(settings.settings.first().longPressScale).isEqualTo(1.5f)
+        store.setActive(1)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+
+        // The other way round: the first profile is on (its values are in the settings file itself).
+        writingForHomeProfile(2) {
+            settings.setBaseColour("violet")
+            settings.setLongPressScale(0.5f)
+        }
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+        assertThat(settings.settings.first().longPressScale).isEqualTo(0.5f)
+        store.setActive(2)
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+
+        // Made for the profile that is on, it is written, as a change that names no profile is.
+        writingForHomeProfile(2) { settings.setBaseColour("teal") }
+        assertThat(settings.settings.first().baseColour).isEqualTo("teal")
+        settings.setBaseColour("rose")
+        assertThat(settings.settings.first().baseColour).isEqualTo("rose")
+        store.setActive(1)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+    }
+
     @Test fun anExportHasNoneOfTheReservedKeys() = runTest {
         settings.setBaseColour("blue")
         store.rename(1, "Home")

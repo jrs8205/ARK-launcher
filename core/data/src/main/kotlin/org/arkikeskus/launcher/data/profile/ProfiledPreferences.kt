@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -18,6 +19,26 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.HomeProfile
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+
+/**
+ * The home profile a change of the settings is FOR, carried by the coroutine that makes the change
+ * ([writingForHomeProfile]): the profile whose values a screen showed when the user changed one of them.
+ */
+class WriteForHomeProfile(val profileId: Long) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<WriteForHomeProfile>
+}
+
+/**
+ * Runs [write], whose changes of the settings are for the home profile [profileId]. What they change of a
+ * profile's OWN values (its look, its grids, its drawer folders) is written only while that profile is the one
+ * that is on; with another one on, that part is left out, and what every profile shares is written all the
+ * same. A screen shows one profile's values, and a change made on it can get its turn after a switch that was
+ * waiting: the value the user chose for the profile on screen then went into the profile that had come on.
+ */
+suspend fun <T> writingForHomeProfile(profileId: Long, write: suspend () -> T): T =
+    withContext(WriteForHomeProfile(profileId)) { write() }
 
 /**
  * The settings store the launcher reads and writes: the values every home profile shares, from the
@@ -50,8 +71,12 @@ class ProfiledPreferences(
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = mutex.withLock {
         val shared = main.data.first()
         val active = activeId(shared)
+        // A change made for one profile ([writingForHomeProfile]) changes no other profile's own values:
+        // judged here, under the lock a switch is written under, so it is the profile the write lands in.
+        val forAnother = currentCoroutineContext()[WriteForHomeProfile]?.let { it.profileId != active } ?: false
         if (active == mainStoreId(shared)) {
-            val next = withReservedOf(shared, transform(shared))
+            val changed = transform(shared)
+            val next = withReservedOf(shared, if (forAnother) withOwnValuesOf(shared, changed) else changed)
             if (next != shared) main.updateData { next }
             return@withLock next
         }
@@ -64,7 +89,7 @@ class ProfiledPreferences(
             copy(shared) { isPerProfile(it) || it in HomeProfileKeys.RESERVED }
             copy(next) { !isPerProfile(it) && it !in HomeProfileKeys.RESERVED }
         }.toPreferences()
-        val nextOwn = mutablePreferencesOf().apply { copy(next, ::isPerProfile) }.toPreferences()
+        val nextOwn = if (forAnother) perProfileOf(own) else mutablePreferencesOf().apply { copy(next, ::isPerProfile) }.toPreferences()
         val sharedChanged = nextShared != shared
         if (sharedChanged) main.updateData { nextShared }
         if (nextOwn != perProfileOf(own)) {
@@ -173,6 +198,12 @@ class ProfiledPreferences(
     private fun viewOf(shared: Preferences, own: Preferences): Preferences = mutablePreferencesOf().apply {
         copy(shared) { !isPerProfile(it) }
         copy(own, ::isPerProfile)
+    }.toPreferences()
+
+    /** [next] with a profile's own values exactly as [before] has them: what every profile shares is [next]'s. */
+    private fun withOwnValuesOf(before: Preferences, next: Preferences): Preferences = mutablePreferencesOf().apply {
+        copy(next) { !isPerProfile(it) }
+        copy(before, ::isPerProfile)
     }.toPreferences()
 
     /** [next] with the bookkeeping exactly as [before] has it. */

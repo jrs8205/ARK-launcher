@@ -25,6 +25,7 @@ import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
+import org.arkikeskus.launcher.data.profile.writingForHomeProfile
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.LauncherSettings
@@ -261,7 +262,26 @@ internal class SettingsViewModel @Inject constructor(
     override fun setHomeGlassOpacity(value: Float) = update { repository.setHomeGlassOpacity(value) }
     override fun setStatusBarScrimOpacity(value: Float) = update { repository.setStatusBarScrimOpacity(value) }
 
+    /** The home profile whose values the page shows ([pageShows]); null until a page has been drawn. */
+    private var shownProfile: Long? = null
+
+    /**
+     * The page tells which home profile's values it has just drawn (null while it draws none). Every change
+     * the user makes on the page is made for THAT profile ([update]): not for the one this view model's state
+     * holds when the change is asked, which can be the next profile's a frame before the page shows it, and
+     * not for whichever profile is on when the write gets its turn.
+     */
+    fun pageShows(profile: Long?) {
+        shownProfile = profile
+    }
+
+    /**
+     * Runs a change the user made on the page, for the profile the page showed at that moment (read here, on
+     * the caller's thread). What the change writes of a profile's own values is written only while that
+     * profile is on ([writingForHomeProfile]); a value every profile shares is written whichever is on.
+     */
     private fun update(block: suspend () -> Unit) {
-        viewModelScope.launch { block() }
+        val profile = shownProfile
+        viewModelScope.launch { if (profile == null) block() else writingForHomeProfile(profile) { block() } }
     }
 }
