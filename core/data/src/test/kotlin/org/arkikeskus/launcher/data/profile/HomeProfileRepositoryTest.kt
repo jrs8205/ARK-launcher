@@ -7,7 +7,9 @@ import androidx.room.Room
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -457,6 +459,9 @@ class HomeProfileRepositoryTest {
         private val queue = java.util.concurrent.ConcurrentLinkedQueue<Runnable>()
         override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { queue.add(block) }
         fun runOne(): Boolean = queue.poll()?.also { it.run() } != null
+
+        /** Whether a piece of work is waiting to be run. */
+        val waiting: Boolean get() = queue.isNotEmpty()
     }
 
     /** While its rows are there and its picture is still being copied, the copy is not in the list: a process
@@ -515,18 +520,18 @@ class HomeProfileRepositoryTest {
         var saves = 0
 
         // Deleted while the picture was being read and saved: the save brings its folder back.
-        val whileSaving = profiles.setDrawerPicture(work.id) { store ->
+        val whileSaving = profiles.setDrawerPicture(work.id) { store, pick ->
             assertThat(profiles.delete(work.id)).isTrue()
             saves++
-            store.set(picture(Color.WHITE), work.id)
+            store.set(picture(Color.WHITE), pick)
         }
         assertThat(whileSaving).isFalse()
         assertThat(folder.exists()).isFalse()
 
         // Deleted before the picker answered: the picture is not even read.
-        val after = profiles.setDrawerPicture(work.id) { store ->
+        val after = profiles.setDrawerPicture(work.id) { store, pick ->
             saves++
-            store.set(picture(Color.WHITE), work.id)
+            store.set(picture(Color.WHITE), pick)
         }
         assertThat(after).isFalse()
         assertThat(saves).isEqualTo(1)
@@ -536,11 +541,101 @@ class HomeProfileRepositoryTest {
     @Test fun aPictureForAProfileThatIsThereIsSavedThoughItIsNotTheOneThatIsOn() = runTest {
         val work = created("Work", copyCurrent = false)
 
-        assertThat(profiles.setDrawerPicture(work.id) { it.set(picture(Color.BLACK), work.id) }).isTrue()
+        assertThat(profiles.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.BLACK), pick) }).isTrue()
 
         assertThat(drawerPictures.current.value).isNull()
         drawerPictures.switchTo(work.id)
         assertThat(drawerPictures.current.value).isNotNull()
+    }
+
+    /**
+     * Review round 5. The user picks a picture and then removes the profile's picture, before the pick has got
+     * anywhere (it waits for the list of profiles first). The removal is the LATER action, and it stays: the
+     * pick took its place among the user's actions when it was made, not when its save began.
+     */
+    @Test fun aPictureRemovedAfterItWasPickedStaysRemoved() = runTest {
+        val work = created("Work", copyCurrent = false)
+        assertThat(profiles.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.BLACK), pick) }).isTrue()
+
+        // The pick's first step waits for the list, and the user removes the picture meanwhile.
+        main.onNextRead = { drawerPictures.clear(work.id) }
+        val picked = profiles.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick) }
+
+        assertThat(picked).isFalse()
+        drawerPictures.switchTo(work.id)
+        assertThat(drawerPictures.current.value).isNull()
+        val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
+        assertThat(folder.listFiles().orEmpty().filter { it.extension == "jpg" }).isEmpty()
+    }
+
+    /**
+     * Review round 5. A deletion removes the profile's picture folder and only then takes the profile out of
+     * the list. The picker answering between the two saw the profile listed before its save and after it, and
+     * left a picture in the folder that had just been cleared, for a profile that was gone a moment later:
+     * nothing in the launcher could remove it. The pick's last look at the list waits for a deletion under way.
+     */
+    @Test fun aPictureSavedWhileItsProfileIsBeingDeletedGoesWithIt() = runBlocking<Unit> {
+        val io = OneAtATime()
+        val paced = DrawerWallpaperStore(context, io)
+        val repository = HomeProfileRepository(store, layout, settings, resolver, paced) {}
+        val work = created("Work", copyCurrent = false)
+        val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
+        val picked = CompletableDeferred<Boolean>()
+        val test = this
+
+        val deleting = async(Dispatchers.Default) { repository.delete(work.id) }
+        try {
+            // The deletion stands at the removal of the picture folder (the paced store's queue).
+            withTimeout(5_000) { while (!io.waiting) delay(5) }
+            // The list's next reader is the deletion itself, right before it takes the profile out of the
+            // list: there the picker answers.
+            main.onNextRead = {
+                test.launch(Dispatchers.Default) {
+                    picked.complete(repository.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick) })
+                }
+                // The picture is saved while the profile is still listed...
+                withTimeout(5_000) { while (folder.listFiles().orEmpty().none { it.extension == "jpg" }) delay(5) }
+                // ...and the pick gets the time to come to its end, if it can before the deletion has.
+                withTimeoutOrNull(300) { picked.await() }
+            }
+        } finally {
+            withTimeout(10_000) {
+                while (!deleting.isCompleted || !picked.isCompleted) {
+                    io.runOne()
+                    delay(5)
+                }
+            }
+        }
+
+        assertThat(deleting.await()).isTrue()
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(picked.await()).isFalse()
+        assertThat(folder.exists()).isFalse()
+    }
+
+    /**
+     * Review round 5. The first thing written of a new profile is its own values, and that write can fail as
+     * any other (a full disk). It is a profile that could not be made, said as one ([Created.Failed]): the
+     * failure used to be thrown to Settings, which asks without catching, and took the launcher down.
+     */
+    @Test fun aProfileWhoseOwnValuesCannotBeWrittenIsNotMade() = runTest {
+        // The disk is full: the file the next profile's own values go to cannot be written.
+        fun noSpace() {
+            files.store(2L).failWrites = java.io.IOException("No space left on device")
+        }
+
+        noSpace()
+        assertThat(profiles.create("Work", copyCurrent = true)).isEqualTo(HomeProfileRepository.Created.Failed)
+        // Nothing is left of the attempt, and the list is as it was.
+        assertThat(files.stores.keys).doesNotContain(2L)
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+
+        noSpace()
+        assertThat(profiles.create("Evening", copyCurrent = false)).isEqualTo(HomeProfileRepository.Created.Failed)
+        assertThat(files.stores.keys).doesNotContain(2L)
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        // With room again the next profile is made, under the same id.
+        assertThat(created("Work", copyCurrent = true).id).isEqualTo(2L)
     }
 
     /** Review round 3: what a screen asks of the layout it shows runs only while that profile is the one that

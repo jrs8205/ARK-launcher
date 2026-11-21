@@ -94,13 +94,21 @@ class HomeProfileStore(
      * listed when it is whole, so a process that dies half-way, or a write that fails, leaves no profile that
      * shows its source's look over an empty home screen. Its id is given again until a profile is listed
      * with it, so whoever makes the rest first clears what an earlier attempt left under that id.
+     *
+     * A write that fails (a full disk) is thrown to the caller, with what it may have left of the file taken
+     * away first: there is no profile to give up ([discard]) when this did not return one.
      */
     suspend fun prepare(name: String, copyOf: Long?): HomeProfile? = view.mutex.withLock {
         val now = main.data.first()
         val list = profilesIn(now)
         if (list.size >= HomeProfile.MAX_PROFILES) return@withLock null
         val profile = HomeProfile(nextId(now, list), HomeProfile.cleanName(name))
-        files.store(profile.id).updateData { valuesFor(copyOf, list) }
+        try {
+            files.store(profile.id).updateData { valuesFor(copyOf, list) }
+        } catch (e: Exception) {
+            dropFile(profile.id)
+            throw e
+        }
         profile
     }
 

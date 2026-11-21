@@ -90,7 +90,7 @@ internal class SettingsViewModel @Inject constructor(
     /** Saves the picture at [uri] as the drawer's wallpaper in the home profile [profile], the one the page shows. */
     override fun importDrawerWallpaper(uri: Uri, profile: Long) = update {
         // Not for a profile deleted while the picker was open (HomeProfileRepository.setDrawerPicture).
-        homeProfileRepository.setDrawerPicture(profile) { it.import(uri, profile) }
+        homeProfileRepository.setDrawerPicture(profile) { pictures, pick -> pictures.import(uri, pick) }
     }
 
     override fun clearDrawerWallpaper(profile: Long) = update { drawerWallpaper.clear(profile) }

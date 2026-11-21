@@ -218,6 +218,27 @@ class DrawerWallpaperStoreTest {
         assertThat(jpgs()).hasSize(1)
     }
 
+    /** A pick's place among the user's actions is the moment it was made ([DrawerWallpaperStore.pick]), not the
+     *  moment its save begins: a removal made after the pick stays a removal, however late the save comes; and of
+     *  two picks the one made later shows, whichever is saved last. */
+    @Test fun aPickKeepsThePlaceItWasGivenWhenItWasMade() = runBlocking<Unit> {
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
+        store.set(picture(Color.BLACK), 1)
+
+        val overtaken = store.pick(1)
+        store.clear(1)
+        assertThat(store.set(picture(Color.WHITE), overtaken)).isFalse()
+        assertThat(store.current.value).isNull()
+        assertThat(jpgs()).isEmpty()
+
+        val earlier = store.pick(1)
+        val later = store.pick(1)
+        assertThat(store.set(picture(Color.BLACK), later)).isTrue()
+        assertThat(store.set(picture(Color.WHITE), earlier)).isFalse()
+        assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
+        assertThat(jpgs()).hasSize(1)
+    }
+
     /** The owner's review: a pick is for the home profile the page shows. Settings can ask a moment after a switch,
      *  before the store has followed it, and the picture must still go to the profile that was named: not to the one
      *  the store happens to show, and not nowhere. */

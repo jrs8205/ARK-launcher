@@ -74,7 +74,15 @@ class HomeProfileRepository @Inject constructor(
      */
     suspend fun create(name: String, copyCurrent: Boolean): Created = withContext(NonCancellable) {
         store.whileActiveStays { source ->
-            val profile = store.prepare(name, copyOf = source.takeIf { copyCurrent }) ?: return@whileActiveStays Created.Full
+            // Its own values are the first thing written, and that write fails as any other can (a full disk):
+            // nothing is made of the profile then, and the store leaves nothing of the attempt.
+            val profile = try {
+                store.prepare(name, copyOf = source.takeIf { copyCurrent }) ?: return@whileActiveStays Created.Full
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return@whileActiveStays Created.Failed
+            }
             try {
                 // What an attempt that died left under this id (an id is given again until it is listed).
                 dropRows(profile.id)
@@ -117,21 +125,39 @@ class HomeProfileRepository @Inject constructor(
     suspend fun switchTo(id: Long) = store.setActive(id)
 
     /**
-     * Saves a picture behind the app drawer for the home profile [profileId] with [save] (which names the
-     * same profile to the store), unless that profile is gone: false then, with nothing kept. The picture is
-     * picked in the system's picker, and the profile it was picked for can be deleted before the picker
-     * answers, or while the picture is read and saved. A picture saved for a profile that is not in the list
-     * could never be removed again, so one that was saved across the deletion is taken away with its folder.
-     * The profile is not held meanwhile: reading a picture from another app can take as long as it likes.
+     * Saves a picture behind the app drawer for the home profile [profileId] with [save], unless that profile
+     * is gone: false then, with nothing kept. The picture is picked in the system's picker, and the profile it
+     * was picked for can be deleted before the picker answers, or while the picture is read and saved. A
+     * picture saved for a profile that is not in the list could never be removed again, so one that was saved
+     * across the deletion is taken away with its folder.
+     *
+     * [save] is handed the pick's place among the user's picks and removals of that picture
+     * ([DrawerWallpaperStore.Pick]), taken HERE, before anything waits: the list is read first, and a removal
+     * the user asks for while that read waits is the later action. Taken only at the save, the pick came after
+     * the removal, and the picture the user had just removed showed.
+     *
+     * The profile is not held while the picture is read and saved: reading a picture from another app can take
+     * as long as it likes. The LAST look at the list is made under the hold a deletion keeps from its first
+     * step to its last ([delete]): a deletion clears the picture folder and only then takes the profile out of
+     * the list, and a look between the two found the profile listed and kept a picture in the folder that had
+     * just been cleared. Now the look is before the deletion (which then clears what was saved) or after it
+     * (and clears it here).
      */
-    suspend fun setDrawerPicture(profileId: Long, save: suspend (DrawerWallpaperStore) -> Boolean): Boolean {
+    suspend fun setDrawerPicture(
+        profileId: Long,
+        save: suspend (DrawerWallpaperStore, DrawerWallpaperStore.Pick) -> Boolean,
+    ): Boolean {
+        val pick = drawerPictures.pick(profileId)
         if (store.list().none { it.id == profileId }) return false
-        val saved = save(drawerPictures)
-        if (store.list().none { it.id == profileId }) {
-            drawerPictures.delete(profileId)
-            return false
+        val saved = save(drawerPictures, pick)
+        return store.whileActiveStays {
+            if (store.list().any { it.id == profileId }) {
+                saved
+            } else {
+                drawerPictures.delete(profileId)
+                false
+            }
         }
-        return saved
     }
 
     /**

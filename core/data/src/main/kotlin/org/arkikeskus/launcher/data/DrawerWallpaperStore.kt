@@ -203,20 +203,31 @@ class DrawerWallpaperStore internal constructor(
      * pick or removal in that profile overtook it. The caller names the profile its page is about: the one this
      * store shows follows a switch a moment late, and what shows is not what the user was looking at then.
      */
-    suspend fun import(uri: Uri, profile: Long): Boolean {
-        val ticket = ticketsOf(profile).incrementAndGet()
-        return withContext(io) {
-            val picture = runCatching { decode(uri) }.getOrNull() ?: return@withContext false
-            save(picture, profile, ticket)
-        }
-    }
+    suspend fun import(uri: Uri, profile: Long): Boolean = import(uri, pick(profile))
 
     /** Saves [picture] as the drawer's wallpaper in the home profile [profile] (also the test seam); false as for
      *  [import]. */
-    suspend fun set(picture: Bitmap, profile: Long): Boolean {
-        val ticket = ticketsOf(profile).incrementAndGet()
-        return withContext(io) { save(picture, profile, ticket) }
+    suspend fun set(picture: Bitmap, profile: Long): Boolean = set(picture, pick(profile))
+
+    /**
+     * A pick's place among the user's picks and removals in the home profile [profile]'s picture ([latest]).
+     * Taken with [pick] the moment the user's choice arrives, before anything waits, and handed to [import] or
+     * [set]: what the user does to that picture AFTER this moment (a removal, another pick) overtakes the
+     * pick, however long the way to its save is.
+     */
+    class Pick internal constructor(val profile: Long, internal val ticket: Int)
+
+    /** The place of a pick made now for the home profile [profile] ([Pick]). */
+    fun pick(profile: Long): Pick = Pick(profile, ticketsOf(profile).incrementAndGet())
+
+    /** [import] for a pick whose place was taken earlier ([pick]). */
+    suspend fun import(uri: Uri, pick: Pick): Boolean = withContext(io) {
+        val picture = runCatching { decode(uri) }.getOrNull() ?: return@withContext false
+        save(picture, pick.profile, pick.ticket)
     }
+
+    /** [set] for a pick whose place was taken earlier ([pick]). */
+    suspend fun set(picture: Bitmap, pick: Pick): Boolean = withContext(io) { save(picture, pick.profile, pick.ticket) }
 
     /** Removes the picture of the home profile [profile]; its drawer shows the system wallpaper through again. Every
      *  published picture on disk goes, not only the current one: a crash between a pick's rename and the deletion of
