@@ -146,14 +146,13 @@ internal fun BackupImportDialog(
     onRestore: (RestoreProfiles) -> Unit,
     onLeave: () -> Unit,
 ) {
-    val deletedProfiles = profiles?.names
     when (state) {
         BackupImportState.Confirm -> AlertDialog(
             onDismissRequest = onLeave,
             title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
             // A restore leaves one home profile: the others it deletes are named. Restore waits until they
             // have been read, so the question is never answered before it says what goes.
-            text = { DialogText(restoreConfirmText(LocalResources.current, deletedProfiles.orEmpty())) },
+            text = { DialogText(restoreConfirmText(LocalResources.current, profiles)) },
             confirmButton = {
                 TextButton(onClick = { profiles?.let(onRestore) }, enabled = profiles != null) {
                     Text(stringResource(R.string.backup_restore_confirm_ok))

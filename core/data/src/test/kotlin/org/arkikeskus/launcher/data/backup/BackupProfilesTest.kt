@@ -626,6 +626,45 @@ class BackupProfilesTest {
         assertThat(settings.settings.first().baseColour).isEqualTo("green")
     }
 
+    /**
+     * Review round 9 (P1). After a damaged settings file the list is one profile again, while the other
+     * profiles' home screens are still in the database. A restore replaces EVERY row there is (the backup's rows
+     * come with their own ids), and its question named only the listed profiles: a home screen whose profile the
+     * list had lost was deleted without ever having been in the question. The restore is held to the home
+     * screens there are in the database too, and writes nothing when one of them was not agreed to.
+     */
+    @Test fun aRestoreThatWouldDeleteAHomeScreenNobodyAgreedToChangesNothing() = runTest {
+        twoProfiles()
+        // The list was lost with the settings file: one profile again; Work's rows are still there.
+        main.updateData { androidx.datastore.preferences.core.emptyPreferences() }
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        val before = dao.getAllOfEveryProfile()
+        assertThat(before.map { it.homeProfileId }.toSet()).containsExactly(1L, 2L)
+
+        // The question named no other profile: the list has none.
+        val failure = runCatching {
+            repo().restoreDocument(backup, installed, ConfirmedProfiles(activeId = 1, otherIds = emptySet()))
+        }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ProfilesChangedException::class.java)
+        assertThat(dao.getAllOfEveryProfile()).containsExactlyElementsIn(before)
+    }
+
+    /** Agreed to WITH that home screen (the question says that home screens no profile is listed for go too), the
+     *  restore goes through, and what was left of the lost profile goes with its rows: its own values too. */
+    @Test fun aRestoreAgreedToWithTheHomeScreensNoProfileIsListedForGoesThroughAndLeavesNothingOfThem() = runTest {
+        twoProfiles()
+        main.updateData { androidx.datastore.preferences.core.emptyPreferences() }
+        assertThat(files.ids()).contains(2L)
+
+        repo().restoreDocument(backup, installed, ConfirmedProfiles(activeId = 1, otherIds = setOf(2L)))
+
+        assertThat(dao.getAllOfEveryProfile().map { it.homeProfileId }.toSet()).containsExactly(1L)
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(files.ids()).doesNotContain(2L)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+    }
+
     @Test fun aRestoreAgreedToWithTheProfilesThereAreGoesThrough() = runTest {
         twoProfiles()
 

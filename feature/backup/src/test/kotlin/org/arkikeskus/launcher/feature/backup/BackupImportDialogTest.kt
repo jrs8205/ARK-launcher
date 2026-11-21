@@ -62,6 +62,37 @@ class BackupImportDialogTest {
         compose.onNodeWithText(restoreConfirmText(res, listOf("Work", "Evening"))).assertIsDisplayed()
     }
 
+    /**
+     * Review round 9 (P1). A restore replaces every home screen there is, also those of profiles the list lost
+     * with a damaged settings file. They have no names: the question says that such home screens go, and the
+     * restore is held to them as to the named profiles (it refuses when one it meets was not in the question).
+     */
+    @Test fun theQuestionSaysThatHomeScreensNoProfileIsListedForGoTooAndTheRestoreIsHeldToThem() {
+        val shown = RestoreProfiles(activeId = 1, deleted = listOf(HomeProfile(2, "Work")), unlisted = setOf(5L, 7L))
+        val handed = mutableListOf<RestoreProfiles>()
+        compose.setContent { BackupImportDialog(state = BackupImportState.Confirm, profiles = shown, onRestore = { handed += it }, onLeave = {}) }
+        compose.waitForIdle()
+
+        val unlisted = res.getString(R.string.backup_restore_confirm_unlisted)
+        assertThat(restoreConfirmText(res, shown)).endsWith(unlisted)
+        assertThat(restoreConfirmText(res, shown)).contains("Work")
+        compose.onNodeWithText(restoreConfirmText(res, shown)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).performSemanticsAction(SemanticsActions.OnClick)
+
+        assertThat(handed.single().confirmed.otherIds).containsExactly(2L, 5L, 7L)
+        // With none of them the question is as it was.
+        assertThat(restoreConfirmText(res, RestoreProfiles(1, emptyList()))).isEqualTo(res.getString(R.string.backup_restore_confirm_msg))
+        assertThat(restoreConfirmText(res, listOf("Work"))).doesNotContain(unlisted)
+    }
+
+    /** What is listed is never also "unlisted": a home screen of a listed profile is named by its profile. */
+    @Test fun aListedProfilesHomeScreenIsNotCountedAmongTheUnlisted() {
+        val profiles = profilesARestoreDeletes(listOf(HomeProfile(1, ""), HomeProfile(2, "Work")), activeId = 1, unlisted = setOf(1L, 2L, 9L))
+
+        assertThat(profiles.unlisted).containsExactly(9L)
+        assertThat(profiles.confirmed.otherIds).containsExactly(2L, 9L)
+    }
+
     /** Before the profiles have been read the question cannot say what goes: Restore waits, Cancel does not. */
     @Test fun restoreWaitsUntilTheProfilesAreKnown() {
         show(BackupImportState.Confirm, deletedProfiles = null)

@@ -21,6 +21,7 @@
     <string name="backup_restore_confirm_title">Vill du återställa säkerhetskopian?</string>
     <string name="backup_restore_confirm_msg">Din nuvarande startskärm och dina inställningar ersätts. Widgetar återställs som platshållare – tryck på dem för att konfigurera.</string>
     <string name="backup_restore_confirm_profiles">Alla andra profiler tas också bort: %1$s.</string>
+    <string name="backup_restore_confirm_unlisted">Startskärmar som inte längre finns i profillistan tas också bort.</string>
     <string name="backup_restore_profiles_changed">Dina profiler ändrades medan säkerhetskopian lästes, så ingenting återställdes. Importera filen igen för att se vad den skulle ersätta.</string>
     <plurals name="backup_restore_profiles_left">
         <item quantity="one">%1$d annan profil kunde inte tas bort. Den är tom nu: ta bort den under Inställningar ▸ Profiler.</item>

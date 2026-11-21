@@ -100,6 +100,9 @@ interface HomeItemDao {
     /** The home profiles that have a row at all. */
     suspend fun profileIds(): List<Long>
 
+    /** [profileIds], followed as the rows change. */
+    fun observeProfileIds(): Flow<List<Long>>
+
     /** Removes every row of [profile], whichever profile is resolved. */
     suspend fun deleteProfile(profile: Long)
 

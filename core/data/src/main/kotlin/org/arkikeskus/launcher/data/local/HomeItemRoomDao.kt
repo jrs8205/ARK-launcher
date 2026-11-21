@@ -149,6 +149,9 @@ interface HomeItemRoomDao {
     @Query("SELECT DISTINCT homeProfileId FROM home_items ORDER BY homeProfileId ASC")
     suspend fun profileIds(): List<Long>
 
+    @Query("SELECT DISTINCT homeProfileId FROM home_items ORDER BY homeProfileId ASC")
+    fun observeProfileIds(): Flow<List<Long>>
+
     @Query("DELETE FROM home_items")
     suspend fun clearEveryProfile()
 

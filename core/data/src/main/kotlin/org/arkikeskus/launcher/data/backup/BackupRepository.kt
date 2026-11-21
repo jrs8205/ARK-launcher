@@ -35,7 +35,9 @@ data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: 
 
 /**
  * The home profiles as a restore's question showed them: the one that is on ([activeId]), which the restore
- * fills with the backup, and the others ([otherIds]), which it deletes.
+ * fills with the backup, and the others ([otherIds]), which it deletes: every other profile the list names,
+ * and every other one a home screen is kept for in the database though the list does not name it (after a
+ * damaged settings file the list is one profile, and the others' home screens are still there).
  */
 data class ConfirmedProfiles(val activeId: Long, val otherIds: Set<Long>)
 
@@ -219,10 +221,15 @@ class BackupRepository @Inject constructor(
             // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
             // was read after the question, and a profile made meanwhile would go without a word. Under the
             // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
+            // And the profiles a home screen is kept for in the database, listed or not: the rows below come
+            // with the ids their backup gave them, so EVERY row there is goes first, whoever's it is. A home
+            // screen whose profile the list had lost went then without ever having been in the question.
+            var unlisted = emptySet<Long>()
             if (confirmed != null && profiles != null) {
                 val active = profiles.current()
-                val others = profiles.list().map { it.id }.toSet() - active
-                if (active != confirmed.activeId || others != confirmed.otherIds) throw ProfilesChangedException()
+                val listed = profiles.list().map { it.id }.toSet() - active
+                unlisted = homeItemDao.profileIds().toSet() - active - listed
+                if (active != confirmed.activeId || (listed + unlisted) != confirmed.otherIds) throw ProfilesChangedException()
             }
             val previousSettings = settings.snapshot()
             // The rows of EVERY home profile: a restore replaces them all (what a backup file describes
@@ -268,6 +275,12 @@ class BackupRepository @Inject constructor(
             // Their own pictures behind the app drawer go with them: nothing in the launcher could remove
             // the picture of a profile that is not there any more.
             for (id in removed) runCatching { drawerPictures?.delete(id) }
+            // And what was left of the profiles the list had lost, whose home screens went with the user's
+            // word: their own values and their pictures. Nothing names them any more.
+            if (unlisted.isNotEmpty()) {
+                runCatching { profiles?.forgetUnlisted(unlisted) }
+                for (id in unlisted) runCatching { drawerPictures?.delete(id) }
+            }
             repinShortcuts(previousLayout, entities)
             left
         } } }

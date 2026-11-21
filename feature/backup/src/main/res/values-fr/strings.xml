@@ -22,6 +22,7 @@
     <string name="backup_restore_confirm_title">Restaurer la sauvegarde ?</string>
     <string name="backup_restore_confirm_msg">Votre écran d\'accueil et vos paramètres actuels seront remplacés. Les widgets seront restaurés sous forme d\'espaces réservés : appuyez dessus pour les configurer.</string>
     <string name="backup_restore_confirm_profiles">Tous les autres profils seront également supprimés : %1$s.</string>
+    <string name="backup_restore_confirm_unlisted">Les écrans d\'accueil qui ne figurent plus dans la liste des profils seront également supprimés.</string>
     <string name="backup_restore_profiles_changed">Vos profils ont changé pendant la lecture de la sauvegarde : rien n\'a été restauré. Importez de nouveau le fichier pour voir ce qu\'il remplacerait.</string>
     <plurals name="backup_restore_profiles_left">
         <item quantity="one">%1$d autre profil n\'a pas pu être supprimé. Il est maintenant vide : supprimez-le dans Paramètres ▸ Profils.</item>

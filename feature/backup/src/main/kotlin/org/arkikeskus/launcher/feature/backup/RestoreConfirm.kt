@@ -22,13 +22,23 @@ import javax.inject.Inject
  * backup, and the others ([deleted]), which it deletes: a backup file holds one profile. The one that is on
  * is also the one an export writes, under its stored name [activeName] (empty until the user names it): with
  * other profiles beside it the backup screen says which profile its file is of ([exportedProfileName]).
+ *
+ * [unlisted] are the profiles a home screen is still kept for though the list does not name them (the list
+ * was lost with a damaged settings file): a restore replaces every home screen there is, so they go too, and
+ * the question says so. They have no names to show.
  */
-data class RestoreProfiles(val activeId: Long, val deleted: List<HomeProfile>, val activeName: String = "") {
+data class RestoreProfiles(
+    val activeId: Long,
+    val deleted: List<HomeProfile>,
+    val activeName: String = "",
+    val unlisted: Set<Long> = emptySet(),
+) {
     /** The names the question shows (an unnamed one is empty here; [restoreConfirmText] names it). */
     val names: List<String> get() = deleted.map { it.name }
 
-    /** What the restore is held to once the question is answered: these profiles, or nothing is written. */
-    val confirmed: ConfirmedProfiles get() = ConfirmedProfiles(activeId, deleted.map { it.id }.toSet())
+    /** What the restore is held to once the question is answered: these profiles and these home screens, or
+     *  nothing is written. */
+    val confirmed: ConfirmedProfiles get() = ConfirmedProfiles(activeId, deleted.map { it.id }.toSet() + unlisted)
 }
 
 /** The profiles a restore would meet now ([RestoreProfiles]); [deleted][RestoreProfiles.deleted] is empty for a
@@ -41,26 +51,41 @@ fun interface ProfilesLostInRestore {
 internal class StoredProfilesLostInRestore @Inject constructor(
     private val profiles: HomeProfileRepository,
 ) : ProfilesLostInRestore {
-    override fun profiles(): Flow<RestoreProfiles> = combine(profiles.profiles, profiles.activeId, ::profilesARestoreDeletes)
+    override fun profiles(): Flow<RestoreProfiles> =
+        combine(profiles.profiles, profiles.activeId, profiles.unlistedHomeScreens, ::profilesARestoreDeletes)
 }
 
-/** The one that is on ([activeId]) and every other profile of [profiles], in the list's order. */
-internal fun profilesARestoreDeletes(profiles: List<HomeProfile>, activeId: Long): RestoreProfiles =
-    RestoreProfiles(activeId, profiles.filter { it.id != activeId }, profiles.firstOrNull { it.id == activeId }?.name.orEmpty())
+/** The one that is on ([activeId]) and every other profile of [profiles], in the list's order; and the home
+ *  screens kept for profiles the list does not name ([unlisted]). */
+internal fun profilesARestoreDeletes(profiles: List<HomeProfile>, activeId: Long, unlisted: Set<Long> = emptySet()): RestoreProfiles =
+    RestoreProfiles(
+        activeId,
+        profiles.filter { it.id != activeId },
+        profiles.firstOrNull { it.id == activeId }?.name.orEmpty(),
+        unlisted - activeId - profiles.mapTo(HashSet()) { it.id },
+    )
 
 /**
  * What the restore's question says: what it always said, and which profiles go ([deletedProfiles]) if any do.
  * A profile without a name of its own (the first one, until the user names it) goes under the name it is
- * shown with everywhere, not under its empty stored one.
+ * shown with everywhere, not under its empty stored one. With [unlistedHomeScreens] it also says that the home
+ * screens no profile is listed for go: they have no names, and they went without a word before.
  */
-internal fun restoreConfirmText(resources: Resources, deletedProfiles: List<String>): String {
-    val question = resources.getString(R.string.backup_restore_confirm_msg)
-    if (deletedProfiles.isEmpty()) return question
-    val names = deletedProfiles.joinToString(", ") { name ->
-        name.ifBlank { resources.getString(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
+internal fun restoreConfirmText(resources: Resources, deletedProfiles: List<String>, unlistedHomeScreens: Boolean = false): String {
+    var question = resources.getString(R.string.backup_restore_confirm_msg)
+    if (deletedProfiles.isNotEmpty()) {
+        val names = deletedProfiles.joinToString(", ") { name ->
+            name.ifBlank { resources.getString(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
+        }
+        question += "\n\n" + resources.getString(R.string.backup_restore_confirm_profiles, names)
     }
-    return question + "\n\n" + resources.getString(R.string.backup_restore_confirm_profiles, names)
+    if (unlistedHomeScreens) question += "\n\n" + resources.getString(R.string.backup_restore_confirm_unlisted)
+    return question
 }
+
+/** [restoreConfirmText] of what a restore would meet ([profiles]; null until they have been read). */
+internal fun restoreConfirmText(resources: Resources, profiles: RestoreProfiles?): String =
+    restoreConfirmText(resources, profiles?.names.orEmpty(), profiles?.unlisted?.isNotEmpty() == true)
 
 /**
  * The backup screen's question before a restore. [profiles] is null until the profiles have been read: the
@@ -73,7 +98,6 @@ internal fun restoreConfirmText(resources: Resources, deletedProfiles: List<Stri
  */
 @Composable
 internal fun RestoreConfirmDialog(profiles: RestoreProfiles?, onConfirm: (RestoreProfiles) -> Unit, onDismiss: () -> Unit) {
-    val deletedProfiles = profiles?.names
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
@@ -81,7 +105,7 @@ internal fun RestoreConfirmDialog(profiles: RestoreProfiles?, onConfirm: (Restor
         // than the dialog, and a cut text let Restore be tapped without the last names having been seen.
         text = {
             Text(
-                restoreConfirmText(LocalResources.current, deletedProfiles.orEmpty()),
+                restoreConfirmText(LocalResources.current, profiles),
                 Modifier.verticalScroll(rememberScrollState()),
             )
         },

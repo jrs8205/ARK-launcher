@@ -22,6 +22,7 @@
     <string name="backup_restore_confirm_title">¿Restaurar la copia de seguridad?</string>
     <string name="backup_restore_confirm_msg">Se reemplazarán la pantalla de inicio y la configuración actuales. Los widgets se restaurarán como marcadores de posición; tócalos para configurarlos.</string>
     <string name="backup_restore_confirm_profiles">También se eliminarán todos los demás perfiles: %1$s.</string>
+    <string name="backup_restore_confirm_unlisted">También se eliminarán las pantallas de inicio que ya no están en la lista de perfiles.</string>
     <string name="backup_restore_profiles_changed">Tus perfiles cambiaron mientras se leía la copia de seguridad, así que no se restauró nada. Vuelve a importar el archivo para ver qué reemplazaría.</string>
     <plurals name="backup_restore_profiles_left">
         <item quantity="one">No se pudo eliminar %1$d otro perfil. Ahora está vacío: elimínalo en Configuración ▸ Perfiles.</item>

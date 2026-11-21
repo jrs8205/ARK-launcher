@@ -23,6 +23,7 @@
     <string name="backup_restore_confirm_title">Przywrócić kopię zapasową?</string>
     <string name="backup_restore_confirm_msg">Twój obecny ekran główny i ustawienia zostaną zastąpione. Widżety zostaną przywrócone jako elementy zastępcze, które skonfigurujesz dotknięciem.</string>
     <string name="backup_restore_confirm_profiles">Usunięte zostaną też wszystkie pozostałe profile: %1$s.</string>
+    <string name="backup_restore_confirm_unlisted">Usunięte zostaną też ekrany główne, których nie ma już na liście profili.</string>
     <string name="backup_restore_profiles_changed">Twoje profile zmieniły się podczas odczytu kopii zapasowej, więc nic nie zostało przywrócone. Zaimportuj plik ponownie, aby zobaczyć, co zostałoby zastąpione.</string>
     <plurals name="backup_restore_profiles_left">
         <item quantity="one">Nie udało się usunąć %1$d innego profilu. Jest teraz pusty: usuń go w Ustawienia ▸ Profile.</item>

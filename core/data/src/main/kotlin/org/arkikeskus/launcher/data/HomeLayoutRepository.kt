@@ -944,6 +944,9 @@ class HomeLayoutRepository @Inject constructor(
     /** The home profiles that have a layout row at all, whether the list of profiles names them or not. */
     suspend fun profilesWithRows(): Set<Long> = dao.profileIds().toSet()
 
+    /** [profilesWithRows], followed as the rows change. */
+    val profilesWithRowsNow: Flow<Set<Long>> = dao.observeProfileIds().map { it.toSet() }
+
     /** Removes a placed widget row (the host id is freed by the caller). */
     suspend fun removeWidget(rowId: Long) {
         dao.deleteById(rowId)

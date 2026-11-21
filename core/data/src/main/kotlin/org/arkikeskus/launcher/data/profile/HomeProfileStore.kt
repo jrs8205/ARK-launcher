@@ -259,6 +259,16 @@ class HomeProfileStore(
     }
 
     /**
+     * Drops the own stores of [ids] that the list does not name: profiles whose listing was lost with a
+     * damaged settings file, and whose home screens a restore has just replaced with the user's word. A
+     * listed profile is left alone.
+     */
+    suspend fun forgetUnlisted(ids: Set<Long>) = view.mutex.withLock {
+        val listed = profilesIn(main.data.first()).mapTo(HashSet()) { it.id }
+        for (id in ids) if (id !in listed) dropFile(id)
+    }
+
+    /**
      * Makes [profileId], whose own values are in a store of its own, the profile that lives in the settings
      * file: in ONE write its values replace the per-profile values there (those of a profile that is going)
      * and the list becomes [list]. Only then is its own store dropped; if that never happens the left-over

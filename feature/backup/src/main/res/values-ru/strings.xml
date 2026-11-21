@@ -23,6 +23,7 @@
     <string name="backup_restore_confirm_title">Восстановить резервную копию?</string>
     <string name="backup_restore_confirm_msg">Текущий главный экран и настройки будут заменены. Виджеты восстановятся в виде заглушек: нажмите на заглушку, чтобы настроить виджет.</string>
     <string name="backup_restore_confirm_profiles">Все остальные профили тоже будут удалены: %1$s.</string>
+    <string name="backup_restore_confirm_unlisted">Главные экраны, которых больше нет в списке профилей, тоже будут удалены.</string>
     <string name="backup_restore_profiles_changed">Пока читалась резервная копия, ваши профили изменились, поэтому ничего не восстановлено. Импортируйте файл ещё раз, чтобы увидеть, что он заменит.</string>
     <plurals name="backup_restore_profiles_left">
         <item quantity="one">Не удалось удалить %1$d другой профиль. Теперь он пуст: удалите его в разделе Настройки ▸ Профили.</item>

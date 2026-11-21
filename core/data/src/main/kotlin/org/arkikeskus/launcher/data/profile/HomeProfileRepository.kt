@@ -4,6 +4,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRowResolver
@@ -41,6 +43,15 @@ class HomeProfileRepository @Inject constructor(
     val profiles: Flow<List<HomeProfile>> = store.profiles
 
     val activeId: Flow<Long> = store.id
+
+    /**
+     * The profiles a home screen is kept for in the database though the list does not name them: after a
+     * damaged settings file the list is one profile again, and the others' rows are still there. Nothing shows
+     * them and nothing takes their ids ([create]); a restore replaces every row, so its question names them.
+     */
+    val unlistedHomeScreens: Flow<Set<Long>> =
+        combine(layout.profilesWithRowsNow, store.profiles) { withRows, listed -> withRows - listed.mapTo(HashSet()) { it.id } }
+            .distinctUntilChanged()
 
     sealed interface Created {
         data class Done(val profile: HomeProfile) : Created
