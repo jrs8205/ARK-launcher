@@ -183,12 +183,12 @@ class HomeProfileRepositoryTest {
         created("Evening", copyCurrent = false)
         profiles.switchTo(2)
 
-        assertThat(profiles.delete(2)).isTrue()
+        assertThat(profiles.delete(2)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         // The one after it; had it been the last, the one before.
         assertThat(store.current()).isEqualTo(3L)
         assertThat(store.list().map { it.id }).containsExactly(1L, 3L).inOrder()
-        assertThat(profiles.delete(3)).isTrue()
+        assertThat(profiles.delete(3)).isEqualTo(HomeProfileRepository.Deleted.Done)
         assertThat(store.current()).isEqualTo(1L)
     }
 
@@ -201,7 +201,7 @@ class HomeProfileRepositoryTest {
             dao.insert(shortcut("com.maps", "office", cellX = 2))
         }
 
-        assertThat(profiles.delete(work.id)).isTrue()
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         assertThat(rowsOf(work.id)).isEmpty()
         assertThat(rowsOf(1)).hasSize(1)
@@ -214,8 +214,8 @@ class HomeProfileRepositoryTest {
     @Test fun theLastProfileStays() = runTest {
         dao.insert(app("com.mail", 0))
 
-        assertThat(profiles.delete(1)).isFalse()
-        assertThat(profiles.delete(7)).isFalse()
+        assertThat(profiles.delete(1)).isEqualTo(HomeProfileRepository.Deleted.Refused)
+        assertThat(profiles.delete(7)).isEqualTo(HomeProfileRepository.Deleted.Refused)
 
         assertThat(store.list()).containsExactly(HomeProfile(1, ""))
         assertThat(rowsOf(1)).hasSize(1)
@@ -274,7 +274,7 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        assertThat(repositoryOver(tapped).delete(work.id)).isTrue()
+        assertThat(repositoryOver(tapped).delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         // Not a profile that is on, listed, and has lost its home screen.
         assertThat(store.list()).containsExactly(HomeProfile(1, ""))
@@ -338,7 +338,7 @@ class HomeProfileRepositoryTest {
             dao.insert(widget("com.news", 13, cellX = 2))
         }
 
-        assertThat(profiles.delete(work.id)).isTrue()
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         // At once, not at the next start: their providers would go on updating widgets nobody shows.
         assertThat(released).containsExactly(12, 13)
@@ -354,7 +354,7 @@ class HomeProfileRepositoryTest {
         }
         val caller = Thread.currentThread()
 
-        assertThat(profiles.delete(work.id)).isTrue()
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         assertThat(released).containsExactly(12, 13)
         assertThat(releaseThreads).doesNotContain(caller)
@@ -365,7 +365,7 @@ class HomeProfileRepositoryTest {
         val work = created("Work", copyCurrent = true)
         val caller = Thread.currentThread()
 
-        assertThat(profiles.delete(work.id)).isTrue()
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         // Settings asks from the main thread, and these are calls into the system that can be slow.
         assertThat(resolver.pinThreads).isNotEmpty()
@@ -413,7 +413,7 @@ class HomeProfileRepositoryTest {
         assertThat(copied.file).isNotEqualTo(original.file)
 
         drawerPictures.switchTo(1)
-        assertThat(profiles.delete(copy.id)).isTrue()
+        assertThat(profiles.delete(copy.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
 
         assertThat(copied.file.exists()).isFalse()
         assertThat(drawerPictures.current.value!!.file.exists()).isTrue()
@@ -521,7 +521,7 @@ class HomeProfileRepositoryTest {
 
         // Deleted while the picture was being read and saved: the save brings its folder back.
         val whileSaving = profiles.setDrawerPicture(work.id) { store, pick ->
-            assertThat(profiles.delete(work.id)).isTrue()
+            assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
             saves++
             store.set(picture(Color.WHITE), pick)
         }
@@ -607,10 +607,124 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        assertThat(deleting.await()).isTrue()
+        assertThat(deleting.await()).isEqualTo(HomeProfileRepository.Deleted.Done)
         assertThat(store.list().map { it.id }).containsExactly(1L)
         assertThat(picked.await()).isFalse()
         assertThat(folder.exists()).isFalse()
+    }
+
+    /**
+     * Review round 6. The same moment as above, and the caller is CANCELLED while its pick waits for the
+     * deletion to end: Settings was left, and its coroutines go with it. The picture is saved by then, and
+     * the look that takes it away for a profile that is gone must still be made: it used to be skipped with
+     * the cancellation, and the file stayed in the folder of a profile that no longer existed.
+     */
+    @Test fun aPictureSavedForAProfileBeingDeletedGoesThoughItsCallerWasCancelled() = runBlocking<Unit> {
+        val io = OneAtATime()
+        val paced = DrawerWallpaperStore(context, io)
+        val repository = HomeProfileRepository(store, layout, settings, resolver, paced) {}
+        val work = created("Work", copyCurrent = false)
+        val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
+        var picking: Job? = null
+        val test = this
+
+        val deleting = async(Dispatchers.Default) { repository.delete(work.id) }
+        try {
+            withTimeout(5_000) { while (!io.waiting) delay(5) }
+            main.onNextRead = {
+                picking = test.launch(Dispatchers.Default) {
+                    repository.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick) }
+                }
+                withTimeout(5_000) { while (folder.listFiles().orEmpty().none { it.extension == "jpg" }) delay(5) }
+                // The pick has its picture saved and has come to wait for the deletion; Settings is left now.
+                delay(150)
+                picking!!.cancel()
+                delay(150)
+            }
+        } finally {
+            withTimeout(10_000) {
+                while (!deleting.isCompleted || picking?.isCompleted != true) {
+                    io.runOne()
+                    delay(5)
+                }
+            }
+        }
+
+        assertThat(deleting.await()).isEqualTo(HomeProfileRepository.Deleted.Done)
+        assertThat(picking!!.isCancelled).isTrue()
+        assertThat(folder.exists()).isFalse()
+    }
+
+    /**
+     * Review round 6. A copy's folders show the pictures of its source's folders, and the copy's own values
+     * name them from the moment they are written, which is before the copy is listed. A picture the source's
+     * folder gives up in that moment is still in use: only listed profiles were asked, the file was deleted,
+     * and the copy came out with a folder that had lost its picture.
+     */
+    @Test fun aFolderPictureGivenUpWhileACopyIsBeingMadeStaysForTheCopy() = runTest {
+        val source = CustomIconSource(context, IconPackRepository(context))
+        val icons = CustomIconStore(settings, source)
+        val games = settings.createDrawerFolder("Games")
+        val picked = source.files.save(picture(Color.RED))
+        icons.setFolderIcon(FolderIconKey.drawer(games), picked)
+        dao.insert(app("com.mail", 0))
+        // While the copy's rows are written (its own values are there, it is not listed yet), the source's
+        // folder gets another icon.
+        var replaced = false
+        val meanwhile = object : HomeItemDao by dao {
+            override suspend fun insert(item: HomeItemEntity): Long {
+                if (!replaced) {
+                    replaced = true
+                    assertThat(store.list().map { it.id }).containsExactly(1L)
+                    icons.setFolderIcon(FolderIconKey.drawer(games), CustomIcon.FromPack("com.pack", "games"))
+                }
+                return dao.insert(item)
+            }
+        }
+
+        val copy = (repositoryOver(meanwhile).create("Work", copyCurrent = true) as HomeProfileRepository.Created.Done).profile
+
+        assertThat(replaced).isTrue()
+        assertThat(source.drawable(picked)).isNotNull()
+        profiles.switchTo(copy.id)
+        assertThat(settings.folderIcons.first()[FolderIconKey.drawer(games)]).isEqualTo(picked)
+    }
+
+    /**
+     * Review round 6. Switching, renaming and deleting write the list of profiles, and that write fails as any
+     * other can (a full disk). Each says so as its result and throws nothing: Settings asks without catching,
+     * and an exception there took the launcher down. A deletion says which of two things is so: nothing of the
+     * profile has gone, or its home screen has and it is still listed, to be deleted again.
+     */
+    @Test fun aSwitchARenameAndADeletionTheStorageRefusesSaySoAndThrowNothing() = runTest {
+        val work = created("Work", copyCurrent = false)
+        dao.insert(app("com.mail", 0))
+        inHomeProfile(work.id) {
+            dao.insert(app("com.chat", 0))
+            dao.insert(widget("com.clock", 41, 0))
+        }
+        main.failWrites = java.io.IOException("No space left on device")
+
+        assertThat(profiles.switchTo(work.id)).isFalse()
+        assertThat(profiles.rename(work.id, "Job")).isFalse()
+        // Deleting the profile that is on begins by switching away from it: nothing of it has gone.
+        assertThat(profiles.delete(1)).isEqualTo(HomeProfileRepository.Deleted.Failed)
+        assertThat(rowsOf(1).map { it.packageName }).containsExactly("com.mail")
+        // Deleting another one takes its rows and then cannot write the list: it is left listed, empty, and
+        // its widget is let go of all the same.
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.LeftEmpty)
+        assertThat(rowsOf(work.id)).isEmpty()
+        assertThat(released).containsExactly(41)
+
+        main.failWrites = null
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""), HomeProfile(work.id, "Work")).inOrder()
+        assertThat(profiles.switchTo(work.id)).isTrue()
+        assertThat(profiles.rename(work.id, "Job")).isTrue()
+        assertThat(profiles.switchTo(1)).isTrue()
+        // With room again, deleting it once more finishes the work.
+        assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
+        assertThat(store.list().map { it.id }).containsExactly(1L)
     }
 
     /**

@@ -122,7 +122,20 @@ class HomeProfileRepository @Inject constructor(
         gone
     }
 
-    suspend fun switchTo(id: Long) = store.setActive(id)
+    /** Switches to [id]. False when the storage did not take the change (a full disk): the profile that was
+     *  on is still on. Said as a result, not thrown: Settings asks without catching, and an exception there
+     *  took the launcher down. */
+    suspend fun switchTo(id: Long): Boolean = written { store.setActive(id) }
+
+    /** Whether [write], a change to the stored profiles, was taken by the storage. */
+    private suspend fun written(write: suspend () -> Unit): Boolean = try {
+        write()
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
+    }
 
     /**
      * Saves a picture behind the app drawer for the home profile [profileId] with [save], unless that profile
@@ -149,15 +162,26 @@ class HomeProfileRepository @Inject constructor(
     ): Boolean {
         val pick = drawerPictures.pick(profileId)
         if (store.list().none { it.id == profileId }) return false
-        val saved = save(drawerPictures, pick)
-        return store.whileActiveStays {
-            if (store.list().any { it.id == profileId }) {
-                saved
-            } else {
-                drawerPictures.delete(profileId)
-                false
+        var kept = false
+        try {
+            kept = save(drawerPictures, pick)
+        } finally {
+            // Once the save has begun, the last look is made whatever becomes of the caller. Settings asks and
+            // can be left the same moment: its coroutine is then cancelled while it waits for a deletion's
+            // hold, or right after the picture was written, and without this look the picture stayed in the
+            // folder of a profile that was gone. Reading and saving the picture itself can still be cancelled.
+            kept = withContext(NonCancellable) {
+                store.whileActiveStays {
+                    if (store.list().any { it.id == profileId }) {
+                        kept
+                    } else {
+                        drawerPictures.delete(profileId)
+                        false
+                    }
+                }
             }
         }
+        return kept
     }
 
     /**
@@ -179,33 +203,65 @@ class HomeProfileRepository @Inject constructor(
         settings.setHomeRows(value)
     }
 
-    suspend fun rename(id: Long, name: String) = store.rename(id, name)
+    /** Names [id] anew. False when the storage did not take the change: the name is as it was ([switchTo]). */
+    suspend fun rename(id: Long, name: String): Boolean = written { store.rename(id, name) }
+
+    /** How a deletion went ([delete]). */
+    enum class Deleted {
+        /** The profile is gone with everything it had. */
+        Done,
+
+        /** Not deleted, by rule: the last profile, or one that is not there. Nothing was changed. */
+        Refused,
+
+        /** The storage failed before anything of the profile went: it is whole and still listed. */
+        Failed,
+
+        /** Its home screen and its pictures are gone, but the list could not be written: the profile is still
+         *  listed, with nothing on it. Deleting it again finishes the work. */
+        LeftEmpty,
+    }
 
     /**
-     * Deletes [id] with everything it has. False for the last profile and for one that is not there.
-     * Deleting the profile that is on switches to the next one in the list first (the one before it for
-     * the last in the list). No profile can be switched to while this runs: a tap on the profile being
-     * deleted, after its rows had gone, left it listed, on, and with an empty home screen.
+     * Deletes [id] with everything it has ([Deleted.Done]); [Deleted.Refused] for the last profile and for
+     * one that is not there. Deleting the profile that is on switches to the next one in the list first (the
+     * one before it for the last in the list). No profile can be switched to while this runs: a tap on the
+     * profile being deleted, after its rows had gone, left it listed, on, and with an empty home screen.
+     *
+     * A step the storage does not take (a full disk) is said as a result, not thrown: [Deleted.Failed] when
+     * nothing of the profile had gone yet, [Deleted.LeftEmpty] when its rows had and the list could not be
+     * written after them. Settings asks without catching, and tells the user which of the two it is.
      */
-    suspend fun delete(id: Long): Boolean = withContext(NonCancellable) {
+    suspend fun delete(id: Long): Deleted = withContext(NonCancellable) {
         store.whileActiveStays { active ->
-            val list = store.list()
-            val index = list.indexOfFirst { it.id == id }
-            if (list.size <= 1 || index < 0) return@whileActiveStays false
-            if (active == id) store.setActiveLocked((list.getOrNull(index + 1) ?: list[index - 1]).id)
-            // The rows first: from here on the profile shows nothing, and what is left of it can be deleted
-            // again ([dropRows] pins its shortcuts again as the other profiles still have them).
-            val gone = dropRows(id)
-            drawerPictures.delete(id)
-            // Its folders' pictures, if no other profile shows them, go with the unused pictures at the next start.
-            val deleted = store.delete(id)
-            // Its widgets: no home screen shows them, so none would free their ids before the next start, and
-            // their providers would go on updating them. An id a row of another profile holds stays. Off the
-            // caller's thread, as the pins above: each id is a call into the system, and Settings asks from
-            // the main thread.
-            val held = layout.boundWidgetIds()
-            withContext(Dispatchers.IO) { gone.widgetIds.filter { it !in held }.forEach(widgetIds::release) }
-            deleted
+            var gone: DeletedProfileRows? = null
+            val result = try {
+                val list = store.list()
+                val index = list.indexOfFirst { it.id == id }
+                if (list.size <= 1 || index < 0) return@whileActiveStays Deleted.Refused
+                if (active == id) store.setActiveLocked((list.getOrNull(index + 1) ?: list[index - 1]).id)
+                // The rows first: from here on the profile shows nothing, and what is left of it can be deleted
+                // again ([dropRows] pins its shortcuts again as the other profiles still have them).
+                gone = dropRows(id)
+                drawerPictures.delete(id)
+                // Its folders' pictures, if no other profile shows them, go with the unused pictures at the next start.
+                if (store.delete(id)) Deleted.Done else Deleted.LeftEmpty
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (gone == null) Deleted.Failed else Deleted.LeftEmpty
+            }
+            // Its widgets, whenever its rows went: no home screen shows them, so none would free their ids
+            // before the next start, and their providers would go on updating them. An id a row of another
+            // profile holds stays. Off the caller's thread, as the pins above: each id is a call into the
+            // system, and Settings asks from the main thread.
+            gone?.let { rows ->
+                runCatching {
+                    val held = layout.boundWidgetIds()
+                    withContext(Dispatchers.IO) { rows.widgetIds.filter { it !in held }.forEach(widgetIds::release) }
+                }
+            }
+            result
         }
     }
 }

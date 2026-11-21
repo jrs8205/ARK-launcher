@@ -315,6 +315,9 @@
     <string name="settings_profile_explain">Profil, bu başlatıcının bir görünümüdür; Android\'in iş profili değildir. Bir profilin dışında bıraktığı uygulamalar çalışmaya ve bildirim göndermeye devam eder.</string>
     <string name="settings_profile_limit">8 profil sınırına ulaşıldı</string>
     <string name="settings_profile_create_failed">Profil oluşturulamadı. Hiçbir şey değiştirilmedi.</string>
+    <string name="settings_profile_change_failed">Değişiklik kaydedilemedi. Hiçbir şey değiştirilmedi.</string>
+    <string name="settings_profile_delete_failed">Profil silinemedi. Hiçbir şey kaldırılmadı.</string>
+    <string name="settings_profile_left_empty">Profilin ana ekranı kaldırıldı, ancak profil hâlâ listede. Profili yeniden silin.</string>
     <string name="settings_profile_create">Oluştur</string>
     <string name="settings_profile_edit">%1$s profilini düzenle</string>
     <string name="settings_profile_delete">Profili sil</string>

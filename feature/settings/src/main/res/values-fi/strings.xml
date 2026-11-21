@@ -315,6 +315,9 @@
     <string name="settings_profile_explain">Profiili on tämän launcherin näkymä, ei Androidin työprofiili. Profiilista pois jätetyt sovellukset toimivat ja ilmoittavat edelleen.</string>
     <string name="settings_profile_limit">Profiileja on jo enimmäismäärä, 8</string>
     <string name="settings_profile_create_failed">Profiilia ei voitu luoda. Mitään ei muutettu.</string>
+    <string name="settings_profile_change_failed">Muutosta ei voitu tallentaa. Mitään ei muutettu.</string>
+    <string name="settings_profile_delete_failed">Profiilia ei voitu poistaa. Mitään ei poistettu.</string>
+    <string name="settings_profile_left_empty">Profiilin kotinäyttö poistettiin, mutta profiili on yhä luettelossa. Poista se uudelleen.</string>
     <string name="settings_profile_create">Luo</string>
     <string name="settings_profile_edit">Muokkaa profiilia %1$s</string>
     <string name="settings_profile_delete">Poista profiili</string>

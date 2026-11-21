@@ -32,11 +32,26 @@ import javax.inject.Inject
 import org.arkikeskus.launcher.model.IconShape
 
 /** Something Settings tells the user once, when what was asked for did not happen. */
-internal enum class SettingsNotice { PROFILE_NOT_MADE }
+internal enum class SettingsNotice { PROFILE_NOT_MADE, PROFILE_NOT_CHANGED, PROFILE_NOT_DELETED, PROFILE_LEFT_EMPTY }
 
 /** The text of [notice]. */
 internal fun settingsNoticeText(notice: SettingsNotice): Int = when (notice) {
     SettingsNotice.PROFILE_NOT_MADE -> R.string.settings_profile_create_failed
+    SettingsNotice.PROFILE_NOT_CHANGED -> R.string.settings_profile_change_failed
+    SettingsNotice.PROFILE_NOT_DELETED -> R.string.settings_profile_delete_failed
+    SettingsNotice.PROFILE_LEFT_EMPTY -> R.string.settings_profile_left_empty
+}
+
+/**
+ * What Settings says after a profile was to be deleted, or null when there is nothing to say (it is gone, or
+ * the deletion was refused by rule, which the screen does not offer). The two failures are told apart, since
+ * they leave different things: [HomeProfileRepository.Deleted.Failed] a whole profile,
+ * [HomeProfileRepository.Deleted.LeftEmpty] a listed profile with nothing on it, which is to be deleted again.
+ */
+internal fun deletionNotice(result: HomeProfileRepository.Deleted): SettingsNotice? = when (result) {
+    HomeProfileRepository.Deleted.Failed -> SettingsNotice.PROFILE_NOT_DELETED
+    HomeProfileRepository.Deleted.LeftEmpty -> SettingsNotice.PROFILE_LEFT_EMPTY
+    HomeProfileRepository.Deleted.Done, HomeProfileRepository.Deleted.Refused -> null
 }
 
 @HiltViewModel
@@ -69,12 +84,20 @@ internal class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Settings is the only place a profile is switched from by hand so far, and it switches at once. */
-    override fun switchHomeProfile(id: Long) = update { homeProfileRepository.switchTo(id) }
+    /** Settings is the only place a profile is switched from by hand so far, and it switches at once. A
+     *  switch the storage did not take (a full disk) is said, as a profile that could not be made is: the
+     *  repository answers with a result and throws nothing, and so nothing escapes this scope. */
+    override fun switchHomeProfile(id: Long) = update {
+        if (!homeProfileRepository.switchTo(id)) _notices.trySend(SettingsNotice.PROFILE_NOT_CHANGED)
+    }
 
-    override fun renameHomeProfile(id: Long, name: String) = update { homeProfileRepository.rename(id, name) }
+    override fun renameHomeProfile(id: Long, name: String) = update {
+        if (!homeProfileRepository.rename(id, name)) _notices.trySend(SettingsNotice.PROFILE_NOT_CHANGED)
+    }
 
-    override fun deleteHomeProfile(id: Long) = update { homeProfileRepository.delete(id) }
+    override fun deleteHomeProfile(id: Long) = update {
+        deletionNotice(homeProfileRepository.delete(id))?.let { _notices.trySend(it) }
+    }
 
     /** Whether the launcher sees a private space on this phone: the rows that are about one exist only then. */
     val privateSpaceSeen: StateFlow<Boolean> = privateSpace.state.map { it != null }.stateIn(

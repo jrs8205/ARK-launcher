@@ -88,9 +88,26 @@ class ProfiledPreferences(
         return perProfileOf(if (profileId == mainStoreId(shared)) shared else files.store(profileId).data.first())
     }
 
+    /** The profiles that are being made ([HomeProfileStore.prepare]): their own values are written, and they
+     *  are not in the list yet. In memory only: a process that dies half-way leaves none. */
+    private val beingMade = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
+
+    /** [profileId]'s own values are about to be written, before it is listed. For a caller that holds [mutex]. */
+    internal fun making(profileId: Long) {
+        beingMade += profileId
+    }
+
+    /** [profileId] is listed now, or was given up. */
+    internal fun made(profileId: Long) {
+        beingMade -= profileId
+    }
+
     /**
-     * The own values of every profile the list names, in the list's order, from ONE reading of the settings
-     * file and under [mutex]. Where a profile's values are can change: deleting the profile that lives in the
+     * The own values of every profile the list names, in the list's order, and after them of every profile
+     * that is being made ([making]), from ONE reading of the settings file and under [mutex]. A copy's values
+     * name its source's pictures from the moment they are written, which is before the copy is listed: a
+     * picture the source gave up in that moment was taken for unused and deleted, and the copy was listed
+     * with a folder that had lost its picture. Where a profile's values are can change: deleting the profile that lives in the
      * settings file moves another one's values into it and drops that one's own store, under this lock. Read
      * one profile at a time without it, a reader looked a profile up in its own store, the delete went by,
      * and the store it then read was gone: no values, and the pictures those values name were taken for unused.
@@ -99,8 +116,9 @@ class ProfiledPreferences(
     suspend fun valuesOfEveryProfile(): List<Preferences> = mutex.withLock {
         val shared = main.data.first()
         val inMain = mainStoreId(shared)
-        HomeProfile.decode(shared[LIST]).map { profile ->
-            perProfileOf(if (profile.id == inMain) shared else files.store(profile.id).data.first())
+        val listed = HomeProfile.decode(shared[LIST]).map { it.id }
+        (listed + beingMade.filter { it !in listed }).map { id ->
+            perProfileOf(if (id == inMain) shared else files.store(id).data.first())
         }
     }
 

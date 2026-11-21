@@ -103,9 +103,13 @@ class HomeProfileStore(
         val list = profilesIn(now)
         if (list.size >= HomeProfile.MAX_PROFILES) return@withLock null
         val profile = HomeProfile(nextId(now, list), HomeProfile.cleanName(name))
+        // Known as being made BEFORE its values are written: from that write on they name pictures (a copy's
+        // folders show its source's), and whoever asks which pictures are in use must find them named.
+        view.making(profile.id)
         try {
             files.store(profile.id).updateData { valuesFor(copyOf, list) }
         } catch (e: Exception) {
+            view.made(profile.id)
             dropFile(profile.id)
             throw e
         }
@@ -121,11 +125,14 @@ class HomeProfileStore(
             it[LIST] = HomeProfile.encode(list + profile)
             it[LAST_ID] = maxOf(now[LAST_ID] ?: 0L, profile.id)
         }
+        // Listed: from here the list itself says that its values count.
+        view.made(profile.id)
         true
     }
 
     /** Gives up a profile made with [prepare] and never listed: its own values go. */
     suspend fun discard(profile: HomeProfile) = view.mutex.withLock {
+        view.made(profile.id)
         if (profilesIn(main.data.first()).none { it.id == profile.id }) dropFile(profile.id)
     }
 
