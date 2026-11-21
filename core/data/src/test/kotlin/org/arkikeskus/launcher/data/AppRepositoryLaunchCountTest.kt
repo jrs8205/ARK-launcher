@@ -8,6 +8,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -72,6 +73,30 @@ class AppRepositoryLaunchCountTest {
         advanceUntilIdle()
 
         assertThat(usage.usage.first().keys).containsExactly(workMail.key, mail.key)
+        assertThat(usage.ownLaunches.first().map { it.first }).containsExactly(mail.key)
+    }
+
+    /**
+     * Review round 7. A start is stamped with the count it is asked in, and waits for Android's report only in
+     * that one. Here the count is switched on while Android is starting the app, so the start's own note is
+     * written into the new count: it is scored, and it is not kept waiting for a report the new count's record
+     * (which begins after the start) will never have.
+     */
+    @Test fun aStartAskedBeforeTheCountWasSwitchedOnIsScoredAndWaitsForNoReport() = runTest {
+        val apps = repository()
+        advanceUntilIdle()
+        StartingLauncherApps.whileStarting = { runBlocking { settings.setCountSystemUsage(true, now = System.currentTimeMillis()) } }
+
+        assertThat(apps.launch(mail).isSuccess).isTrue()
+        advanceUntilIdle()
+
+        assertThat(usage.usage.first().keys).containsExactly(mail.key)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+
+        // The next start is asked in the count that is on, and waits for its report.
+        StartingLauncherApps.whileStarting = null
+        assertThat(apps.launch(mail).isSuccess).isTrue()
+        advanceUntilIdle()
         assertThat(usage.ownLaunches.first().map { it.first }).containsExactly(mail.key)
     }
 

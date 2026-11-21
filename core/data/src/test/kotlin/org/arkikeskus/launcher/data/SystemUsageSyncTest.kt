@@ -4,8 +4,13 @@ import android.os.Process
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.profile.CountingStore
 import org.arkikeskus.launcher.model.AppItem
 import org.junit.Test
@@ -620,6 +625,112 @@ class SystemUsageSyncTest {
         assertThat(scoreOf(maps, now + 60_000)).isWithin(0.05f).of(1f)
         // Mail was opened from elsewhere: the start that was refused answers for nothing.
         assertThat(scoreOf(mail, now + 60_000)).isWithin(0.05f).of(1f)
+    }
+
+    /**
+     * Review round 7. A launch waits for Android's report only in the count it was asked in. Asked while the
+     * count was on, noted after the switch had been turned off and on again: the new count's record starts
+     * after the launch, so its report is never read there, and the launch must not answer for the app's first
+     * real opening from elsewhere (here from a notification, within ten seconds of the old launch). Neither as
+     * a launch still in memory when the record is read, nor by its note when that comes.
+     */
+    @Test fun aLaunchAskedInAnEarlierCountAnswersForNoOpeningOfTheNewOne() = runTest {
+        switchOn(at = now - 60_000)
+        val launch = usage.launchAsked(maps.key, at = now - 5_000, period = usage.countPeriod.first())
+        settings.setCountSystemUsage(false, now = now - 4_000)
+        settings.setCountSystemUsage(true, now = now - 3_000)
+        source.resumed += screen("com.maps", "com.maps.Route", now - 1_000)
+
+        sync.sync(now)
+        // The opening is counted: the launch in memory is not this count's.
+        assertThat(scoreOf(maps)).isWithin(0.05f).of(1f)
+        usage.recordLaunch(launch)
+
+        // The launch itself is in the score as ever, and waits for nothing.
+        assertThat(scoreOf(maps)).isWithin(0.05f).of(2f)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+    }
+
+    /** The same by the note alone: asked while the count was off, noted after it was switched on. */
+    @Test fun aLaunchAskedWhileTheCountWasOffIsNotKeptWaitingWhenItsNoteComesAfterTheSwitch() = runTest {
+        assertThat(usage.countPeriod.first()).isEqualTo(AppUsageRepository.NO_COUNT)
+        val launch = usage.launchAsked(maps.key, at = now - 5_000, period = usage.countPeriod.first())
+        switchOn(at = now - 3_000)
+
+        usage.recordLaunch(launch)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+        source.resumed += screen("com.maps", "com.maps.Route", now - 1_000)
+        sync.sync(now)
+
+        assertThat(scoreOf(maps)).isWithin(0.05f).of(2f)
+    }
+
+    /** A launch asked in the count that is on is kept waiting as before, and a count that was switched names
+     *  itself anew. */
+    @Test fun aLaunchAskedInTheCountThatIsOnStillWaitsForItsReport() = runTest {
+        switchOn(at = now - 60_000)
+        val first = usage.countPeriod.first()
+        val launch = usage.launchAsked(maps.key, at = now - 200, period = first)
+
+        usage.recordLaunch(launch)
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now - 200)
+
+        settings.setCountSystemUsage(false, now = now)
+        settings.setCountSystemUsage(true, now = now + 1)
+        assertThat(usage.countPeriod.first()).isNotEqualTo(first)
+        assertThat(usage.countPeriod.first()).isAtLeast(0L)
+    }
+
+    /**
+     * Review round 7. A read of Android's record met a launch's report and its write was then refused (a full
+     * disk). The launch had been told "your report was met" inside the write, and was told otherwise only
+     * after the store had let the write go: a note written in that moment believed the first word, kept
+     * nothing waiting, and the next read, of the same span, counted the launch's report as an opening from
+     * elsewhere. Two launches for one. The word is now given after the write, under the lock the note waits at.
+     */
+    @Test fun aReadWhoseWriteIsRefusedLeavesTheLaunchWaitingThoughItsNoteComesInThatVeryMoment() = runTest {
+        switchOn()
+        val launch = usage.launchAsked(maps.key, at = now - 3_000)
+        source.resumed += screen("com.maps", "com.maps.Main", now - 2_700)
+        var note: Job? = null
+        store.refuseNextWrite = {
+            note = launch(Dispatchers.Default) { usage.recordLaunch(launch) }
+            // The time to be written, if nothing holds it back.
+            withContext(Dispatchers.Default) { withTimeoutOrNull(300) { note!!.join() } }
+        }
+
+        sync.sync(now)
+        note!!.join()
+
+        // Nothing was read after all, so the launch waits for its report,
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now - 3_000)
+        // and the next read, of the same span, finds it: one launch.
+        sync.sync(now)
+        assertThat(scoreOf(maps)).isWithin(0.05f).of(1f)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+    }
+
+    /**
+     * Review round 7. A launch's note can be written after a LATER opening of the same app was counted (opened
+     * again from elsewhere, and the record read, before the note got its turn). The app's time stays at the
+     * later opening: set back to the launch, the later opening faded from too early a moment.
+     */
+    @Test fun aLaunchNotedAfterALaterOpeningWasCountedDoesNotSetTheAppsTimeBack() = runTest {
+        switchOn()
+        val launch = usage.launchAsked(maps.key, at = now - 60_000)
+        source.resumed += listOf(
+            screen("com.maps", "com.maps.Main", now - 59_700),
+            screen("org.arkikeskus.launcher", "Home", now - 40_000),
+            screen("com.maps", "com.maps.Route", now - 30_000),
+        )
+
+        sync.sync(now)
+        assertThat(usage.usage.first().getValue(maps.key).lastUsed).isEqualTo(now - 30_000)
+        usage.recordLaunch(launch)
+
+        val stat = usage.usage.first().getValue(maps.key)
+        assertThat(stat.lastUsed).isEqualTo(now - 30_000)
+        assertThat(stat.score).isWithin(0.05f).of(2f)
     }
 
     /** A work profile's app is started in the launcher too, and scored as it always was. Android tells nothing

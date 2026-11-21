@@ -24,12 +24,21 @@ class CountingStore : DataStore<Preferences> {
     /** While set, every write fails with it, as a full disk makes it fail. */
     var failWrites: Throwable? = null
 
+    /** Set to have the NEXT write refused after its change has been worked out: this runs in the moment
+     *  between the two, then the write fails as a full disk makes it fail, and the store is as it was. */
+    var refuseNextWrite: (suspend () -> Unit)? = null
+
     override val data: Flow<Preferences> = state.onEach { onNextRead?.also { onNextRead = null }?.invoke() }
 
     val now: Preferences get() = state.value
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
         failWrites?.let { throw it }
+        refuseNextWrite?.also { refuseNextWrite = null }?.let { between ->
+            transform(state.value)
+            between()
+            throw java.io.IOException("No space left on device")
+        }
         writes++
         return transform(state.value).also {
             state.value = it
