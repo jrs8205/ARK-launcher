@@ -161,7 +161,9 @@ class DrawerAddsToItsProfileTest {
             // The settings here are a real file, and each write renames a new file over it. On Windows that
             // rename fails now and then when it comes right on the heels of another write or of a first read
             // ("Unable to rename ... .tmp"): the writes of this test are spaced out, and the folder is stored
-            // before the view model begins to read.
+            // before the view model begins to read. The wiring reads the file itself as it starts (the app
+            // repository follows the usage count from its first moment), so the first write waits a moment too.
+            betweenWrites()
             val id = settings.createDrawerFolder("Tools")
             betweenWrites()
             settings.addAppsToDrawerFolder(id, listOf(notes, mailKey))
