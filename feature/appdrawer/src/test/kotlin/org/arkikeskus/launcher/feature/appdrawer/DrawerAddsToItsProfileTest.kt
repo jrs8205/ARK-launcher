@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.DockTarget
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -102,6 +103,81 @@ class DrawerAddsToItsProfileTest {
 
             viewModel.removeFromDock(mail, profile = 1)
             awaitUntil("the app gone from the dock") { wiring.inDock() == null }
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 6. What is dropped from the drawer on the home screen or the dock is for the home profile
+     * the drawer showed as the finger lifted. The cell or the tile under the drop was looked up first and the
+     * row stored in a step that read the profile again: with a switch between the two the icon went to another
+     * profile, at a cell counted for the first one's grid, or was folded with another profile's app. Asked for
+     * a profile that is not on, nothing is placed.
+     */
+    @Test fun whatIsDroppedFromTheDrawerIsPlacedOnlyForTheProfileThatIsOn() = runTest {
+        val wiring = DrawerWiring(context, this)
+        try {
+            val viewModel = wiring.viewModel()
+            val maps = AppItem("com.maps", "com.maps.Main", Process.myUserHandle(), 0L, "Maps")
+            suspend fun rows() = wiring.homeLayoutRepository.homeItems.first()
+
+            val refused = listOf(
+                viewModel.addToHomeAt(mail, page = 0, cellX = 1, cellY = 1, folderName = "Folder", profile = 2),
+                viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps)), page = 0, cellX = 2, cellY = 2, profile = 2),
+                viewModel.dropOnDock(mail, DockTarget.Between(0), "Folder", profile = 2),
+            )
+            awaitUntil("the answers") { refused.all { it.isCompleted } }
+            assertThat(rows()).isEmpty()
+
+            viewModel.addToHomeAt(mail, page = 0, cellX = 1, cellY = 1, folderName = "Folder", profile = 1)
+            viewModel.dropOnDock(mail, DockTarget.Between(0), "Folder", profile = 1)
+            awaitUntil("the icon on home and in the dock") { wiring.onHome() != null && wiring.inDock() != null }
+            assertThat(wiring.onHome()!!.let { it.cellX to it.cellY }).isEqualTo(1 to 1)
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 6. A drawer folder's id is its profile's own: a profile made as a copy has folders with the
+     * very same ids. What the folder's editor asks (sort, rename, add, remove, move, delete) is asked for the
+     * profile the editor was drawn from, and changes nothing when another profile is on: the other profile's
+     * folder of that id is not the one the user was looking at.
+     */
+    @Test fun aDrawerFoldersEditorChangesOnlyAFolderOfTheProfileThatIsOn() = runTest {
+        installFakeApp(context, "com.notes", "Notes")
+        installFakeApp(context, "com.mail", "Mail")
+        val wiring = DrawerWiring(context, this)
+        try {
+            val viewModel = wiring.viewModel()
+            val settings = wiring.settingsRepository
+            val notes = "com.notes/com.notes.Main/0"
+            val mailKey = "com.mail/com.mail.Main/0"
+            val id = settings.createDrawerFolder("Tools")
+            settings.addAppsToDrawerFolder(id, listOf(notes, mailKey))
+            suspend fun folders() = settings.drawerFolders.first()
+
+            val refused = listOf(
+                viewModel.sortDrawerFolderByName(id, profile = 2),
+                viewModel.renameDrawerFolder(id, "Other", profile = 2),
+                viewModel.removeAppFromDrawerFolder(id, mailKey, profile = 2),
+                viewModel.addAppsToDrawerFolder(id, listOf("com.x/X/0"), profile = 2),
+                viewModel.moveDrawerFolder(id, 1, profile = 2),
+                viewModel.setDrawerFolderIcon(id, org.arkikeskus.launcher.model.CustomIcon.FromPack("com.pack", "tools"), profile = 2),
+                viewModel.deleteDrawerFolder(id, profile = 2),
+            )
+            awaitUntil("the answers") { refused.all { it.isCompleted } }
+            assertThat(folders()).containsExactly(org.arkikeskus.launcher.data.DrawerFolder(id, "Tools", listOf(notes, mailKey)))
+            assertThat(settings.folderIcons.first()).isEmpty()
+
+            // For the profile that is on: sorted by the apps' names, then renamed.
+            viewModel.sortDrawerFolderByName(id, profile = 1)
+            awaitUntil("the folder sorted") { folders().single().appKeys == listOf(mailKey, notes) }
+            viewModel.renameDrawerFolder(id, "Other", profile = 1)
+            awaitUntil("the folder renamed") { folders().single().name == "Other" }
             wiring.clear(viewModel)
         } finally {
             wiring.close()

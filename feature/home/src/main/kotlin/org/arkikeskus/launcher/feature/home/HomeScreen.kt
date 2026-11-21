@@ -770,7 +770,9 @@ private fun HomeScreenOfProfile(
                 onMoveFolder = viewModel::moveFolder,
                 onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Home) },
                 onMoveFolderToDock = { folderId, index -> viewModel.moveFolderToDock(folderId, index) },
-                onRemoveFromHome = { viewModel.removeFromHome(it) },
+                // An icon dragged to the remove area: for the profile shown as it is let go (the gesture holds
+                // this lambda across recompositions, so the state is read then).
+                onRemoveFromHome = { viewModel.removeFromHome(it, viewModel.uiState.value.homeProfileId) },
                 onOpenFolder = { folder, bounds ->
                     openFolderBounds = bounds
                     openFolderId = folder.id
@@ -850,7 +852,7 @@ private fun HomeScreenOfProfile(
                     onAppClick = launchApp,
                     onReorder = viewModel::reorderDock,
                     onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName) },
-                    onRemoveFromDock = { viewModel.removeFromDock(it) },
+                    onRemoveFromDock = { viewModel.removeFromDock(it, viewModel.uiState.value.homeProfileId) },
                     onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
                     onOpenFolder = { folder, bounds ->
                     openFolderBounds = bounds
@@ -1020,6 +1022,10 @@ private fun HomeScreenOfProfile(
 
     val menu = menuTarget
     if (menu != null) {
+        // The home profile the menu is drawn over: what it removes or pins is asked for THAT profile. The same
+        // app can be on another profile's home screen too, and a switch between the tap and the removal's own
+        // look at the profile took the icon from the other one.
+        val menuProfile = uiState.homeProfileId
         HomeAppMenu(
             app = menu.app,
             anchor = menu.anchor,
@@ -1032,10 +1038,10 @@ private fun HomeScreenOfProfile(
             held = dragController.isDragging,
             onRename = { renameTarget = menu.app },
             onRemove = {
-                if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app)
-                else viewModel.removeFromHome(menu.app)
+                if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app, menuProfile)
+                else viewModel.removeFromHome(menu.app, menuProfile)
             },
-            onPinShortcut = { item -> viewModel.pinShortcut(item, uiState.homeProfileId) },
+            onPinShortcut = { item -> viewModel.pinShortcut(item, menuProfile) },
             onWidgets = {
                 widgetPickerPackage = menu.app.packageName
                 showWidgetPicker = true

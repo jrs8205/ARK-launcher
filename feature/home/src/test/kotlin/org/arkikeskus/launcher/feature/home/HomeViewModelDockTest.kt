@@ -70,6 +70,38 @@ class HomeViewModelDockTest {
         }
     }
 
+    /**
+     * Review round 6. "Remove" in an icon's menu, and an icon dragged to the remove area, name the app by its
+     * key, and the same app can be on the home screen and in the dock of another profile too. The removal is
+     * asked for the profile the screen showed and runs only while that one is on: asked for another, nothing
+     * goes.
+     */
+    @Test fun anIconIsRemovedOnlyFromTheHomeAndTheDockOfTheProfileItWasAskedFor() = runTest {
+        installed("a")
+        val wiring = ProductionWiring(context, this)
+        try {
+            wiring.dockRow(app("a"), 0)
+            wiring.dao.insert(HomeItemEntity(packageName = "com.a", className = "Main", page = 0, cellX = 1, cellY = 1))
+            val viewModel = wiring.homeViewModel()
+            awaitState(viewModel) { it.loaded }
+            suspend fun inDock() = wiring.dao.getByKey(DOCK, "com.a", "Main", 0L)
+            suspend fun onHome() = wiring.dao.getByKey(HomeItemEntity.HOME, "com.a", "Main", 0L)
+
+            val fromDock = viewModel.removeFromDock(app("a"), profile = 2)
+            val fromHome = viewModel.removeFromHome(app("a"), profile = 2)
+            awaitUntil("the answers") { fromDock.isCompleted && fromHome.isCompleted }
+            assertThat(inDock()).isNotNull()
+            assertThat(onHome()).isNotNull()
+
+            viewModel.removeFromDock(app("a"), profile = 1)
+            viewModel.removeFromHome(app("a"), profile = 1)
+            awaitUntil("both gone") { inDock() == null && onHome() == null }
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
     @Test fun anOlderVersionsFavouritesKeyBecomesDockRowsAtTheFirstStart() = runTest {
         installed("a", "b")
         val wiring = ProductionWiring(context, this)

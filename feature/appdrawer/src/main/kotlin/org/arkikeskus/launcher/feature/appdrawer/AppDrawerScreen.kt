@@ -329,9 +329,15 @@ fun AppDrawerScreen(
         onDrawerSettle = onDrawerSettle,
         dragController = dragController,
         onDragOutStart = onDragOutStart,
-        onDropOnHome = { app, page, cellX, cellY -> viewModel.addToHomeAt(app, page, cellX, cellY, defaultFolderName) },
-        onDropFolderOnHome = { folder, page, cellX, cellY -> viewModel.addFolderToHomeAt(folder, page, cellX, cellY) },
-        onDropOnDock = { app, target -> viewModel.dropOnDock(app, target, defaultFolderName) },
+        // A drop is for the home profile the drawer shows as the finger lifts: the state is read then, and the
+        // view model places nothing if another profile is on by the time it writes.
+        onDropOnHome = { app, page, cellX, cellY ->
+            viewModel.addToHomeAt(app, page, cellX, cellY, defaultFolderName, uiState.homeProfileId)
+        },
+        onDropFolderOnHome = { folder, page, cellX, cellY ->
+            viewModel.addFolderToHomeAt(folder, page, cellX, cellY, uiState.homeProfileId)
+        },
+        onDropOnDock = { app, target -> viewModel.dropOnDock(app, target, defaultFolderName, uiState.homeProfileId) },
         showLabels = uiState.showLabels,
         showFolderNames = uiState.showFolderNames,
         calc = uiState.calc,
@@ -486,31 +492,36 @@ fun AppDrawerScreen(
             onDismiss = { folderCard = null },
         )
     }
-    val openFolder = editFolderId?.let { id -> uiState.folders.firstOrNull { it.id == id } }
+    // The ONE state the editor is drawn from: the folder it shows is a folder of that state's home profile, and
+    // every change below is asked for that profile. A folder's id alone does not say which folder is meant: a
+    // profile made as a copy has folders with the same ids.
+    val edited = uiState
+    val editedProfile = edited.homeProfileId
+    val openFolder = editFolderId?.let { id -> edited.folders.firstOrNull { it.id == id } }
     if (openFolder != null) OpaqueDrawerSurface {
         DrawerFolderSheet(
             folder = openFolder,
-            candidateApps = uiState.folderCandidates,
-            columns = uiState.folderColumns,
+            candidateApps = edited.folderCandidates,
+            columns = edited.folderColumns,
             badges = badges,
-            badgeShowCount = uiState.notificationDotCount,
-            badgeScale = uiState.notificationDotScale,
-            onRename = { viewModel.renameDrawerFolder(openFolder.id, it) },
-            onSetIcon = { viewModel.setDrawerFolderIcon(openFolder.id, it) },
+            badgeShowCount = edited.notificationDotCount,
+            badgeScale = edited.notificationDotScale,
+            onRename = { viewModel.renameDrawerFolder(openFolder.id, it, editedProfile) },
+            onSetIcon = { viewModel.setDrawerFolderIcon(openFolder.id, it, editedProfile) },
             onAppClick = { if (openApp(it)) editFolderId = null },
-            onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key) },
-            onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys) },
-            onSortByName = { viewModel.sortDrawerFolderByName(openFolder.id) },
+            onRemoveApp = { viewModel.removeAppFromDrawerFolder(openFolder.id, it.key, editedProfile) },
+            onAddApps = { keys -> viewModel.addAppsToDrawerFolder(openFolder.id, keys, editedProfile) },
+            onSortByName = { viewModel.sortDrawerFolderByName(openFolder.id, editedProfile) },
             // Sorted A-Z the order is not the user's to change, and one folder has nowhere to go.
-            onMove = if (uiState.sortDrawerFolders || uiState.mixDrawerFolders || uiState.folders.size < 2) {
+            onMove = if (edited.sortDrawerFolders || edited.mixDrawerFolders || edited.folders.size < 2) {
                 null
             } else {
-                { by -> viewModel.moveDrawerFolder(openFolder.id, by) }
+                { by -> viewModel.moveDrawerFolder(openFolder.id, by, editedProfile) }
             },
-            canMoveEarlier = uiState.folders.indexOf(openFolder) > 0,
-            canMoveLater = uiState.folders.indexOf(openFolder) < uiState.folders.lastIndex,
+            canMoveEarlier = edited.folders.indexOf(openFolder) > 0,
+            canMoveLater = edited.folders.indexOf(openFolder) < edited.folders.lastIndex,
             onDelete = {
-                viewModel.deleteDrawerFolder(openFolder.id)
+                viewModel.deleteDrawerFolder(openFolder.id, editedProfile)
                 editFolderId = null
             },
             onDismiss = { editFolderId = null },

@@ -60,7 +60,7 @@ class DrawerFolderToHomeTest {
     }
 
     @Test fun aFolderOfTwoAppsBecomesAHomeFolderAtTheCell() {
-        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps)), page = 0, cellX = 2, cellY = 1)
+        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps)), page = 0, cellX = 2, cellY = 1, profile = 1)
 
         val rows = awaitHome("the folder is on home") { rows -> rows.any { it.isFolder } }
         val folder = rows.single { it.containerId == HOME }
@@ -73,7 +73,7 @@ class DrawerFolderToHomeTest {
     /** A home folder holds two apps or more (one that is left with a single app turns into that app): a drawer
      *  folder of one app lands as the app's own icon. */
     @Test fun aFolderOfOneAppBecomesThatAppsIcon() {
-        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail)), page = 0, cellX = 1, cellY = 1)
+        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail)), page = 0, cellX = 1, cellY = 1, profile = 1)
 
         val rows = awaitHome("the app is on home") { it.isNotEmpty() }
         assertThat(rows).hasSize(1)
@@ -83,7 +83,7 @@ class DrawerFolderToHomeTest {
 
     @Test fun anIconFromAPackGoesWithTheFolder() {
         val icon = CustomIcon.FromPack("com.pack", "ic_tools")
-        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps), icon), page = 0, cellX = 0, cellY = 0)
+        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps), icon), page = 0, cellX = 0, cellY = 0, profile = 1)
 
         val folder = awaitHome("the folder is on home") { rows -> rows.any { it.isFolder } }.single { it.isFolder }
         val deadline = System.currentTimeMillis() + 10_000
@@ -98,7 +98,7 @@ class DrawerFolderToHomeTest {
      *  folder's icon would take the file from the other). It shows the preview of its apps instead. */
     @Test fun aPictureIconStaysWithTheDrawersFolder() {
         val picture = CustomIcon.FromFile("picture-1")
-        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps), picture), page = 0, cellX = 0, cellY = 0)
+        viewModel.addFolderToHomeAt(DrawerFolderUi(3, "Tools", listOf(mail, maps), picture), page = 0, cellX = 0, cellY = 0, profile = 1)
 
         val folder = awaitHome("the folder is on home") { rows -> rows.any { it.isFolder } }.single { it.isFolder }
         repeat(10) { pause() } // nothing is to come: give a wrong write the time to land

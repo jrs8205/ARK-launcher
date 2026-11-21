@@ -509,27 +509,34 @@ class AppDrawerViewModel @Inject constructor(
      * dock app it folds the two into a folder named [folderName], onto a dock folder it joins it,
      * between tiles it takes that slot. The tile indices are the dock's shown slots: its rows in
      * order, a folder always, an app only while it resolves, cut to the dock's columns.
+     *
+     * For the home profile [profile], the one the drawer showed when the icon was dropped ([onLayoutOf]): the
+     * tile under the drop is looked up and the row written while that profile stays on. Looked up first and
+     * written in a step that read the profile again, a switch between the two folded the icon with another
+     * profile's app.
      */
-    fun dropOnDock(appItem: AppItem, target: DockTarget, folderName: String) = viewModelScope.launch {
-        val apps = appRepository.apps.first()
-        val byKey = apps.associateBy { it.key }
-        val shownKeys = apps.mapTo(HashSet()) { it.key }
-        val columns = settingsRepository.settings.first().dockColumns
-        val shown = homeLayoutRepository.homeItems.first()
-            .filter { it.containerId == HomeItemEntity.DOCK && (it.isFolder || it.key in shownKeys) }
-            .sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
-            .take(columns)
-        val onto = (target as? DockTarget.Onto)?.let { shown.getOrNull(it.index) }
-        val ontoApp = onto?.takeIf { it.isApp }?.let { byKey[it.key] }
-        when {
-            onto?.isFolder == true -> homeLayoutRepository.addToDockFolder(appItem, onto.id, fromContainer = null)
-            ontoApp != null -> homeLayoutRepository.createDockFolder(ontoApp, appItem, fromContainer = null, name = folderName)
-            else -> {
-                val index = when (target) {
-                    is DockTarget.Between -> target.index
-                    is DockTarget.Onto -> target.index
+    fun dropOnDock(appItem: AppItem, target: DockTarget, folderName: String, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) {
+            val apps = appRepository.apps.first()
+            val byKey = apps.associateBy { it.key }
+            val shownKeys = apps.mapTo(HashSet()) { it.key }
+            val columns = settingsRepository.settings.first().dockColumns
+            val shown = homeLayoutRepository.homeItems.first()
+                .filter { it.containerId == HomeItemEntity.DOCK && (it.isFolder || it.key in shownKeys) }
+                .sortedWith(compareBy({ it.page }, { it.cellY }, { it.cellX }))
+                .take(columns)
+            val onto = (target as? DockTarget.Onto)?.let { shown.getOrNull(it.index) }
+            val ontoApp = onto?.takeIf { it.isApp }?.let { byKey[it.key] }
+            when {
+                onto?.isFolder == true -> homeLayoutRepository.addToDockFolder(appItem, onto.id, fromContainer = null)
+                ontoApp != null -> homeLayoutRepository.createDockFolder(ontoApp, appItem, fromContainer = null, name = folderName)
+                else -> {
+                    val index = when (target) {
+                        is DockTarget.Between -> target.index
+                        is DockTarget.Onto -> target.index
+                    }
+                    homeLayoutRepository.addToDockAt(appItem, index, shownKeys)
                 }
-                homeLayoutRepository.addToDockAt(appItem, index, shownKeys)
             }
         }
     }
@@ -556,10 +563,14 @@ class AppDrawerViewModel @Inject constructor(
 
     /** Drag-and-drop from the drawer onto a specific home cell: a free cell takes the icon, an app
      *  there makes a folder (named [folderName]) of the two, a folder there takes it in, anything
-     *  else sends it to the first free cell. */
-    fun addToHomeAt(appItem: AppItem, page: Int, cellX: Int, cellY: Int, folderName: String) = viewModelScope.launch {
-        val s = settingsRepository.settings.first()
-        val result = homeLayoutRepository.placeAt(appItem, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)
+     *  else sends it to the first free cell. For the home profile [profile], the one the drawer showed when
+     *  the icon was dropped: its grid is read and the row stored while it stays on ([onHomeOf]), or nothing is
+     *  placed. Read first and stored in a step that read the profile again, a switch between the two put the
+     *  icon in another profile, at a cell counted for the first one's grid. */
+    fun addToHomeAt(appItem: AppItem, page: Int, cellX: Int, cellY: Int, folderName: String, profile: Long) = viewModelScope.launch {
+        val result = onHomeOf(profile) { s ->
+            homeLayoutRepository.placeAt(appItem, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)
+        }
         if (result == PlaceResult.HomeFull) {
             notify(HomeNotice.HomeFull)
         }
@@ -571,22 +582,27 @@ class AppDrawerViewModel @Inject constructor(
      * a single app turns into that app), so a folder of one app lands as the app's own icon. An icon from an
      * icon pack goes with the copy; a picture of the user's does not (the file has one owner, and deleting
      * either folder's icon would take it from the other): the copy then shows the preview of its apps.
+     *
+     * For the home profile [profile], the one the drawer showed when the folder was dropped, as [addToHomeAt]:
+     * the grid, the rows and the copy's icon (filed under its new row, among that profile's own values) are
+     * one profile's.
      */
-    fun addFolderToHomeAt(folder: DrawerFolderUi, page: Int, cellX: Int, cellY: Int) = viewModelScope.launch {
+    fun addFolderToHomeAt(folder: DrawerFolderUi, page: Int, cellX: Int, cellY: Int, profile: Long) = viewModelScope.launch {
         val apps = folder.apps
         if (apps.isEmpty()) return@launch
-        val s = settingsRepository.settings.first()
-        if (apps.size == 1) {
-            val result = homeLayoutRepository.placeAt(apps.single(), page, cellX, cellY, s.homeColumns, s.homeRows, folder.name)
-            if (result == PlaceResult.HomeFull) notify(HomeNotice.HomeFull)
-            return@launch
+        onHomeOf(profile) { s ->
+            if (apps.size == 1) {
+                val result = homeLayoutRepository.placeAt(apps.single(), page, cellX, cellY, s.homeColumns, s.homeRows, folder.name)
+                if (result == PlaceResult.HomeFull) notify(HomeNotice.HomeFull)
+                return@onHomeOf
+            }
+            val id = homeLayoutRepository.addFolderAt(folder.name, apps, page, cellX, cellY, s.homeColumns, s.homeRows)
+            if (id == null) {
+                notify(HomeNotice.HomeFull)
+                return@onHomeOf
+            }
+            (folder.icon as? CustomIcon.FromPack)?.let { customIcons.setFolderIcon(FolderIconKey.home(id), it) }
         }
-        val id = homeLayoutRepository.addFolderAt(folder.name, apps, page, cellX, cellY, s.homeColumns, s.homeRows)
-        if (id == null) {
-            notify(HomeNotice.HomeFull)
-            return@launch
-        }
-        (folder.icon as? CustomIcon.FromPack)?.let { customIcons.setFolderIcon(FolderIconKey.home(id), it) }
     }
 
     /** "Remove from home" of the app's menu, for the home profile [profile] ([onLayoutOf]). */
@@ -628,34 +644,43 @@ class AppDrawerViewModel @Inject constructor(
         customIcons.setAppIcon(app.key, null)
     }
 
+    /**
+     * What the folder editor asks of the drawer folder it shows, a folder of the home profile [profile]. A
+     * drawer folder's id is its profile's own: a profile made as a copy has folders with the very same ids, so
+     * the id alone does not say which folder is meant. [work] runs while that profile is on and stays on;
+     * with another one on by now it does not run, and the other profile's folder of that id is left as it was.
+     */
+    private fun onFolderOf(profile: Long, work: suspend () -> Unit) =
+        viewModelScope.launch { onLayoutOf(profile, work) }
+
     /** The icon picked for a drawer folder (null = back to its preview). */
-    fun setDrawerFolderIcon(id: Long, icon: CustomIcon?) =
-        viewModelScope.launch { customIcons.setFolderIcon(FolderIconKey.drawer(id), icon) }
+    fun setDrawerFolderIcon(id: Long, icon: CustomIcon?, profile: Long) =
+        onFolderOf(profile) { customIcons.setFolderIcon(FolderIconKey.drawer(id), icon) }
 
     // --- Drawer folders --------------------------------------------------------------------------
-    fun renameDrawerFolder(id: Long, name: String) =
-        viewModelScope.launch { settingsRepository.renameDrawerFolder(id, name) }
+    fun renameDrawerFolder(id: Long, name: String, profile: Long) =
+        onFolderOf(profile) { settingsRepository.renameDrawerFolder(id, name) }
 
-    fun deleteDrawerFolder(id: Long) =
-        viewModelScope.launch { customIcons.deleteDrawerFolder(id) }
+    fun deleteDrawerFolder(id: Long, profile: Long) =
+        onFolderOf(profile) { customIcons.deleteDrawerFolder(id) }
 
-    fun addAppsToDrawerFolder(id: Long, keys: List<String>) =
-        viewModelScope.launch { settingsRepository.addAppsToDrawerFolder(id, keys) }
+    fun addAppsToDrawerFolder(id: Long, keys: List<String>, profile: Long) =
+        onFolderOf(profile) { settingsRepository.addAppsToDrawerFolder(id, keys) }
 
-    fun removeAppFromDrawerFolder(id: Long, key: String) =
-        viewModelScope.launch { settingsRepository.removeAppFromDrawerFolder(id, key) }
+    fun removeAppFromDrawerFolder(id: Long, key: String, profile: Long) =
+        onFolderOf(profile) { settingsRepository.removeAppFromDrawerFolder(id, key) }
 
     /** The folder editor's "Sort A-Z" (issue #32): the folder's apps in the order of their names, capitals
      *  aside, as the drawer lists apps and as a home folder's editor sorts its own. Done once: an app added
      *  later goes to the end again. */
-    fun sortDrawerFolderByName(id: Long) = viewModelScope.launch {
+    fun sortDrawerFolderByName(id: Long, profile: Long) = onFolderOf(profile) {
         val byName = appRepository.apps.first().sortedBy { it.label.lowercase() }.map { it.key }
         settingsRepository.sortDrawerFolder(id, byName)
     }
 
     /** Moves a drawer folder one place earlier ([by] = -1) or later (+1) among the folders. */
-    fun moveDrawerFolder(id: Long, by: Int) =
-        viewModelScope.launch { settingsRepository.moveDrawerFolder(id, by) }
+    fun moveDrawerFolder(id: Long, by: Int, profile: Long) =
+        onFolderOf(profile) { settingsRepository.moveDrawerFolder(id, by) }
 }
 
 /**

@@ -720,8 +720,14 @@ class HomeViewModel @Inject constructor(
     fun reorderDock(newOrder: List<DockEntry>) =
         viewModelScope.launch { homeLayoutRepository.reorderDock(newOrder.map { it.rowId }) }
 
-    fun removeFromHome(appItem: AppItem) =
-        viewModelScope.launch { homeLayoutRepository.removeFromHome(appItem) }
+    /**
+     * Takes [appItem]'s own icon off the home screen of the home profile [profile], the one the screen showed
+     * when the user asked (the menu's "Remove", an icon dragged to the remove area). An app is named by its
+     * key, and the same app can be on another profile's home screen: the removal runs only while [profile] is
+     * on and stays on, so a switch right after the tap does not take the icon from the other profile.
+     */
+    fun removeFromHome(appItem: AppItem, profile: Long) =
+        viewModelScope.launch { homeLayoutRepository.whileProfileIsOn(profile) { homeLayoutRepository.removeFromHome(appItem) } }
 
     fun addToDock(appItem: AppItem) =
         viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
@@ -730,8 +736,9 @@ class HomeViewModel @Inject constructor(
     fun addToDockAt(appItem: AppItem, index: Int) =
         viewModelScope.launch { homeLayoutRepository.addToDockAt(appItem, index, shownDockKeys()) }
 
-    fun removeFromDock(appItem: AppItem) =
-        viewModelScope.launch { homeLayoutRepository.removeFromDock(appItem) }
+    /** As [removeFromHome], for [appItem]'s own tile in the dock of the home profile [profile]. */
+    fun removeFromDock(appItem: AppItem, profile: Long) =
+        viewModelScope.launch { homeLayoutRepository.whileProfileIsOn(profile) { homeLayoutRepository.removeFromDock(appItem) } }
 
     /** The keys the dock shows (its rows that resolve), for a drop index counted over shown slots. */
     private suspend fun shownDockKeys(): Set<String> = appRepository.apps.first().mapTo(HashSet()) { it.key }
