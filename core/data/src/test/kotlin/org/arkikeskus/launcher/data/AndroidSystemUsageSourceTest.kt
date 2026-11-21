@@ -49,11 +49,24 @@ class AndroidSystemUsageSourceTest {
         assertThat(resumed!!.map { it.packageName to it.timeMs }).containsExactly("com.mail" to 100L, "com.maps" to 300L).inOrder()
     }
 
-    @Test fun nothingHavingComeToTheFrontIsAnAnswer() {
+    /** Things happened in the span, and no screen came to the front: that is an answer. */
+    @Test fun eventsWithNoScreenComingToTheFrontAreAnAnswer() {
+        val android = shadowOf(context.getSystemService(UsageStatsManager::class.java))
+        android.addEvent("com.mail", 200L, UsageEvents.Event.ACTIVITY_PAUSED)
+
         val resumed = source.resumedBetween(0L, 1_000L)
 
         assertThat(resumed).isNotNull()
         assertThat(resumed).isEmpty()
+    }
+
+    /**
+     * No event of any kind. Android's own query hands back this same empty answer when its service did not
+     * answer or the call to it failed, so it is not one to go by: the span stays to be read again. (Nothing
+     * came to the front in a span with no event at all, so nothing is lost by that.)
+     */
+    @Test fun anAnswerWithNoEventAtAllIsNotOneToGoBy() {
+        assertThat(source.resumedBetween(0L, 1_000L)).isNull()
     }
 
     @Config(shadows = [RefusingUsageStats::class])

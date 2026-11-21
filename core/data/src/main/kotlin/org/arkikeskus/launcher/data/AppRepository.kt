@@ -88,16 +88,23 @@ class AppRepository @Inject constructor(
      *  space is never recorded, whoever starts it here: the ranking is written to the disk under the
      *  app's key (the drawer starts such apps through [PrivateSpaceRepository.launch], which counts nothing).
      *
-     *  The launch is recorded at the moment it was ASKED for, read before the start: Android's own report of
-     *  it (read later, while apps opened elsewhere are counted) can only come after that moment, and that is
-     *  how the two are known for one launch ([AppUsageRepository.recordOpenings]). Android reports only the
-     *  apps of the user the launcher runs as: a work profile's app is scored, and waits for no report. */
+     *  The launch is ANNOUNCED before the start, at the moment it is asked for
+     *  ([AppUsageRepository.launchAsked]): Android's own report of it (read later, while apps opened elsewhere
+     *  are counted) can only come after that moment, and from the announcement on a read of Android's record
+     *  knows of the launch, though its own note is written by a coroutine that may come after the read. That
+     *  is how the two are known for one launch in either order ([AppUsageRepository.recordOpenings]). Android
+     *  reports only the apps of the user the launcher runs as: a work profile's app is scored, and waits for
+     *  no report. */
     fun launch(appItem: AppItem, sourceBounds: Rect? = null, options: Bundle? = null): Result<Unit> {
-        val asked = System.currentTimeMillis()
+        // Nothing of a private app, not even for the moment of its start.
+        val asked = if (privateSpace.isPrivate(appItem.userSerial)) {
+            null
+        } else {
+            appUsageRepository.launchAsked(appItem.key, androidReports = appItem.user == Process.myUserHandle())
+        }
         val result = source.launch(appItem, sourceBounds, options)
-        if (result.isSuccess && !privateSpace.isPrivate(appItem.userSerial)) {
-            val ownUser = appItem.user == Process.myUserHandle()
-            scope.launch { appUsageRepository.recordLaunch(appItem.key, at = asked, androidReports = ownUser) }
+        if (asked != null) {
+            if (result.isSuccess) scope.launch { appUsageRepository.recordLaunch(asked) } else appUsageRepository.launchNotMade(asked)
         }
         return result
     }

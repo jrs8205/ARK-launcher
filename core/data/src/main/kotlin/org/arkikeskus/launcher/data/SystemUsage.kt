@@ -47,12 +47,19 @@ class AndroidSystemUsageSource @Inject constructor(@ApplicationContext private v
 
     // The permission is declared in the app's manifest (this module declares none of the launcher's own). It
     // is a special access, not a runtime permission: without it Android answers with nothing. A refusal
-    // thrown instead, a missing service and no answer at all (Android gives none while the user is still
-    // locked after a restart) are no answer: null, never the empty list.
+    // thrown instead, a missing service and no answer at all are no answer: null, never the empty list.
+    //
+    // Nor is an answer with NO EVENT OF ANY KIND in it one to go by. Android's own query hands back the same
+    // empty answer for a span in which nothing happened as when its service did not answer or the call to it
+    // failed (and while the user is still locked after a restart), and the two cannot be told apart here. In a
+    // span with no event at all nothing came to the front, so leaving it to be read again loses nothing; taking
+    // a failure for "read" would lose what was opened in it. An answer with events but none of a screen coming
+    // to the front is an answer: the empty list.
     @SuppressLint("MissingPermission")
     override fun resumedBetween(fromMs: Long, toMs: Long): List<AppOpening>? = runCatching {
         val manager = context.getSystemService(UsageStatsManager::class.java) ?: return null
         val events = manager.queryEvents(fromMs, toMs) ?: return null
+        if (!events.hasNextEvent()) return null
         val resumed = ArrayList<AppOpening>()
         val event = UsageEvents.Event()
         while (events.hasNextEvent()) {
@@ -145,23 +152,37 @@ class SystemUsageSync internal constructor(
      *
      * The read is of ONE count: where it stands is read first, in one piece ([AppUsageRepository.systemCount]),
      * and the result is stored only if that is still the count that is on
-     * ([AppUsageRepository.recordOpenings]). The switch can be turned while Android is being asked. And only a
-     * read that was made moves the time on: when the launcher's apps cannot be told, or Android does not
-     * answer, nothing is stored and the same span is read again at the next sync.
+     * ([AppUsageRepository.recordOpenings]). The switch can be turned while the launcher's apps are waited
+     * for: Android is ASKED only for a count that is still on when the wait is over (what the privacy text
+     * promises is about the reading, not only about what is kept). And only a read that was made moves the
+     * time on: when the launcher's apps cannot be told, or Android does not answer, nothing is stored and the
+     * same span is read again at the next sync.
+     *
+     * [now] is for a test; left out, the clock is read HERE, with the lock held. Syncs go one after another,
+     * so a stored time later than this moment can only mean that the phone's clock was set back since: the
+     * reading then starts anew at this moment ([AppUsageRepository.restartCount]). Without that every sync
+     * waited for the old, later time to come again, a week for a clock that had been a week ahead.
      */
-    suspend fun sync(now: Long = System.currentTimeMillis()) = running.withLock {
+    suspend fun sync(now: Long? = null) = running.withLock {
         val count = usage.systemCount.first() ?: return@withLock
         if (!source.hasAccess()) return@withLock
+        val at = now ?: System.currentTimeMillis()
         if (count.syncedTo <= 0L) {
             // On, but no start was noted (the setting's own switch notes one): the count starts here.
             // Nothing is read back, as the launcher's own launches before this moment were not remembered.
-            usage.recordOpenings(count, emptyList(), syncedTo = now, inFront = null)
+            usage.recordOpenings(count, emptyList(), syncedTo = at, inFront = null)
             return@withLock
         }
-        val from = maxOf(count.syncedTo, now - WINDOW_MS)
-        if (from >= now) return@withLock
+        if (count.syncedTo > at) {
+            usage.restartCount(count, at)
+            return@withLock
+        }
+        val from = maxOf(count.syncedTo, at - WINDOW_MS)
+        // This very moment is read already.
+        if (from >= at) return@withLock
         val known = apps() ?: return@withLock
-        val resumed = source.resumedBetween(from, now) ?: return@withLock
+        if (usage.systemCount.first() != count) return@withLock
+        val resumed = source.resumedBetween(from, at) ?: return@withLock
         // Only the launcher and what it shows an app of can be "the app in front": a screen of anything else
         // (a permission dialog of the phone's own, the share sheet, the recents screen) lies over an app, and
         // the app coming back from under it was not opened again.
@@ -178,7 +199,7 @@ class SystemUsageSync internal constructor(
                 val key = appKeyFor(opening, known) ?: return@mapNotNull null
                 CountedOpening(key, opening.timeMs, exact = (opening.packageName to opening.className) in entries)
             }
-        usage.recordOpenings(count, counted, syncedTo = now, inFront = screens.lastOrNull()?.packageName ?: before)
+        usage.recordOpenings(count, counted, syncedTo = at, inFront = screens.lastOrNull()?.packageName ?: before)
     }
 
     companion object {

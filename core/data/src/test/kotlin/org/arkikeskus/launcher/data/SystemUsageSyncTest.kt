@@ -360,6 +360,8 @@ class SystemUsageSyncTest {
         assertThat(usage.usage.first()).isEmpty()
         assertThat(usage.systemSyncedTo.first()).isEqualTo(0L)
         assertThat(usage.systemCount.first()).isNull()
+        // And Android was not even asked: with the switch off nothing is READ, not only nothing kept.
+        assertThat(source.asked).isEmpty()
     }
 
     /** Off and on again while the record was being read: the count that is on now started at that moment.
@@ -376,6 +378,43 @@ class SystemUsageSyncTest {
 
         assertThat(usage.usage.first()).isEmpty()
         assertThat(usage.systemSyncedTo.first()).isEqualTo(now + 5_000)
+        // The span asked for was the earlier count's: it is not asked for at all.
+        assertThat(source.asked).isEmpty()
+    }
+
+    /** The phone's clock was a week ahead when the record was last read, and has been put right since: the
+     *  time read up to is a week in the future. The reading starts anew at this moment, or every read would
+     *  wait a week for that time to come again while apps go on being opened. */
+    @Test fun aClockSetBackStartsTheReadingAnew() = runTest {
+        switchOn()
+        sync.sync(now + 7 * day)
+        assertThat(usage.systemSyncedTo.first()).isEqualTo(now + 7 * day)
+        // A launch that waited for its report at the wrong time, and the app in front then.
+        usage.recordLaunch(maps.key, at = now + 7 * day - 1_000)
+        source.resumed += screen("com.mail", "com.mail.Inbox", now + 60_000)
+
+        sync.sync(now)
+
+        assertThat(usage.systemCount.first()).isEqualTo(SystemCount(period = 1, syncedTo = now, inFront = null))
+        assertThat(usage.ownLaunches.first()).isEmpty()
+
+        sync.sync(now + 120_000)
+
+        assertThat(source.asked.last()).isEqualTo(now to now + 120_000)
+        assertThat(scoreOf(mail, now + 120_000)).isWithin(0.05f).of(1f)
+    }
+
+    /** The very moment that is read already is not read again, and nothing starts anew for it. */
+    @Test fun theSameMomentIsNotReadTwiceAndStartsNothingAnew() = runTest {
+        switchOn()
+        sync.sync(now)
+        usage.recordLaunch(maps.key, at = now - 100)
+        val asked = source.asked.size
+
+        sync.sync(now)
+
+        assertThat(source.asked).hasSize(asked)
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now - 100)
     }
 
     /** Android did not answer (its service threw, the user is still locked after a restart). That is not
@@ -504,6 +543,83 @@ class SystemUsageSyncTest {
 
         assertThat(scoreOf(mail)).isWithin(0.05f).of(1f)
         assertThat(scoreOf(mailCompose)).isWithin(0.05f).of(1f)
+    }
+
+    /**
+     * The same icon tapped twice within ten seconds. The first start brought up a screen inside the app (the
+     * app went on where it was), the user came home and tapped again, and the second start brought up the
+     * entry itself. Each start has its own report: the first one's is the screen that came up before the app
+     * was started again. Taken by its screen, the first start took the second one's report: the second was
+     * left with none, the inner screen counted as an opening from elsewhere, and two launches made three.
+     */
+    @Test fun twoStartsOfOneIconInARowAreTwoLaunchesWhateverScreensCameUp() = runTest {
+        switchOn()
+        usage.recordLaunch(mail.key, at = now - 60_000)
+        usage.recordLaunch(mail.key, at = now - 55_000)
+        source.resumed += listOf(
+            screen("com.mail", "com.mail.Thread", now - 59_700), // the first start: the app went on where it was
+            screen("org.arkikeskus.launcher", "Home", now - 57_000),
+            screen("com.mail", "com.mail.Inbox", now - 54_700), // the second start: the entry itself
+        )
+
+        sync.sync(now)
+
+        assertThat(scoreOf(mail)).isWithin(0.05f).of(2f)
+        assertThat(usage.usage.first().keys).containsExactly(mail.key)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+    }
+
+    /**
+     * A launch's own note is written by a coroutine of its own, and a read of Android's record can get to the
+     * store first (the user was back in the drawer at once). The launch is known from the moment it is asked
+     * for, so the read still takes Android's report for the launcher's own; and the note, when it comes, does
+     * not wait for a report that has been met. One launch, in either order of the two writes.
+     */
+    @Test fun aLaunchWhoseOwnNoteIsWrittenAfterTheReadIsStillOneLaunch() = runTest {
+        switchOn()
+        val launch = usage.launchAsked(maps.key, at = now - 3_000)
+        source.resumed += screen("com.maps", "com.maps.Main", now - 2_700)
+
+        sync.sync(now)
+        assertThat(usage.usage.first()).isEmpty()
+        usage.recordLaunch(launch)
+
+        assertThat(scoreOf(maps)).isWithin(0.05f).of(1f)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+
+        // The app opened from somewhere else a few seconds later is an opening of its own: the launch above
+        // has had its report, and is not waiting to be taken for this one.
+        source.resumed += listOf(
+            screen("org.arkikeskus.launcher", "Home", now + 500),
+            screen("com.maps", "com.maps.Route", now + 1_000),
+        )
+        sync.sync(now + 60_000)
+
+        assertThat(scoreOf(maps, now + 60_000)).isWithin(0.05f).of(2f)
+    }
+
+    /** A launch asked for whose report is not in the read yet is simply written down when its note comes, and
+     *  answered by the next read, as one whose note came first; and a start Android refused leaves nothing. */
+    @Test fun aLaunchAskedForIsWrittenDownByItsOwnNoteAndARefusedStartLeavesNothing() = runTest {
+        switchOn()
+        val launch = usage.launchAsked(maps.key, at = now - 200)
+        val refused = usage.launchAsked(mail.key, at = now - 100)
+        usage.launchNotMade(refused)
+
+        sync.sync(now)
+        usage.recordLaunch(launch)
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now - 200)
+
+        source.resumed += listOf(
+            screen("com.maps", "com.maps.Main", now + 100),
+            screen("org.arkikeskus.launcher", "Home", now + 2_000),
+            screen("com.mail", "com.mail.Inbox", now + 3_000),
+        )
+        sync.sync(now + 60_000)
+
+        assertThat(scoreOf(maps, now + 60_000)).isWithin(0.05f).of(1f)
+        // Mail was opened from elsewhere: the start that was refused answers for nothing.
+        assertThat(scoreOf(mail, now + 60_000)).isWithin(0.05f).of(1f)
     }
 
     /** A work profile's app is started in the launcher too, and scored as it always was. Android tells nothing

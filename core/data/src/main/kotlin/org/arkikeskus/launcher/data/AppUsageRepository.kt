@@ -52,19 +52,60 @@ class AppUsageRepository @Inject constructor(
      *  room of a launch that one does. Best effort: a write the storage refuses (a full disk) is dropped — the
      *  caller fires this on the application scope, where an escaping exception would kill the home process
      *  after every app launch. */
-    suspend fun recordLaunch(key: String, at: Long = System.currentTimeMillis(), androidReports: Boolean = true) {
+    suspend fun recordLaunch(key: String, at: Long = System.currentTimeMillis(), androidReports: Boolean = true) =
+        recordLaunch(AskedLaunch(key, at, androidReports))
+
+    /**
+     * A launch the launcher has asked Android for, from the moment it is asked ([launchAsked]) until its own
+     * note is in the store ([recordLaunch]). The note is written by a coroutine of its own and can come late:
+     * a read of Android's record that gets to the store first ([recordOpenings]) finds the launch here, so
+     * Android's report of it is known for the launcher's own in whichever order the two are written.
+     */
+    class AskedLaunch internal constructor(val key: String, val at: Long, val androidReports: Boolean) {
+        /** Android's report of this launch has been read and left out of the count: it waits for none. */
+        @Volatile internal var answered = false
+    }
+
+    /** The launches asked for whose own note is not in the store yet. Read and changed under its own lock. */
+    private val asked = ArrayList<AskedLaunch>()
+
+    /**
+     * The launcher is about to ask Android to start [key], at [at]. Called BEFORE the start, on the caller's
+     * thread: from here on a read of Android's record knows of the launch. The caller then either records it
+     * ([recordLaunch]) or, when Android refused the start, takes it back ([launchNotMade]). A launch Android
+     * does not report ([androidReports] false: a work profile's app) is not kept here: no report is to be
+     * told from it.
+     */
+    fun launchAsked(key: String, at: Long = System.currentTimeMillis(), androidReports: Boolean = true): AskedLaunch {
+        val launch = AskedLaunch(key, at, androidReports)
+        if (androidReports) synchronized(asked) { asked += launch }
+        return launch
+    }
+
+    /** [launch] was not made after all: nothing is recorded of it. */
+    fun launchNotMade(launch: AskedLaunch) {
+        synchronized(asked) { asked.remove(launch) }
+    }
+
+    /** [recordLaunch] of a launch that was announced with [launchAsked]. */
+    suspend fun recordLaunch(launch: AskedLaunch) {
         try {
             dataStore.edit { p ->
                 val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
-                stats[key] = applyLaunch(stats[key], at)
+                stats[launch.key] = applyLaunch(stats[launch.key], launch.at)
                 p[Keys.APP_USAGE] = serialize(stats)
-                if (androidReports && p[Keys.COUNTING] == true) {
-                    val launches = parseLaunches(p[Keys.OWN_LAUNCHES]) + (key to at)
+                // Not when a read of Android's record has met this launch's report already (the read got to
+                // the store before this note did): the launch then waits for no report, and kept waiting it
+                // would be taken for the next opening of the app from somewhere else.
+                if (launch.androidReports && !launch.answered && p[Keys.COUNTING] == true) {
+                    val launches = parseLaunches(p[Keys.OWN_LAUNCHES]) + (launch.key to launch.at)
                     p[Keys.OWN_LAUNCHES] = serializeLaunches(launches.takeLast(MAX_OWN_LAUNCHES))
                 }
             }
         } catch (e: IOException) {
             // Dropped: a usage score is not worth a crash, and the next launch records again.
+        } finally {
+            synchronized(asked) { asked.remove(launch) }
         }
     }
 
@@ -93,28 +134,48 @@ class AppUsageRepository @Inject constructor(
      * [SystemCount.period]), or the time read up to is no longer where this read started, nothing is written:
      * the openings are of a count that is no longer on, and their time would replace the new one's start.
      *
-     * An opening that is Android's report of a launch the launcher made itself ([ownLaunches]) is in the score
-     * already and is left out. A launch's report is an opening of the same app at the launch's moment or within
+     * An opening that is Android's report of a launch the launcher made itself is in the score already (or
+     * will be, when the launch's own note is written) and is left out. The launches are the ones in the store
+     * ([ownLaunches]) and the ones asked for whose note has not been written yet ([launchAsked]), taken
+     * oldest first. A launch's report is an opening of the same app at the launch's moment or within
      * [SAME_LAUNCH_MS] after it, never before it: what came to the front before the launch was asked for is
-     * another opening. Of several, it is the one that came up as the very entry the launcher started
-     * ([CountedOpening.exact]), else the first. One launch answers for one report. An opening older than the
+     * another opening. Of the openings that came BEFORE the app was started again, the one that came up as the
+     * very entry the launcher started ([CountedOpening.exact]) is it, else the first of them; with none of
+     * those, the first that follows. (An opening after the next start is left to that start: taken for this
+     * one's by its screen, it left the next start without a report and an earlier screen counted as an opening
+     * from elsewhere, three launches for two.) One launch answers for one report. An opening older than the
      * app's stored last launch adds what it is worth by then ([applyOpening]). Best effort, as [recordLaunch]:
      * a refused write is dropped and read again at the next sync.
      */
     suspend fun recordOpenings(read: SystemCount, openings: List<CountedOpening>, syncedTo: Long, inFront: String?) {
+        // The launches asked for whose report this read meets: told so only if the write holds.
+        val met = ArrayList<AskedLaunch>()
         try {
             dataStore.edit { p ->
-                if (p[Keys.COUNTING] != true) return@edit
-                val stored = countIn(p)
-                if (stored.period != read.period || stored.syncedTo != read.syncedTo) return@edit
+                met.clear()
+                if (!isCount(p, read)) return@edit
+                val stored = parseLaunches(p[Keys.OWN_LAUNCHES])
+                val onTheirWay = synchronized(asked) { asked.filter { !it.answered } }.filter { (it.key to it.at) !in stored }
+                val launches = (stored.map { (key, at) -> OwnLaunch(key, at, null) } + onTheirWay.map { OwnLaunch(it.key, it.at, it) })
+                    .sortedBy { it.at }
                 val left = openings.toMutableList()
                 val unanswered = ArrayList<Pair<String, Long>>()
-                for (launch in parseLaunches(p[Keys.OWN_LAUNCHES]).sortedBy { it.second }) {
-                    val (launched, then) = launch
-                    val app = appOf(launched)
-                    val reports = left.indices.filter { appOf(left[it].key) == app && left[it].at in then..then + SAME_LAUNCH_MS }
-                    val report = reports.firstOrNull { left[it].exact && left[it].key == launched } ?: reports.firstOrNull()
-                    if (report != null) left.removeAt(report) else unanswered += launch
+                launches.forEachIndexed { index, launch ->
+                    val app = appOf(launch.key)
+                    val startedAgain = launches.subList(index + 1, launches.size).firstOrNull { appOf(it.key) == app }?.at ?: Long.MAX_VALUE
+                    val inTime = left.indices.filter { appOf(left[it].key) == app && left[it].at in launch.at..launch.at + SAME_LAUNCH_MS }
+                    val ofThisStart = inTime.filter { left[it].at < startedAgain }
+                    val report = ofThisStart.firstOrNull { left[it].exact && left[it].key == launch.key }
+                        ?: ofThisStart.firstOrNull()
+                        ?: inTime.firstOrNull()
+                    when {
+                        report != null -> {
+                            left.removeAt(report)
+                            launch.asked?.let { met += it }
+                        }
+                        // One whose note is not written yet is kept by that note, not here.
+                        launch.asked == null -> unanswered += launch.key to launch.at
+                    }
                 }
                 if (left.isNotEmpty()) {
                     val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
@@ -127,9 +188,46 @@ class AppUsageRepository @Inject constructor(
                 if (waiting.isEmpty()) p.remove(Keys.OWN_LAUNCHES) else p[Keys.OWN_LAUNCHES] = serializeLaunches(waiting)
                 p[Keys.SYSTEM_SYNCED_TO] = syncedTo
                 if (inFront == null) p.remove(Keys.SYSTEM_FRONT) else p[Keys.SYSTEM_FRONT] = inFront
+                // Told here, before the write is let go: the launch's own note is the store's next write at
+                // the earliest, and must find it said.
+                met.forEach { it.answered = true }
+            }
+        } catch (e: Throwable) {
+            // Nothing was written: no report was met after all, and the next sync reads the same span again.
+            met.forEach { it.answered = false }
+            // A refused write is dropped, as a launch's is; anything else is the caller's to know.
+            if (e !is IOException) throw e
+        }
+    }
+
+    /** One of the launcher's own launches for a read to tell reports by: from the store ([asked] null), or
+     *  one whose own note is still on its way there. */
+    private class OwnLaunch(val key: String, val at: Long, val asked: AskedLaunch?)
+
+    /** Whether the count in [p] is on and is still [read]: the same switching-on, read up to the same moment. */
+    private fun isCount(p: Preferences, read: SystemCount): Boolean {
+        if (p[Keys.COUNTING] != true) return false
+        val stored = countIn(p)
+        return stored.period == read.period && stored.syncedTo == read.syncedTo
+    }
+
+    /**
+     * Starts the reading of Android's record anew at [at], for the count [read]: the stored time read up to is
+     * LATER than now, so the phone's clock has been set back since (a read made while it was a week ahead),
+     * and every read would wait for that time to come again. Nothing is read back; the launches that waited
+     * for a report and the app in front go, as they are of times that are no longer so. It is the same
+     * switching-on of the count. Nothing happens when the count is no longer [read].
+     */
+    suspend fun restartCount(read: SystemCount, at: Long) {
+        try {
+            dataStore.edit { p ->
+                if (!isCount(p, read)) return@edit
+                p.remove(Keys.OWN_LAUNCHES)
+                p.remove(Keys.SYSTEM_FRONT)
+                p[Keys.SYSTEM_SYNCED_TO] = at
             }
         } catch (e: IOException) {
-            // Dropped: the stored time did not move, so the next sync reads the same span again.
+            // Dropped: the next sync finds the same and tries again.
         }
     }
 
