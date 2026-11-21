@@ -58,7 +58,7 @@ class HomeViewModelFolderMovesTest {
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
-            viewModel.moveOutOfFolder(a, folderId, 0, 1, 1, "Folder")
+            viewModel.moveOutOfFolder(a, folderId, 0, 1, 1, "Folder", profile = 1)
 
             awaitUntil("the notice") { notices.isNotEmpty() }
             assertThat(notices).containsExactly(HomeNotice.HomeFull)
@@ -77,7 +77,7 @@ class HomeViewModelFolderMovesTest {
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
-            viewModel.moveOutOfFolder(b, folderId, 0, 1, 1, "Folder")
+            viewModel.moveOutOfFolder(b, folderId, 0, 1, 1, "Folder", profile = 1)
 
             awaitUntil("the home row") { wiring.homeRow(b) != null }
             val row = wiring.homeRow(b)!!
@@ -98,7 +98,7 @@ class HomeViewModelFolderMovesTest {
             val folderId = wiring.pairFolder()
             val viewModel = wiring.homeViewModel()
 
-            viewModel.moveFolderAppToDock(a, folderId)
+            viewModel.moveFolderAppToDock(a, folderId, profile = 1)
 
             awaitUntil("the child to go") { wiring.dao.getByKey(folderId, a.packageName, a.className, a.userSerial) == null }
             assertThat(wiring.dao.getByKey(DOCK, a.packageName, a.className, a.userSerial)).isNotNull()
@@ -117,7 +117,7 @@ class HomeViewModelFolderMovesTest {
             val folderId = wiring.pairFolder()
             val viewModel = wiring.homeViewModel()
 
-            viewModel.removeFromFolderEntirely(a, folderId)
+            viewModel.removeFromFolderEntirely(a, folderId, profile = 1)
 
             awaitUntil("the folder to dissolve") { wiring.dao.getById(folderId) == null }
             val rowB = wiring.homeRow(b)!!
@@ -136,7 +136,7 @@ class HomeViewModelFolderMovesTest {
             val folderId = wiring.pairFolder()
             val viewModel = wiring.homeViewModel()
 
-            viewModel.reorderInFolder(folderId, b, before = a)
+            viewModel.reorderInFolder(folderId, b, before = a, profile = 1)
 
             awaitUntil("the new order") { wiring.dao.getContainerOrdered(folderId).first().packageName == "com.b" }
             assertThat(wiring.dao.getContainerOrdered(folderId).map { it.cellX }).containsExactly(0, 1).inOrder()
@@ -155,7 +155,7 @@ class HomeViewModelFolderMovesTest {
             val folderId = wiring.pairFolder()
             val viewModel = wiring.homeViewModel()
 
-            viewModel.deleteFolder(folderId)
+            viewModel.deleteFolder(folderId, profile = 1)
 
             awaitUntil("the folder to go") { wiring.dao.getById(folderId) == null }
             assertThat(wiring.dao.getContainerOrdered(folderId)).isEmpty()

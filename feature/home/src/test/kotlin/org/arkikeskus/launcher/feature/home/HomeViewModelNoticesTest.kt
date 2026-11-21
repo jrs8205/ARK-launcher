@@ -84,7 +84,7 @@ class HomeViewModelNoticesTest {
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
-            viewModel.removeFromFolder(app, folderId)
+            viewModel.removeFromFolder(app, folderId, profile = 1)
 
             awaitUntil("the notice") { notices.isNotEmpty() }
             assertThat(notices).containsExactly(HomeNotice.HomeFull)
@@ -104,7 +104,7 @@ class HomeViewModelNoticesTest {
             val viewModel = wiring.homeViewModel()
             val notices = collectNotices(viewModel)
 
-            viewModel.moveToHome(app, page = 3, cellX = 0, cellY = 0, folderName = "Folder")
+            viewModel.moveToHome(app, page = 3, cellX = 0, cellY = 0, folderName = "Folder", profile = 1)
 
             awaitUntil("the notice") { notices.isNotEmpty() }
             assertThat(notices).containsExactly(HomeNotice.HomeFull)

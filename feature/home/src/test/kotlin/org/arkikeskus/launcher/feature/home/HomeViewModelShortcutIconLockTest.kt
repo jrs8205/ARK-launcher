@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.ShortcutIconKey
 import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
@@ -46,8 +47,16 @@ class HomeViewModelShortcutIconLockTest {
             val release = CompletableDeferred<Unit>()
             val holder = launch(Dispatchers.Default) { ShortcutPinLock.withLock { holding.complete(Unit); release.await() } }
             holding.await()
-            viewModel.removeShortcut(row)
-            shadowOf(Looper.getMainLooper()).idle()
+            viewModel.removeShortcut(row, profile = 1)
+            // The removal takes its profile's hold first and the pin lock after it: once nobody else gets the
+            // hold, it has come that far, and a moment later it waits at the pin lock, ahead of the next holder.
+            awaitUntil("the removal at its profile's hold") {
+                withTimeoutOrNull(20) { wiring.homeLayoutRepository.whileProfileStays { } } == null
+            }
+            repeat(10) {
+                shadowOf(Looper.getMainLooper()).idle()
+                Thread.sleep(10)
+            }
             var iconWhenTheNextHolderRan: CustomIcon? = pack
             val next = launch(Dispatchers.Default) {
                 ShortcutPinLock.withLock { iconWhenTheNextHolderRan = wiring.settingsRepository.shortcutIcons.first()[key] }

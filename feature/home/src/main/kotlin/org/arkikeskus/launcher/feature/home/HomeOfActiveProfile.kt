@@ -13,6 +13,10 @@ import androidx.compose.runtime.key
  * state of the profile that left. A loaded state of another profile than the one that is on is therefore
  * not drawn at all; the wallpaper shows for the moment until the two agree.
  *
+ * [content] is told the profile it is drawn for: the one thing that stays the same for as long as it lives
+ * (the state is a placeholder of no profile until the layout has been read), and so what the screen names
+ * when it asks for a change.
+ *
  * Everything [content] remembers belongs to one profile: an open folder, a menu, an edit frame, a widget
  * being added, the page the pager is on. With another profile it all starts anew, so the pager begins on
  * that profile's own start page. A change inside the profile, and the layout arriving at a start, reset
@@ -28,7 +32,7 @@ import androidx.compose.runtime.key
  * came to keep it.
  */
 @Composable
-internal fun HomeOfActiveProfile(active: Long?, uiState: HomeUiState, content: @Composable (HomeUiState) -> Unit) {
+internal fun HomeOfActiveProfile(active: Long?, uiState: HomeUiState, content: @Composable (profile: Long, HomeUiState) -> Unit) {
     if (active == null) return
     if (uiState.loaded && uiState.homeProfileId != active) return
     key(active) {
@@ -36,6 +40,6 @@ internal fun HomeOfActiveProfile(active: Long?, uiState: HomeUiState, content: @
         // outlives the screen: when the screen leaves (another profile's comes), the host lets go of them.
         val host = LocalAppWidgetHost.current as? LauncherWidgetHost
         DisposableEffect(host) { onDispose { host?.forgetViews() } }
-        content(uiState)
+        content(active, uiState)
     }
 }

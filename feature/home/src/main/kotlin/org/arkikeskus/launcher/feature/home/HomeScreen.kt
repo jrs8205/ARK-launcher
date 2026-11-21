@@ -95,6 +95,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.folderStyle
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
@@ -189,8 +190,9 @@ fun HomeScreen(
     val activeProfile by viewModel.activeHomeProfileId.collectAsStateWithLifecycle()
     // Under the launcher's own app drawer nothing on the home screen needs to move (the weather icon rests).
     CompositionLocalProvider(LocalHomeScreenShown provides !drawerOpen) {
-    HomeOfActiveProfile(active = activeProfile, uiState = uiState) { shown ->
+    HomeOfActiveProfile(active = activeProfile, uiState = uiState) { profile, shown ->
         HomeScreenOfProfile(
+            profile = profile,
             uiState = shown,
             onOpenDrawer = onOpenDrawer,
             onOpenSettings = onOpenSettings,
@@ -209,11 +211,19 @@ fun HomeScreen(
     }
 }
 
-/** [HomeScreen] of one home profile, whose state [uiState] is. Everything remembered here is that profile's
- *  and starts anew with another (see [HomeOfActiveProfile]). */
+/**
+ * [HomeScreen] of the home profile [profile], whose state [uiState] is. Everything remembered here is that
+ * profile's and starts anew with another (see [HomeOfActiveProfile]).
+ *
+ * Whatever this screen asks the view model to change in the layout is asked for [profile]. It is the same for
+ * as long as this screen lives, so a handler a gesture kept from an earlier composition names it as well; the
+ * view model's state can already be the next profile's while this screen still takes the finger's lift, so
+ * the profile is never read from there.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreenOfProfile(
+    profile: Long,
     uiState: HomeUiState,
     onOpenDrawer: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -308,23 +318,26 @@ private fun HomeScreenOfProfile(
     val defaultFolderName = stringResource(UiR.string.folder_default_name)
     /** An app dropped on the dock from [source]: onto a tile it folds with that app or joins that
      *  folder; between tiles it takes the slot. Read from the state as it is NOW — the surfaces'
-     *  gesture detectors hold this lambda across recompositions. */
+     *  gesture detectors hold this lambda across recompositions — and only while that state is this
+     *  screen's profile's: the tile under the finger is looked up in it. */
     fun dropOnDock(app: AppItem, target: DockTarget, source: DragSource) {
-        val entries = viewModel.uiState.value.dockEntries
+        val now = viewModel.uiState.value
+        if (now.homeProfileId != profile) return
+        val entries = now.dockEntries
         val from = viewModel.dockDropContainer(source, openFolderId)
         val onto = (target as? DockTarget.Onto)?.let { entries.getOrNull(it.index) }
         when (onto) {
-            is DockApp -> viewModel.createDockFolder(onto.app, app, from, defaultFolderName)
-            is DockFolder -> viewModel.addToDockFolder(app, onto.folder.id, from)
+            is DockApp -> viewModel.createDockFolder(onto.app, app, from, defaultFolderName, profile)
+            is DockFolder -> viewModel.addToDockFolder(app, onto.folder.id, from, profile)
             null -> {
                 val index = when (target) {
                     is DockTarget.Between -> target.index
                     is DockTarget.Onto -> target.index
                 }
                 when (source) {
-                    DragSource.Home -> viewModel.moveToDock(app, index)
-                    DragSource.Folder -> openFolderId?.let { viewModel.moveFolderAppToDock(app, it, index) }
-                    DragSource.Drawer, DragSource.Dock -> viewModel.addToDockAt(app, index)
+                    DragSource.Home -> viewModel.moveToDock(app, index, profile)
+                    DragSource.Folder -> openFolderId?.let { viewModel.moveFolderAppToDock(app, it, index, profile) }
+                    DragSource.Drawer, DragSource.Dock -> viewModel.addToDockAt(app, index, profile)
                 }
             }
         }
@@ -460,11 +473,14 @@ private fun HomeScreenOfProfile(
             // is destroyed while Room is writing. Process death is recovered by the saved bind state.
             withContext(NonCancellable) {
                 val saved = runCatching {
+                    // For the profile the widget was chosen on, which the bind carries: binding and setting a
+                    // widget up happen in the system's dialogs, and the profile can be switched meanwhile. Not
+                    // stored then, and the id is freed below.
                     if (bind.restoreRowId != null) {
-                        viewModel.bindRestoredWidget(bind.restoreRowId, bind.appWidgetId)
+                        viewModel.bindRestoredWidget(bind.restoreRowId, bind.appWidgetId, bind.profile)
                     } else {
                         val target = bind.placement ?: return@runCatching false
-                        viewModel.addWidgetAt(bind.appWidgetId, bind.provider.provider.flattenToString(), null, target)
+                        viewModel.addWidgetAt(bind.appWidgetId, bind.provider.provider.flattenToString(), null, target, bind.profile)
                     }
                 }.getOrDefault(false)
                 if (!saved) {
@@ -521,7 +537,7 @@ private fun HomeScreenOfProfile(
             widgetMessage(R.string.widget_add_failed)
             return
         }
-        val bind = PendingWidgetBind(id, provider, restoreRowId, placement)
+        val bind = PendingWidgetBind(id, provider, restoreRowId, placement, profile)
         liveBindId = id
         pendingWidget = bind
         val bound = runCatching { appWidgetManager.bindAppWidgetIdIfAllowed(id, provider.profile, provider.provider, null) }.getOrDefault(false)
@@ -544,7 +560,7 @@ private fun HomeScreenOfProfile(
         when (choice) {
             is WidgetChoice.App -> startBind(choice.provider, restoreRowId = null, placement = placement)
             is WidgetChoice.Builtin -> widgetScope.launch {
-                val ok = runCatching { viewModel.addWidgetAt(null, null, choice.type, placement) }.getOrDefault(false)
+                val ok = runCatching { viewModel.addWidgetAt(null, null, choice.type, placement, profile) }.getOrDefault(false)
                 if (!ok) widgetMessage(R.string.widget_add_failed)
             }
         }
@@ -766,23 +782,22 @@ private fun HomeScreenOfProfile(
                 onAddWidget = ::addWidget,
                 onAppClick = launchApp,
                 onAppMenu = { app, anchor, above -> menuTarget = AppMenuTarget(app, anchor, DragSource.Home, above) },
-                onMove = viewModel::moveItem,
-                onMoveFolder = viewModel::moveFolder,
+                onMove = { app, page, cellX, cellY -> viewModel.moveItem(app, page, cellX, cellY, profile) },
+                onMoveFolder = { folderId, page, cellX, cellY -> viewModel.moveFolder(folderId, page, cellX, cellY, profile) },
                 onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Home) },
-                onMoveFolderToDock = { folderId, index -> viewModel.moveFolderToDock(folderId, index) },
-                // An icon dragged to the remove area: for the profile shown as it is let go (the gesture holds
-                // this lambda across recompositions, so the state is read then).
-                onRemoveFromHome = { viewModel.removeFromHome(it, viewModel.uiState.value.homeProfileId) },
+                onMoveFolderToDock = { folderId, index -> viewModel.moveFolderToDock(folderId, index, profile) },
+                // An icon dragged to the remove area: for this screen's profile, the one the drag began on.
+                onRemoveFromHome = { viewModel.removeFromHome(it, profile) },
                 onOpenFolder = { folder, bounds ->
                     openFolderBounds = bounds
                     openFolderId = folder.id
                 },
                 onLaunchShortcut = { viewModel.launchShortcut(it) },
-                onRemoveShortcut = { viewModel.removeShortcut(it) },
+                onRemoveShortcut = { viewModel.removeShortcut(it, profile) },
                 onEditShortcut = { editingShortcut = it },
-                onRemoveFolder = { viewModel.removeFolder(it) },
-                onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName) },
-                onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId) },
+                onRemoveFolder = { viewModel.removeFolder(it, profile) },
+                onCreateFolder = { target, dropped -> viewModel.createFolder(target, dropped, defaultFolderName, profile) },
+                onAddToFolder = { app, folderId -> viewModel.addToFolder(app, folderId, profile) },
                 onEmptyAreaMenu = { anchor, above -> homeOptions = anchor to above },
                 onEmptyAreaDoubleTap = {
                     // `settings` is this composition's value; Workspace reads the latest lambda via
@@ -796,14 +811,17 @@ private fun HomeScreenOfProfile(
                     }
                 },
                 onRemoveWidget = { rowId, appWidgetId ->
-                    // A built-in widget has no host id to free (appWidgetId == null).
-                    appWidgetId?.let { widgetHost?.deleteAppWidgetId(it) }
-                    viewModel.removeWidget(rowId)
+                    // The row first, and the host id only once it has gone: a row that stays (the profile was
+                    // switched meanwhile) keeps its widget. A built-in widget has no host id to free
+                    // (appWidgetId == null).
+                    viewModel.removeWidget(rowId, profile) { appWidgetId?.let { widgetHost?.deleteAppWidgetId(it) } }
                 },
                 onRestorePendingWidget = { startRestoreWidget(it) },
                 // A pending placeholder has no allocated host id yet, so just drop its row.
-                onRemovePendingWidget = { viewModel.removeWidget(it) },
-                onSetWidgetBounds = viewModel::setWidgetBounds,
+                onRemovePendingWidget = { viewModel.removeWidget(it, profile) },
+                onSetWidgetBounds = { rowId, page, cellX, cellY, spanX, spanY ->
+                    viewModel.setWidgetBounds(rowId, page, cellX, cellY, spanX, spanY, profile)
+                },
                 onReconfigureWidget = { id ->
                     val info = appWidgetManager.getAppWidgetInfo(id)
                     val configure = info?.configure
@@ -850,18 +868,18 @@ private fun HomeScreenOfProfile(
                     locked = settings.desktopLocked,
                     dragController = dragController,
                     onAppClick = launchApp,
-                    onReorder = viewModel::reorderDock,
-                    onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName) },
-                    onRemoveFromDock = { viewModel.removeFromDock(it, viewModel.uiState.value.homeProfileId) },
+                    onReorder = { viewModel.reorderDock(it, profile) },
+                    onMoveToHome = { app, page, cellX, cellY -> viewModel.moveToHome(app, page, cellX, cellY, defaultFolderName, profile) },
+                    onRemoveFromDock = { viewModel.removeFromDock(it, profile) },
                     onAppMenu = { app, anchor -> menuTarget = AppMenuTarget(app, anchor, DragSource.Dock, anchor.y > windowHeightPx / 2) },
                     onOpenFolder = { folder, bounds ->
                     openFolderBounds = bounds
                     openFolderId = folder.id
                 },
                     onMoveFolderToHome = { folderId, page, cellX, cellY ->
-                        widgetScope.launch { viewModel.moveDockFolderToHome(folderId, page, cellX, cellY) }
+                        widgetScope.launch { viewModel.moveDockFolderToHome(folderId, page, cellX, cellY, profile) }
                     },
-                    onRemoveFolder = { viewModel.removeFolder(it) },
+                    onRemoveFolder = { viewModel.removeFolder(it, profile) },
                     onDropOnTile = { app, target -> dropOnDock(app, target, DragSource.Dock) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -916,28 +934,28 @@ private fun HomeScreenOfProfile(
                 badgeScale = badgeScale,
                 locked = settings.desktopLocked,
                 dragController = dragController,
-                onRename = { viewModel.renameFolder(openFolder.id, it) },
-                onSetIcon = { viewModel.setFolderIcon(openFolder.id, it) },
+                onRename = { viewModel.renameFolder(openFolder.id, it, profile) },
+                onSetIcon = { viewModel.setFolderIcon(openFolder.id, it, profile) },
                 showName = settings.showHomeFolderNames,
                 columns = settings.folderColumns,
                 style = settings.folderStyle(),
                 onAppClick = launchApp,
                 onRenameApp = { renameTarget = it },
-                onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id) },
-                onPinShortcut = { viewModel.pinShortcut(it, uiState.homeProfileId) },
-                onReorder = { app, before -> viewModel.reorderInFolder(openFolder.id, app, before) },
-                onDropOnHome = { app, page, cx, cy -> viewModel.moveOutOfFolder(app, openFolder.id, page, cx, cy, defaultFolderName) },
+                onRemoveFromFolder = { viewModel.removeFromFolder(it, openFolder.id, profile) },
+                onPinShortcut = { viewModel.pinShortcut(it, profile) },
+                onReorder = { app, before -> viewModel.reorderInFolder(openFolder.id, app, before, profile) },
+                onDropOnHome = { app, page, cx, cy -> viewModel.moveOutOfFolder(app, openFolder.id, page, cx, cy, defaultFolderName, profile) },
                 onDropOnDock = { app, target -> dropOnDock(app, target, DragSource.Folder) },
-                onDropOnRemove = { viewModel.removeFromFolderEntirely(it, openFolder.id) },
+                onDropOnRemove = { viewModel.removeFromFolderEntirely(it, openFolder.id, profile) },
                 // Whatever the drop was, a drag that left the card closed the folder.
                 onDragOutEnd = { openFolderId = null },
                 onDelete = {
-                    viewModel.deleteFolder(openFolder.id)
+                    viewModel.deleteFolder(openFolder.id, profile)
                     openFolderId = null
                 },
                 candidates = remember(uiState.apps, openFolder) { folderCandidates(uiState.apps, openFolder) },
-                onAddApps = { viewModel.addAppsToFolder(openFolder.id, it) },
-                onSortByName = { viewModel.sortFolderByName(openFolder.id) },
+                onAddApps = { viewModel.addAppsToFolder(openFolder.id, it, profile) },
+                onSortByName = { viewModel.sortFolderByName(openFolder.id, profile) },
                 // The card would cover the picker: close it first.
                 onWidgets = if (settings.desktopLocked) null else ({ app ->
                     openFolderId = null
@@ -1022,10 +1040,9 @@ private fun HomeScreenOfProfile(
 
     val menu = menuTarget
     if (menu != null) {
-        // The home profile the menu is drawn over: what it removes or pins is asked for THAT profile. The same
-        // app can be on another profile's home screen too, and a switch between the tap and the removal's own
-        // look at the profile took the icon from the other one.
-        val menuProfile = uiState.homeProfileId
+        // What the menu removes or pins is asked for this screen's profile. The same app can be on another
+        // profile's home screen too, and a switch between the tap and the removal's own look at the profile
+        // took the icon from the other one.
         HomeAppMenu(
             app = menu.app,
             anchor = menu.anchor,
@@ -1038,10 +1055,10 @@ private fun HomeScreenOfProfile(
             held = dragController.isDragging,
             onRename = { renameTarget = menu.app },
             onRemove = {
-                if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app, menuProfile)
-                else viewModel.removeFromHome(menu.app, menuProfile)
+                if (menu.source == DragSource.Dock) viewModel.removeFromDock(menu.app, profile)
+                else viewModel.removeFromHome(menu.app, profile)
             },
-            onPinShortcut = { item -> viewModel.pinShortcut(item, menuProfile) },
+            onPinShortcut = { item -> viewModel.pinShortcut(item, profile) },
             onWidgets = {
                 widgetPickerPackage = menu.app.packageName
                 showWidgetPicker = true
@@ -1082,21 +1099,24 @@ private fun HomeScreenOfProfile(
                 }
                 if (!settings.desktopLocked) {
                     add(IconMenuItem(R.drawable.ic_page_add_left, stringResource(R.string.home_options_page_left)) {
-                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page, uiState.homeProfileId)) }
+                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page, profile)) }
                     })
                     add(IconMenuItem(R.drawable.ic_page_add_right, stringResource(R.string.home_options_page_right)) {
-                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page + 1, uiState.homeProfileId)) }
+                        widgetScope.launch { showInsertedPage(viewModel.insertPage(page + 1, profile)) }
                     })
                 }
                 if (page != uiState.homePage) {
                     add(IconMenuItem(R.drawable.ic_home_page, stringResource(R.string.home_options_set_home)) {
-                        viewModel.setHomePage(page, uiState.homeProfileId)
+                        viewModel.setHomePage(page, profile)
                     })
                 }
-                if (!settings.desktopLocked && uiState.pageCount > 1 && viewModel.isPageEmpty(page)) {
+                // Offered for a page that shows nothing, by the state this menu is drawn from. A row can still be
+                // stored there (a disabled app, a shortcut its app dropped, a widget without a provider); such
+                // leftovers are purged when the user removes the page, or the page could never be removed.
+                if (!settings.desktopLocked && uiState.pageCount > 1 && uiState.entries.none { it.page == page }) {
                     add(IconMenuItem(LauncherIcons.Delete, stringResource(R.string.home_options_page_remove)) {
                         widgetScope.launch {
-                            when (val target = viewModel.removeEmptyPage(page, uiState.homeProfileId)) {
+                            when (val target = viewModel.removeEmptyPage(page, profile)) {
                                 null -> widgetMessage(R.string.home_options_page_not_empty)
                                 PAGE_NOT_SHOWN -> Unit
                                 PAGE_FAILED -> widgetMessage(R.string.home_options_page_failed)
@@ -1438,22 +1458,26 @@ internal fun Modifier.pixelHomeSwipe(
 
 /** In-flight widget bind/configure state. [restoreRowId] non-null = re-binding a restored placeholder
  *  row (from a backup) rather than adding a new widget. */
-private data class PendingWidgetBind(
+internal data class PendingWidgetBind(
     val appWidgetId: Int,
     val provider: AppWidgetProviderInfo,
     val restoreRowId: Long?,
     val placement: WidgetPlacement? = null,
+    /** The home profile the widget was chosen on, or whose placeholder is being set up again: the only one it
+     *  is stored for when the system's dialogs are done. */
+    val profile: Long,
 )
 
 /** Bundles [PendingWidgetBind] into saved instance state so an in-flight bind survives process death
  *  while the system bind dialog or the widget's configuration activity is in the foreground. */
-private val PendingWidgetBindSaver = Saver<PendingWidgetBind?, android.os.Bundle>(
+internal val PendingWidgetBindSaver = Saver<PendingWidgetBind?, android.os.Bundle>(
     save = { p ->
         p?.let {
             android.os.Bundle().apply {
                 putInt("id", it.appWidgetId)
                 putParcelable("provider", it.provider)
                 putLong("row", it.restoreRowId ?: -1L)
+                putLong("profile", it.profile)
                 it.placement?.let { p ->
                     putIntArray("placement", intArrayOf(p.page, p.cellX, p.cellY, p.spanX, p.spanY))
                 }
@@ -1467,7 +1491,9 @@ private val PendingWidgetBindSaver = Saver<PendingWidgetBind?, android.os.Bundle
             PendingWidgetBind(b.getInt("id"), it, b.getLong("row").takeIf { row -> row >= 0 },
                 b.getIntArray("placement")?.takeIf { p -> p.size == 5 }?.let { p ->
                     WidgetPlacement(p[0], p[1], p[2], p[3], p[4])
-                })
+                },
+                // A bind saved by a version that had one home screen is the first profile's.
+                b.getLong("profile", HomeProfile.FIRST_ID))
         }
     },
 )

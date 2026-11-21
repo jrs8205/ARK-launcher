@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
@@ -38,6 +39,7 @@ import org.arkikeskus.launcher.data.ProfileSnapshot
 import org.arkikeskus.launcher.data.PrivateSpaceRepository
 import org.arkikeskus.launcher.data.ProfileSystem
 import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.HomeItemEntity
@@ -184,9 +186,30 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
         )
     }
 
-    fun clear(viewModel: HomeViewModel) = ViewModelStore().run {
-        put("home", viewModel)
-        clear()
+    fun clear(viewModel: HomeViewModel) {
+        letThePinLockGo()
+        ViewModelStore().run {
+            put("home", viewModel)
+            clear()
+        }
+    }
+
+    /**
+     * Waits until nobody is at the pin lock any more. The lock is one for the whole process, and so for every
+     * test of a run. A ViewModel's coroutine that was just handed the lock runs when the main looper next
+     * does; a test that ended right then left that turn in the looper's queue, which is emptied between
+     * tests, and the lock stayed taken for every test after it (a removed shortcut's own change report sends
+     * the ViewModel to the lock a moment after the removal let it go). The lock is fair, so whoever asked
+     * before this has had its turn when this gets it.
+     */
+    private fun letThePinLockGo() {
+        val free = CoroutineScope(Dispatchers.Default).launch { ShortcutPinLock.withLock { } }
+        val deadline = System.currentTimeMillis() + 5_000
+        while (!free.isCompleted && System.currentTimeMillis() < deadline) {
+            shadowOf(Looper.getMainLooper()).idle()
+            Thread.sleep(1)
+        }
+        free.cancel()
     }
 
     fun close() {

@@ -130,7 +130,7 @@ class HomeViewModelDockTest {
             val viewModel = wiring.homeViewModel()
             val shown = awaitState(viewModel) { it.loaded && it.dockEntries.size == 3 }.dockEntries
 
-            viewModel.reorderDock(listOf(shown[2], shown[0], shown[1]))
+            viewModel.reorderDock(listOf(shown[2], shown[0], shown[1]), profile = 1)
 
             awaitUntil("the new order") { wiring.dao.getContainerOrdered(DOCK).map { it.id } == listOf(rc, ra, rb, wiring.dao.getByKey(DOCK, "com.d", "Main", 0L)!!.id) }
             wiring.clear(viewModel)

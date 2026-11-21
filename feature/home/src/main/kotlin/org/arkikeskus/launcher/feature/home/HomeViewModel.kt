@@ -584,30 +584,50 @@ class HomeViewModel @Inject constructor(
     private suspend fun <T> onHomeOf(profile: Long, work: suspend (LauncherSettings) -> T): T? =
         homeLayoutRepository.whileProfileIsOn(profile) { work(settingsRepository.settings.first()) }
 
+    /**
+     * What the screen of the home profile [profile] asks to be CHANGED in its layout, where no grid is needed
+     * ([onHomeOf] is the same with the grid). EVERY change of the layout below goes through one of the two:
+     * each is asked for a profile, the one whose screen the user acted on, which the screen hands over from
+     * the profile it was made for. Never the profile of this view model's state when the handler runs: that
+     * can already be the next profile's while the last one's screen still takes the finger's lift. An app is
+     * named by its key and the same app can be on two profiles' home screens, a cell means another thing in
+     * another grid, and a row id of a profile that is not on names nothing: asked for a profile that is not
+     * on, nothing is changed. The hold spans whatever the change first reads (the dock as shown, the grid).
+     */
+    private suspend fun <T> onLayoutOf(profile: Long, work: suspend () -> T): T? =
+        homeLayoutRepository.whileProfileIsOn(profile, work)
+
     /** Removes a folder together with its apps — offered only for a folder that shows no apps (all
      *  of them disabled or gone), which could otherwise never leave its cell. */
-    fun removeFolder(folderId: Long) = viewModelScope.launch {
-        // Re-checked against the current state: its apps may have come back since the drag began.
-        val state = uiState.value
-        val folder = state.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == folderId }
-            ?: state.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == folderId }?.folder
-        if (folder != null && folder.apps.isEmpty()) homeLayoutRepository.removeFolder(folderId)
+    fun removeFolder(folderId: Long, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) {
+            // Re-checked against the current state: its apps may have come back since the drag began.
+            val state = uiState.value
+            if (state.homeProfileId != profile) return@onLayoutOf
+            val folder = state.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == folderId }
+                ?: state.dockEntries.filterIsInstance<DockFolder>().firstOrNull { it.rowId == folderId }?.folder
+            if (folder != null && folder.apps.isEmpty()) homeLayoutRepository.removeFolder(folderId)
+        }
     }
 
     /** The folder card's "Delete folder" (issue #20), confirmed there: the folder goes with every app
      *  in it, which stay in the drawer. [removeFolder] above is the drag path's, for an empty folder only. */
-    fun deleteFolder(folderId: Long) = viewModelScope.launch { homeLayoutRepository.removeFolder(folderId) }
+    fun deleteFolder(folderId: Long, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.removeFolder(folderId) } }
 
     /** Removes a pinned shortcut from home and re-pins the remaining set for its package in the system;
      *  the icon picked for it goes with its last copy ([shortcutIconStaysAfterRemoval]) inside the same
      *  pin-lock section as the row: a restore queued behind this re-files the row and its icon together,
      *  and never loses the icon to a clearing that ran late on a stale result. */
-    fun removeShortcut(rowId: Long) = viewModelScope.launch {
-        ShortcutPinLock.withLock {
-            val removed = homeLayoutRepository.removeShortcut(rowId) ?: return@withLock
-            AppShortcuts.setPinned(context, removed.packageName, removed.userSerial, removed.shortcutIds)
-            if (!shortcutIconStaysAfterRemoval(removed.removedShortcutId, removed)) {
-                customIcons.setShortcutIcon(ShortcutIconKey.of(removed.packageName, removed.removedShortcutId, removed.userSerial), null)
+    fun removeShortcut(rowId: Long, profile: Long) = viewModelScope.launch {
+        // The profile's hold first, then the pin lock: the order every holder of both keeps.
+        onLayoutOf(profile) {
+            ShortcutPinLock.withLock {
+                val removed = homeLayoutRepository.removeShortcut(rowId) ?: return@withLock
+                AppShortcuts.setPinned(context, removed.packageName, removed.userSerial, removed.shortcutIds)
+                if (!shortcutIconStaysAfterRemoval(removed.removedShortcutId, removed)) {
+                    customIcons.setShortcutIcon(ShortcutIconKey.of(removed.packageName, removed.removedShortcutId, removed.userSerial), null)
+                }
             }
         }
     }
@@ -635,15 +655,20 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Stores a widget at [placement], the rectangle the user chose on the screen of the home profile [profile].
+     * False, with nothing stored, also when that profile is not on any more: an app widget is bound and set up
+     * in between, in the system's dialogs, and the profile can be switched meanwhile. The caller then frees the
+     * widget id it had allocated; stored for the profile that came on, the widget would sit in a grid it was
+     * never placed in.
+     */
     suspend fun addWidgetAt(
         appWidgetId: Int?, provider: String?, builtinType: String?,
         placement: org.arkikeskus.launcher.model.WidgetPlacement,
-    ): Boolean {
-        val s = settingsRepository.settings.first()
-        return homeLayoutRepository.addWidgetAt(
-            appWidgetId, provider, builtinType, placement, s.homeColumns, s.homeRows,
-        )
-    }
+        profile: Long,
+    ): Boolean = onHomeOf(profile) { s ->
+        homeLayoutRepository.addWidgetAt(appWidgetId, provider, builtinType, placement, s.homeColumns, s.homeRows)
+    } ?: false
 
     // --- Pages (the empty-area menu) -----------------------------------------------------------
 
@@ -675,10 +700,6 @@ class HomeViewModel @Inject constructor(
     /** HOME returns to [page] from now on. */
     fun setHomePage(page: Int, profile: Long) = viewModelScope.launch { pageOperations.setHome(page, profile) }
 
-    /** True when the home screen shows nothing on [page]. A row can still be stored there (a
-     *  disabled app, a shortcut its app dropped, a widget without a provider); such leftovers are
-     *  purged when the user removes the page, or the page could never be removed. */
-    fun isPageEmpty(page: Int): Boolean = uiState.value.entries.none { it.page == page }
 
     /** Removes an empty page, returning its navigation destination, null when rejected (not empty,
      *  the only page), or [PAGE_FAILED] when storage refused. */
@@ -701,24 +722,31 @@ class HomeViewModel @Inject constructor(
         null
     }
 
-    /** Removes a placed widget row (caller frees the host id). */
-    fun removeWidget(rowId: Long) = viewModelScope.launch { homeLayoutRepository.removeWidget(rowId) }
+    /**
+     * Removes a placed widget row of the home profile [profile], then calls [removed], where the caller frees
+     * the widget's host id. Only then: asked after a switch the row is not removed (it is the other profile's
+     * and stays on its home screen), and an id freed all the same left that row bound to a widget that was gone.
+     */
+    fun removeWidget(rowId: Long, profile: Long, removed: () -> Unit = {}) = viewModelScope.launch {
+        if (onLayoutOf(profile) { homeLayoutRepository.removeWidget(rowId) } != null) removed()
+    }
 
     /** Turns bound widget rows whose id this device's host never allocated back into placeholders
      *  (the Google Auto Backup / device-transfer restore path — see HomeScreen's startup sweep). */
     suspend fun unbindStaleWidgets(validIds: Set<Int>) = homeLayoutRepository.unbindStaleWidgets(validIds)
 
-    /** Binds a restored placeholder widget to its freshly allocated [appWidgetId] (the caller did the
-     *  allocate + system bind/configure); the row turns back into a live widget. */
-    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int): Boolean =
-        homeLayoutRepository.bindRestoredWidget(rowId, appWidgetId)
+    /** Binds a restored placeholder widget of the home profile [profile] to its freshly allocated
+     *  [appWidgetId] (the caller did the allocate + system bind/configure); the row turns back into a live
+     *  widget. False, with nothing bound, also when that profile is not on any more ([addWidgetAt]). */
+    suspend fun bindRestoredWidget(rowId: Long, appWidgetId: Int, profile: Long): Boolean =
+        onLayoutOf(profile) { homeLayoutRepository.bindRestoredWidget(rowId, appWidgetId) } ?: false
 
     /** Device-local ids of all bound widgets (for the startup AppWidgetHost id reconcile). */
     suspend fun boundWidgetIds(): Set<Int> = homeLayoutRepository.boundWidgetIds()
 
     /** The dock's shown slots in their new order; rows the column cap hides keep their place after them. */
-    fun reorderDock(newOrder: List<DockEntry>) =
-        viewModelScope.launch { homeLayoutRepository.reorderDock(newOrder.map { it.rowId }) }
+    fun reorderDock(newOrder: List<DockEntry>, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.reorderDock(newOrder.map { it.rowId }) } }
 
     /**
      * Takes [appItem]'s own icon off the home screen of the home profile [profile], the one the screen showed
@@ -729,12 +757,9 @@ class HomeViewModel @Inject constructor(
     fun removeFromHome(appItem: AppItem, profile: Long) =
         viewModelScope.launch { homeLayoutRepository.whileProfileIsOn(profile) { homeLayoutRepository.removeFromHome(appItem) } }
 
-    fun addToDock(appItem: AppItem) =
-        viewModelScope.launch { homeLayoutRepository.addToDock(appItem) }
-
     /** A drawer icon dropped between dock tiles at [index] (counted over the shown slots). */
-    fun addToDockAt(appItem: AppItem, index: Int) =
-        viewModelScope.launch { homeLayoutRepository.addToDockAt(appItem, index, shownDockKeys()) }
+    fun addToDockAt(appItem: AppItem, index: Int, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.addToDockAt(appItem, index, shownDockKeys()) } }
 
     /** As [removeFromHome], for [appItem]'s own tile in the dock of the home profile [profile]. */
     fun removeFromDock(appItem: AppItem, profile: Long) =
@@ -753,24 +778,30 @@ class HomeViewModel @Inject constructor(
     }
 
     /** [dropped] dropped onto the dock app [target]: the slot becomes a folder of the two. */
-    fun createDockFolder(target: AppItem, dropped: AppItem, fromContainer: Long?, name: String) =
+    fun createDockFolder(target: AppItem, dropped: AppItem, fromContainer: Long?, name: String, profile: Long) =
         viewModelScope.launch {
-            withContext(NonCancellable) { homeLayoutRepository.createDockFolder(target, dropped, fromContainer, name) }
+            withContext(NonCancellable) {
+                onLayoutOf(profile) { homeLayoutRepository.createDockFolder(target, dropped, fromContainer, name) }
+            }
         }
 
     /** [appItem] dropped onto the dock folder [folderId]: joins it. */
-    fun addToDockFolder(appItem: AppItem, folderId: Long, fromContainer: Long?) = viewModelScope.launch {
-        withContext(NonCancellable) { homeLayoutRepository.addToDockFolder(appItem, folderId, fromContainer) }
+    fun addToDockFolder(appItem: AppItem, folderId: Long, fromContainer: Long?, profile: Long) = viewModelScope.launch {
+        withContext(NonCancellable) {
+            onLayoutOf(profile) { homeLayoutRepository.addToDockFolder(appItem, folderId, fromContainer) }
+        }
     }
 
     /** A home folder dropped between dock tiles at [index]. */
-    fun moveFolderToDock(folderId: Long, index: Int) = viewModelScope.launch {
-        withContext(NonCancellable) { homeLayoutRepository.moveFolderToDock(folderId, index, shownDockKeys()) }
+    fun moveFolderToDock(folderId: Long, index: Int, profile: Long) = viewModelScope.launch {
+        withContext(NonCancellable) {
+            onLayoutOf(profile) { homeLayoutRepository.moveFolderToDock(folderId, index, shownDockKeys()) }
+        }
     }
 
     /** A dock folder dropped on a home cell; false (nothing changed) unless the cell is free. */
-    suspend fun moveDockFolderToHome(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
-        homeLayoutRepository.moveDockFolderToHome(folderId, page, cellX, cellY)
+    suspend fun moveDockFolderToHome(folderId: Long, page: Int, cellX: Int, cellY: Int, profile: Long): Boolean =
+        onLayoutOf(profile) { homeLayoutRepository.moveDockFolderToHome(folderId, page, cellX, cellY) } ?: false
 
     /** Puts [appItem] at the first free cell of the home profile [profile] ([onHomeOf]). */
     fun addToHome(appItem: AppItem, profile: Long) = viewModelScope.launch {
@@ -784,111 +815,118 @@ class HomeViewModel @Inject constructor(
     }
 
     /** Moves/swaps a home shortcut; returns whether the repository accepted it (see [Workspace]). */
-    suspend fun moveItem(appItem: AppItem, page: Int, cellX: Int, cellY: Int): Boolean =
-        homeLayoutRepository.moveItem(appItem, page, cellX, cellY)
+    suspend fun moveItem(appItem: AppItem, page: Int, cellX: Int, cellY: Int, profile: Long): Boolean =
+        onLayoutOf(profile) { homeLayoutRepository.moveItem(appItem, page, cellX, cellY) } ?: false
 
     /** Moves/swaps a folder to a home cell (folder relocation on the grid). */
-    suspend fun moveFolder(folderId: Long, page: Int, cellX: Int, cellY: Int): Boolean =
-        homeLayoutRepository.moveFolder(folderId, page, cellX, cellY)
+    suspend fun moveFolder(folderId: Long, page: Int, cellX: Int, cellY: Int, profile: Long): Boolean =
+        onLayoutOf(profile) { homeLayoutRepository.moveFolder(folderId, page, cellX, cellY) } ?: false
 
     /** Moves or resizes a widget to the given bounds; returns whether the repository accepted it
      *  (the Workspace clears its optimistic override on false). */
-    suspend fun setWidgetBounds(rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int): Boolean {
-        val s = settingsRepository.settings.first()
-        return homeLayoutRepository.setWidgetBounds(rowId, page, cellX, cellY, spanX, spanY, s.homeColumns, s.homeRows)
-    }
+    suspend fun setWidgetBounds(rowId: Long, page: Int, cellX: Int, cellY: Int, spanX: Int, spanY: Int, profile: Long): Boolean =
+        onHomeOf(profile) { s ->
+            homeLayoutRepository.setWidgetBounds(rowId, page, cellX, cellY, spanX, spanY, s.homeColumns, s.homeRows)
+        } ?: false
 
     /** Cross-surface: an icon dragged from the dock onto a home cell — place it (an app there makes
      *  a folder named [folderName], a folder there takes it in) and leave the dock. One transaction;
-     *  NonCancellable so a ViewModel clear mid-way can't strand the item on both surfaces. */
-    fun moveToHome(appItem: AppItem, page: Int, cellX: Int, cellY: Int, folderName: String) = viewModelScope.launch {
-        val s = settingsRepository.settings.first()
+     *  NonCancellable so a ViewModel clear mid-way can't strand the item on both surfaces. Both surfaces
+     *  are the home profile [profile]'s, from the grid's reading to the last row written: with a switch in
+     *  between, the icon of the same app left the OTHER profile's dock for its home screen. */
+    fun moveToHome(appItem: AppItem, page: Int, cellX: Int, cellY: Int, folderName: String, profile: Long) = viewModelScope.launch {
         withContext(NonCancellable) {
-            when (homeLayoutRepository.moveDockAppToHome(appItem, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)) {
-                PlaceResult.Placed -> Unit
-                PlaceResult.HomeFull -> notify(HomeNotice.HomeFull)
-                PlaceResult.Blocked -> Unit // the icon snaps back to the dock
+            val result = onHomeOf(profile) { s ->
+                homeLayoutRepository.moveDockAppToHome(appItem, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)
             }
+            // Placed, blocked (the icon snaps back to the dock) and not asked of this profile need no word.
+            if (result == PlaceResult.HomeFull) notify(HomeNotice.HomeFull)
         }
     }
 
-    /** Cross-surface: a home icon dragged into the dock at [index] — its row moves to the dock. */
-    fun moveToDock(appItem: AppItem, index: Int) = viewModelScope.launch {
+    /** Cross-surface: a home icon dragged into the dock at [index] — its row moves to the dock. The profile is
+     *  held from the reading of the dock as shown to the write ([moveToHome]): read first and held after, a
+     *  switch between the two moved the same app's icon in the other profile, or made it a new dock icon. */
+    fun moveToDock(appItem: AppItem, index: Int, profile: Long) = viewModelScope.launch {
         withContext(NonCancellable) {
             // [index] counts the dock as shown; rows that don't resolve are skipped in it.
-            homeLayoutRepository.moveHomeAppToDock(appItem, index, shownDockKeys())
+            onLayoutOf(profile) { homeLayoutRepository.moveHomeAppToDock(appItem, index, shownDockKeys()) }
         }
     }
 
     /** Drop an app onto another home app → make a folder of the two. */
-    fun createFolder(target: AppItem, dropped: AppItem, name: String) = viewModelScope.launch {
-        homeLayoutRepository.createFolder(target, dropped, name)
+    fun createFolder(target: AppItem, dropped: AppItem, name: String, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) { homeLayoutRepository.createFolder(target, dropped, name) }
     }
 
     /** Drop an app onto an existing folder → add it to that folder. */
-    fun addToFolder(appItem: AppItem, folderId: Long) = viewModelScope.launch {
-        homeLayoutRepository.addToFolder(appItem, folderId)
+    fun addToFolder(appItem: AppItem, folderId: Long, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) { homeLayoutRepository.addToFolder(appItem, folderId) }
     }
 
     /** Take an app out of a folder back onto the home screen (dissolves the folder if one is left). */
-    fun removeFromFolder(appItem: AppItem, folderId: Long) = viewModelScope.launch {
-        val s = settingsRepository.settings.first()
-        if (!homeLayoutRepository.removeFromFolder(appItem, folderId, s.homeColumns, s.homeRows)) {
-            notify(HomeNotice.HomeFull)
-        }
+    fun removeFromFolder(appItem: AppItem, folderId: Long, profile: Long) = viewModelScope.launch {
+        val stayed = onHomeOf(profile) { s -> !homeLayoutRepository.removeFromFolder(appItem, folderId, s.homeColumns, s.homeRows) }
+        if (stayed == true) notify(HomeNotice.HomeFull)
     }
 
     /** The editor's "Add apps" list, confirmed (discussion #16): the ticked apps join the folder, in the
      *  order they were ticked. */
-    fun addAppsToFolder(folderId: Long, apps: List<AppItem>) = viewModelScope.launch {
-        homeLayoutRepository.addAppsToFolder(folderId, apps)
+    fun addAppsToFolder(folderId: Long, apps: List<AppItem>, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) { homeLayoutRepository.addAppsToFolder(folderId, apps) }
     }
 
     /** The editor's "Sort A-Z" (discussion #16): the folder's apps in the order of their names, capitals
      *  aside, as the app drawer lists apps. Done once: an app added later goes to the end again. */
-    fun sortFolderByName(folderId: Long) = viewModelScope.launch {
-        val byName = appRepository.apps.first().sortedBy { it.label.lowercase() }.map { it.key }
-        homeLayoutRepository.sortFolder(folderId, byName)
+    fun sortFolderByName(folderId: Long, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) {
+            val byName = appRepository.apps.first().sortedBy { it.label.lowercase() }.map { it.key }
+            homeLayoutRepository.sortFolder(folderId, byName)
+        }
     }
 
     /** A drag inside the open folder ended at a new slot: [appItem] goes just before [before]
      *  (null = last). */
-    fun reorderInFolder(folderId: Long, appItem: AppItem, before: AppItem?) = viewModelScope.launch {
-        homeLayoutRepository.moveWithinFolder(folderId, appItem, before)
+    fun reorderInFolder(folderId: Long, appItem: AppItem, before: AppItem?, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) { homeLayoutRepository.moveWithinFolder(folderId, appItem, before) }
     }
 
     /** Cross-surface: an app dragged out of its open folder onto a home cell — placed with the same
      *  rules as a drawer drop (an app there makes a folder named [folderName], a folder there takes
      *  it in); a full home reports [HomeNotice.HomeFull] and leaves the app in the folder. */
-    fun moveOutOfFolder(appItem: AppItem, folderId: Long, page: Int, cellX: Int, cellY: Int, folderName: String) =
-        viewModelScope.launch {
-            val s = settingsRepository.settings.first()
-            withContext(NonCancellable) {
-                val result = homeLayoutRepository.moveOutOfFolderTo(
-                    appItem, folderId, page, cellX, cellY, s.homeColumns, s.homeRows, folderName,
-                )
-                if (result == PlaceResult.HomeFull) notify(HomeNotice.HomeFull)
+    fun moveOutOfFolder(
+        appItem: AppItem, folderId: Long, page: Int, cellX: Int, cellY: Int, folderName: String, profile: Long,
+    ) = viewModelScope.launch {
+        withContext(NonCancellable) {
+            val result = onHomeOf(profile) { s ->
+                homeLayoutRepository.moveOutOfFolderTo(appItem, folderId, page, cellX, cellY, s.homeColumns, s.homeRows, folderName)
             }
+            if (result == PlaceResult.HomeFull) notify(HomeNotice.HomeFull)
         }
+    }
 
     /** Cross-surface: an app dragged out of its open folder into the dock at [index] (null = after
      *  the last slot) — its child row becomes a dock row (one transaction; NonCancellable so a
      *  ViewModel clear can't strand it). */
-    fun moveFolderAppToDock(appItem: AppItem, folderId: Long, index: Int? = null) = viewModelScope.launch {
-        withContext(NonCancellable) { homeLayoutRepository.moveChildToDock(appItem, folderId, index, shownDockKeys()) }
+    fun moveFolderAppToDock(appItem: AppItem, folderId: Long, index: Int? = null, profile: Long) = viewModelScope.launch {
+        withContext(NonCancellable) {
+            onLayoutOf(profile) { homeLayoutRepository.moveChildToDock(appItem, folderId, index, shownDockKeys()) }
+        }
     }
 
     /** An app dragged out of its open folder onto the remove pill: it leaves the home screen entirely. */
-    fun removeFromFolderEntirely(appItem: AppItem, folderId: Long) = viewModelScope.launch {
-        homeLayoutRepository.removeChild(appItem, folderId)
+    fun removeFromFolderEntirely(appItem: AppItem, folderId: Long, profile: Long) = viewModelScope.launch {
+        onLayoutOf(profile) { homeLayoutRepository.removeChild(appItem, folderId) }
     }
 
-    fun renameFolder(folderId: Long, name: String) =
-        viewModelScope.launch { homeLayoutRepository.renameFolder(folderId, name) }
+    fun renameFolder(folderId: Long, name: String, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { homeLayoutRepository.renameFolder(folderId, name) } }
 
-    /** The icon picked for a home folder (null = back to its preview). */
-    fun setFolderIcon(folderId: Long, icon: CustomIcon?) =
-        viewModelScope.launch { customIcons.setFolderIcon(FolderIconKey.home(folderId), icon) }
+    /** The icon picked for a home folder of the home profile [profile] (null = back to its preview). A
+     *  folder's icon is one of its profile's own values, filed by the folder's row: stored with another
+     *  profile on, it would be kept among that one's values, for a folder it does not have. */
+    fun setFolderIcon(folderId: Long, icon: CustomIcon?, profile: Long) =
+        viewModelScope.launch { onLayoutOf(profile) { customIcons.setFolderIcon(FolderIconKey.home(folderId), icon) } }
 
     /** "Edit" saved for [app]: its name (null = left as it was) and its icon (null = the app's own). */
     fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launch {

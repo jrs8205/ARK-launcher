@@ -45,7 +45,7 @@ class HomeOfActiveProfileTest {
 
     /** A home screen with something that can be opened, as a folder is. */
     private fun show() = compose.setContent {
-        HomeOfActiveProfile(active = active.value, uiState = state.value) { shown ->
+        HomeOfActiveProfile(active = active.value, uiState = state.value) { _, shown ->
             var open by remember { mutableStateOf(false) }
             Column {
                 Text(if (shown.loaded) "home of ${shown.homeProfileId}" else "placeholder")
@@ -73,7 +73,7 @@ class HomeOfActiveProfileTest {
         val host = CountingHost(org.robolectric.RuntimeEnvironment.getApplication())
         compose.setContent {
             androidx.compose.runtime.CompositionLocalProvider(LocalAppWidgetHost provides host) {
-                HomeOfActiveProfile(active = active.value, uiState = state.value) { shown -> Text("home of ${shown.homeProfileId}") }
+                HomeOfActiveProfile(active = active.value, uiState = state.value) { _, shown -> Text("home of ${shown.homeProfileId}") }
             }
         }
         compose.onNodeWithText("home of 1").assertIsDisplayed()
@@ -166,7 +166,7 @@ class HomeOfActiveProfileTest {
         tester.setContent {
             val known = remember { mutableStateOf(atStart) }.also { inProcess = it }
             val profile = known.value
-            HomeOfActiveProfile(active = profile, uiState = if (profile == null) HomeUiState() else loaded(profile)) {
+            HomeOfActiveProfile(active = profile, uiState = if (profile == null) HomeUiState() else loaded(profile)) { _, _ ->
                 var pending by rememberSaveable { mutableStateOf("nothing pending") }
                 // What a start acts on: the value its first composition has.
                 remember { pending.also { startedWith += it } }
@@ -210,7 +210,7 @@ class HomeOfActiveProfileTest {
         val pageRequests = MutableSharedFlow<Int>(extraBufferCapacity = 1)
         state.value = loaded(1).copy(pageCount = 4, homePage = 0)
         compose.setContent {
-            HomeOfActiveProfile(active = active.value, uiState = state.value) { shown ->
+            HomeOfActiveProfile(active = active.value, uiState = state.value) { _, shown ->
                 Workspace(
                     pageCount = shown.pageCount,
                     columns = 4,

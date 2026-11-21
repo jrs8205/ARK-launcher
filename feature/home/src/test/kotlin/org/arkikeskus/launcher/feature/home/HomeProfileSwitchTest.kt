@@ -225,7 +225,7 @@ class HomeProfileSwitchTest {
             val viewModel = wiring.homeViewModel()
             val seen = statesOf(viewModel)
             awaitUntil("the first profile's two pages") { seen.last().loaded && seen.last().homeProfileId == 1L && seen.last().pageCount == 2 }
-            assertThat(viewModel.isPageEmpty(1)).isTrue()
+            assertThat(viewModel.uiState.value.entries.none { it.page == 1 }).isTrue()
             val workRows = wiring.rowsOfProfile(work).map { it.id }
 
             // Switched behind the screen: its state is still the first profile's when it asks.
@@ -258,7 +258,7 @@ class HomeProfileSwitchTest {
             val viewModel = wiring.homeViewModel()
             val seen = statesOf(viewModel)
             awaitUntil("Work's three pages") { seen.last().loaded && seen.last().homeProfileId == work && seen.last().pageCount == 3 }
-            assertThat(viewModel.isPageEmpty(2)).isTrue()
+            assertThat(viewModel.uiState.value.entries.none { it.page == 2 }).isTrue()
 
             // The menu of the first profile's screen, handled after the state turned to Work.
             assertThat(viewModel.removeEmptyPage(2, profile = 1)).isEqualTo(PAGE_NOT_SHOWN)

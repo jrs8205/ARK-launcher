@@ -56,7 +56,7 @@ class HomeViewModelFolderListTest {
             val folderId = wiring.folderOf(zeta, mango)
             val viewModel = wiring.homeViewModel()
 
-            viewModel.addAppsToFolder(folderId, listOf(berry, apple))
+            viewModel.addAppsToFolder(folderId, listOf(berry, apple), profile = 1)
 
             awaitUntil("the two apps to join") { wiring.order(folderId).size == 4 }
             assertThat(wiring.order(folderId)).containsExactly("com.z", "com.m", "com.b", "com.a").inOrder()
@@ -73,7 +73,7 @@ class HomeViewModelFolderListTest {
             val folderId = wiring.folderOf(zeta, mango, berry, apple)
             val viewModel = wiring.homeViewModel()
 
-            viewModel.sortFolderByName(folderId)
+            viewModel.sortFolderByName(folderId, profile = 1)
 
             // apple, Berry, Mango, zeta: by name as the app drawer lists apps, capitals aside.
             awaitUntil("the sorted order") { wiring.order(folderId).first() == "com.a" }
