@@ -55,8 +55,12 @@ class AppUsageRepository @Inject constructor(
      *  room of a launch that one does. Best effort: a write the storage refuses (a full disk) is dropped — the
      *  caller fires this on the application scope, where an escaping exception would kill the home process
      *  after every app launch. */
-    suspend fun recordLaunch(key: String, at: Long = System.currentTimeMillis(), androidReports: Boolean = true) =
-        recordLaunch(AskedLaunch(key, at, androidReports, PERIOD_NOT_KNOWN))
+    suspend fun recordLaunch(
+        key: String,
+        at: Long = System.currentTimeMillis(),
+        androidReports: Boolean = true,
+        now: Long = System.currentTimeMillis(),
+    ) = recordLaunch(AskedLaunch(key, at, androidReports, PERIOD_NOT_KNOWN), now)
 
     /**
      * A launch the launcher has asked Android for, from the moment it is asked ([launchAsked]) until its own
@@ -121,15 +125,17 @@ class AppUsageRepository @Inject constructor(
         synchronized(asked) { asked.remove(launch) }
     }
 
-    /** [recordLaunch] of a launch that was announced with [launchAsked]. */
-    suspend fun recordLaunch(launch: AskedLaunch): Unit = notes.withLock {
+    /** [recordLaunch] of a launch that was announced with [launchAsked]. [now] is the moment of this note: the
+     *  clock as it is when the note is written, which a stored time is judged by ([applyNoted]). */
+    suspend fun recordLaunch(launch: AskedLaunch, now: Long = System.currentTimeMillis()): Unit = notes.withLock {
         try {
             dataStore.edit { p ->
                 val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
                 // By its own time, as an opening read late is: a later opening of the app from elsewhere can
                 // have been counted before this note is written, and the app's time must not go back to the
-                // launch's (the later opening would then fade from too early a moment).
-                stats[launch.key] = applyOpening(stats[launch.key], launch.at)
+                // launch's (the later opening would then fade from too early a moment). Unless the stored
+                // time is LATER THAN NOW: that is a clock that was set back, not a note that came late.
+                stats[launch.key] = applyNoted(stats[launch.key], launch.at, now)
                 p[Keys.APP_USAGE] = serialize(stats)
                 // Not when a read of Android's record has met this launch's report already (the read got to
                 // the store before this note did): the launch then waits for no report, and kept waiting it
@@ -227,7 +233,7 @@ class AppUsageRepository @Inject constructor(
                 }
                 if (left.isNotEmpty()) {
                     val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
-                    for ((key, at) in left) stats[key] = applyOpening(stats[key], at)
+                    for ((key, at) in left) stats[key] = applyNoted(stats[key], at, syncedTo)
                     p[Keys.APP_USAGE] = serialize(stats)
                 }
                 // A launch of the last moments may be reported only in the next read. An older one that no
@@ -397,5 +403,18 @@ class AppUsageRepository @Inject constructor(
             if (prev == null || atMillis >= prev.lastUsed) return applyLaunch(prev, atMillis)
             return UsageStat(prev.score + currentScore(UsageStat(1f, atMillis), prev.lastUsed), prev.lastUsed)
         }
+
+        /**
+         * The stat after an app was opened at [atMillis], noted at [nowMillis] (the clock as the note is
+         * written). An opening older than the stored time is one of two things, and the stored time tells
+         * which. Not after [nowMillis]: something later was counted first and this note came late
+         * ([applyOpening]: the stored time stays). AFTER [nowMillis]: nothing can have been opened in the
+         * future, so the phone's clock was ahead when that was stored and has been set back since. Taken for
+         * a late note, a real launch then left the app's time a week ahead and counted for half a launch,
+         * every time, until the clock caught up. It is a launch like any ([applyLaunch]): the score is not
+         * faded for time that did not pass, and the app's time is the clock's again.
+         */
+        fun applyNoted(prev: UsageStat?, atMillis: Long, nowMillis: Long): UsageStat =
+            if (prev != null && prev.lastUsed > nowMillis) applyLaunch(prev, atMillis) else applyOpening(prev, atMillis)
     }
 }

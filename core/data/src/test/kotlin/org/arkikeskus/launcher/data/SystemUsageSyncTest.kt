@@ -4,13 +4,11 @@ import android.os.Process
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.data.profile.CountingStore
 import org.arkikeskus.launcher.model.AppItem
 import org.junit.Test
@@ -694,9 +692,10 @@ class SystemUsageSyncTest {
         source.resumed += screen("com.maps", "com.maps.Main", now - 2_700)
         var note: Job? = null
         store.refuseNextWrite = {
-            note = launch(Dispatchers.Default) { usage.recordLaunch(launch) }
-            // The time to be written, if nothing holds it back.
-            withContext(Dispatchers.Default) { withTimeoutOrNull(300) { note!!.join() } }
+            // Begun right here, in the moment between the change and its refusal, and run on this thread up to
+            // its first wait: written at once if nothing holds it back (this store writes without waiting),
+            // or waiting at the lock the read holds. No time limit decides which.
+            note = launch(start = CoroutineStart.UNDISPATCHED) { usage.recordLaunch(launch) }
         }
 
         sync.sync(now)
@@ -731,6 +730,36 @@ class SystemUsageSyncTest {
         val stat = usage.usage.first().getValue(maps.key)
         assertThat(stat.lastUsed).isEqualTo(now - 30_000)
         assertThat(stat.score).isWithin(0.05f).of(2f)
+    }
+
+    /**
+     * Review round 8. A launch older than the app's stored time is a note that came late only when that stored
+     * time is not in the future. If it is, the phone's clock was ahead when it was stored (here a week) and has
+     * been set back: the next real launch is a whole launch and the app's time is the clock's again. Taken for a
+     * late note it counted for half a launch and left the time a week ahead. The count of apps opened elsewhere
+     * need not be on for this.
+     */
+    @Test fun aLaunchAfterTheClockWasSetBackIsAWholeLaunchAndTheAppsTimeIsTheClocksAgain() = runTest {
+        usage.recordLaunch(maps.key, at = now + 7 * day, now = now + 7 * day)
+
+        usage.recordLaunch(maps.key, at = now, now = now)
+
+        val stat = usage.usage.first().getValue(maps.key)
+        assertThat(stat.lastUsed).isEqualTo(now)
+        assertThat(stat.score).isWithin(0.001f).of(2f)
+    }
+
+    /** The same for an opening read from Android's record after the clock was set back. */
+    @Test fun anOpeningReadAfterTheClockWasSetBackIsAWholeLaunchToo() = runTest {
+        switchOn()
+        usage.recordLaunch(mail.key, at = now + 7 * day, androidReports = false, now = now + 7 * day)
+        source.resumed += screen("com.mail", "com.mail.Inbox", now - 1_000)
+
+        sync.sync(now)
+
+        val stat = usage.usage.first().getValue(mail.key)
+        assertThat(stat.lastUsed).isEqualTo(now - 1_000)
+        assertThat(stat.score).isWithin(0.001f).of(2f)
     }
 
     /** A work profile's app is started in the launcher too, and scored as it always was. Android tells nothing
