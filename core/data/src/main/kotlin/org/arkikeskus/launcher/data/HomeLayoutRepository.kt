@@ -1137,10 +1137,13 @@ class HomeLayoutRepository @Inject constructor(
      * never wipe real items. Every folder is repaired afterwards, including ones an older version
      * left with one or no apps. Returns the number of rows deleted or re-pointed, over every home profile.
      */
-    suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int =
-        inEveryProfile {
+    suspend fun removeStaleAppRows(isInstalled: (packageName: String, userSerial: Long) -> Boolean): Int {
+        // One sweep, one set of answers ([SweepAnswers]): the profiles are gone through inside one write
+        // transaction, and a copy of a profile has the same apps as its source.
+        val answers = SweepAnswers(isInstalled, resolver)
+        return inEveryProfile {
             tx {
-                val plan = planSweep(dao.getAll(), isInstalled, resolver)
+                val plan = planSweep(dao.getAll(), answers::isInstalled, answers)
                 // Re-point first: dissolving a folder checks the home rows' final app keys.
                 plan.remap.forEach { (id, className) -> dao.updateClassName(id, className) }
                 plan.delete.forEach { dao.deleteById(it) }
@@ -1149,6 +1152,7 @@ class HomeLayoutRepository @Inject constructor(
                 plan.delete.size + plan.remap.size
             }
         }.sum()
+    }
 
     /**
      * Uninstall-event cleanup: every app/shortcut/folder-child row of [packageName] in the profile
@@ -1176,18 +1180,20 @@ class HomeLayoutRepository @Inject constructor(
      * while the launcher runs leaves no invisible but occupied cell until the next launch's sweep.
      * In every home profile.
      */
-    suspend fun removeMissingShortcuts(packageName: String, userSerial: Long): Int =
-        inEveryProfile {
+    suspend fun removeMissingShortcuts(packageName: String, userSerial: Long): Int {
+        val answers = SweepAnswers({ _, _ -> true }, resolver)
+        return inEveryProfile {
             tx {
                 val rows = dao.getContainer(HOME)
                     .filter { it.isShortcut && it.packageName == packageName && it.userSerial == userSerial }
                 if (rows.isEmpty()) return@tx 0
-                val missing = resolver.missingShortcuts(packageName, userSerial, rows.mapNotNull { it.shortcutId }.distinct())
+                val missing = answers.missingShortcuts(packageName, userSerial, rows.mapNotNull { it.shortcutId }.distinct())
                 val doomed = rows.filter { it.shortcutId in missing }
                 doomed.forEach { dao.deleteById(it.id) }
                 doomed.size
             }
         }.sum()
+    }
 
     /** Deletes [ids] (rows of [all]), repairs the folders they left and closes the dock's gaps. */
     private suspend fun deleteAndRepairFolders(all: List<HomeItemEntity>, ids: Set<Long>): Int {
@@ -1401,5 +1407,46 @@ class HomeLayoutRepository @Inject constructor(
                 page++
             }
         }
+    }
+}
+
+/**
+ * What the system said during ONE sweep of the home rows, each thing asked once: whether an app is installed,
+ * whether it is only hidden for now, what it starts, and which of its pinned shortcuts are gone. An app is a
+ * package and an Android user; the home profile its row is in changes none of the answers.
+ *
+ * A sweep goes through every home profile inside one write transaction, and the questions are calls into the
+ * system. Asked anew in each profile, a layout and its seven copies cost eight times the calls, while every other
+ * change of the layout waited for the transaction. An answer is kept as it was given: one that only says "not
+ * sure" (a locked work profile, an error) is the caller's and the resolver's to make safe, and stays safe here.
+ * Not kept beyond the sweep, and used from the one coroutine that runs it.
+ */
+private class SweepAnswers(
+    private val installed: (packageName: String, userSerial: Long) -> Boolean,
+    private val resolver: AppRowResolver,
+) : AppRowResolver by resolver {
+    private val isInstalled = HashMap<Pair<String, Long>, Boolean>()
+    private val hiddenForNow = HashMap<Pair<String, Long>, Boolean>()
+    private val targets = HashMap<Pair<String, Long>, PackageTargets>()
+
+    /** Per shortcut (package, user, id): whether the system definitively no longer has it. */
+    private val gone = HashMap<Triple<String, Long, String>, Boolean>()
+
+    fun isInstalled(packageName: String, userSerial: Long): Boolean =
+        isInstalled.getOrPut(packageName to userSerial) { installed(packageName, userSerial) }
+
+    override fun isTemporarilyUnavailable(packageName: String, userSerial: Long): Boolean =
+        hiddenForNow.getOrPut(packageName to userSerial) { resolver.isTemporarilyUnavailable(packageName, userSerial) }
+
+    override fun launchTargets(packageName: String, userSerial: Long): PackageTargets =
+        targets.getOrPut(packageName to userSerial) { resolver.launchTargets(packageName, userSerial) }
+
+    override fun missingShortcuts(packageName: String, userSerial: Long, shortcutIds: Collection<String>): Set<String> {
+        val unasked = shortcutIds.filter { Triple(packageName, userSerial, it) !in gone }.distinct()
+        if (unasked.isNotEmpty()) {
+            val missing = resolver.missingShortcuts(packageName, userSerial, unasked)
+            for (id in unasked) gone[Triple(packageName, userSerial, id)] = id in missing
+        }
+        return shortcutIds.filterTo(HashSet()) { gone[Triple(packageName, userSerial, it)] == true }
     }
 }

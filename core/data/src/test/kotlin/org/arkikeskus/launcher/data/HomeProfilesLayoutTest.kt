@@ -58,6 +58,67 @@ class HomeProfilesLayoutTest {
     private suspend fun rowsOf(profile: Long) = inHomeProfile(profile) { dao.getAll() }
 
     /**
+     * Review round 10. The sweep goes through every home profile inside one write transaction, and it asked the
+     * system about each app anew in every profile: with eight copies of one layout the same questions (is it
+     * installed, what does it start, are its shortcuts still there) were asked eight times, while every other
+     * change of the layout waited. One sweep asks once per app and Android user, and the answer serves every
+     * profile; what an unsure answer means is not changed by that (an app that only may be gone stays).
+     */
+    @Test fun oneSweepAsksTheSystemOncePerAppHoweverManyProfilesHaveItsRows() = runTest {
+        for (profile in 1L..3L) inHomeProfile(profile) {
+            dao.insert(app("com.mail", 0))
+            dao.insert(app("com.gone", 1))
+            dao.insert(app("com.work", 2).copy(userSerial = 10))
+            dao.insert(shortcut("com.chat", "talk", 3))
+        }
+        val asked = mutableListOf<String>()
+        val counting = object : AppRowResolver by resolver {
+            override fun launchTargets(packageName: String, userSerial: Long) =
+                resolver.launchTargets(packageName, userSerial).also { asked += "targets $packageName/$userSerial" }
+
+            override fun isTemporarilyUnavailable(packageName: String, userSerial: Long) =
+                resolver.isTemporarilyUnavailable(packageName, userSerial).also { asked += "hidden $packageName/$userSerial" }
+
+            override fun missingShortcuts(packageName: String, userSerial: Long, shortcutIds: Collection<String>) =
+                resolver.missingShortcuts(packageName, userSerial, shortcutIds).also { asked += "shortcuts $packageName/$userSerial $shortcutIds" }
+        }
+        resolver.missing["com.chat"] = setOf("talk")
+
+        val changed = HomeLayoutRepository(db, dao, counting).removeStaleAppRows { packageName, userSerial ->
+            asked += "installed $packageName/$userSerial"
+            // The work profile cannot be asked just now: unsure, so the app is taken to be there.
+            packageName != "com.gone" || userSerial != 0L
+        }
+
+        // Gone from every profile: the app that is not installed and the shortcut the system no longer has.
+        assertThat(changed).isEqualTo(6)
+        for (profile in 1L..3L) assertThat(rowsOf(profile).map { it.packageName }).containsExactly("com.mail", "com.work")
+        // And each question once, not once per profile.
+        assertThat(asked.filter { it.startsWith("installed") })
+            .containsExactly("installed com.mail/0", "installed com.gone/0", "installed com.work/10", "installed com.chat/0")
+        assertThat(asked.filter { it.startsWith("hidden") }).containsExactly("hidden com.gone/0")
+        assertThat(asked.filter { it.startsWith("targets") }).containsExactly("targets com.mail/0", "targets com.work/10")
+        assertThat(asked.filter { it.startsWith("shortcuts") }).containsExactly("shortcuts com.chat/0 [talk]")
+    }
+
+    /** The same when a shortcut's owner tells of a change: its shortcuts are asked about once for all profiles. */
+    @Test fun aShortcutChangeAsksAboutEachShortcutOnceForAllProfiles() = runTest {
+        for (profile in 1L..3L) inHomeProfile(profile) { dao.insert(shortcut("com.chat", "talk", 3)) }
+        inHomeProfile(2) { dao.insert(shortcut("com.chat", "call", 4)) }
+        val asked = mutableListOf<List<String>>()
+        val counting = object : AppRowResolver by resolver {
+            override fun missingShortcuts(packageName: String, userSerial: Long, shortcutIds: Collection<String>) =
+                resolver.missingShortcuts(packageName, userSerial, shortcutIds).also { asked += shortcutIds.toList() }
+        }
+        resolver.missing["com.chat"] = setOf("talk")
+
+        assertThat(HomeLayoutRepository(db, dao, counting).removeMissingShortcuts("com.chat", 0L)).isEqualTo(3)
+
+        assertThat(asked.flatten()).containsExactly("talk", "call")
+        assertThat(rowsOf(2).map { it.shortcutId }).containsExactly("call")
+    }
+
+    /**
      * Review round 9. An uninstalled app's rows go from every profile. The profiles were listed first and each
      * then changed in a transaction of its own: a copy of a profile made in between took its source's rows as
      * they were, the gone app's among them, and was not one of the profiles listed. The row stayed in the copy,
