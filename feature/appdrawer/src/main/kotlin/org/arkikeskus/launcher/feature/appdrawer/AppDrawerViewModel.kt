@@ -33,6 +33,7 @@ import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
 import org.arkikeskus.launcher.data.DrawerWallpaper
+import org.arkikeskus.launcher.data.DrawerFolder
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -161,6 +162,10 @@ data class AppDrawerUiState(
     val folderStyle: org.arkikeskus.launcher.model.FolderStyle = org.arkikeskus.launcher.model.FolderStyle(),
 )
 
+/** The drawer's state so far, with the app drawer folders and the folders' own icons it is finished with: all three
+ *  of the same home profile, from one reading ([homeProfileContent]). */
+private data class OfOneProfile(val state: AppDrawerUiState, val folders: List<DrawerFolder>, val icons: Map<String, CustomIcon>)
+
 @HiltViewModel
 class AppDrawerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -221,7 +226,9 @@ class AppDrawerViewModel @Inject constructor(
         query,
         // The settings and the home rows of ONE home profile: around a switch the two are for a moment of
         // two profiles, and such a combination never gets here (the dock's columns of one profile against
-        // the dock rows of another).
+        // the dock rows of another). The drawer's folders and the folders' own icons come with it, of the
+        // same profile: joined on later from flows of their own, one profile's folders showed for a moment
+        // under the other's id, and a folder opened in that moment was taken for the other profile's.
         homeProfileContent(settingsRepository, homeLayoutRepository),
     ) { apps, q, content ->
         val settings = content.settings
@@ -230,7 +237,7 @@ class AppDrawerViewModel @Inject constructor(
         // so they must not count toward its visible capacity either; a dock folder always does.
         val installed = apps.mapTo(HashSet()) { it.key }
         val dockRows = homeItems.filter { it.containerId == HomeItemEntity.DOCK }
-        AppDrawerUiState(
+        val state = AppDrawerUiState(
             apps = apps,
             query = q,
             columns = settings.drawerColumns,
@@ -274,15 +281,17 @@ class AppDrawerViewModel @Inject constructor(
             folderColumns = settings.folderColumns,
             folderStyle = settings.folderStyle(),
         )
-    }.combine(notificationBadgeRepository.badges) { state, badges ->
-        state.copy(badges = badges)
+        OfOneProfile(state, content.drawerFolders, content.folderIcons)
+    }.combine(notificationBadgeRepository.badges) { own, badges ->
+        own.copy(state = own.state.copy(badges = badges))
     }.let { base ->
         combine(
             base,
             settingsRepository.hiddenApps,
-            settingsRepository.drawerFolders,
             workProfileRepository.workProfile,
-        ) { state, hidden, folders, profile ->
+        ) { own, hidden, profile ->
+            val state = own.state
+            val folders = own.folders
             // Hidden apps leave every list (the search results too, unless the user asked the search to find
             // them: AppSearchProvider decides), the work profile's apps go to the Work grid, folders take their members out
             // of the Personal grid only. While searching keep a flat list so folder members stay
@@ -301,15 +310,13 @@ class AppDrawerViewModel @Inject constructor(
                 hiddenApps = hidden,
                 apps = partition.personal,
                 workApps = partition.work,
-                folders = partition.folders,
+                folders = partition.folders.map { it.copy(icon = own.icons[FolderIconKey.drawer(it.id)]) },
                 folderCandidates = partition.folderCandidates,
                 workProfile = profile
                     ?.takeIf { workTabVisible(it, partition.work) }
                     ?.let { WorkProfileUi(it.paused, it.canPause, it.transitioning) },
             )
         }
-    }.combine(settingsRepository.folderIcons) { state, icons ->
-        if (icons.isEmpty()) state else state.copy(folders = state.folders.map { it.copy(icon = icons[FolderIconKey.drawer(it.id)]) })
     }.combine(searchResults) { state, (answered, results) ->
         if (state.query.isBlank()) {
             state // idle drawer: apps + folders already prepared above

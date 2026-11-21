@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -22,7 +23,9 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.arkikeskus.launcher.data.DrawerFolder
 import org.arkikeskus.launcher.data.DrawerWallpaper
@@ -209,6 +212,15 @@ internal fun SettingsContent(
         jumps.target = jumps.resolve(asked)
         pendingJump = null
     }
+    // The profile the pages are composed for: the one whose values are shown, as of the last moment Settings
+    // was in front. While something of the system's is in front of it (a picker a page opened, a permission
+    // question) the pages stay as they are, so that its answer still finds the page that asked: a picture is
+    // picked for the profile its picker was opened on, and the page keeps that. Back in front, the pages are
+    // the shown profile's. Not a state: it must be the same composition that draws the new values.
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    val composedFor = remember { longArrayOf(s.homeProfileId) }
+    if (lifecycleState == Lifecycle.State.RESUMED) composedFor[0] = s.homeProfileId
+    val pagesOf = composedFor[0]
     val palette = settingsPalette(currentBasePalette())
     // With two or more home profiles Settings says which one it is editing, and marks the rows that are its own.
     val severalProfiles = lists.homeProfiles.size >= 2
@@ -244,6 +256,13 @@ internal fun SettingsContent(
                 },
                 label = "settings screen",
             ) { shown ->
+                // Whatever a page has OPEN (a folder's page and its "Delete?", a dialog, a text half typed) is
+                // of the profile whose values the page showed when it was opened, and starts anew with
+                // another profile ([pagesOf]). Which page is shown and how far it is scrolled are kept
+                // above and stay. A question left open over a switch was answered for the profile that had
+                // come on: the page tells its view model the profile it shows now, and a copy of a profile
+                // has drawer folders with the same ids.
+                key(pagesOf) {
                 when (shown) {
                     SCREEN_MAIN -> SettingsMainPage(
                         onOpen = { pageKey = it.key },
@@ -301,6 +320,7 @@ internal fun SettingsContent(
                             scroll = pageScrolls.getValue(category),
                         )
                     }
+                }
                 }
             }
         }

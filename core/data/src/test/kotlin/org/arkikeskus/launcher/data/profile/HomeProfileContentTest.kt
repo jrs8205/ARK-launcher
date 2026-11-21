@@ -29,8 +29,12 @@ class HomeProfileContentTest {
         packages.mapIndexed { i, pkg -> HomeItemEntity(packageName = pkg, className = "Main", page = 0, cellX = i, cellY = 0) },
     )
 
-    private fun icons(profile: Long, vararg keys: String) =
-        HomeFolderIcons(profile, keys.associateWith { CustomIcon.FromPack("com.pack", it) })
+    /** The folders' icons of [profile] and, read with them, its one app drawer folder (named after the profile). */
+    private fun icons(profile: Long, vararg keys: String) = HomeFolderIcons(
+        profile,
+        keys.associateWith { CustomIcon.FromPack("com.pack", it) },
+        listOf(org.arkikeskus.launcher.data.DrawerFolder(1, "of $profile", emptyList())),
+    )
 
     private val settingsFlow = MutableStateFlow(settings(1))
     private val layoutFlow = MutableStateFlow(layout(1, "com.mail"))
@@ -61,8 +65,9 @@ class HomeProfileContentTest {
             order.forEach { toSecond[it]() }
 
             assertWithMessage("order $order").that(seen).containsExactly(
-                HomeProfileContent(settings(1), layout(1, "com.mail"), icons(1, "home:7").icons),
-                HomeProfileContent(settings(2, columns = 5), layout(2, "com.maps"), icons(2, "home:9").icons),
+                // Each with its own profile's app drawer folder, which is read with the icons.
+                HomeProfileContent(settings(1), layout(1, "com.mail"), icons(1, "home:7").icons, icons(1).drawerFolders),
+                HomeProfileContent(settings(2, columns = 5), layout(2, "com.maps"), icons(2, "home:9").icons, icons(2).drawerFolders),
             ).inOrder()
         }
     }

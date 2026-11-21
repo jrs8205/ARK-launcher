@@ -11,7 +11,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.ActivityOptionsCompat
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -34,7 +36,7 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class DrawerPictureProfileTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     /** Settings opens where it was left: each test starts on the main page. */
     @Before fun nothingRemembered() = SettingsScrollMemory.clear()
@@ -69,12 +71,15 @@ class DrawerPictureProfileTest {
         compose.onNodeWithTag(DRAWER_WALLPAPER_PICK_TAG).performScrollTo().performClick()
         compose.waitForIdle()
         assertThat(launched).hasSize(1)
+        // The system's picker is in front now, and Settings is not.
+        compose.activityRule.scenario.moveToState(Lifecycle.State.STARTED)
 
-        // The profile is switched while the picker is open: the page is the first profile's now.
+        // The profile is switched while the picker is open: the page's values are the first profile's now.
         settings = LauncherSettings(homeProfileId = 1)
         compose.waitForIdle()
         val picked = Uri.parse("content://media/picker/0/picture/1")
         compose.runOnUiThread { registry.dispatchResult(launched.single(), picked) }
+        compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
         compose.waitForIdle()
 
         assertThat(recorded.calls).contains("importDrawerWallpaper" to listOf(picked, 2L))

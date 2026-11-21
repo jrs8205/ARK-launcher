@@ -4,11 +4,18 @@ import android.app.Application
 import android.os.Looper
 import android.os.Process
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.ui.DockTarget
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -190,6 +197,64 @@ class DrawerAddsToItsProfileTest {
             betweenWrites()
             viewModel.renameDrawerFolder(id, "Other", profile = 1)
             awaitUntil("the folder renamed") { folders().single().name == "Other" }
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 8. The drawer's state named its home profile from the settings and the layout together, and
+     * took the app drawer's folders and their icons from flows of their own that say no profile. Around a switch
+     * one profile's folder showed for a moment under the other's id; two profiles can each have a folder of the
+     * same id, so a folder opened in that moment was taken for the other profile's. Every state the screen is
+     * handed is of one profile: its id, its folders and their icons.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun noStateShowsOneProfilesFolderOrItsIconUnderAnotherProfilesId() = runTest {
+        val wiring = DrawerWiring(context, this)
+        try {
+            val settings = wiring.settingsRepository
+            betweenWrites()
+            val ofFirst = settings.createDrawerFolder("Of the first")
+            betweenWrites()
+            settings.setFolderIcon(FolderIconKey.drawer(ofFirst), CustomIcon.FromPack("com.pack", "first"))
+            betweenWrites()
+            val work = (wiring.homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile.id
+            betweenWrites()
+            assertThat(wiring.homeProfiles.switchTo(work)).isTrue()
+            settings.settings.first { it.homeProfileId == work }
+            betweenWrites()
+            // The same id in both profiles: each profile numbers its own folders.
+            assertThat(settings.createDrawerFolder("Of Work")).isEqualTo(ofFirst)
+            betweenWrites()
+            settings.setFolderIcon(FolderIconKey.drawer(ofFirst), CustomIcon.FromPack("com.pack", "work"))
+            betweenWrites()
+            val viewModel = wiring.viewModel()
+            val seen = java.util.Collections.synchronizedList(ArrayList<AppDrawerUiState>())
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect { seen += it } }
+            fun shows(profile: Long, name: String) = seen.lastOrNull()?.let { state ->
+                state.homeProfileId == profile && state.folders.map { it.name } == listOf(name) && state.folders.single().icon != null
+            } == true
+            awaitUntil("Work's folder") { shows(work, "Of Work") }
+
+            repeat(6) { round ->
+                val to = if (round % 2 == 0) 1L else work
+                betweenWrites()
+                assertThat(wiring.homeProfiles.switchTo(to)).isTrue()
+                awaitUntil("the folder of profile $to") { shows(to, if (to == 1L) "Of the first" else "Of Work") }
+            }
+
+            for (state in seen.toList()) {
+                val folder = state.folders.singleOrNull() ?: continue
+                val ofWork = state.homeProfileId == work
+                assertWithMessage("the folder of a state of profile ${state.homeProfileId}")
+                    .that(folder.name).isEqualTo(if (ofWork) "Of Work" else "Of the first")
+                if (folder.icon != null) {
+                    assertWithMessage("its icon").that(folder.icon)
+                        .isEqualTo(CustomIcon.FromPack("com.pack", if (ofWork) "work" else "first"))
+                }
+            }
             wiring.clear(viewModel)
         } finally {
             wiring.close()

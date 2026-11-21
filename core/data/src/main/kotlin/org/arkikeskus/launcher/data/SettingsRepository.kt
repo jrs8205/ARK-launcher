@@ -51,8 +51,14 @@ object ShortcutIconKey {
     fun of(packageName: String, shortcutId: String, userSerial: Long) = "$packageName/$shortcutId/$userSerial"
 }
 
-/** The folders' own icons ([FolderIconKey] -> icon) of the home profile [homeProfileId]. */
-data class HomeFolderIcons(val homeProfileId: Long, val icons: Map<String, CustomIcon>)
+/** The folders' own icons ([FolderIconKey] -> icon) of the home profile [homeProfileId], and that profile's app
+ *  drawer folders ([drawerFolders]): what is stored about folders, from one reading, with whose it is. A
+ *  drawer folder's id says nothing outside its profile (a copy of a profile has folders with the same ids). */
+data class HomeFolderIcons(
+    val homeProfileId: Long,
+    val icons: Map<String, CustomIcon>,
+    val drawerFolders: List<DrawerFolder> = emptyList(),
+)
 
 /** When the home profile [homeProfileId] was last exported to a file ([timeMs], epoch ms; 0 = never). */
 data class LastBackup(val homeProfileId: Long, val timeMs: Long)
@@ -399,7 +405,9 @@ class SettingsRepository @Inject constructor(
     /** [folderIcons] with the home profile they are of, both read from the same stored state: a folder's key
      *  says nothing outside its profile, so whoever shows the icons beside a layout must know whose they are. */
     val folderIconsOfProfile: Flow<HomeFolderIcons> = dataStore.data
-        .map { p -> HomeFolderIcons(ProfiledPreferences.activeId(p), parseIcons(p[Keys.FOLDER_ICONS])) }
+        .map { p ->
+            HomeFolderIcons(ProfiledPreferences.activeId(p), parseIcons(p[Keys.FOLDER_ICONS]), parseFolders(p[Keys.DRAWER_FOLDERS]))
+        }
         .distinctUntilChanged()
 
     /** Sets (or, for null, clears) the icon picked for the folder [key] (see [FolderIconKey]). */

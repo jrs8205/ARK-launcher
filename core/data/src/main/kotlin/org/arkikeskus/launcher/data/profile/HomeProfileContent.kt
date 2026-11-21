@@ -3,6 +3,7 @@ package org.arkikeskus.launcher.data.profile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import org.arkikeskus.launcher.data.DrawerFolder
 import org.arkikeskus.launcher.data.HomeFolderIcons
 import org.arkikeskus.launcher.data.HomeLayout
 import org.arkikeskus.launcher.data.HomeLayoutRepository
@@ -10,11 +11,13 @@ import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.LauncherSettings
 
-/** What a screen shows of ONE home profile: its settings, its layout rows and its folders' own icons. */
+/** What a screen shows of ONE home profile: its settings, its layout rows, its folders' own icons and its app
+ *  drawer folders. */
 data class HomeProfileContent(
     val settings: LauncherSettings,
     val layout: HomeLayout,
     val folderIcons: Map<String, CustomIcon>,
+    val drawerFolders: List<DrawerFolder> = emptyList(),
 ) {
     val homeProfileId: Long get() = layout.profileId
 }
@@ -31,7 +34,11 @@ fun homeProfileContent(
     folderIcons: Flow<HomeFolderIcons>,
 ): Flow<HomeProfileContent> =
     combine(settings, layout, folderIcons) { s, l, i ->
-        if (s.homeProfileId == l.profileId && i.homeProfileId == l.profileId) HomeProfileContent(s, l, i.icons) else null
+        if (s.homeProfileId == l.profileId && i.homeProfileId == l.profileId) {
+            HomeProfileContent(s, l, i.icons, i.drawerFolders)
+        } else {
+            null
+        }
     }.filterNotNull()
 
 /** [homeProfileContent] of the launcher's own stores. */
