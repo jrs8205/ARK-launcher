@@ -740,9 +740,9 @@ class SystemUsageSyncTest {
      * need not be on for this.
      */
     @Test fun aLaunchAfterTheClockWasSetBackIsAWholeLaunchAndTheAppsTimeIsTheClocksAgain() = runTest {
-        usage.recordLaunch(maps.key, at = now + 7 * day, now = now + 7 * day)
+        usage.recordLaunch(maps.key, at = now + 7 * day, clock = { now + 7 * day })
 
-        usage.recordLaunch(maps.key, at = now, now = now)
+        usage.recordLaunch(maps.key, at = now, clock = { now })
 
         val stat = usage.usage.first().getValue(maps.key)
         assertThat(stat.lastUsed).isEqualTo(now)
@@ -752,7 +752,7 @@ class SystemUsageSyncTest {
     /** The same for an opening read from Android's record after the clock was set back. */
     @Test fun anOpeningReadAfterTheClockWasSetBackIsAWholeLaunchToo() = runTest {
         switchOn()
-        usage.recordLaunch(mail.key, at = now + 7 * day, androidReports = false, now = now + 7 * day)
+        usage.recordLaunch(mail.key, at = now + 7 * day, androidReports = false, clock = { now + 7 * day })
         source.resumed += screen("com.mail", "com.mail.Inbox", now - 1_000)
 
         sync.sync(now)
@@ -760,6 +760,42 @@ class SystemUsageSyncTest {
         val stat = usage.usage.first().getValue(mail.key)
         assertThat(stat.lastUsed).isEqualTo(now - 1_000)
         assertThat(stat.score).isWithin(0.001f).of(2f)
+    }
+
+    /**
+     * Review round 9. Where a reading of Android's record ended is not the clock at the moment its result is
+     * written. An app started in the launcher WHILE the record was being read is noted with a time after the
+     * reading's end, and that is no clock set back: taken for one, an opening of the day before in the same
+     * read set the app's time back to yesterday. The stored time is judged by the clock as the write is made.
+     */
+    @Test fun aLaunchNotedWhileTheRecordWasBeingReadIsNotTakenForAClockSetBack() = runTest {
+        switchOn()
+        source.resumed += screen("com.maps", "com.maps.Route", now - day)
+        // The user starts the app in the launcher while the reading is under way.
+        duringRead = { usage.recordLaunch(maps.key, at = now + 500, androidReports = false, clock = { now + 500 }) }
+
+        sync.sync(now, clock = { now + 600 })
+
+        val stat = usage.usage.first().getValue(maps.key)
+        assertThat(stat.lastUsed).isEqualTo(now + 500)
+        // Yesterday's opening adds what it is worth by now, a little less than a whole launch.
+        assertThat(stat.score).isGreaterThan(1.8f)
+        assertThat(stat.score).isLessThan(2f)
+    }
+
+    /** And a launch's own note is judged by the clock as it is written, not as it was asked for: another launch
+     *  can have been noted while it waited. */
+    @Test fun aNoteThatWaitedIsJudgedByTheClockAsItIsWritten() = runTest {
+        var clock = now
+        usage.recordLaunch(maps.key, at = now + 300, clock = { now + 300 })
+
+        // Asked for at `now`, written a moment later: the launch at +300 is in the store, and is not the future.
+        clock = now + 400
+        usage.recordLaunch(maps.key, at = now, clock = { clock })
+
+        val stat = usage.usage.first().getValue(maps.key)
+        assertThat(stat.lastUsed).isEqualTo(now + 300)
+        assertThat(stat.score).isWithin(0.01f).of(2f)
     }
 
     /** A work profile's app is started in the launcher too, and scored as it always was. Android tells nothing

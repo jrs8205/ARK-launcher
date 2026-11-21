@@ -59,8 +59,8 @@ class AppUsageRepository @Inject constructor(
         key: String,
         at: Long = System.currentTimeMillis(),
         androidReports: Boolean = true,
-        now: Long = System.currentTimeMillis(),
-    ) = recordLaunch(AskedLaunch(key, at, androidReports, PERIOD_NOT_KNOWN), now)
+        clock: () -> Long = System::currentTimeMillis,
+    ) = recordLaunch(AskedLaunch(key, at, androidReports, PERIOD_NOT_KNOWN), clock)
 
     /**
      * A launch the launcher has asked Android for, from the moment it is asked ([launchAsked]) until its own
@@ -125,9 +125,10 @@ class AppUsageRepository @Inject constructor(
         synchronized(asked) { asked.remove(launch) }
     }
 
-    /** [recordLaunch] of a launch that was announced with [launchAsked]. [now] is the moment of this note: the
-     *  clock as it is when the note is written, which a stored time is judged by ([applyNoted]). */
-    suspend fun recordLaunch(launch: AskedLaunch, now: Long = System.currentTimeMillis()): Unit = notes.withLock {
+    /** [recordLaunch] of a launch that was announced with [launchAsked]. [clock] is read when the note is
+     *  written, inside the write: a stored time is judged by that moment ([applyNoted]), not by the moment
+     *  the note was asked for, after which another launch can have been noted while this one waited. */
+    suspend fun recordLaunch(launch: AskedLaunch, clock: () -> Long = System::currentTimeMillis): Unit = notes.withLock {
         try {
             dataStore.edit { p ->
                 val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
@@ -135,7 +136,7 @@ class AppUsageRepository @Inject constructor(
                 // have been counted before this note is written, and the app's time must not go back to the
                 // launch's (the later opening would then fade from too early a moment). Unless the stored
                 // time is LATER THAN NOW: that is a clock that was set back, not a note that came late.
-                stats[launch.key] = applyNoted(stats[launch.key], launch.at, now)
+                stats[launch.key] = applyNoted(stats[launch.key], launch.at, clock())
                 p[Keys.APP_USAGE] = serialize(stats)
                 // Not when a read of Android's record has met this launch's report already (the read got to
                 // the store before this note did): the launch then waits for no report, and kept waiting it
@@ -200,7 +201,13 @@ class AppUsageRepository @Inject constructor(
      * counted the launch's report as an opening from elsewhere.) Only the launches asked in this count are
      * looked at ([AskedLaunch.period]).
      */
-    suspend fun recordOpenings(read: SystemCount, openings: List<CountedOpening>, syncedTo: Long, inFront: String?): Unit = notes.withLock {
+    suspend fun recordOpenings(
+        read: SystemCount,
+        openings: List<CountedOpening>,
+        syncedTo: Long,
+        inFront: String?,
+        clock: () -> Long = System::currentTimeMillis,
+    ): Unit = notes.withLock {
         // The launches asked for whose report this read meets.
         val met = ArrayList<AskedLaunch>()
         try {
@@ -233,7 +240,12 @@ class AppUsageRepository @Inject constructor(
                 }
                 if (left.isNotEmpty()) {
                     val stats = parse(p[Keys.APP_USAGE]).toMutableMap()
-                    for ((key, at) in left) stats[key] = applyNoted(stats[key], at, syncedTo)
+                    // Judged by the clock NOW, as this is written. [syncedTo] is where the reading of Android's
+                    // record ended, which is earlier: an app started in the launcher while the record was
+                    // being read has a stored time after it, and that is no clock set back. Taken for one,
+                    // an opening of the day before in the same read set the app's time back to yesterday.
+                    val now = clock()
+                    for ((key, at) in left) stats[key] = applyNoted(stats[key], at, now)
                     p[Keys.APP_USAGE] = serialize(stats)
                 }
                 // A launch of the last moments may be reported only in the next read. An older one that no
@@ -406,7 +418,7 @@ class AppUsageRepository @Inject constructor(
 
         /**
          * The stat after an app was opened at [atMillis], noted at [nowMillis] (the clock as the note is
-         * written). An opening older than the stored time is one of two things, and the stored time tells
+         * written, read inside the write, never an earlier moment such as the end of a span that was read). An opening older than the stored time is one of two things, and the stored time tells
          * which. Not after [nowMillis]: something later was counted first and this note came late
          * ([applyOpening]: the stored time stays). AFTER [nowMillis]: nothing can have been opened in the
          * future, so the phone's clock was ahead when that was stored and has been set back since. Taken for

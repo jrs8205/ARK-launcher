@@ -163,7 +163,7 @@ class SystemUsageSync internal constructor(
      * reading then starts anew at this moment ([AppUsageRepository.restartCount]). Without that every sync
      * waited for the old, later time to come again, a week for a clock that had been a week ahead.
      */
-    suspend fun sync(now: Long? = null) = running.withLock {
+    suspend fun sync(now: Long? = null, clock: () -> Long = { now ?: System.currentTimeMillis() }) = running.withLock {
         val count = usage.systemCount.first() ?: return@withLock
         if (!source.hasAccess()) return@withLock
         val at = now ?: System.currentTimeMillis()
@@ -199,7 +199,7 @@ class SystemUsageSync internal constructor(
                 val key = appKeyFor(opening, known) ?: return@mapNotNull null
                 CountedOpening(key, opening.timeMs, exact = (opening.packageName to opening.className) in entries)
             }
-        usage.recordOpenings(count, counted, syncedTo = at, inFront = screens.lastOrNull()?.packageName ?: before)
+        usage.recordOpenings(count, counted, syncedTo = at, inFront = screens.lastOrNull()?.packageName ?: before, clock = clock)
     }
 
     companion object {
