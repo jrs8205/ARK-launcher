@@ -244,6 +244,17 @@ class HomeViewModel @Inject constructor(
     /** One-shot notices for the screen to show, each delivered once (see [HomeNotice]). */
     val notices: Flow<HomeNotice> = _notices.receiveAsFlow()
 
+    /**
+     * The home profile that was left because its own values could not be read (another one came on in its
+     * place), for as long as the screen has not shown the user so ([profileNoticeShown]); null otherwise. Not
+     * one of [notices]: those live in this view model's queue and go with it, and this one is owed to the
+     * user by whichever screen is next there to show it.
+     */
+    val leftHomeProfile: Flow<Long?> = settingsRepository.leftHomeProfile
+
+    /** The screen has shown the user that the home profile [profileId] was left ([leftHomeProfile]). */
+    fun profileNoticeShown(profileId: Long) = settingsRepository.toldOfLeftHomeProfile(profileId)
+
     /** True while the first-run intro should cover the home screen (fresh installs only). */
     private val _showOnboarding = kotlinx.coroutines.flow.MutableStateFlow(false)
     val showOnboarding: StateFlow<Boolean> = _showOnboarding
@@ -263,16 +274,6 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     init {
-        // A profile whose own values could not be read was left and another one came on (at this start, or
-        // while the launcher ran): the user sees another home screen than the one that was on, and is told
-        // why, once. The notice waits in its queue until the home screen is there to show it.
-        viewModelScope.launch {
-            settingsRepository.leftHomeProfile.collect { left ->
-                if (left == null) return@collect
-                notify(HomeNotice.ProfileNotRead)
-                settingsRepository.toldOfLeftHomeProfile(left)
-            }
-        }
         // First-run experience, decided ONCE per install: on an empty home surface, seed the
         // smartspace widget + the default dock (phone/messages/Settings/browser/camera) and show
         // the intro. Device-local flags so removing items never re-seeds, and updating users

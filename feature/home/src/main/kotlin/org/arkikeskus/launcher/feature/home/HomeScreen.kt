@@ -371,6 +371,8 @@ private fun HomeScreenOfProfile(
     LaunchedEffect(viewModel) {
         viewModel.notices.collect { widgetMessage(it.message) }
     }
+    // And what is owed to the user until a screen has shown it: a profile that could not be opened.
+    LeftProfileNotice(viewModel.leftHomeProfile, show = ::widgetMessage, shown = viewModel::profileNoticeShown)
 
     // Pending widget across the bind/configure result steps. [restoreRowId] non-null → this is a
     // RESTORE (re-bind an existing placeholder row) rather than adding a brand-new widget.

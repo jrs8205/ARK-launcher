@@ -124,8 +124,13 @@ class HomeViewModelNoticesTest {
      * was). The home screen comes up all the same, on the profile whose values the settings file holds, and
      * says once that a profile could not be opened: without that the user finds another home screen than the
      * one that was left, and no reason for it. What lies where the file was is not touched.
+     *
+     * Review round 15: and it is owed until a screen has SHOWN it. The first view model here has no screen
+     * (the home activity went before anything was drawn); it used to call the notice told as soon as it had
+     * queued it, and the view model after it had nothing to show. The notice waits, for whichever view model
+     * has a screen, until that screen says it was shown; then it is gone for good.
      */
-    @Test fun aStartThatLeavesAProfileItCannotReadTellsTheScreenOnce() = runTest {
+    @Test fun aStartThatLeavesAProfileItCannotReadOwesItsNoticeUntilAScreenHasShownIt() = runTest {
         val before = ProductionWiring(context, this)
         val work = (before.homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile
         assertThat(before.homeProfiles.switchTo(work.id)).isTrue()
@@ -136,17 +141,23 @@ class HomeViewModelNoticesTest {
 
         val wiring = ProductionWiring(context, this, settingsOn = before.settingsOnDisk)
         try {
-            val viewModel = wiring.homeViewModel()
-            val notices = collectNotices(viewModel)
+            val withoutAScreen = wiring.homeViewModel()
+            awaitUntil("the first profile to be on") { wiring.settingsRepository.settings.first().homeProfileId == 1L }
+            repeat(3) { shadowOf(Looper.getMainLooper()).idle() }
+            wiring.clear(withoutAScreen)
 
-            awaitUntil("the notice") { notices.isNotEmpty() }
-            assertThat(wiring.settingsRepository.settings.first().homeProfileId).isEqualTo(1L)
-            // Told once, however often the settings are read after it.
+            val viewModel = wiring.homeViewModel()
+            awaitUntil("the notice that is owed") { viewModel.leftHomeProfile.first() == work.id }
+            // However often the settings are read meanwhile, it is the one notice, of that profile.
             repeat(3) {
                 wiring.settingsRepository.settings.first()
                 shadowOf(Looper.getMainLooper()).idle()
             }
-            assertThat(notices).containsExactly(HomeNotice.ProfileNotRead)
+            assertThat(viewModel.leftHomeProfile.first()).isEqualTo(work.id)
+
+            viewModel.profileNoticeShown(work.id)
+
+            assertThat(viewModel.leftHomeProfile.first()).isNull()
             assertThat(wiring.settingsRepository.leftHomeProfile.first()).isNull()
             assertThat(own.isDirectory).isTrue()
             wiring.clear(viewModel)
