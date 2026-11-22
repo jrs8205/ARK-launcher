@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.io.IOException
 
 /**
  * Accepting another app's pin request against a real in-memory Room database: the row exists
@@ -192,6 +193,74 @@ class PinRequestStoreTest {
         assertThat(dao.getById((accepted as WidgetPinOutcome.Added).rowId)!!.appWidgetId).isEqualTo(100)
         assertThat(request.acceptedWith).isEqualTo(100)
         assertThat(100 in pending).isFalse()
+    }
+
+    /**
+     * Review round 19. The place is decided inside the profile's hold, from the profile's own settings and
+     * rows, and inside the hold a store that cannot be read throws. That went past the outcome and past the
+     * freeing of the id: the id stayed allocated in the host and protected from the sweep, bound to a widget
+     * no row holds, and the confirmation got an exception nothing catches. A place that cannot be read is an
+     * add that failed: nothing is accepted and the id is given back.
+     */
+    private val unreadable: suspend () -> CurrentPlacement = { throw IOException("the profile's settings cannot be read") }
+
+    @Test
+    fun aPlaceThatCannotBeReadAfterTheBindWasAllowedFreesTheId() = runTest {
+        val binder = FakeBinder(allowed = false)
+        val request = FakeWidgetRequest { true }
+        store.acceptWidget(request, binder, at(clockAt))
+
+        val outcome = store.acceptBoundWidget(request, binder, 100, profileId = 1, decide = unreadable)
+
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
+        assertThat(binder.deleted).containsExactly(100)
+        assertThat(100 in pending).isFalse()
+        assertThat(request.acceptedWith).isNull()
+        assertThat(widgetRows()).isEmpty()
+    }
+
+    @Test
+    fun aPlaceThatCannotBeReadFreesTheIdOfAWidgetBoundAtOnceToo() = runTest {
+        val binder = FakeBinder()
+        val request = FakeWidgetRequest { true }
+
+        val outcome = store.acceptWidget(request, binder, unreadable)
+
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
+        assertThat(binder.deleted).containsExactly(100)
+        assertThat(100 in pending).isFalse()
+        assertThat(request.acceptedWith).isNull()
+        assertThat(widgetRows()).isEmpty()
+    }
+
+    /** Whatever else the decision throws is not this store's to answer for and goes on to the caller, but
+     *  the id does not stay behind: it leaves in a row or freed, however the accept ends. */
+    @Test
+    fun anAcceptThatEndsInAnythingElseThrownStillFreesTheId() = runTest {
+        val binder = FakeBinder(allowed = false)
+        val request = FakeWidgetRequest { true }
+        store.acceptWidget(request, binder, at(clockAt))
+
+        val thrown = runCatching {
+            store.acceptBoundWidget(request, binder, 100, profileId = 1) { throw IllegalStateException("not a read") }
+        }.exceptionOrNull()
+
+        assertThat(thrown).isInstanceOf(IllegalStateException::class.java)
+        assertThat(binder.deleted).containsExactly(100)
+        assertThat(100 in pending).isFalse()
+        assertThat(widgetRows()).isEmpty()
+    }
+
+    /** A shortcut has no id to give back, but its confirmation got the same exception. */
+    @Test
+    fun aPlaceThatCannotBeReadAddsNoShortcutAndAcceptsNothing() = runTest {
+        var accepted = false
+
+        val outcome = store.acceptShortcut(FakeRequest(mia) { accepted = true; true }, unreadable)
+
+        assertThat(outcome).isEqualTo(ShortcutPinOutcome.Failed)
+        assertThat(accepted).isFalse()
+        assertThat(dao.getContainer(HOME)).isEmpty()
     }
 
     @Test

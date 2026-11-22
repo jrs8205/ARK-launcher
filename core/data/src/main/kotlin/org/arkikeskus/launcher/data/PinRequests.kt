@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.di.ApplicationScope
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -320,17 +321,23 @@ class PinRequestStore @Inject constructor(
      * that profile's rows, grid and lock, and the row is stored in the profile that is on.
      */
     suspend fun acceptShortcut(request: PinRequest, decide: suspend () -> CurrentPlacement): ShortcutPinOutcome =
-        homeLayoutRepository.whileProfileStays {
-            ShortcutPinLock.withLock {
-                withContext(NonCancellable + Dispatchers.IO) {
-                    val now = decide()
-                    val placement = now.decision as? PinDecision.Confirm
-                        ?: return@withContext ShortcutPinOutcome.Refused(now.decision)
-                    val item = request.item as? PinItem.Shortcut ?: return@withContext ShortcutPinOutcome.Failed
-                    acceptShortcutLocked(request, item, placement, now.columns, now.rows)
-                        ?.let { ShortcutPinOutcome.Added(it) } ?: ShortcutPinOutcome.Failed
+        try {
+            homeLayoutRepository.whileProfileStays {
+                ShortcutPinLock.withLock {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        val now = decide()
+                        val placement = now.decision as? PinDecision.Confirm
+                            ?: return@withContext ShortcutPinOutcome.Refused(now.decision)
+                        val item = request.item as? PinItem.Shortcut ?: return@withContext ShortcutPinOutcome.Failed
+                        acceptShortcutLocked(request, item, placement, now.columns, now.rows)
+                            ?.let { ShortcutPinOutcome.Added(it) } ?: ShortcutPinOutcome.Failed
+                    }
                 }
             }
+        } catch (unread: IOException) {
+            // Inside the hold a profile's store that cannot be read throws ([decide] reads the profile's
+            // settings and rows). The decision comes before the accept, so nothing was accepted.
+            ShortcutPinOutcome.Failed
         }
 
     /** The accept and its row, with [ShortcutPinLock] held. Once accept() has pinned the id, the row
@@ -410,32 +417,42 @@ class PinRequestStore @Inject constructor(
     ): WidgetPinOutcome = withContext(NonCancellable + Dispatchers.IO) {
         // The order of the three: the profile's hold, the pin lock, the sweep's guard. Under the guard the
         // id goes from pending to stored in one step: the sweep sees it in one or the other.
-        val outcome = homeLayoutRepository.whileProfileIsOn(profileId) {
-            ShortcutPinLock.withLock {
-                pendingWidgetIds.guard {
-                    val now = decide()
-                    val placement = now.decision as? PinDecision.Confirm
-                        ?: return@guard WidgetPinOutcome.Refused(now.decision)
-                    val item = request.item as? PinItem.Widget
-                    if (item == null || !runCatching { request.accept(appWidgetId) }.getOrDefault(false)) {
-                        return@guard WidgetPinOutcome.Failed
+        var stored = false
+        try {
+            homeLayoutRepository.whileProfileIsOn(profileId) {
+                ShortcutPinLock.withLock {
+                    pendingWidgetIds.guard {
+                        val now = decide()
+                        val placement = now.decision as? PinDecision.Confirm
+                            ?: return@guard WidgetPinOutcome.Refused(now.decision)
+                        val item = request.item as? PinItem.Widget
+                        if (item == null || !runCatching { request.accept(appWidgetId) }.getOrDefault(false)) {
+                            return@guard WidgetPinOutcome.Failed
+                        }
+                        runCatching {
+                            homeLayoutRepository.insertRequestedWidget(
+                                appWidgetId, item.provider,
+                                placement.page, placement.cellX, placement.cellY, placement.spanX, placement.spanY,
+                                now.columns, now.rows,
+                            )
+                        }.getOrNull()?.let { rowId ->
+                            pendingWidgetIds.remove(appWidgetId)
+                            stored = true
+                            WidgetPinOutcome.Added(rowId)
+                        } ?: WidgetPinOutcome.Failed
                     }
-                    runCatching {
-                        homeLayoutRepository.insertRequestedWidget(
-                            appWidgetId, item.provider,
-                            placement.page, placement.cellX, placement.cellY, placement.spanX, placement.spanY,
-                            now.columns, now.rows,
-                        )
-                    }.getOrNull()?.let { rowId ->
-                        pendingWidgetIds.remove(appWidgetId)
-                        WidgetPinOutcome.Added(rowId)
-                    } ?: WidgetPinOutcome.Failed
                 }
-            }
-        } ?: WidgetPinOutcome.Failed // Another profile is on: not this home screen's widget.
-        // An accepted request whose row failed leaves the id bound to nothing: freeing it unbinds.
-        if (outcome !is WidgetPinOutcome.Added) free(binder, appWidgetId)
-        outcome
+            } ?: WidgetPinOutcome.Failed // Another profile is on: not this home screen's widget.
+        } catch (unread: IOException) {
+            // Inside the hold a profile's store that cannot be read throws ([decide] reads the profile's
+            // settings and rows). The decision comes before the accept: an add that failed.
+            WidgetPinOutcome.Failed
+        } finally {
+            // However this ends, also with something thrown that is not a read's: an id no row holds does
+            // not stay allocated and protected. An accepted request whose row failed leaves the id bound
+            // to nothing: freeing it unbinds.
+            if (!stored) free(binder, appWidgetId)
+        }
     }
 
     /** Takes [appWidgetId] back under the sweep's protection: the confirmation of a process recreated
