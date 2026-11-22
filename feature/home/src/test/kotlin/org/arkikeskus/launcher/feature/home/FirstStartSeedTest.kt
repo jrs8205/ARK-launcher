@@ -75,6 +75,33 @@ class FirstStartSeedTest {
         }
     }
 
+    /**
+     * Review round 18. With the first profile gone there is no dock to wait for the app list for. The seed
+     * passed the clock over, rightly, and then waited for the apps all the same: with Android's app query
+     * coming back empty, the seed was not marked done and the intro not shown before some later query
+     * brought apps. No first profile at the clock's step: no wait.
+     */
+    @Test fun aFirstStartWithoutTheFirstProfileDoesNotWaitForTheAppList() = runTest {
+        // No app: the app list stays empty.
+        val wiring = ProductionWiring(context, this)
+        try {
+            val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            assertThat(wiring.homeProfiles.switchTo(own.id)).isTrue()
+            assertThat(wiring.homeProfiles.delete(1)).isEqualTo(HomeProfileRepository.Deleted.Done)
+
+            val viewModel = wiring.firstStartHomeViewModel()
+            awaitUntil("the seed to be done with") { wiring.settingsRepository.defaultLayoutSeededOnce() }
+            // The intro follows the seed's mark, a turn of the main looper later.
+            awaitUntil("the intro") { viewModel.showOnboarding.value }
+
+            assertThat(wiring.rowsOfProfile(own.id)).isEmpty()
+            assertThat(wiring.rowsOfProfile(1)).isEmpty()
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
     /** [packageName]'s launcher activity is what Android opens for its settings: one of the five apps the
      *  default dock is made of. */
     private fun isTheDefaultSettingsApp(packageName: String) {

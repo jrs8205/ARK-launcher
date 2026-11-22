@@ -317,7 +317,7 @@ class HomeViewModel @Inject constructor(
                     // Idempotent on a retry: the widget only while home is still empty, the dock
                     // only while the favorites are still empty. Two steps, each with its own look at
                     // the first profile: the clock is there at once, and the dock when the app list is.
-                    inTheOriginalHome(original) { grid ->
+                    val thereIsAnOriginalHome = inTheOriginalHome(original) { grid ->
                         if (homeLayoutRepository.isHomeEmpty()) {
                             // Full width so the centered clock sits in the middle of the screen.
                             homeLayoutRepository.addBuiltin(
@@ -326,17 +326,22 @@ class HomeViewModel @Inject constructor(
                             )
                         }
                     }
-                    // The app list needs a beat on a cold start; a fresh device always has apps. Waited
-                    // for with nothing held: everything that needs the profile would wait with it.
-                    val apps = appRepository.apps.first { it.isNotEmpty() }
-                    val dockKeys = resolveDefaultDockKeys(context, apps)
-                    inTheOriginalHome(original) { grid ->
-                        if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
-                            val byKey = apps.associateBy { it.key }
-                            homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
-                            // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
-                            if (dockKeys.size > grid.dockColumns) {
-                                settingsRepository.setDockColumnsOf(original, dockKeys.size)
+                    // No first profile, no dock to wait for the apps for: the wait below ends only when
+                    // Android lists an app, and the seed's mark and the intro would wait with it.
+                    if (thereIsAnOriginalHome) {
+                        // The app list needs a beat on a cold start; a fresh device always has apps. Waited
+                        // for with nothing held: everything that needs the profile would wait with it.
+                        val apps = appRepository.apps.first { it.isNotEmpty() }
+                        val dockKeys = resolveDefaultDockKeys(context, apps)
+                        // Looked for again: the profile can have been deleted during the wait.
+                        inTheOriginalHome(original) { grid ->
+                            if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
+                                val byKey = apps.associateBy { it.key }
+                                homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
+                                // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
+                                if (dockKeys.size > grid.dockColumns) {
+                                    settingsRepository.setDockColumnsOf(original, dockKeys.size)
+                                }
                             }
                         }
                     }
@@ -845,14 +850,14 @@ class HomeViewModel @Inject constructor(
      * handed that profile's grid, and nothing run when the profile is not there. The look and the work are one
      * step under the hold a deletion of a profile takes ([HomeLayoutRepository.whileProfileStays]), so the
      * rows [work] writes are a listed profile's. Nothing slow belongs in [work]: a switch, a page operation
-     * and a pin request wait for it.
+     * and a pin request wait for it. Returns whether the profile was there.
      */
-    private suspend fun inTheOriginalHome(original: Long, work: suspend (grid: HomeProfileGrid) -> Unit) {
+    private suspend fun inTheOriginalHome(original: Long, work: suspend (grid: HomeProfileGrid) -> Unit): Boolean =
         homeLayoutRepository.whileProfileStays {
-            val grid = settingsRepository.gridOfHomeProfile(original) ?: return@whileProfileStays
+            val grid = settingsRepository.gridOfHomeProfile(original) ?: return@whileProfileStays false
             homeLayoutRepository.inProfile(original) { work(grid) }
+            true
         }
-    }
 
     /** Queues a notice for the screen; the buffer absorbs a burst while nothing collects yet. */
     private fun notify(notice: HomeNotice) {
