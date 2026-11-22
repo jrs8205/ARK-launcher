@@ -96,6 +96,10 @@ class PrivateResultsOnReturnTest {
         await("the search field") { compose.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
         compose.onNode(hasSetTextAction()).performTextInput("vault")
         await("the private match") { privateNamesOnScreen() == 1 }
+        // And the state that is kept while the screen is away holds the search: it is put together from the
+        // app list, the settings and the home rows, and the settings answer from the store's own thread. Left
+        // before they had answered once, the kept state was still the empty one it starts with.
+        await("the search in the kept state") { viewModel.uiState.value.query == "vault" }
 
         // Off the screen for longer than the state goes on being followed, and the space locks meanwhile.
         compose.runOnIdle { owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP) }

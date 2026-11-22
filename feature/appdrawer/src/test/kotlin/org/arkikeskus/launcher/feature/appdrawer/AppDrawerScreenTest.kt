@@ -106,6 +106,12 @@ class AppDrawerScreenTest {
             )
         }
         settle()
+        // The screen's state is put together from the app list, the settings and the home rows, and until
+        // each of them has answered once it is the empty state it starts with: what a test then types or
+        // changes is not in it. The settings answer from the store's own thread, which idling this one does
+        // not wait for. A test that read the state right after typing failed in a run of the whole test task
+        // ("expected: ch, but was an empty string"): the settings had not answered yet.
+        awaitState("the drawer has its first state") { it.apps.isNotEmpty() }
     }
 
     private fun settle() {
