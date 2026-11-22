@@ -919,6 +919,32 @@ class HomeProfileRepositoryTest {
     }
 
     /**
+     * Review round 13. A profile whose own store cannot be read is not switched to: the switch says it failed
+     * and the profile that was on stays on. The switch wrote only which profile is on, with no look at the
+     * store the settings are read from after it. From that write on every reading of the settings failed, at
+     * the next start too: the home screen did not come up, and Settings, where the switch could be taken
+     * back, did not either.
+     */
+    @Test fun aProfileWhoseOwnStoreCannotBeReadIsNotSwitchedTo() = runTest {
+        val work = created("Work", copyCurrent = false)
+        files.store(work.id).failReads = java.io.IOException("Input/output error")
+
+        assertThat(profiles.switchTo(work.id)).isFalse()
+
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(settings.settings.first().homeProfileId).isEqualTo(1L)
+        // Deleting the profile that is on begins by switching to the next one, and that is the same switch.
+        assertThat(profiles.delete(1)).isEqualTo(HomeProfileRepository.Deleted.Failed)
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(store.list().map { it.id }).containsExactly(1L, work.id).inOrder()
+
+        // Read again, it is switched to as any other.
+        files.store(work.id).failReads = null
+        assertThat(profiles.switchTo(work.id)).isTrue()
+        assertThat(settings.settings.first().homeProfileId).isEqualTo(work.id)
+    }
+
+    /**
      * Review round 5. The first thing written of a new profile is its own values, and that write can fail as
      * any other (a full disk). It is a profile that could not be made, said as one ([Created.Failed]): the
      * failure used to be thrown to Settings, which asks without catching, and took the launcher down.

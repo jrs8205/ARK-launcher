@@ -194,14 +194,22 @@ class HomeProfileStore(
      */
     override suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = steady.withLock { work(current()) }
 
-    /** Switches to [id]; an id that is not in the list is ignored. Waits for work that needs the profile to
-     *  stay ([whileActiveStays]). */
+    /**
+     * Switches to [id]; an id that is not in the list is ignored. Waits for work that needs the profile to
+     * stay ([whileActiveStays]).
+     *
+     * The profile's own values are read BEFORE it is said to be on, and what that reading throws (a store
+     * that cannot be read) is thrown from here with nothing changed. Which profile is on decides where every
+     * reader of the settings reads from, at the next start too: said to be on unread, a profile whose store
+     * failed stopped the home screen from coming up, and Settings with it, where the switch is taken back.
+     */
     suspend fun setActive(id: Long) = steady.withLock { setActiveLocked(id) }
 
     /** [setActive] for a caller inside [whileActiveStays]. */
     internal suspend fun setActiveLocked(id: Long) = view.mutex.withLock {
         val now = main.data.first()
         if (profilesIn(now).none { it.id == id } || ProfiledPreferences.activeId(now) == id) return@withLock
+        view.profileValues(id)
         main.edit { it[ACTIVE] = id }
     }
 
