@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.profile.ProfiledPreferences.Companion.copy
 import org.arkikeskus.launcher.model.HomeProfile
 
@@ -48,10 +49,18 @@ object FirstHomeProfile : ActiveHomeProfile {
  * business of whoever calls it.
  */
 class HomeProfileStore(
-    private val main: DataStore<Preferences>,
+    settingsFile: DataStore<Preferences>,
     private val view: ProfiledPreferences,
     private val files: HomeProfileFiles,
 ) : ActiveHomeProfile {
+
+    /**
+     * The settings file, with the profile that is on as this process knows it
+     * ([ProfiledPreferences.pointing]): the one answer the settings, the rows and the pictures all go by,
+     * also while the file could not be told that a profile was left. (Not of the constructor parameter's
+     * name: the initializers below would read the parameter, the file as it is.)
+     */
+    private val main: DataStore<Preferences> = view.pointing(settingsFile)
 
     val profiles: Flow<List<HomeProfile>> = main.data.map(::profilesIn).distinctUntilChanged()
 
@@ -200,15 +209,24 @@ class HomeProfileStore(
      * profile, a change of the grid with the rows it moves, another app's pin request from its last decision to
      * its row. Without it a tap on another profile in the
      * middle put the rows in one profile and the rest in another. Taken before [ShortcutPinLock] by
-     * whoever needs both; never the other way round.
+     * whoever needs both; never the other way round. The lock itself is the view's
+     * ([ProfiledPreferences.hold]): leaving a profile that cannot be read is a switch too.
      */
-    private val steady = Mutex()
+    private val steady: Mutex get() = view.hold
 
     /**
      * Runs [work] with the profile that is on, which stays on until [work] returns: a switch asked for
      * meanwhile waits and happens after it. Not re-entrant: inside, switch with [setActiveLocked].
+     *
+     * The profile [work] is given is one that can be READ: one whose own store fails is left here, before
+     * the work begins ([ProfiledPreferences.leaveIfUnreadable]), and not under it. A store that begins to
+     * fail while the work runs fails the work's reading or change of the settings, and the profile is left
+     * after it ([HoldingHomeProfile]).
      */
-    override suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = steady.withLock { work(current()) }
+    override suspend fun <T> whileActiveStays(work: suspend (active: Long) -> T): T = steady.withLock {
+        view.leaveIfUnreadable()
+        withContext(HoldingHomeProfile()) { work(current()) }
+    }
 
     /**
      * Switches to [id]; an id that is not in the list is ignored. Waits for work that needs the profile to

@@ -8,7 +8,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -416,5 +418,137 @@ class HomeProfileStoreTest {
         assertThat(onDuringTheWork).isEqualTo(1L)
         // And honoured once the work is done.
         assertThat(store.current()).isEqualTo(2L)
+    }
+
+    /** Two profiles, the second one on, each with a look of its own. */
+    private suspend fun theSecondProfileIsOn() {
+        view.edit { it[baseColour] = "blue" }
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        view.edit { it[baseColour] = "green" }
+    }
+
+    private val unreadable = java.io.IOException("Input/output error")
+
+    /**
+     * Review round 14 (P1). A profile whose own store cannot be read is left for the one the settings file
+     * holds (round 13), and that is a switch: it was made by whoever read the settings first, also in the
+     * middle of work that holds the profile from its first step to its last. A restore confirmed for the
+     * second profile then deleted that profile and kept the first; an export of it wrote the first's home
+     * screen under the second's name. The profile is left as it is switched: not while work holds it. Work
+     * that asks to hold the profile is given one that can be read, at its first step, so whatever it was asked
+     * for by name it can tell that this is another profile before it does anything.
+     */
+    @Test fun workThatHoldsTheProfileThatIsOnIsGivenOneThatCanBeRead() = runTest {
+        theSecondProfileIsOn()
+        files.store(2).failReads = unreadable
+
+        val held = store.whileActiveStays { active -> active to view.data.first()[baseColour] }
+
+        assertThat(held).isEqualTo(1L to "blue")
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(view.leftUnread.value).isEqualTo(2L)
+    }
+
+    /** And a store that begins to fail while its profile is held does not change the profile under the work:
+     *  the work is told that its profile cannot be read, by the reading and by the change that found it so,
+     *  and the profile is left once the work is done. */
+    @Test fun aProfileWhoseStoreFailsWhileItIsHeldStaysOnUntilTheWorkIsDone() = runTest {
+        theSecondProfileIsOn()
+
+        store.whileActiveStays { active ->
+            assertThat(active).isEqualTo(2L)
+            files.store(2).failReads = unreadable
+
+            // (The failure itself, as far as its kind and its words go: handed from one coroutine to
+            // another it arrives as a copy.)
+            val read = runCatching { view.data.first() }.exceptionOrNull()
+            assertThat(read).isInstanceOf(java.io.IOException::class.java)
+            assertThat(read).hasMessageThat().isEqualTo(unreadable.message)
+            val change = runCatching { view.edit { it[longPress] = 0.5f } }.exceptionOrNull()
+            assertThat(change).isInstanceOf(java.io.IOException::class.java)
+            assertThat(change).hasMessageThat().isEqualTo(unreadable.message)
+            assertThat(store.current()).isEqualTo(2L)
+        }
+
+        assertThat(main.now[longPress]).isNull()
+        assertThat(view.data.first()[baseColour]).isEqualTo("blue")
+        assertThat(store.current()).isEqualTo(1L)
+    }
+
+    /** A reader that is not the work waits for the work, as a switch does, and leaves the profile after it. */
+    @Test fun aReaderOutsideTheWorkLeavesAProfileOnlyAfterTheWorkThatHoldsIt() = runTest(UnconfinedTestDispatcher()) {
+        theSecondProfileIsOn()
+        val begun = CompletableDeferred<Unit>()
+        val mayEnd = CompletableDeferred<Unit>()
+        var onAtTheEndOfTheWork = 0L
+        val work = launch {
+            store.whileActiveStays {
+                begun.complete(Unit)
+                mayEnd.await()
+                onAtTheEndOfTheWork = store.current()
+            }
+        }
+        begun.await()
+        files.store(2).failReads = unreadable
+
+        val read = async { view.data.first() }
+
+        // The reading has gone as far as it can: the profile is still the work's.
+        assertThat(read.isCompleted).isFalse()
+        assertThat(store.current()).isEqualTo(2L)
+        mayEnd.complete(Unit)
+        work.join()
+        assertThat(onAtTheEndOfTheWork).isEqualTo(2L)
+        assertThat(read.await()[baseColour]).isEqualTo("blue")
+        assertThat(store.current()).isEqualTo(1L)
+    }
+
+    /**
+     * Review round 14. Leaving a profile is one write to the settings file, and that file can be one that
+     * reads and cannot be written (a full disk). The write then threw in place of the reading: no home screen
+     * again. The profile that came on is then on for this run without the file having been told: everything
+     * that asks which profile is on is given it, a change is for it and fails as any change to that file
+     * does, with nothing written to the profile that was left, and the first write the file takes tells it.
+     */
+    @Test fun aProfileIsLeftForThisRunWhenTheSettingsFileCannotBeToldOfIt() = runTest {
+        theSecondProfileIsOn()
+        val ownWrites = files.store(2).writes
+        files.store(2).failReads = unreadable
+        main.failWrites = java.io.IOException("No space left on device")
+
+        val seen = view.data.first()
+
+        assertThat(seen[baseColour]).isEqualTo("blue")
+        assertThat(ProfiledPreferences.activeId(seen)).isEqualTo(1L)
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(store.id.first()).isEqualTo(1L)
+        assertThat(view.leftUnread.value).isEqualTo(2L)
+        assertThat(ProfiledPreferences.activeId(main.now)).isEqualTo(2L)
+        assertThat(runCatching { view.edit { it[longPress] = 0.5f } }.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        assertThat(files.store(2).writes).isEqualTo(ownWrites)
+
+        main.failWrites = null
+        view.edit { it[longPress] = 0.5f }
+        assertThat(ProfiledPreferences.activeId(main.now)).isEqualTo(1L)
+        assertThat(main.now[longPress]).isEqualTo(0.5f)
+        assertThat(store.current()).isEqualTo(1L)
+    }
+
+    /** And the profile that was left can be switched back to, when its store reads again, though the file
+     *  was never told that it had been left: it says that profile is on, as it did all along. */
+    @Test fun aProfileLeftForThisRunOnlyIsSwitchedBackToAsAnyOther() = runTest {
+        theSecondProfileIsOn()
+        files.store(2).failReads = unreadable
+        main.failWrites = java.io.IOException("No space left on device")
+        assertThat(view.data.first()[baseColour]).isEqualTo("blue")
+
+        files.store(2).failReads = null
+        main.failWrites = null
+        store.setActive(2)
+
+        assertThat(store.current()).isEqualTo(2L)
+        assertThat(store.id.first()).isEqualTo(2L)
+        assertThat(view.data.first()[baseColour]).isEqualTo("green")
     }
 }

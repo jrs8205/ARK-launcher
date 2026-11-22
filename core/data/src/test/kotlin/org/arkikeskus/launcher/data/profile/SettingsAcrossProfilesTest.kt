@@ -275,6 +275,25 @@ class SettingsAcrossProfilesTest {
         assertThat(started.settings.first().baseColour).isEqualTo("green")
     }
 
+    /** Review round 14: the same start with a settings file that reads and cannot be written (a full disk).
+     *  Leaving the profile is a write to that file, and its failure was thrown in place of the reading's. */
+    @Test fun aStartWhoseSettingsFileCannotBeWrittenStillShowsTheProfileThatCanBeRead() = runTest {
+        settings.setBaseColour("blue")
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setBaseColour("green")
+        files.store(2).failReads = java.io.IOException("Input/output error")
+        main.failWrites = java.io.IOException("No space left on device")
+
+        val started = SettingsRepository(view, view)
+        val first = started.settings.first()
+
+        assertThat(first.homeProfileId).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(first.baseColour).isEqualTo("blue")
+        assertThat(store.current()).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(started.leftHomeProfile.first()).isEqualTo(2L)
+    }
+
     /**
      * Review round 12. The released 1.2.1 kept a key it did not know in the type its backup file gave it, so a
      * settings file that comes to this version from it can hold anything under the profile bookkeeping's

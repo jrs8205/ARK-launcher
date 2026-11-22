@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -46,6 +47,15 @@ suspend fun <T> writingForHomeProfile(profileId: Long, write: suspend () -> T): 
     withContext(WriteForHomeProfile(profileId)) { write() }
 
 /**
+ * Carried by the coroutine of work that holds the profile that is on ([HomeProfileStore.whileActiveStays]):
+ * what such work reads and changes is about that profile from its first step to its last, so a profile that
+ * cannot be read is not left under it ([ProfiledPreferences.data]).
+ */
+internal class HoldingHomeProfile : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<HoldingHomeProfile>
+}
+
+/**
  * The settings store the launcher reads and writes: the values every home profile shares, from the
  * settings file [main], together with the own values of the profile that is on.
  *
@@ -62,22 +72,72 @@ class ProfiledPreferences(
     private val files: HomeProfileFiles,
 ) : DataStore<Preferences> {
 
+    /** The settings file itself: where the pointer to the profile that is on is written ([leaveHeld]). */
+    private val file: DataStore<Preferences> = settingsFile
+
+    /** A profile that was left and the one that came on in its place, while the settings file has not taken
+     *  the word of it ([leaveHeld]): null but for that. Before [main], which is built over it. */
+    private val unsaved = MutableStateFlow<Unsaved?>(null)
+
+    private class Unsaved(val left: Long, val on: Long)
+
     /**
-     * The settings file, read in the settings' own types ([TypedPreferences]), as every profile's own store is
-     * ([storeOf]). Everything that reads or changes a setting does it through this view, whichever profile is
-     * on and whichever reader comes first, so this is where a value an older version kept in another type
-     * stops: handed on, it threw at the first typed read, which for the home screen is its start.
+     * The settings file as this process knows it ([pointing]), read in the settings' own types
+     * ([TypedPreferences]), as every profile's own store is ([storeOf]). Everything that reads or changes a
+     * setting does it through this view, whichever profile is on and whichever reader comes first, so this is
+     * where a value an older version kept in another type stops: handed on, it threw at the first typed read,
+     * which for the home screen is its start.
      *
      * (Not of the constructor parameter's name: an initializer below would read the parameter, the file as
      * it is, in place of this.)
      */
-    private val main: DataStore<Preferences> = TypedPreferences(settingsFile)
+    private val main: DataStore<Preferences> = TypedPreferences(pointing(settingsFile))
 
     /** The own store of [profileId], read as [main] is. */
     private fun storeOf(profileId: Long): DataStore<Preferences> = TypedPreferences(files.store(profileId))
 
     /** Held over every write, here and by the profile list's own writes to [main]. */
     val mutex = Mutex()
+
+    /**
+     * Held by a switch, and by any work that is about "the profile that is on" from its first step to its
+     * last ([HomeProfileStore.whileActiveStays]): a restore, an export, making a copy, deleting a profile, a
+     * change of the grid with the rows it moves, another app's pin request. Kept here because LEAVING a
+     * profile that cannot be read is a switch too ([leaveUnreadable]), and what reads the settings finds
+     * that out here. Taken before [mutex] by whoever needs both, and before the pin lock; never the other way
+     * round.
+     */
+    internal val hold = Mutex()
+
+    /**
+     * [settingsFile] with the profile that is on as this process knows it. That is what the file says, but
+     * for one case: a profile was left because its store could not be read, and the file, which can be read
+     * and not written (a full disk), did not take the word of it ([unsaved]). The file then still names the
+     * profile that was left, and whoever asked it which profile is on was sent to the store that fails, or
+     * showed that profile's home screen under another one's settings. Everything that asks goes through
+     * this: the view here, and the list of profiles ([HomeProfileStore]), whose answer the rows and the
+     * pictures go by.
+     *
+     * A change is worked out from the same, so the first write the file takes says which profile is on, and
+     * from then on the file is right by itself.
+     */
+    internal fun pointing(settingsFile: DataStore<Preferences>): DataStore<Preferences> = Pointed(settingsFile)
+
+    private inner class Pointed(private val held: DataStore<Preferences>) : DataStore<Preferences> {
+        override val data: Flow<Preferences> = held.data.combine(unsaved) { values, leave -> saying(values, leave) }
+
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+            held.updateData { transform(saying(it, unsaved.value)) }.also { unsaved.value = null }
+    }
+
+    /** [values] of the settings file with the profile that is on as [leave] has it, while the file still
+     *  names the profile that was left and still lists the one that came on. */
+    private fun saying(values: Preferences, leave: Unsaved?): Preferences =
+        if (leave == null || activeId(values) != leave.left || listed(values).none { it.id == leave.on }) {
+            values
+        } else {
+            values.toMutablePreferences().apply { this[ACTIVE] = leave.on }.toPreferences()
+        }
 
     /**
      * A profile that is on and keeps its values in a store of its own is read from that store, and a store
@@ -97,30 +157,71 @@ class ProfiledPreferences(
                     if (failed !is IOException) throw failed
                     // Nothing is handed on from here: the settings file says another profile next, and
                     // that is what is read.
-                    leaveUnreadable(active)
+                    leaveUnreadable(active, failed)
                 }
             }
         }
         .distinctUntilChanged()
 
     /**
-     * [unreadable] is on and its own store cannot be read: the profile whose values the settings file holds
-     * comes on, unless another one has meanwhile. Nothing is written to the profile that failed and it stays
-     * in the list, as it was, to be switched back to when its store reads again ([HomeProfileStore.setActive]
-     * refuses until then). Written to the settings file, as a switch is: which profile is on is one value
-     * that the layout, the pictures and the settings all go by. Not for a caller that holds [mutex].
+     * [unreadable] is on and its own store cannot be read ([cause]): the profile whose values the settings
+     * file holds comes on ([leaveHeld]).
+     *
+     * That is a switch, and it is made as one: under [hold], after any work that holds the profile. Made by
+     * whoever read the settings first, it was made in the middle of such work too: a restore confirmed for a
+     * profile deleted that profile and kept another, and an export wrote one profile's home screen under
+     * another's name. So a reader or a change INSIDE such work ([HoldingHomeProfile]) is not given another
+     * profile: it is told that its profile cannot be read ([cause] is thrown), and the profile is left when
+     * the work is done. Not for a caller that holds [mutex].
      */
-    private suspend fun leaveUnreadable(unreadable: Long) = mutex.withLock {
-        val now = main.data.first()
-        if (activeId(now) == unreadable && mainStoreId(now) != unreadable) turnedToTheProfileInTheSettingsFile(unreadable)
+    private suspend fun leaveUnreadable(unreadable: Long, cause: IOException) {
+        if (currentCoroutineContext()[HoldingHomeProfile] != null) throw cause
+        hold.withLock { leaveHeld(unreadable) }
     }
 
-    /** Says that the profile whose values the settings file holds is on in place of [left], and returns what
-     *  the file then holds; [left] is named for the user to be told of ([leftUnread]). For a caller that
-     *  holds [mutex]. */
-    private suspend fun turnedToTheProfileInTheSettingsFile(left: Long): Preferences =
-        main.updateData { now -> now.toMutablePreferences().apply { this[ACTIVE] = mainStoreId(now) }.toPreferences() }
-            .also { leftProfile.value = left }
+    /**
+     * For whoever has just taken [hold], before its work begins: the profile that is on is read, and left if
+     * its store cannot be read. The work is then about a profile that can be read from its first step, and
+     * work that was asked for one profile by name sees that another one is on before it does anything.
+     */
+    internal suspend fun leaveIfUnreadable() {
+        val shared = main.data.first()
+        val active = activeId(shared)
+        if (active == mainStoreId(shared)) return
+        try {
+            storeOf(active).data.first()
+        } catch (failed: IOException) {
+            leaveHeld(active)
+        }
+    }
+
+    /**
+     * Leaves [unreadable] for the profile whose values the settings file holds, unless another profile is on
+     * by now. Nothing is written to the profile that failed and it stays in the list, as it was, to be
+     * switched back to when its store reads again ([HomeProfileStore.setActive] refuses until then). Written
+     * to the settings file, as a switch is: which profile is on is one value that the layout, the pictures
+     * and the settings all go by. A file that does not take the write leaves the profile left for this run
+     * ([unsaved]): the failure of that write is not one more reason for the home screen not to come up.
+     * For a caller that holds [hold], and not [mutex].
+     */
+    private suspend fun leaveHeld(unreadable: Long) = mutex.withLock {
+        val now = main.data.first()
+        if (activeId(now) != unreadable || mainStoreId(now) == unreadable) return@withLock
+        val on = mainStoreId(now)
+        // The write and the naming of the profile for the user are one step, whatever becomes of the caller.
+        // A reader that leaves a profile is ended by the news of it: the settings file hands its new values
+        // on before the write has returned, and whoever was reading the old profile is cancelled then. Cut
+        // off between the two, it had switched the profile and told nobody.
+        withContext(NonCancellable) {
+            try {
+                file.updateData { held -> held.toMutablePreferences().apply { this[ACTIVE] = on }.toPreferences() }
+                unsaved.value = null
+            } catch (failed: IOException) {
+                unsaved.value = Unsaved(left = unreadable, on = on)
+            }
+            leftProfile.value = unreadable
+        }
+    }
 
     private val leftProfile = MutableStateFlow<Long?>(null)
 
@@ -137,22 +238,44 @@ class ProfiledPreferences(
         leftProfile.compareAndSet(profileId, null)
     }
 
-    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = mutex.withLock {
-        var shared = main.data.first()
-        // The own values of the profile that is on, when it keeps them in a store of its own.
-        var own: Preferences? = null
+    /** The own store of the profile [profile] that is on could not be read ([cause]) by a change that had
+     *  written nothing yet. */
+    private class Unreadable(val profile: Long, val cause: IOException)
+
+    override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
         // A write is what a start does first (the settings put their values in their own types before they
-        // are read), so the profile that cannot be read is left here as it is by a reader ([data]).
+        // are read), so the profile that cannot be read is left here as it is by a reader ([data]): with
+        // the lock of the writes let go of first, since the hold a switch is made under is taken before it.
         var left = false
-        if (activeId(shared) != mainStoreId(shared)) {
-            try {
-                own = storeOf(activeId(shared)).data.first()
-            } catch (failed: IOException) {
-                shared = turnedToTheProfileInTheSettingsFile(left = activeId(shared))
-                left = true
+        while (true) {
+            when (val done = mutex.withLock { changed(transform, left) }) {
+                is Unreadable -> {
+                    leaveUnreadable(done.profile, done.cause)
+                    left = true
+                }
+                else -> return done as Preferences
             }
         }
+    }
+
+    /**
+     * One change of the settings: what is then read, or the profile that is on when its own store cannot be
+     * read ([Unreadable]), with nothing written. [left]: this change came for a profile that has just been
+     * left for that reason. For a caller that holds [mutex].
+     */
+    private suspend fun changed(transform: suspend (t: Preferences) -> Preferences, left: Boolean): Any {
+        val shared = main.data.first()
         val active = activeId(shared)
+        // The own values of the profile that is on, when it keeps them in a store of its own.
+        val own: Preferences? = if (active == mainStoreId(shared)) {
+            null
+        } else {
+            try {
+                storeOf(active).data.first()
+            } catch (failed: IOException) {
+                return Unreadable(active, failed)
+            }
+        }
         // A change made for one profile ([writingForHomeProfile]) changes no other profile's own values:
         // judged here, under the lock a switch is written under, so it is the profile the write lands in.
         // Nor does a change that came for a profile which could not be read: its own part was worked out
@@ -162,7 +285,7 @@ class ProfiledPreferences(
             val changed = transform(shared)
             val next = withReservedOf(shared, if (forAnother) withOwnValuesOf(shared, changed) else changed)
             if (next != shared) main.updateData { next }
-            return@withLock next
+            return next
         }
         val store = storeOf(active)
         val next = transform(viewOf(shared, own))
@@ -187,7 +310,7 @@ class ProfiledPreferences(
                 throw failed
             }
         }
-        viewOf(nextShared, nextOwn)
+        return viewOf(nextShared, nextOwn)
     }
 
     /** The own values of [profileId] alone, whether it is on or not. */

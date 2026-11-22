@@ -577,6 +577,99 @@ class BackupProfilesTest {
         assertThat(pictures.current.value?.file).isEqualTo(ofTheOneThatIsOn)
     }
 
+    /**
+     * Review round 14 (P1). The profile the restore was confirmed for keeps its values in a store that cannot
+     * be read. The restore's first reading of the settings left that profile for the first one (as a start
+     * does) in the middle of the restore: the backup went into the first profile, the "other profiles" then
+     * removed were the one the user had confirmed, and the result said restored. A profile is not left under
+     * work that holds it: the restore is given the profile that can be read at its first step, sees that it
+     * is not the one that was agreed to, and changes nothing.
+     */
+    @Test fun aRestoreConfirmedForAProfileThatCannotBeReadChangesNothing() = runTest {
+        twoProfiles()
+        val agreed = ConfirmedProfiles(activeId = 2, otherIds = setOf(1L))
+        val ownWrites = files.store(2).writes
+        files.store(2).failReads = IOException("Input/output error")
+
+        val failure = runCatching { repo().restoreDocument(backup, installed, agreed) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ProfilesChangedException::class.java)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L).inOrder()
+        assertThat(dao.getAllOfEveryProfile().map { it.packageName }).containsExactly("com.first", "com.chat", "com.work", "com.chat")
+        // The first profile is on, as it was left to be, with its own look and not the backup's.
+        assertThat(settings.settings.first().baseColour).isEqualTo("orange")
+        assertThat(settings.settings.first().longPressScale).isEqualTo(1f)
+        assertThat(files.store(2).writes).isEqualTo(ownWrites)
+    }
+
+    /**
+     * And a store that reads when the restore begins and fails in the middle of it: the profile is the
+     * restore's until the restore is done, so it is not left under it. The restore is told that its profile
+     * cannot be read, at its first reading of the settings, which is before anything is changed.
+     */
+    @Test fun aRestoreWhoseProfileStopsReadingInTheMiddleChangesNothing() = runTest {
+        twoProfiles()
+        val agreed = ConfirmedProfiles(activeId = 2, otherIds = setOf(1L))
+        // Read once more (the look a restore takes at its profile as it begins), and failing from then on.
+        files.store(2).onNextRead = { files.store(2).failReads = IOException("Input/output error") }
+
+        val failure = runCatching { repo().restoreDocument(backup, installed, agreed) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(IOException::class.java)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L).inOrder()
+        assertThat(dao.getAllOfEveryProfile().map { it.packageName }).containsExactly("com.first", "com.chat", "com.work", "com.chat")
+        // Nothing of the backup is in the settings every profile shares, and the profile is as it was when
+        // its store reads again.
+        files.store(2).failReads = null
+        store.setActive(2)
+        assertThat(settings.settings.first().baseColour).isEqualTo("green")
+        assertThat(settings.settings.first().longPressScale).isEqualTo(1f)
+    }
+
+    /** The same for an export: asked for the second profile, it wrote the first one's settings and home
+     *  screen and said the file was the second's. Nothing is written now, and that is said. */
+    @Test fun anExportAskedForAProfileThatCannotBeReadWritesNothing() = runTest {
+        twoProfiles()
+        files.store(2).failReads = IOException("Input/output error")
+        var written: BackupDocument? = null
+
+        val failure = runCatching {
+            repo().export(createdAt = { 5L }, appVersion = "test", expectedProfile = 2) { written = it }
+        }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(ExportProfileChangedException::class.java)
+        assertThat(written).isNull()
+    }
+
+    /**
+     * Review round 14. A restore removes the drawer pictures of the profiles that went, and did not look at
+     * whether they went: a picture that could not be removed stayed on the disk under the id of a profile the
+     * list no longer had, and the result said nothing was left. The result says how many such pictures there
+     * are; the next restore finds each as a home screen no profile is listed for, asks, and removes it.
+     */
+    @Test fun aRestoreSaysHowManyPicturesOfTheProfilesThatWentAreStillOnTheDisk() = runTest {
+        fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+        var removable = false
+        val pictures = DrawerWallpaperStore(
+            context, Dispatchers.IO, remove = { if (removable) it.deleteRecursively() else !it.exists() },
+        )
+        pictures.set(picture(Color.WHITE), 1)
+        twoProfiles()
+
+        val result = repo(drawerPictures = pictures).restoreDocument(backup, installed)
+
+        assertThat(store.list().map { it.id }).containsExactly(2L)
+        assertThat(result.profilesLeft).isEqualTo(0)
+        assertThat(result.picturesLeft).isEqualTo(1)
+        assertThat(pictures.profilesWithPictures()).contains(1L)
+
+        removable = true
+        val again = repo(drawerPictures = pictures)
+            .restoreDocument(backup, installed, ConfirmedProfiles(activeId = 2, otherIds = emptySet(), unlistedIds = setOf(1L)))
+        assertThat(again.picturesLeft).isEqualTo(0)
+        assertThat(pictures.profilesWithPictures()).doesNotContain(1L)
+    }
+
     @Test fun aRestoreWhoseSettingsCannotBeSavedChangesNothing() = runTest {
         twoProfiles()
         // The profile that is on keeps its own values in a file of its own: that write fails, after the

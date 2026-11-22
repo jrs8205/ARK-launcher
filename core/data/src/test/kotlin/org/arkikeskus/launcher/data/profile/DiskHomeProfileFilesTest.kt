@@ -115,12 +115,18 @@ class DiskHomeProfileFilesTest {
         val broken = context.preferencesDataStoreFile("home_profile_2")
         assertThat(broken.mkdirs()).isTrue()
 
-        val seen = ProfiledPreferences(settingsFile, files).data.first()
+        val view = ProfiledPreferences(settingsFile, files)
+        val seen = view.data.first()
 
         assertThat(seen[baseColour]).isEqualTo("blue")
         assertThat(seen[active]).isEqualTo(1L)
         assertThat(settingsFile.data.first()[active]).isEqualTo(1L)
         assertThat(broken.isDirectory).isTrue()
+        // Review round 14. And the profile that was left is named for the user to be told of: a settings
+        // file on the disk hands its new values on before the write that made them has returned, the reader
+        // that made the write is ended by that very news, and what it did after the write (naming the profile)
+        // never happened. Over a store in memory the same reader got to the end.
+        assertThat(view.leftUnread.value).isEqualTo(2L)
     }
 
     @Test fun deletingAProfileThatNeverWroteAnythingIsFine() = runBlocking {

@@ -30,8 +30,12 @@ import javax.inject.Singleton
  * What a restore did: the rows it [restored], the ones it [skipped] (their app is not installed), and how many
  * other home profiles are still listed although their rows went ([profilesLeft]: the list could not be
  * written after the layout was replaced; they are empty and can be deleted in Settings).
+ *
+ * [picturesLeft]: of how many home profiles that went the picture behind the app drawer is still on the disk
+ * (it could not be removed). The layout is restored all the same; what is left is found by the next restore
+ * as a home screen no profile is listed for, and removed then.
  */
-data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: Int = 0)
+data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: Int = 0, val picturesLeft: Int = 0)
 
 /**
  * The home profiles as a restore's question showed them: the one that is on ([activeId]), which the restore
@@ -223,7 +227,7 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         // While the profile that is on stays on: the settings, the rows and the list of profiles this
         // leaves are of one profile, and a switch in the middle put the rows in one and left another.
-        val profilesLeft = withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
+        val (profilesLeft, picturesLeft) = withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
             // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
             // was read after the question, and a profile made meanwhile would go without a word. Under the
             // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
@@ -286,19 +290,23 @@ class BackupRepository @Inject constructor(
             val removed = kept.getOrNull().orEmpty()
             val left = if (kept.isSuccess) 0 else runCatching { profiles?.list()?.size?.minus(1) }.getOrNull() ?: 1
             // Their own pictures behind the app drawer go with them: nothing in the launcher could remove
-            // the picture of a profile that is not there any more.
-            for (id in removed) runCatching { drawerPictures?.delete(id) }
-            // And what was left of the profiles the list had lost, whose home screens went with the user's
-            // word: their own values and their pictures. Nothing names them any more.
-            if (unlisted.isNotEmpty()) {
-                runCatching { profiles?.forgetUnlisted(unlisted) }
-                for (id in unlisted) runCatching { drawerPictures?.delete(id) }
-            }
+            // the picture of a profile that is not there any more. And what was left of the profiles the
+            // list had lost, whose home screens went with the user's word: their own values and their
+            // pictures. Nothing names them any more.
+            if (unlisted.isNotEmpty()) runCatching { profiles?.forgetUnlisted(unlisted) }
+            // A picture that could not be removed is still on the disk, under the id of a profile that is
+            // gone: counted, so the result does not call the clearing done. The next restore finds each as
+            // a home screen no profile is listed for, asks, and tries again.
+            val pictures = (removed + unlisted).distinct().count { id -> !pictureRemoved(id) }
             repinShortcuts(previousLayout, entities)
-            left
+            left to pictures
         } } }
-        return RestoreResult(entities.size, mapping.skipped, profilesLeft)
+        return RestoreResult(entities.size, mapping.skipped, profilesLeft, picturesLeft)
     }
+
+    /** Whether the drawer picture of the home profile [id] is gone (it was removed, or there was none). */
+    private suspend fun pictureRemoved(id: Long): Boolean =
+        runCatching { drawerPictures?.delete(id) ?: true }.getOrDefault(false)
 
     private fun mainUserSerial(): Long = resolver.ownUserSerial() ?: 0L
 
