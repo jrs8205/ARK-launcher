@@ -670,6 +670,26 @@ class BackupProfilesTest {
         assertThat(pictures.profilesWithPictures()).doesNotContain(1L)
     }
 
+    /**
+     * Review round 15. What is counted is the pictures that are still there, not the removals that did not
+     * end clean: a picture that went while its emptied folder could not be removed was counted as left, the
+     * user was told that the next restore removes it, and the next restore finds no picture to ask about.
+     */
+    @Test fun aPictureThatWentWhileItsFolderStayedIsNotCountedAsLeft() = runTest {
+        fun picture(color: Int) = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+        // Every file in the folder goes; the folder itself does not.
+        val pictures = DrawerWallpaperStore(
+            context, Dispatchers.IO, remove = { folder -> folder.listFiles()?.forEach { it.delete() }; !folder.exists() },
+        )
+        pictures.set(picture(Color.WHITE), 1)
+        twoProfiles()
+
+        val result = repo(drawerPictures = pictures).restoreDocument(backup, installed)
+
+        assertThat(pictures.profilesWithPictures()).doesNotContain(1L)
+        assertThat(result.picturesLeft).isEqualTo(0)
+    }
+
     @Test fun aRestoreWhoseSettingsCannotBeSavedChangesNothing() = runTest {
         twoProfiles()
         // The profile that is on keeps its own values in a file of its own: that write fails, after the

@@ -297,15 +297,23 @@ class BackupRepository @Inject constructor(
             // A picture that could not be removed is still on the disk, under the id of a profile that is
             // gone: counted, so the result does not call the clearing done. The next restore finds each as
             // a home screen no profile is listed for, asks, and tries again.
-            val pictures = (removed + unlisted).distinct().count { id -> !pictureRemoved(id) }
+            val gone = (removed + unlisted).distinct()
+            val notCleared = gone.filterNot { id -> pictureCleared(id) }
+            // Counted by what is still THERE, read after the removals: a picture that went while its emptied
+            // folder stayed is not a picture left (the next restore would find none to ask about). Where
+            // the pictures cannot be listed, the removals that did not end clean are what is known.
+            val pictures = runCatching { drawerPictures?.profilesWithPictures() }.getOrNull()
+                ?.let { still -> gone.count { it in still } }
+                ?: notCleared.size
             repinShortcuts(previousLayout, entities)
             left to pictures
         } } }
         return RestoreResult(entities.size, mapping.skipped, profilesLeft, picturesLeft)
     }
 
-    /** Whether the drawer picture of the home profile [id] is gone (it was removed, or there was none). */
-    private suspend fun pictureRemoved(id: Long): Boolean =
+    /** Whether nothing is left of the drawer picture of the home profile [id]: its folder went, or there was
+     *  none. */
+    private suspend fun pictureCleared(id: Long): Boolean =
         runCatching { drawerPictures?.delete(id) ?: true }.getOrDefault(false)
 
     private fun mainUserSerial(): Long = resolver.ownUserSerial() ?: 0L
