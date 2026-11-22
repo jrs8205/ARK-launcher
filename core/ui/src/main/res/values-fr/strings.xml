@@ -13,7 +13,7 @@
     <string name="notice_work_apps_need_default">Définissez ARK-Launcher comme lanceur par défaut pour mettre en pause les applis professionnelles.</string>
     <string name="notice_private_space_needs_default">Définissez ARK-Launcher comme lanceur par défaut pour verrouiller ou déverrouiller l\'espace privé.</string>
     <string name="notice_change_not_saved">La modification n\'a pas pu être enregistrée. Rien n\'a été modifié.</string>
-    <string name="notice_profile_not_read">Un profil n\'a pas pu être ouvert. Un autre profil est affiché à la place.</string>
+    <string name="notice_profile_not_read">Un profil n\'a pas pu être ouvert, un autre profil a donc été activé à sa place.</string>
     <string name="edit_title">Modifier</string>
     <string name="edit_icon_hint">Appuyez sur l\'icône pour la changer</string>
     <string name="edit_swipe_up">Balayer vers le haut ouvre</string>

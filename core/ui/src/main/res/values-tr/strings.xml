@@ -13,7 +13,7 @@
     <string name="notice_work_apps_need_default">İş uygulamalarını duraklatmak için ARK-Launcher\'ı varsayılan başlatıcınız yapın.</string>
     <string name="notice_private_space_needs_default">Özel alanı kilitlemek veya kilidini açmak için ARK-Launcher\'ı varsayılan başlatıcınız yapın.</string>
     <string name="notice_change_not_saved">Değişiklik kaydedilemedi. Hiçbir şey değiştirilmedi.</string>
-    <string name="notice_profile_not_read">Bir profil açılamadı. Onun yerine başka bir profil gösteriliyor.</string>
+    <string name="notice_profile_not_read">Bir profil açılamadı, bu yüzden başka bir profile geçildi.</string>
     <string name="edit_title">Düzenle</string>
     <string name="edit_icon_hint">Değiştirmek için simgeye dokunun</string>
     <string name="edit_swipe_up">Yukarı kaydırma şunu açar</string>

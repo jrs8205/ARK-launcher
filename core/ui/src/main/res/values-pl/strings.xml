@@ -13,7 +13,7 @@
     <string name="notice_work_apps_need_default">Ustaw ARK-Launcher jako domyślny launcher, aby wstrzymać aplikacje służbowe.</string>
     <string name="notice_private_space_needs_default">Ustaw ARK-Launcher jako domyślny launcher, aby zablokować lub odblokować przestrzeń prywatną.</string>
     <string name="notice_change_not_saved">Nie udało się zapisać zmiany. Nic nie zostało zmienione.</string>
-    <string name="notice_profile_not_read">Nie udało się otworzyć profilu. Zamiast niego wyświetlany jest inny profil.</string>
+    <string name="notice_profile_not_read">Nie udało się otworzyć profilu, dlatego przełączono na inny profil.</string>
     <string name="edit_title">Edytuj</string>
     <string name="edit_icon_hint">Dotknij ikony, aby ją zmienić</string>
     <string name="edit_swipe_up">Przeciągnięcie w górę otwiera</string>

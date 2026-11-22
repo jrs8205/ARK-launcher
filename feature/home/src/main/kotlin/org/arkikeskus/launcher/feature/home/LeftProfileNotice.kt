@@ -11,9 +11,10 @@ import kotlinx.coroutines.flow.Flow
 import org.arkikeskus.launcher.ui.HomeNotice
 
 /**
- * Tells the user that a home profile could not be opened and another one is shown: [left] names the profile
- * for as long as that is owed ([HomeViewModel.leftHomeProfile]); [show] puts a text on screen; [shown] is
- * told once it has been.
+ * Tells the user that a home profile could not be opened and that the launcher switched to another one:
+ * [left] names the profile for as long as that is owed ([HomeViewModel.leftHomeProfile]); [show] puts a text
+ * on screen; [shown] is told once it has been. The text is of what happened, whichever profile is on when it
+ * is read: the user may have switched back in Settings before the home screen was seen again.
  *
  * The screen says that the notice was shown, and after showing it. Said by the view model as it queued the
  * notice for a screen, it was "told" with no screen there to show it (the home activity destroyed before its
