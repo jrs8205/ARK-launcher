@@ -20,7 +20,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -248,16 +247,32 @@ internal class ProductionWiring(
  * the hold, only when the looper turns: asked for on the test's own thread, [work] would wait for a hold that
  * nobody is left to give back. A row the step wrote is no sign that the step is over: the row is in the
  * database before the step is back on the main thread.
+ *
+ * Not done within [limitMs]: the test fails ("Timed out waiting for [what]"), and never hangs. The work is
+ * not this call's child, since a parent waits for its child: work that cannot be cancelled (a profile's
+ * deletion waits for the hold in a step that is not cancellable) would keep the test waiting for good. It is
+ * told to end, and the looper turns on for as long again while it does: whoever has the hold may need a turn
+ * of the looper to let go of it, and with the looper stopped the two would wait for each other. Work that
+ * still has not ended by then is left behind, and the failure is given all the same.
  */
-internal suspend fun <T> whileTheMainLooperTurns(what: String, work: suspend () -> T): T = coroutineScope {
-    val asked = async(Dispatchers.Default) { work() }
-    val deadline = System.currentTimeMillis() + 10_000
-    while (!asked.isCompleted) {
-        check(System.currentTimeMillis() < deadline) { "Timed out waiting for $what" }
+internal suspend fun <T> whileTheMainLooperTurns(what: String, limitMs: Long = 10_000, work: suspend () -> T): T {
+    val asked = CoroutineScope(Dispatchers.Default).async { work() }
+    turnTheMainLooper(limitMs) { asked.isCompleted }
+    if (!asked.isCompleted) {
+        asked.cancel()
+        turnTheMainLooper(limitMs) { asked.isCompleted }
+        error("Timed out waiting for $what")
+    }
+    return asked.await()
+}
+
+/** Turns the main looper until [done], for [limitMs] at most. */
+private fun turnTheMainLooper(limitMs: Long, done: () -> Boolean) {
+    val deadline = System.currentTimeMillis() + limitMs
+    while (!done() && System.currentTimeMillis() < deadline) {
         shadowOf(Looper.getMainLooper()).idle()
         Thread.sleep(10)
     }
-    asked.await()
 }
 
 /**
