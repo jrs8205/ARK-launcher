@@ -154,15 +154,22 @@ class ProfiledPreferences(
      * the unlisted stores cannot be listed, those that are named or being made. For a reader that corrects
      * and does not delete: what an app key is to be changed to is looked up from these, at every start of the
      * home screen, and a folder that cannot be read must not stop the start. ([valuesOfEveryProfile] fails
-     * then, as it must: what it leaves out would be taken for used by nobody.) Not for a caller that holds
-     * [mutex].
+     * then, as it must: what it leaves out would be taken for used by nobody.)
+     *
+     * A profile whose own store cannot be READ just now is passed over too, one by one: the store of a
+     * profile that is not on can fail while the profile that is on is whole, and the keys are read at every
+     * start. Its keys are found again, and corrected, at a start when it can be read. Not for a caller that
+     * holds [mutex].
      */
     suspend fun valuesOfProfilesToCorrect(): List<Preferences> = mutex.withLock {
         val shared = main.data.first()
-        valuesOf(profilesToCorrect(shared), shared)
+        profilesToCorrect(shared).mapNotNull { id ->
+            try { valuesOf(listOf(id), shared).single() } catch (e: IOException) { null }
+        }
     }
 
-    /** The own values of [ids], each from where it is kept. For a caller that holds [mutex]. */
+    /** The own values of [ids], each from where it is kept; fails when one of them cannot be read. For a
+     *  caller that holds [mutex]. */
     private suspend fun valuesOf(ids: List<Long>, shared: Preferences): List<Preferences> {
         val inMain = mainStoreId(shared)
         return ids.map { id -> perProfileOf(if (id == inMain) shared else files.store(id).data.first()) }
@@ -192,11 +199,16 @@ class ProfiledPreferences(
      * and those that are being made ([making]), in one holding of [mutex]. What is corrected in every profile
      * (an app's key that changed) must reach the same profiles a reader of every profile sees: written to the
      * listed ones alone, a copy whose values were already written and which was listed a moment later kept
-     * the old key in its folders and its swipe action, while its source had the new one. Not for a caller
-     * that holds [mutex].
+     * the old key in its folders and its swipe action, while its source had the new one.
+     *
+     * A profile whose own store cannot be read or written just now is passed over, and the others still get
+     * the change ([valuesOfProfilesToCorrect] passes the same one over): what this corrects is found again
+     * in that profile at the next start, and corrected then. Not for a caller that holds [mutex].
      */
     suspend fun updateEveryProfile(transform: (MutablePreferences) -> Unit) = mutex.withLock {
-        for (id in profilesToCorrect(main.data.first())) updateProfileLocked(id, transform)
+        for (id in profilesToCorrect(main.data.first())) {
+            try { updateProfileLocked(id, transform) } catch (e: IOException) { /* the next start gets to it */ }
+        }
     }
 
     /** Runs [transform] on the own values of [profileId] alone, whether it is on or not; anything it sets

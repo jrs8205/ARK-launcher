@@ -207,6 +207,33 @@ class SettingsAcrossProfilesTest {
         assertThat(pictures.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
     }
 
+    /**
+     * Review round 12. And the same when the stores can be listed but ONE of them cannot be read: a profile that
+     * is not on, with a store file that fails. The failure came out of the key reading all the same, at every
+     * start of the home screen, though the profile that is on was whole. A correction passes such a profile
+     * over, reading and writing, and gets to it at a later start; the pictures in use are still not known
+     * until every profile was read.
+     */
+    @Test fun aProfileWhoseOwnStoreCannotBeReadIsPassedOverByTheCorrection() = runTest {
+        settings.setAppHidden("h/h.M/0", true)
+        settings.setLeftSwipeAppKey("one/one.M/0")
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setLeftSwipeAppKey("two/two.M/0")
+        store.setActive(1)
+        files.store(2).failReads = java.io.IOException("the store could not be read")
+
+        assertThat(settings.referencedAppKeys()).containsExactly("h/h.M/0", "one/one.M/0")
+        settings.renameAppKeys(mapOf("one/one.M/0" to "one/one.New/0", "two/two.M/0" to "two/two.New/0"))
+        assertThat(settings.settings.first().leftSwipeAppKey).isEqualTo("one/one.New/0")
+        val pictures = runCatching { settings.folderIconsOfEveryProfile() }
+        assertThat(pictures.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+
+        // Readable again: its key is found again, to be corrected then.
+        files.store(2).failReads = null
+        assertThat(settings.referencedAppKeys()).containsExactly("h/h.M/0", "one/one.New/0", "two/two.M/0")
+    }
+
     @Test fun theFolderIconsOfEveryProfileAreKnown() = runTest {
         val home = CustomIcon.FromFile("home.png")
         val work = CustomIcon.FromFile("work.png")

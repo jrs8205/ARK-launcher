@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.di.ApplicationScope
 import org.arkikeskus.launcher.model.AppItem
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,10 +75,16 @@ class AppRepository @Inject constructor(
      *  the left-swipe app) at an app's new launcher activity after it renamed or swapped it — see
      *  [renamedAppKeys]. Run once per launch, next to the home rows' sweep. */
     suspend fun followRenamedActivitiesInSettings() {
-        val renames = withContext(Dispatchers.IO) {
-            renamedAppKeys(settingsRepository.referencedAppKeys(), source)
+        try {
+            val renames = withContext(Dispatchers.IO) {
+                renamedAppKeys(settingsRepository.referencedAppKeys(), source)
+            }
+            settingsRepository.renameAppKeys(renames)
+        } catch (e: IOException) {
+            // A correction, made again at the next start: a settings store that cannot be read or written
+            // right now leaves the keys as they are. Let go, this ended the home process at every start
+            // (the caller is the home screen's first coroutine, and nothing there handles it).
         }
-        settingsRepository.renameAppKeys(renames)
     }
 
     /** See [LauncherAppsSource.launchClassName]. */

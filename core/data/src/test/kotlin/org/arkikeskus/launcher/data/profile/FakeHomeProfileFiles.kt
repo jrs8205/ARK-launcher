@@ -28,11 +28,19 @@ class CountingStore : DataStore<Preferences> {
      *  between the two, then the write fails as a full disk makes it fail, and the store is as it was. */
     var refuseNextWrite: (suspend () -> Unit)? = null
 
-    override val data: Flow<Preferences> = state.onEach { onNextRead?.also { onNextRead = null }?.invoke() }
+    /** While set, every read fails with it, as a store file that cannot be read makes it fail; and every
+     *  write too, as the real store reads what is there before it writes. */
+    var failReads: Throwable? = null
+
+    override val data: Flow<Preferences> = state.onEach {
+        failReads?.let { throw it }
+        onNextRead?.also { onNextRead = null }?.invoke()
+    }
 
     val now: Preferences get() = state.value
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences {
+        failReads?.let { throw it }
         failWrites?.let { throw it }
         refuseNextWrite?.also { refuseNextWrite = null }?.let { between ->
             transform(state.value)
