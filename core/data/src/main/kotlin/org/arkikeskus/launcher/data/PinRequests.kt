@@ -316,13 +316,20 @@ class PinRequestStore @Inject constructor(
      * Accepts a shortcut [request] where [decide] puts it on home as it is once the pin lock is ours —
      * decided there, not before: a backup restore holding the lock may have locked the desktop or
      * replaced home meanwhile. Not a [PinDecision.Confirm] → [ShortcutPinOutcome.Refused], nothing
-     * accepted. The home profile that is on stays on from the decision to the row
-     * ([HomeLayoutRepository.whileProfileStays], taken before the pin lock): the place was decided from
-     * that profile's rows, grid and lock, and the row is stored in the profile that is on.
+     * accepted. The home profile stays on from the decision to the row
+     * ([HomeLayoutRepository.whileProfileIsOn], taken before the pin lock): the place was decided from
+     * that profile's rows, grid and lock, and the row is stored in it.
+     *
+     * That profile is [profileId], the one that was on when the user said yes, read by the caller before
+     * anything else it does with the tap ([HomeLayoutRepository.profileOn]) and not by this store: the
+     * caller judges the request against the home screen first, and a switch can end meanwhile. Another
+     * profile on by now: nothing is accepted ([ShortcutPinOutcome.Failed]).
      */
-    suspend fun acceptShortcut(request: PinRequest, decide: suspend () -> CurrentPlacement): ShortcutPinOutcome =
+    suspend fun acceptShortcut(
+        request: PinRequest, profileId: Long, decide: suspend () -> CurrentPlacement,
+    ): ShortcutPinOutcome =
         try {
-            homeLayoutRepository.whileProfileStays {
+            homeLayoutRepository.whileProfileIsOn(profileId) {
                 ShortcutPinLock.withLock {
                     withContext(NonCancellable + Dispatchers.IO) {
                         val now = decide()
@@ -333,7 +340,7 @@ class PinRequestStore @Inject constructor(
                             ?.let { ShortcutPinOutcome.Added(it) } ?: ShortcutPinOutcome.Failed
                     }
                 }
-            }
+            } ?: ShortcutPinOutcome.Failed // Another profile is on: not this home screen's shortcut.
         } catch (unread: IOException) {
             // Inside the hold a profile's store that cannot be read throws ([decide] reads the profile's
             // settings and rows). The decision comes before the accept, so nothing was accepted.
@@ -374,13 +381,12 @@ class PinRequestStore @Inject constructor(
      * [acceptBoundWidget] at once; the system wants the user asked → [WidgetPinOutcome.NeedsPermission]
      * with the id kept allocated (and in [pendingWidgetIds]) for the dialog's outcome; no id or a
      * bind that threw → [WidgetPinOutcome.Failed] with nothing left allocated. The widget is for the home
-     * profile that is on as this starts, the one the user said yes on: bound at once or after the dialog,
-     * it is stored there or nowhere.
+     * profile [profileId], the one that was on when the user said yes ([acceptShortcut] says who reads it,
+     * and when): bound at once or after the dialog, it is stored there or nowhere.
      */
     suspend fun acceptWidget(
-        request: WidgetPinRequest, binder: WidgetBinder, decide: suspend () -> CurrentPlacement,
+        request: WidgetPinRequest, binder: WidgetBinder, profileId: Long, decide: suspend () -> CurrentPlacement,
     ): WidgetPinOutcome = withContext(NonCancellable + Dispatchers.IO) {
-        val confirmedIn = homeLayoutRepository.profileOn()
         // Protected from the host-id sweep from the moment it exists until it is in a row or freed;
         // allocated under the guard, so a sweep running now has either seen it pending or not seen it.
         val id = pendingWidgetIds.guard {
@@ -391,8 +397,8 @@ class PinRequestStore @Inject constructor(
             free(binder, id)
             return@withContext WidgetPinOutcome.Failed
         }
-        if (!bound.getOrThrow()) return@withContext WidgetPinOutcome.NeedsPermission(id, confirmedIn)
-        acceptBoundWidget(request, binder, id, confirmedIn, decide)
+        if (!bound.getOrThrow()) return@withContext WidgetPinOutcome.NeedsPermission(id, profileId)
+        acceptBoundWidget(request, binder, id, profileId, decide)
     }
 
     /**

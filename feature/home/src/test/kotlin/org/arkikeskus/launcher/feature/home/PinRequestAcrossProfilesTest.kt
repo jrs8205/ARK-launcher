@@ -11,11 +11,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.PendingWidgetIds
 import org.arkikeskus.launcher.data.PinItem
 import org.arkikeskus.launcher.data.PinPreview
+import org.arkikeskus.launcher.data.PinRequest
 import org.arkikeskus.launcher.data.PinRequestStore
 import org.arkikeskus.launcher.data.WidgetBinder
 import org.arkikeskus.launcher.data.WidgetPinRequest
@@ -27,6 +29,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Review round 18. A widget another app asks to pin is confirmed for the home screen that is shown: the
@@ -60,22 +63,40 @@ class PinRequestAcrossProfilesTest {
 
     private val clockProvider = ComponentName("com.clock", "com.clock.Analog")
 
-    /** A fresh wrapper per call, as a recreated activity hands over. */
-    private fun clockRequest() = object : WidgetPinRequest {
+    /** A fresh wrapper per call, as a recreated activity hands over. [onJudged] runs each time the request
+     *  is judged against the home screen (the confirmation asks whether it is still valid as it does). */
+    private fun clockRequest(onJudged: () -> Unit = {}) = object : WidgetPinRequest {
         override val item: PinItem = PinItem.Widget(clockProvider.flattenToString(), "Analog clock", ownProfile = true)
         override val info = AppWidgetProviderInfo().also { it.provider = clockProvider }
-        override val isValid: Boolean = true
+        override val isValid: Boolean get() = true.also { onJudged() }
         override fun accept(): Boolean = false
         override fun accept(appWidgetId: Int): Boolean = true
         override fun loadPreview(context: Context) = PinPreview("Clock", icon = null)
     }
 
-    /** Hands out [id] and never binds without the user being asked. */
-    private class AskingBinder(private val id: Int) : WidgetBinder {
+    /** A conversation shortcut whose accept() the system grants. */
+    private fun chatRequest(onJudged: () -> Unit = {}) = object : PinRequest {
+        override val item: PinItem = PinItem.Shortcut("com.chat", "mia", userSerial = 0L, label = "Mia")
+        override val isValid: Boolean get() = true.also { onJudged() }
+        override fun accept(): Boolean = true
+        override fun loadPreview(context: Context) = PinPreview("Chat", icon = null)
+    }
+
+    /** Hands out [id]; binds without the user being asked only when [bindsAtOnce]. */
+    private class Binder(private val id: Int, private val bindsAtOnce: Boolean = false) : WidgetBinder {
         val deleted = ArrayList<Int>()
         override fun allocateId(): Int = id
-        override fun bindIfAllowed(appWidgetId: Int, info: AppWidgetProviderInfo): Boolean = false
+        override fun bindIfAllowed(appWidgetId: Int, info: AppWidgetProviderInfo): Boolean = bindsAtOnce
         override fun deleteId(appWidgetId: Int) { synchronized(deleted) { deleted += appWidgetId } }
+    }
+
+    /**
+     * What a request's judging does in the tests of a switch that ends DURING a tap: nothing until [armed] is
+     * set (right before the tap), then, once, another profile comes on. The tap judges the request against
+     * the home screen before it goes to the store, so this is a switch in the middle of the tap's own look.
+     */
+    private fun switchingOnce(armed: AtomicBoolean, wiring: ProductionWiring, to: Long): () -> Unit = {
+        if (armed.compareAndSet(true, false)) runBlocking { check(wiring.homeProfiles.switchTo(to)) }
     }
 
     private fun confirmation(wiring: ProductionWiring, saved: SavedStateHandle, binder: WidgetBinder) =
@@ -113,7 +134,7 @@ class PinRequestAcrossProfilesTest {
         val wiring = ProductionWiring(context, this)
         try {
             val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
-            val binder = AskingBinder(4801)
+            val binder = Binder(4801)
             val vm = confirmation(wiring, SavedStateHandle(), binder)
             addedUpToTheBindDialog(vm)
 
@@ -140,13 +161,13 @@ class PinRequestAcrossProfilesTest {
         try {
             val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
             val saved = SavedStateHandle()
-            addedUpToTheBindDialog(confirmation(wiring, saved, AskingBinder(4802)))
+            addedUpToTheBindDialog(confirmation(wiring, saved, Binder(4802)))
 
             // The process dies with the dialog open: memory is gone, the saved state is not.
             PendingWidgetIds.shared.remove(4802)
             val restored = SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
             assertThat(whileTheMainLooperTurns("the switch") { wiring.homeProfiles.switchTo(other.id) }).isTrue()
-            val binder = AskingBinder(4802)
+            val binder = Binder(4802)
             val second = confirmation(wiring, restored, binder)
             awaitUntil("the id held again") { 4802 in PendingWidgetIds.shared }
             second.attach(clockRequest())
@@ -162,13 +183,87 @@ class PinRequestAcrossProfilesTest {
         }
     }
 
+    /**
+     * Review round 19. The profile is the one that is on AT THE TAP. A tap first judges the request against
+     * the home screen once more (its settings, its rows), and only then came the store, which read for
+     * itself which profile was on: a switch that ended while the tap was being judged made the widget the
+     * new profile's, at once or after the bind dialog. The confirmation reads the profile before anything
+     * else and hands it to the store, which stores in that profile or not at all.
+     */
+    @Test fun aWidgetIsNotAddedToAProfileThatCameOnWhileItsTapWasBeingJudged() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            val binder = Binder(4804, bindsAtOnce = true)
+            val vm = confirmation(wiring, SavedStateHandle(), binder)
+            val tapped = AtomicBoolean(false)
+            vm.attach(clockRequest(onJudged = switchingOnce(tapped, wiring, to = other.id)))
+            awaitUntil("the confirmation") { vm.uiState.value is PinRequestUiState.Confirm }
+
+            tapped.set(true)
+            vm.add()
+            awaitUntil("the confirmation to close") { vm.uiState.value is PinRequestUiState.Finished }
+
+            assertThat(tapped.get()).isFalse()
+            assertThat(widgetsOf(wiring, other.id)).isEmpty()
+            assertThat(widgetsOf(wiring, 1)).isEmpty()
+            assertThat((vm.uiState.value as PinRequestUiState.Finished).failed).isTrue()
+            assertThat(binder.deleted).containsExactly(4804)
+            assertThat(4804 in PendingWidgetIds.shared).isFalse()
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /** The same tap for a shortcut: its row is stored in the profile of the tap, or not at all. */
+    @Test fun aShortcutIsNotAddedToAProfileThatCameOnWhileItsTapWasBeingJudged() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            val vm = confirmation(wiring, SavedStateHandle(), Binder(4805))
+            val tapped = AtomicBoolean(false)
+            vm.attach(chatRequest(onJudged = switchingOnce(tapped, wiring, to = other.id)))
+            awaitUntil("the confirmation") { vm.uiState.value is PinRequestUiState.Confirm }
+
+            tapped.set(true)
+            vm.add()
+            awaitUntil("the confirmation to close") { vm.uiState.value is PinRequestUiState.Finished }
+
+            assertThat(tapped.get()).isFalse()
+            assertThat(wiring.rowsOfProfile(other.id).mapNotNull { it.shortcutId }).isEmpty()
+            assertThat(wiring.rowsOfProfile(1).mapNotNull { it.shortcutId }).isEmpty()
+            assertThat((vm.uiState.value as PinRequestUiState.Finished).failed).isTrue()
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /** And with nothing in between, a shortcut goes to the profile that is on, as it always did. */
+    @Test fun aShortcutTappedWithItsProfileOnIsAddedToIt() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            val vm = confirmation(wiring, SavedStateHandle(), Binder(4806))
+            vm.attach(chatRequest())
+            awaitUntil("the confirmation") { vm.uiState.value is PinRequestUiState.Confirm }
+
+            vm.add()
+            awaitUntil("the confirmation to close") { vm.uiState.value is PinRequestUiState.Finished }
+
+            assertThat(wiring.rowsOfProfile(1).mapNotNull { it.shortcutId }).containsExactly("mia")
+            assertThat(wiring.rowsOfProfile(other.id)).isEmpty()
+        } finally {
+            wiring.close()
+        }
+    }
+
     /** What matters is the profile that is on at the answer, not what happened in between: back on the
      *  profile of the tap, the widget is added to it as before. */
     @Test fun aWidgetAllowedWithTheProfileOfTheTapOnAgainIsAddedToIt() = runTest {
         val wiring = ProductionWiring(context, this)
         try {
             val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
-            val binder = AskingBinder(4803)
+            val binder = Binder(4803)
             val vm = confirmation(wiring, SavedStateHandle(), binder)
             addedUpToTheBindDialog(vm)
 

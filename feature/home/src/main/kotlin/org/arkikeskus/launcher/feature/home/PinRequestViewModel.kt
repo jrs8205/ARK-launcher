@@ -213,6 +213,10 @@ class PinRequestViewModel @Inject constructor(
         val request = request ?: return
         _uiState.value = confirm.copy(busy = true)
         viewModelScope.launch {
+            // The home profile of the tap, read before anything else is: the item is this profile's or
+            // nobody's. The look at the home screen below takes its time (settings, rows), a switch asked
+            // for in Settings can end during it, and a profile read after it would be the new one.
+            val profileId = homeLayoutRepository.profileOn()
             // Decided again: the lock, the grid or home itself may have changed while the sheet was open.
             val now = decideNow(request)
             if (now.decision !is PinDecision.Confirm) {
@@ -223,7 +227,7 @@ class PinRequestViewModel @Inject constructor(
                 // Finishing the activity clears this scope; an allocated id is never left half-way. What
                 // becomes of the id is settled inside, where the scope's end can't skip it.
                 val outcome = withContext(NonCancellable) {
-                    pinRequestStore.acceptWidget(request, binder) { placementNow(request) }.also {
+                    pinRequestStore.acceptWidget(request, binder, profileId) { placementNow(request) }.also {
                         when (it) {
                             is WidgetPinOutcome.Added -> newItems.add(it.rowId)
                             // Gone while the bind call was out: nobody would open the dialog or free the id.
@@ -249,7 +253,7 @@ class PinRequestViewModel @Inject constructor(
             }
             // Finishing the activity clears this scope; the accept and its row still go together.
             val outcome = withContext(NonCancellable) {
-                pinRequestStore.acceptShortcut(request) { placementNow(request) }
+                pinRequestStore.acceptShortcut(request, profileId) { placementNow(request) }
                     .also { if (it is ShortcutPinOutcome.Added) newItems.add(it.rowId) }
             }
             _uiState.value = when (outcome) {

@@ -77,7 +77,7 @@ class PinRequestOneProfileTest {
         }
         var switch: Job? = null
 
-        val outcome = store.acceptShortcut(request, decidedWhileASwitchIsAsked(PinDecision.Confirm(0, 1, 0)) { switch = it })
+        val outcome = store.acceptShortcut(request, 1, decidedWhileASwitchIsAsked(PinDecision.Confirm(0, 1, 0)) { switch = it })
         switch!!.join()
 
         assertThat(outcome).isInstanceOf(ShortcutPinOutcome.Added::class.java)
@@ -106,7 +106,7 @@ class PinRequestOneProfileTest {
         var switch: Job? = null
 
         val outcome = store.acceptWidget(
-            request, binder, decidedWhileASwitchIsAsked(PinDecision.Confirm(0, 1, 2, spanX = 2, spanY = 2)) { switch = it },
+            request, binder, 1, decidedWhileASwitchIsAsked(PinDecision.Confirm(0, 1, 2, spanX = 2, spanY = 2)) { switch = it },
         )
         switch!!.join()
 
@@ -147,7 +147,7 @@ class PinRequestOneProfileTest {
             CurrentPlacement(PinDecision.Confirm(0, 1, 2, spanX = 2, spanY = 2), columns = 4, rows = 6)
         }
 
-        val asked = store.acceptWidget(request, binder, onHome)
+        val asked = store.acceptWidget(request, binder, 1, onHome)
         assertThat(asked).isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
         // With the dialog open, another profile comes on; then the user allows the bind.
         active.switchTo(2)
@@ -158,6 +158,63 @@ class PinRequestOneProfileTest {
         assertThat(rowsOf(1)).isEmpty()
         assertThat(acceptedWith).isNull()
         assertThat(decided).isEqualTo(0)
+        assertThat(deleted).containsExactly(100)
+        assertThat(100 in pending).isFalse()
+    }
+
+    /**
+     * Review round 19. Which profile the item is for is the caller's to say: the one that was on at the tap,
+     * read before the caller judged the request against the home screen. The store read it for itself, later,
+     * and took whichever profile was on by then. Handed a profile that is not the one that is on, it accepts
+     * nothing: no shortcut, and no widget bound at once.
+     */
+    @Test
+    fun aShortcutConfirmedForAProfileThatIsNoLongerOnIsNotAccepted() = runBlocking<Unit> {
+        var accepted = false
+        val request = object : PinRequest {
+            override val item: PinItem = PinItem.Shortcut("com.chat", "mia", userSerial = 0L, label = "Mia")
+            override var isValid: Boolean = true
+            override fun accept(): Boolean = true.also { accepted = true }
+            override fun loadPreview(context: Context) = PinPreview("Chat", icon = null)
+        }
+        active.switchTo(2)
+
+        val outcome = store.acceptShortcut(request, profileId = 1) { CurrentPlacement(PinDecision.Confirm(0, 1, 0), columns = 4, rows = 6) }
+
+        assertThat(outcome).isEqualTo(ShortcutPinOutcome.Failed)
+        assertThat(accepted).isFalse()
+        assertThat(rowsOf(1)).isEmpty()
+        assertThat(rowsOf(2)).isEmpty()
+    }
+
+    @Test
+    fun aWidgetBoundAtOnceForAProfileThatIsNoLongerOnIsNotAcceptedAndItsIdGivenBack() = runBlocking<Unit> {
+        val provider = ComponentName("com.clock", "com.clock.Analog")
+        var acceptedWith: Int? = null
+        val request = object : WidgetPinRequest {
+            override val item: PinItem = PinItem.Widget(provider.flattenToString(), "Analog clock", ownProfile = true)
+            override val info = AppWidgetProviderInfo().also { it.provider = provider }
+            override var isValid: Boolean = true
+            override fun accept(): Boolean = false
+            override fun accept(appWidgetId: Int): Boolean = true.also { acceptedWith = appWidgetId }
+            override fun loadPreview(context: Context) = PinPreview("Clock", icon = null)
+        }
+        val deleted = ArrayList<Int>()
+        val binder = object : WidgetBinder {
+            override fun allocateId(): Int = 100
+            override fun bindIfAllowed(appWidgetId: Int, info: AppWidgetProviderInfo): Boolean = true
+            override fun deleteId(appWidgetId: Int) { deleted += appWidgetId }
+        }
+        active.switchTo(2)
+
+        val outcome = store.acceptWidget(request, binder, profileId = 1) {
+            CurrentPlacement(PinDecision.Confirm(0, 1, 2, spanX = 2, spanY = 2), columns = 4, rows = 6)
+        }
+
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
+        assertThat(acceptedWith).isNull()
+        assertThat(rowsOf(1)).isEmpty()
+        assertThat(rowsOf(2)).isEmpty()
         assertThat(deleted).containsExactly(100)
         assertThat(100 in pending).isFalse()
     }

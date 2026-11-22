@@ -119,7 +119,7 @@ class PinRequestStoreTest {
         val request = FakeWidgetRequest { true }
 
         // Locked while the add waited for the pin lock or the sweep's guard.
-        val outcome = store.acceptWidget(request, binder, at(PinDecision.Locked))
+        val outcome = store.acceptWidget(request, binder, 1, at(PinDecision.Locked))
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.Refused(PinDecision.Locked))
         assertThat(request.acceptedWith).isNull()
@@ -133,7 +133,7 @@ class PinRequestStoreTest {
         val binder = FakeBinder()
         val request = FakeWidgetRequest { true }
 
-        val outcome = store.acceptWidget(request, binder, at(clockAt))
+        val outcome = store.acceptWidget(request, binder, 1, at(clockAt))
 
         val rowId = (outcome as WidgetPinOutcome.Added).rowId
         assertThat(binder.bound).containsExactly(100)
@@ -155,7 +155,7 @@ class PinRequestStoreTest {
     fun aWidgetAcceptTheSystemRefusesFreesTheIdAndStoresNoRow() = runTest {
         val binder = FakeBinder()
 
-        val outcome = store.acceptWidget(FakeWidgetRequest { false }, binder, at(clockAt))
+        val outcome = store.acceptWidget(FakeWidgetRequest { false }, binder, 1, at(clockAt))
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
         assertThat(widgetRows()).isEmpty()
@@ -167,7 +167,7 @@ class PinRequestStoreTest {
     fun aWidgetAcceptThatThrowsFreesTheIdToo() = runTest {
         val binder = FakeBinder()
 
-        val outcome = store.acceptWidget(FakeWidgetRequest { throw IllegalStateException("gone") }, binder, at(clockAt))
+        val outcome = store.acceptWidget(FakeWidgetRequest { throw IllegalStateException("gone") }, binder, 1, at(clockAt))
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
         assertThat(widgetRows()).isEmpty()
@@ -179,7 +179,7 @@ class PinRequestStoreTest {
         val binder = FakeBinder(allowed = false)
         val request = FakeWidgetRequest { true }
 
-        val outcome = store.acceptWidget(request, binder, at(clockAt))
+        val outcome = store.acceptWidget(request, binder, 1, at(clockAt))
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
         assertThat(request.acceptedWith).isNull()
@@ -208,7 +208,7 @@ class PinRequestStoreTest {
     fun aPlaceThatCannotBeReadAfterTheBindWasAllowedFreesTheId() = runTest {
         val binder = FakeBinder(allowed = false)
         val request = FakeWidgetRequest { true }
-        store.acceptWidget(request, binder, at(clockAt))
+        store.acceptWidget(request, binder, 1, at(clockAt))
 
         val outcome = store.acceptBoundWidget(request, binder, 100, profileId = 1, decide = unreadable)
 
@@ -224,7 +224,7 @@ class PinRequestStoreTest {
         val binder = FakeBinder()
         val request = FakeWidgetRequest { true }
 
-        val outcome = store.acceptWidget(request, binder, unreadable)
+        val outcome = store.acceptWidget(request, binder, 1, unreadable)
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
         assertThat(binder.deleted).containsExactly(100)
@@ -239,7 +239,7 @@ class PinRequestStoreTest {
     fun anAcceptThatEndsInAnythingElseThrownStillFreesTheId() = runTest {
         val binder = FakeBinder(allowed = false)
         val request = FakeWidgetRequest { true }
-        store.acceptWidget(request, binder, at(clockAt))
+        store.acceptWidget(request, binder, 1, at(clockAt))
 
         val thrown = runCatching {
             store.acceptBoundWidget(request, binder, 100, profileId = 1) { throw IllegalStateException("not a read") }
@@ -256,7 +256,7 @@ class PinRequestStoreTest {
     fun aPlaceThatCannotBeReadAddsNoShortcutAndAcceptsNothing() = runTest {
         var accepted = false
 
-        val outcome = store.acceptShortcut(FakeRequest(mia) { accepted = true; true }, unreadable)
+        val outcome = store.acceptShortcut(FakeRequest(mia) { accepted = true; true }, 1, unreadable)
 
         assertThat(outcome).isEqualTo(ShortcutPinOutcome.Failed)
         assertThat(accepted).isFalse()
@@ -267,7 +267,7 @@ class PinRequestStoreTest {
     fun aBindTheUserDeniedFreesTheId() = runTest {
         val binder = FakeBinder(allowed = false)
         val request = FakeWidgetRequest { true }
-        store.acceptWidget(request, binder, at(clockAt))
+        store.acceptWidget(request, binder, 1, at(clockAt))
 
         store.releaseWidgetId(binder, 100)
 
@@ -286,7 +286,7 @@ class PinRequestStoreTest {
         val binder = FakeBinder()
         val request = FakeWidgetRequest { true }
 
-        val outcome = store.acceptWidget(request, binder, at(PinDecision.Confirm(3, 0, 0, 2, 2), columns = 2, rows = 2))
+        val outcome = store.acceptWidget(request, binder, 1, at(PinDecision.Confirm(3, 0, 0, 2, 2), columns = 2, rows = 2))
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
         assertThat(request.acceptedWith).isEqualTo(100)
@@ -300,7 +300,7 @@ class PinRequestStoreTest {
         app(0, 1, 2) // lands inside the decided rectangle while the confirmation is open
         val binder = FakeBinder()
 
-        val outcome = store.acceptWidget(FakeWidgetRequest { true }, binder, at(clockAt))
+        val outcome = store.acceptWidget(FakeWidgetRequest { true }, binder, 1, at(clockAt))
 
         val row = dao.getById((outcome as WidgetPinOutcome.Added).rowId)!!
         assertThat(row.cell()).isEqualTo(Triple(0, 0, 0))
@@ -312,7 +312,7 @@ class PinRequestStoreTest {
         val binder = FakeBinder(hasIds = false)
         val request = FakeWidgetRequest { true }
 
-        val outcome = store.acceptWidget(request, binder, at(clockAt))
+        val outcome = store.acceptWidget(request, binder, 1, at(clockAt))
 
         assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
         assertThat(request.acceptedWith).isNull()

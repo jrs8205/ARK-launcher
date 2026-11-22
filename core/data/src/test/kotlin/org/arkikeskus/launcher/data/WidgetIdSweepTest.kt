@@ -90,7 +90,7 @@ class WidgetIdSweepTest {
         val storage = Storage()
         val before = PendingWidgetIds(now = { 1_000_000L }).apply { persistIn(storage) }
         // The bind dialog is open for 100 when the process dies.
-        assertThat(storeIn(before).acceptWidget(ClockRequest(), Binder(allowed = false), onHome))
+        assertThat(storeIn(before).acceptWidget(ClockRequest(), Binder(allowed = false), 1, onHome))
             .isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
 
         // The next process: the home screen comes back first and sweeps.
@@ -105,7 +105,7 @@ class WidgetIdSweepTest {
     fun anIdLeftPendingForOverAnHourIsFreedAfterAll() = runBlocking<Unit> {
         val storage = Storage()
         val before = PendingWidgetIds(now = { 1_000_000L }).apply { persistIn(storage) }
-        storeIn(before).acceptWidget(ClockRequest(), Binder(allowed = false), onHome)
+        storeIn(before).acceptWidget(ClockRequest(), Binder(allowed = false), 1, onHome)
 
         // Nobody came back for it: an abandoned dialog must not hold the id forever.
         val later = PendingWidgetIds(now = { 1_000_000L + 2 * 60 * 60 * 1000L }).apply { persistIn(storage) }
@@ -147,7 +147,7 @@ class WidgetIdSweepTest {
         val binder = Binder(allowed = false)
         val request = ClockRequest()
         // The request holds its id while the system's bind dialog is open.
-        val outcome = store.acceptWidget(request, binder, onHome)
+        val outcome = store.acceptWidget(request, binder, 1, onHome)
         assertThat(outcome).isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
 
         val rowsRead = CompletableDeferred<Unit>()
@@ -222,7 +222,7 @@ class WidgetIdSweepTest {
         inThen.await()
         // Meanwhile another app's widget is allocated, bound, accepted and stored.
         val added = launch(Dispatchers.Default) {
-            store.acceptWidget(ClockRequest(), Binder(allowed = true), onHome)
+            store.acceptWidget(ClockRequest(), Binder(allowed = true), 1, onHome)
         }
         delay(500)
         resume.complete(Unit)
