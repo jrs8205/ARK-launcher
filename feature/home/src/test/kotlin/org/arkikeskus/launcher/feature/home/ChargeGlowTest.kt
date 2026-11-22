@@ -2,7 +2,7 @@ package org.arkikeskus.launcher.feature.home
 
 import android.app.Application
 import android.provider.Settings
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before

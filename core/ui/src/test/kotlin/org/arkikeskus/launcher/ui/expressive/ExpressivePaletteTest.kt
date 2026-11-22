@@ -3,7 +3,7 @@ package org.arkikeskus.launcher.ui.expressive
 import android.app.Application
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import org.arkikeskus.launcher.designsystem.theme.LauncherTheme

@@ -12,7 +12,7 @@ import android.graphics.Canvas
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -63,7 +63,7 @@ class DreamScreenTest {
         shownOptions = options
         compose.setContent {
             // What the screen reads off the main thread (the notification icons) is read at once, on this
-            // thread. Read on another thread, it comes back on that thread under the rule, and the screen is
+            // thread. Read on another thread, it comes back on that thread under the rule the tests had then, and the screen is
             // then worked on from two threads at once.
             CompositionLocalProvider(LocalBackgroundDispatcher provides background) {
                 DreamScreen(state = state, options = shownOptions, landscape = landscape, onTap = onTap, moving = false)
@@ -89,7 +89,7 @@ class DreamScreenTest {
     /**
      * Review rounds 12 and 13, from full test runs. One test here failed once with "performMeasureAndLayout
      * called during measure layout", and once a test never came back from waiting for the screen to be idle.
-     * The notification icons were read on the IO dispatcher whatever the test did. Under the test rule what
+     * The notification icons were read on the IO dispatcher whatever the test did. Under the test rule of then what
      * was read came back on the thread it was read on, and that thread went on with the screen's own work
      * (the change was applied and the next frame asked for from there) while the test's thread was in the
      * middle of the same. The row reads on the dispatcher its place gives it ([LocalBackgroundDispatcher]):

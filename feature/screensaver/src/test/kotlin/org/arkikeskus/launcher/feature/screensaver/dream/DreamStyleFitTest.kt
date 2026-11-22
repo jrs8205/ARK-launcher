@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
@@ -133,7 +133,7 @@ class DreamStyleFitTest {
             CompositionLocalProvider(
                 LocalDensity provides Density(1f, MAX_FONT_SCALE),
                 // The icons are read at once, on this thread: read on another one they come back on it
-                // under the rule, and the screen is then worked on from two threads at once.
+                // under the rule the tests had then, and the screen is then worked on from two threads at once.
                 LocalBackgroundDispatcher provides Dispatchers.Unconfined,
             ) {
                 DreamScreen(state = state, options = options, landscape = landscape, onTap = null, moving = false)

@@ -4,7 +4,7 @@ import android.app.Application
 import android.os.Looper
 import android.os.UserHandle
 import android.os.UserManager
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText

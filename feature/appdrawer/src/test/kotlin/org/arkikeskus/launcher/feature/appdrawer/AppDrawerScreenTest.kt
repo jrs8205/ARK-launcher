@@ -20,7 +20,7 @@ import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.down
 import androidx.compose.ui.test.up
 import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.graphics.Color
@@ -96,7 +96,7 @@ class AppDrawerScreenTest {
     private fun show() {
         compose.setContent {
             // An app's menu asks Android for its shortcuts and widgets before it shows. Asked on another
-            // thread, the answer comes back on that thread under the rule and the screen is then worked on
+            // thread, the answer comes back on that thread under the rule the tests had then and the screen is then worked on
             // from two threads at once (the home screen's menu test failed so once). Here it asks at once.
             androidx.compose.runtime.CompositionLocalProvider(
                 org.arkikeskus.launcher.ui.LocalBackgroundDispatcher provides kotlinx.coroutines.Dispatchers.Unconfined,

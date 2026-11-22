@@ -36,6 +36,10 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class WorkspaceRevealTest {
+    // Still the older rule, whose effects run at once: six tests here hold the clock and count on the reveal
+    // having begun by the time the content is set, and fail under the v2 rule (its effects are queued) until
+    // they are rewritten for it. Nothing here reads on another thread, which is what the older rule cannot
+    // take; every other test class is on the v2 rule.
     @get:Rule val compose = createComposeRule()
 
     private val drag = HomeDragController()

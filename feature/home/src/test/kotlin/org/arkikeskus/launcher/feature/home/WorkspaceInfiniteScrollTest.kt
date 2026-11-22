@@ -51,6 +51,9 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class WorkspaceInfiniteScrollTest {
+    // Still the older rule, whose effects run at once: one test here (the copy of page 0 hosting its widget)
+    // fails under the v2 rule until it is rewritten for queued effects. Nothing here reads on another thread,
+    // which is what the older rule cannot take; every other test class is on the v2 rule.
     @get:Rule val compose = createComposeRule()
 
     private val drag = HomeDragController()

@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.designsystem.theme.DefaultPaletteSeed

@@ -5,7 +5,7 @@ import android.content.Intent
 import android.os.BatteryManager
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,7 +50,7 @@ class DreamStateCollectorTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             // The row's icons are read at once, on this thread: read on another one they come back on it
-            // under the rule, and the screen is then worked on from two threads at once.
+            // under the rule the tests had then, and the screen is then worked on from two threads at once.
             CompositionLocalProvider(LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
                 val collected = rememberDreamUiState(LocalContext.current, DreamOptions(), notifications, onChargeState) {}
                 state = collected

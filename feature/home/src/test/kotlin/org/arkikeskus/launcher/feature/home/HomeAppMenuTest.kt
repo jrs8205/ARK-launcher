@@ -4,7 +4,7 @@ import android.app.Application
 import android.os.Process
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -37,7 +37,7 @@ class HomeAppMenuTest {
     private fun show(locked: Boolean, inDock: Boolean = false) {
         compose.setContent {
             // The menu asks Android for the app's shortcuts and widgets before it shows (the shadow answers).
-            // Asked on another thread, the answer comes back on that thread under the rule, and the menu's
+            // Asked on another thread, the answer comes back on that thread under the rule the tests had then, and the menu's
             // rows were then put on screen from it: "Only the original thread that created a view hierarchy
             // can touch its views", once in a whole-task run. Here it asks at once, on this thread.
             CompositionLocalProvider(LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
