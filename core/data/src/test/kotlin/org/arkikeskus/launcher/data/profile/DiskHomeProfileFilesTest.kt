@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher.data.profile
 
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -8,13 +10,16 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.io.IOException
 import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -150,12 +155,16 @@ class DiskHomeProfileFilesTest {
         }
         val broken = context.preferencesDataStoreFile("home_profile_2")
         assertThat(broken.mkdirs()).isTrue()
-        val view = ProfiledPreferences(settingsFile, files)
+        // Review round 16: the test KNOWS that the reader was handed the store's failure before the store is
+        // made whole. It used to give the reader half a second for that: on a busy machine the reader came to
+        // the disk after the folder had gone, found a store that read, and the test passed without the fix.
+        val failed = CompletableDeferred<IOException>()
+        val view = ProfiledPreferences(settingsFile, SayingWhenAReadingFails(files, failed))
 
         view.hold.lock()
         val read = async(Dispatchers.Default) { view.data.first() }
-        // Time for the reader to find the store failing and to come to the lock.
-        delay(500)
+        val failure = withTimeout(10_000) { failed.await() }
+        assertThat(failure).hasMessageThat().contains("home_profile_2")
         assertThat(read.isCompleted).isFalse()
         assertThat(broken.delete()).isTrue()
         view.hold.unlock()
@@ -186,6 +195,26 @@ class DiskHomeProfileFilesTest {
         assertThat(created?.id).isEqualTo(3L)
         assertThat(store.list().map { it.id }).containsExactly(1L, 3L).inOrder()
         assertThat(broken.isDirectory).isTrue()
+    }
+
+    /** The stores of [real], each saying through [failed] when a reading of it has failed: the first such
+     *  failure, as the reader was handed it. */
+    private class SayingWhenAReadingFails(
+        private val real: HomeProfileFiles,
+        private val failed: CompletableDeferred<IOException>,
+    ) : HomeProfileFiles by real {
+        override fun store(profileId: Long): DataStore<Preferences> {
+            val store = real.store(profileId)
+            return object : DataStore<Preferences> {
+                override val data: Flow<Preferences> = store.data.catch { failure ->
+                    if (failure is IOException) failed.complete(failure)
+                    throw failure
+                }
+
+                override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+                    store.updateData(transform)
+            }
+        }
     }
 
     @Test fun deletingAProfileThatNeverWroteAnythingIsFine() = runBlocking {
