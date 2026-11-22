@@ -209,6 +209,66 @@ class ProfiledPreferencesTest {
         assertThat(view.profileValues(2)[baseColour]).isEqualTo("green")
     }
 
+    /**
+     * Review round 13, second run. The profile that is on kept its own values in a store of its own, and at a
+     * later start that store could not be read. Every reader of the settings was sent to it all the same: the
+     * home screen's first reading threw, and so did that of Settings, where another profile is chosen. A
+     * profile is not switched to unread (round 13); one whose store stops reading while it is on is left the
+     * same way. The profile whose values the settings file itself holds comes on: the file that was just read.
+     * The profile that failed keeps its place in the list and everything its store holds, with nothing
+     * written to it: it is there to switch back to when its store reads again.
+     */
+    @Test fun whenTheStoreOfTheProfileThatIsOnCannotBeReadTheProfileInTheSettingsFileComesOn() = runTest {
+        main.edit { it[baseColour] = "blue"; it[longPress] = 1.5f; it[active] = 2L }
+        files.store(2).edit { it[baseColour] = "green" }
+        val ownWrites = files.store(2).writes
+        files.store(2).failReads = IOException("Input/output error")
+
+        val seen = view.data.first()
+
+        assertThat(seen[baseColour]).isEqualTo("blue")
+        assertThat(seen[longPress]).isEqualTo(1.5f)
+        assertThat(seen[active]).isEqualTo(1L)
+        assertThat(main.now[active]).isEqualTo(1L)
+        assertThat(main.now[list]).isEqualTo("1\t\n2\tWork\n3\tPlay")
+        assertThat(files.store(2).writes).isEqualTo(ownWrites)
+        assertThat(files.store(2).now[baseColour]).isEqualTo("green")
+    }
+
+    /** And the profile in the settings file is whichever one the file says it holds, not the first by rule. */
+    @Test fun theProfileThatComesOnIsTheOneTheSettingsFileHolds() = runTest {
+        main.edit { it[mainStore] = 2L; it[active] = 3L; it[baseColour] = "green" }
+        files.store(3).edit { it[baseColour] = "red" }
+        files.store(3).failReads = IOException("Input/output error")
+
+        assertThat(view.data.first()[baseColour]).isEqualTo("green")
+        assertThat(main.now[active]).isEqualTo(2L)
+        assertThat(main.now[mainStore]).isEqualTo(2L)
+    }
+
+    /**
+     * The same from a write, which is what a start does first (the settings put their values in their own
+     * types before they are read): it threw as the reading did. The profile in the settings file comes on, and
+     * the change is made as one made for a profile that is not on any more: what every profile shares is
+     * written, and no profile's own values are. They were worked out for a profile nobody could read; written
+     * to the one that came on, they would have been another profile's look in its place.
+     */
+    @Test fun aChangeMadeWhileTheStoreOfTheProfileThatIsOnCannotBeReadChangesNoProfilesOwnValues() = runTest {
+        main.edit { it[baseColour] = "blue"; it[longPress] = 1.5f; it[active] = 2L }
+        files.store(2).edit { it[baseColour] = "green" }
+        val ownWrites = files.store(2).writes
+        files.store(2).failReads = IOException("Input/output error")
+
+        val result = view.updateData { p -> p.toMutablePreferences().apply { this[baseColour] = "red"; this[longPress] = 0.5f } }
+
+        assertThat(main.now[active]).isEqualTo(1L)
+        assertThat(main.now[longPress]).isEqualTo(0.5f)
+        assertThat(main.now[baseColour]).isEqualTo("blue")
+        assertThat(files.store(2).writes).isEqualTo(ownWrites)
+        assertThat(files.store(2).now[baseColour]).isEqualTo("green")
+        assertThat(result).isEqualTo(view.data.first())
+    }
+
     @Test fun anUpdateReturnsTheNewView() = runTest {
         main.edit { it[longPress] = 1.5f; it[active] = 2L }
 

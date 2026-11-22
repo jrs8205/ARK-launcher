@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher.data.profile
 
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.google.common.truth.Truth.assertThat
@@ -92,6 +94,33 @@ class DiskHomeProfileFilesTest {
         context.preferencesDataStoreFile("home_profile_0").parentFile?.deleteRecursively()
 
         assertThat(DiskHomeProfileFiles(context, scope, namesIn = { error("there is no folder to read") }).ids()).isEmpty()
+    }
+
+    /**
+     * Review round 13, second run, with the stores the launcher has on a phone. A store whose file cannot be
+     * read (here a folder lies where the file should be) throws at its first reading, and the profile it
+     * belongs to was on. The settings as the launcher reads them then come from the profile whose values the
+     * settings file holds, which is on from there; what lies where the store should be is left as it is.
+     */
+    @Test fun aStoreFileThatCannotBeReadLeavesItsProfileForTheOneInTheSettingsFile(): Unit = runBlocking {
+        val active = longPreferencesKey(HomeProfileKeys.ACTIVE)
+        val settingsFile = PreferenceDataStoreFactory.create(scope = scope) {
+            context.preferencesDataStoreFile("settings_of_this_test")
+        }
+        settingsFile.edit {
+            it[stringPreferencesKey(HomeProfileKeys.LIST)] = "1\t\n2\tWork"
+            it[active] = 2L
+            it[baseColour] = "blue"
+        }
+        val broken = context.preferencesDataStoreFile("home_profile_2")
+        assertThat(broken.mkdirs()).isTrue()
+
+        val seen = ProfiledPreferences(settingsFile, files).data.first()
+
+        assertThat(seen[baseColour]).isEqualTo("blue")
+        assertThat(seen[active]).isEqualTo(1L)
+        assertThat(settingsFile.data.first()[active]).isEqualTo(1L)
+        assertThat(broken.isDirectory).isTrue()
     }
 
     @Test fun deletingAProfileThatNeverWroteAnythingIsFine() = runBlocking {

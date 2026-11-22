@@ -240,6 +240,38 @@ class SettingsAcrossProfilesTest {
     }
 
     /**
+     * Review round 13, second run: a start with the store of the profile that is on unreadable. The settings'
+     * first step is a write and their second the reading, and both went to that store and threw, so no home
+     * screen came up and no Settings to choose another profile in. The start now shows the profile whose
+     * values the settings file holds, and says so to everything that asks which profile is on. The profile
+     * that failed is still listed and is not written to: it cannot be switched to while its store fails, and
+     * is as it was when the store reads again.
+     */
+    @Test fun aStartWithTheStoreOfTheProfileThatIsOnUnreadableShowsTheProfileInTheSettingsFile() = runTest {
+        settings.setBaseColour("blue")
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setBaseColour("green")
+        val ownWrites = files.store(2).writes
+        files.store(2).failReads = java.io.IOException("Input/output error")
+
+        val started = SettingsRepository(view, view)
+        val first = started.settings.first()
+
+        assertThat(first.homeProfileId).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(first.baseColour).isEqualTo("blue")
+        assertThat(store.current()).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 2L)
+        assertThat(runCatching { store.setActive(2) }.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        assertThat(store.current()).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(files.store(2).writes).isEqualTo(ownWrites)
+
+        files.store(2).failReads = null
+        store.setActive(2)
+        assertThat(started.settings.first().baseColour).isEqualTo("green")
+    }
+
+    /**
      * Review round 12. The released 1.2.1 kept a key it did not know in the type its backup file gave it, so a
      * settings file that comes to this version from it can hold anything under the profile bookkeeping's
      * names (a hand-edited backup restored there). A text where a number is kept threw at the first reading of
