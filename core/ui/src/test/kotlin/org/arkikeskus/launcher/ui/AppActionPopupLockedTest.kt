@@ -6,6 +6,8 @@ import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.os.Process
 import android.os.UserHandle
+import androidx.compose.runtime.CompositionLocalProvider
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -74,24 +76,26 @@ class AppActionPopupLockedTest {
 
     private fun show(locked: Boolean) {
         compose.setContent {
-            AppActionPopup(
-                app = app,
-                // Near the window's top: the rows of the unlocked menu need the room under it.
-                anchor = IntOffset(200, 40),
-                preferAbove = false,
-                actions = listOf(
-                    PopupAction("App info", keptWhenLocked = true) {},
-                    PopupAction("Remove from home") {},
-                ),
-                onDismiss = {},
-                onPinShortcut = {},
-                onWidgets = {},
-                hasWidgets = { true },
-                locked = locked,
-            )
+            // The menu asks Android itself here (the shadow answers), on this thread: no wait on another one.
+            CompositionLocalProvider(LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
+                AppActionPopup(
+                    app = app,
+                    // Near the window's top: the rows of the unlocked menu need the room under it.
+                    anchor = IntOffset(200, 40),
+                    preferAbove = false,
+                    actions = listOf(
+                        PopupAction("App info", keptWhenLocked = true) {},
+                        PopupAction("Remove from home") {},
+                    ),
+                    onDismiss = {},
+                    onPinShortcut = {},
+                    onWidgets = {},
+                    hasWidgets = { true },
+                    locked = locked,
+                )
+            }
         }
-        // The card shows once its shortcut query (off the main thread) has answered.
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
     }
 
     /** The fixture: unlocked, every row this popup can have is there. */

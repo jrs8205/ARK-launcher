@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
@@ -129,18 +128,19 @@ private fun PickerTitle(title: String, icon: Int, iconLabel: String, back: Boole
 @Composable
 private fun IconSources(original: @Composable (Dp) -> Unit, onPick: (CustomIcon?) -> Unit, onOpenPack: (IconPackChoice) -> Unit) {
     val choices = LocalIconChoices.current
+    val background = LocalBackgroundDispatcher.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val failed = stringResource(R.string.icon_picture_failed)
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri == null || choices == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val icon = withContext(Dispatchers.IO) { choices.importImage(uri) }
+            val icon = withContext(background) { choices.importImage(uri) }
             if (icon != null) onPick(icon) else Toast.makeText(context, failed, Toast.LENGTH_SHORT).show()
         }
     }
     val packs by produceState<List<IconPackChoice>?>(null, choices) {
-        value = withContext(Dispatchers.IO) { choices?.packs().orEmpty() }
+        value = withContext(background) { choices?.packs().orEmpty() }
     }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -198,12 +198,13 @@ private fun SourceRow(label: String, leading: @Composable () -> Unit, onClick: (
 @Composable
 private fun PackIcons(pack: IconPackChoice, app: AppItem?, onPick: (CustomIcon?) -> Unit) {
     val choices = LocalIconChoices.current ?: return
+    val background = LocalBackgroundDispatcher.current
     var query by remember { mutableStateOf("") }
     val icons by produceState<List<String>?>(null, pack) {
-        value = withContext(Dispatchers.IO) { choices.icons(pack.packageName) }
+        value = withContext(background) { choices.icons(pack.packageName) }
     }
     val suggested by produceState<String?>(null, pack, app) {
-        value = app?.let { withContext(Dispatchers.IO) { choices.suggestion(pack.packageName, it) } }
+        value = app?.let { withContext(background) { choices.suggestion(pack.packageName, it) } }
     }
     OutlinedTextField(
         value = query,

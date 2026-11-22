@@ -8,6 +8,8 @@ import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.runtime.CompositionLocalProvider
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -71,9 +73,14 @@ class EditAppDialogTest {
     }
 
     /** [open] is the caller's own state: false takes the dialog away from outside, as HOME does. */
-    private fun show(target: AppItem = app, open: () -> Boolean = { true }) {
+    private fun show(target: AppItem = app, background: CoroutineDispatcher = Dispatchers.Unconfined, open: () -> Boolean = { true }) {
         compose.setContent {
-            CompositionLocalProvider(LocalIconChoices provides choices, LocalActivityResultRegistryOwner provides photoPicker) {
+            CompositionLocalProvider(
+                LocalIconChoices provides choices,
+                LocalActivityResultRegistryOwner provides photoPicker,
+                // What the picker reads is read at once, on this thread: no test here waits on another one.
+                LocalBackgroundDispatcher provides background,
+            ) {
                 if (open()) {
                     EditAppDialog(
                         app = target,
@@ -143,6 +150,43 @@ class EditAppDialogTest {
         assertThat(dismissed).isEqualTo(1)
     }
 
+    /** A dispatcher that runs what it is given only when the test says so, on the test's own thread. */
+    private class PacedDispatcher : CoroutineDispatcher() {
+        private val waiting = ArrayDeque<Runnable>()
+
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+            synchronized(waiting) { waiting.addLast(block) }
+        }
+
+        fun runAll() {
+            while (true) (synchronized(waiting) { waiting.removeFirstOrNull() } ?: return).run()
+        }
+    }
+
+    /**
+     * Review round 12, from a full test run of our own. The picker read its packs and their icons on the IO
+     * dispatcher, whatever the test did: what was read came back at a time of its own, and a test that looked
+     * as soon as the screen was idle found the pack's icons not there yet on a busy machine. The picker reads
+     * on the dispatcher its place gives it ([LocalBackgroundDispatcher]): here one that runs only when told,
+     * so nothing is there before, and everything is there after.
+     */
+    @Test fun thePickerReadsOnTheDispatcherItsPlaceGivesIt() {
+        val paced = PacedDispatcher()
+        show(background = paced)
+        openPicker()
+
+        compose.onNodeWithText("Example Icons").assertDoesNotExist()
+        paced.runAll()
+        compose.waitForIdle()
+        compose.onNodeWithText("Example Icons").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.icon_suggested)).assertDoesNotExist()
+        paced.runAll()
+        compose.waitForIdle()
+        compose.onNodeWithText(text(R.string.icon_suggested)).assertIsDisplayed()
+    }
+
     @Test fun theSearchNarrowsThePacksIcons() {
         show()
 
@@ -162,7 +206,7 @@ class EditAppDialogTest {
             override fun icons(pack: String) = listOf("google_chrome", "suggested")
         }
         compose.setContent {
-            CompositionLocalProvider(LocalIconChoices provides packWithClash) {
+            CompositionLocalProvider(LocalIconChoices provides packWithClash, LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
                 EditAppDialog(app = app, onSave = { _, _ -> }, onReset = {}, onDismiss = {})
             }
         }
@@ -211,7 +255,7 @@ class EditAppDialogTest {
     /** Home's dialog offers the swipe-up row: [target] is the app a swipe up on this icon opens today. */
     private fun showWithSwipeUp(target: AppItem? = null) {
         compose.setContent {
-            CompositionLocalProvider(LocalIconChoices provides choices) {
+            CompositionLocalProvider(LocalIconChoices provides choices, LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
                 EditAppDialog(
                     app = app,
                     onSave = { name, icon -> saved += name to icon },
@@ -260,7 +304,7 @@ class EditAppDialogTest {
     @Test fun theSwipeDownRowHasItsOwnTargetAndPick() {
         val pickedDown = mutableListOf<AppItem?>()
         compose.setContent {
-            CompositionLocalProvider(LocalIconChoices provides choices) {
+            CompositionLocalProvider(LocalIconChoices provides choices, LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
                 EditAppDialog(
                     app = app,
                     onSave = { name, icon -> saved += name to icon },
@@ -299,7 +343,7 @@ class EditAppDialogTest {
             override fun packs() = emptyList<IconPackChoice>()
         }
         compose.setContent {
-            CompositionLocalProvider(LocalIconChoices provides none) {
+            CompositionLocalProvider(LocalIconChoices provides none, LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
                 EditAppDialog(app = app, onSave = { _, _ -> }, onReset = {}, onDismiss = {})
             }
         }

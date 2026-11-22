@@ -63,7 +63,6 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import kotlin.math.roundToInt
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
@@ -181,6 +180,7 @@ fun AppActionPopup(
     palette: ExpressivePalette? = null,
 ) {
     val context = LocalContext.current
+    val background = LocalBackgroundDispatcher.current
     // The lock is asked here, once for every surface that opens this popup: what adds to the desktop (a
     // shortcut's pin, the Widgets row) or changes it (a row not marked as kept) is not offered.
     @Suppress("NAME_SHADOWING") val onPinShortcut = onPinShortcut.takeUnless { locked }
@@ -189,12 +189,12 @@ fun AppActionPopup(
     // Null = still being asked for; the card waits for both (or the wait below) before it shows.
     var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>?>(null) }
     LaunchedEffect(app.key) {
-        shortcuts = shortcutsOf?.invoke(app) ?: withContext(Dispatchers.IO) { AppShortcuts.query(context, app) }
+        shortcuts = shortcutsOf?.invoke(app) ?: withContext(background) { AppShortcuts.query(context, app) }
     }
     var widgets by remember(app.key) { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(app.key, onWidgets != null) {
         widgets = onWidgets != null && (
-            hasWidgets?.invoke(app) ?: withContext(Dispatchers.IO) { AppWidgets.hasHomeScreenWidgets(context, app) }
+            hasWidgets?.invoke(app) ?: withContext(background) { AppWidgets.hasHomeScreenWidgets(context, app) }
         )
     }
     var waited by remember(app.key) { mutableStateOf(false) }
