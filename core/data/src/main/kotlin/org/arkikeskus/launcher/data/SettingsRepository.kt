@@ -75,36 +75,18 @@ class SettingsRepository @Inject constructor(
 ) {
 
     val settings: Flow<LauncherSettings> = dataStore.data.onStart {
-        // An older version restores a newer backup by storing the keys it does not know as Long
-        // (importRaw's fallback). After the upgrade every registered numeric key must hold its own
-        // type before the first typed read, or that read throws on every launch. A stored value of
-        // the right type is left alone; a wrong-typed number is converted (the read clamps it); a
-        // value that is not a number at all is dropped so the default applies.
+        // An older version restores a newer backup by storing the keys it does not know in the type the
+        // file gives them (importRaw's fallback): a number as a Long, a text or a truth value as it is.
+        // After the upgrade every setting must hold its own type before the first typed read, or that
+        // read throws on every launch. A stored value of the right type is left alone; a wrong-typed
+        // number is converted (the read clamps it); anything else is dropped so the default applies
+        // (SettingsTypes.typed). Where the store is the launcher's view of the settings, it already
+        // hands every reader the values so, and this changes nothing; it is what puts a plain store right.
         dataStore.edit { p ->
-            val stored = p.asMap()
-            for (name in FLOAT_KEYS) {
-                val raw = stored[floatPreferencesKey(name)] ?: continue
-                if (raw !is Float) {
-                    p.remove(floatPreferencesKey(name))
-                    (raw as? Number)?.let { p[floatPreferencesKey(name)] = it.toFloat() }
-                }
-            }
-            for (name in INT_KEYS) {
-                val raw = stored[intPreferencesKey(name)] ?: continue
-                if (raw !is Int) {
-                    p.remove(intPreferencesKey(name))
-                    (raw as? Number)?.let {
-                        p[intPreferencesKey(name)] = when (name) {
-                            // Page counters clamp before the conversion so a huge Long cannot wrap.
-                            Keys.HOME_PAGE.name, Keys.HOME_PAGE_COUNT.name ->
-                                it.toLong().coerceIn(0L, HomeLayoutRepository.MAX_PAGES.toLong()).toInt()
-                            // An ARGB colour arrives as the signed Int's Long, or its unsigned form: wrap.
-                            Keys.APP_LABEL_COLOR.name, Keys.DRAWER_BACKGROUND_COLOR.name, Keys.DRAWER_LABEL_COLOR.name,
-                            Keys.FOLDER_BACKGROUND_COLOR.name, Keys.SMARTSPACE_BACKGROUND_COLOR.name -> it.toInt()
-                            else -> it.toLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
-                        }
-                    }
-                }
+            val typed = SettingsTypes.typed(p)
+            if (typed !== p) {
+                p.clear()
+                p += typed
             }
         }
     }.map { p ->

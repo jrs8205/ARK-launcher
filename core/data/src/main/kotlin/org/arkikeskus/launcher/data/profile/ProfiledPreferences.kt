@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.TypedPreferences
 import org.arkikeskus.launcher.model.HomeProfile
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -54,9 +55,23 @@ suspend fun <T> writingForHomeProfile(profileId: Long, write: suspend () -> T): 
  * The profile bookkeeping ([HomeProfileKeys.RESERVED]) shows in the view and cannot be changed through it.
  */
 class ProfiledPreferences(
-    private val main: DataStore<Preferences>,
+    settingsFile: DataStore<Preferences>,
     private val files: HomeProfileFiles,
 ) : DataStore<Preferences> {
+
+    /**
+     * The settings file, read in the settings' own types ([TypedPreferences]), as every profile's own store is
+     * ([storeOf]). Everything that reads or changes a setting does it through this view, whichever profile is
+     * on and whichever reader comes first, so this is where a value an older version kept in another type
+     * stops: handed on, it threw at the first typed read, which for the home screen is its start.
+     *
+     * (Not of the constructor parameter's name: an initializer below would read the parameter, the file as
+     * it is, in place of this.)
+     */
+    private val main: DataStore<Preferences> = TypedPreferences(settingsFile)
+
+    /** The own store of [profileId], read as [main] is. */
+    private fun storeOf(profileId: Long): DataStore<Preferences> = TypedPreferences(files.store(profileId))
 
     /** Held over every write, here and by the profile list's own writes to [main]. */
     val mutex = Mutex()
@@ -65,7 +80,7 @@ class ProfiledPreferences(
     override val data: Flow<Preferences> = main.data
         .flatMapLatest { shared ->
             val active = activeId(shared)
-            if (active == mainStoreId(shared)) flowOf(shared) else files.store(active).data.map { own -> viewOf(shared, own) }
+            if (active == mainStoreId(shared)) flowOf(shared) else storeOf(active).data.map { own -> viewOf(shared, own) }
         }
         .distinctUntilChanged()
 
@@ -81,7 +96,7 @@ class ProfiledPreferences(
             if (next != shared) main.updateData { next }
             return@withLock next
         }
-        val store = files.store(active)
+        val store = storeOf(active)
         val own = store.data.first()
         val next = transform(viewOf(shared, own))
         // The shared part goes to the settings file, beside the main-store profile's own values and
@@ -111,7 +126,7 @@ class ProfiledPreferences(
     /** The own values of [profileId] alone, whether it is on or not. */
     suspend fun profileValues(profileId: Long): Preferences {
         val shared = main.data.first()
-        return perProfileOf(if (profileId == mainStoreId(shared)) shared else files.store(profileId).data.first())
+        return perProfileOf(if (profileId == mainStoreId(shared)) shared else storeOf(profileId).data.first())
     }
 
     /** The profiles that are being made ([HomeProfileStore.prepare]): their own values are written, and they
@@ -172,7 +187,7 @@ class ProfiledPreferences(
      *  caller that holds [mutex]. */
     private suspend fun valuesOf(ids: List<Long>, shared: Preferences): List<Preferences> {
         val inMain = mainStoreId(shared)
-        return ids.map { id -> perProfileOf(if (id == inMain) shared else files.store(id).data.first()) }
+        return ids.map { id -> perProfileOf(if (id == inMain) shared else storeOf(id).data.first()) }
     }
 
     /** Every profile something of its own is kept for: those the list in [shared] names, in its order, then
@@ -230,7 +245,7 @@ class ProfiledPreferences(
 
     /** [updateProfile] for a caller that holds [mutex] already. */
     internal suspend fun updateProfileLocked(profileId: Long, transform: (MutablePreferences) -> Unit) {
-        val store = if (profileId == mainStoreId(main.data.first())) main else files.store(profileId)
+        val store = if (profileId == mainStoreId(main.data.first())) main else storeOf(profileId)
         store.updateData { current ->
             val own = perProfileOf(current).toMutablePreferences().also(transform)
             mutablePreferencesOf().apply {

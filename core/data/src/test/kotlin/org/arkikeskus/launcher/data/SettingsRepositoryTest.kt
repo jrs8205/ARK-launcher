@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -1204,5 +1205,31 @@ class SettingsRepositoryTest {
         assertThat(settings.appLabelColor).isEqualTo(0xFF000000.toInt())
         assertThat(settings.drawerLabelColor).isEqualTo(0xFFFFFFFF.toInt())
         assertThat(settings.dockBackgroundOpacity).isEqualTo(0.35f) // not a number: dropped, the default is back
+    }
+
+    /**
+     * Review round 13. And not numbers alone: 1.2.1 kept a key it did not know as the text or the truth value
+     * its backup file gave it, so a setting this version added can be there in either. The first typed read
+     * of it threw at every start of the home screen. It is taken out before that read, and the default applies.
+     */
+    @Test
+    fun `a setting an older version stored in another type is dropped before the first typed read`() = runTest {
+        val store = InMemoryDataStore()
+        store.edit {
+            it[stringPreferencesKey("search_hidden_apps")] = "yes"
+            it[longPreferencesKey("drawer_search_at_bottom")] = 1L
+            it[stringPreferencesKey("count_system_usage")] = "on"
+            it[booleanPreferencesKey("weather_icon_size")] = true
+            it[stringPreferencesKey("weather_icon_style")] = LauncherSettings.WEATHER_ICON_EMOJI
+        }
+
+        val settings = SettingsRepository(store).settings.first()
+
+        assertThat(settings.searchHiddenApps).isFalse()
+        assertThat(settings.drawerSearchAtBottom).isFalse()
+        assertThat(settings.countSystemUsage).isFalse()
+        assertThat(settings.weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_STANDARD)
+        // The file itself is right from then on: what was in its own type is all that is left.
+        assertThat(store.data.first().asMap().keys.map { it.name }).containsExactly("weather_icon_style")
     }
 }

@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.data.profile
 
 import com.google.common.truth.Truth.assertThat
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -8,11 +9,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.arkikeskus.launcher.data.AppUsageRepository
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeFolderIcons
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.HomeProfile
+import org.arkikeskus.launcher.model.LauncherSettings
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Test
@@ -429,5 +432,63 @@ class SettingsAcrossProfilesTest {
                 .that(settings.folderIconsOfEveryProfile()).contains(work)
             main.onNextRead = null
         }
+    }
+
+    /**
+     * Review round 13. The settings file a user upgrades from 1.2.1 with can hold a setting this version added
+     * in a type that is not its own: 1.2.1 kept a key it did not know in the type its backup file gave it. A
+     * typed key hands such a value over as it is, and the home screen's first reading of the settings threw
+     * on it, at every start. It is read as not set, by every reader of the settings file and whichever of
+     * them reads first; only numbers were set right before, and only for the reader that read all settings.
+     */
+    @Test fun aSettingKeptInAnotherTypeIsReadAsNotSetByEveryReader() = runTest {
+        main.updateData {
+            it.toMutablePreferences().apply {
+                this[stringPreferencesKey("search_hidden_apps")] = "yes"
+                this[stringPreferencesKey("drawer_search_at_bottom")] = "yes"
+                this[longPreferencesKey("count_system_usage")] = 1L
+                this[booleanPreferencesKey("weather_icon_size")] = true
+                this[booleanPreferencesKey("swipe_down_apps")] = true
+                this[stringPreferencesKey("app_usage_system_synced_to")] = "soon"
+                this[stringPreferencesKey("base_colour")] = "blue"
+            }.toPreferences()
+        }
+
+        // Readers that are not "all the settings", and read before it.
+        assertThat(AppUsageRepository(view).systemSyncedTo.first()).isEqualTo(0L)
+        assertThat(settings.swipeDownApps.first()).isEmpty()
+        val read = settings.settings.first()
+        assertThat(read.searchHiddenApps).isFalse()
+        assertThat(read.drawerSearchAtBottom).isFalse()
+        assertThat(read.countSystemUsage).isFalse()
+        assertThat(read.weatherIconSize).isEqualTo(LauncherSettings.WEATHER_SIZE_STANDARD)
+        // What is in its own type is read as ever.
+        assertThat(read.baseColour).isEqualTo("blue")
+
+        // And the next change of any setting leaves the file itself without them.
+        settings.setLongPressScale(1.5f)
+        assertThat(main.now.asMap().keys.map { it.name })
+            .containsExactly("base_colour", "long_press_scale")
+    }
+
+    /** Review round 13. A profile's own store is read in the settings' types as the settings file is: while
+     *  the profile is on, and when the start reads every profile's values for the apps they name. */
+    @Test fun aProfilesOwnStoreIsReadInTheSettingsTypesToo() = runTest {
+        store.create("Work", copyOf = null)
+        files.store(2).updateData {
+            it.toMutablePreferences().apply {
+                this[booleanPreferencesKey("drawer_folders")] = true
+                this[stringPreferencesKey("drawer_search_at_bottom")] = "yes"
+                this[stringPreferencesKey("left_swipe_app_key")] = "com.mail/Main/0"
+            }.toPreferences()
+        }
+
+        assertThat(settings.referencedAppKeys()).containsExactly("com.mail/Main/0")
+        assertThat(view.profileValues(2).asMap().keys.map { it.name }).containsExactly("left_swipe_app_key")
+
+        store.setActive(2)
+        assertThat(settings.settings.first().drawerSearchAtBottom).isFalse()
+        assertThat(settings.drawerFolders.first()).isEmpty()
+        assertThat(settings.settings.first().leftSwipeAppKey).isEqualTo("com.mail/Main/0")
     }
 }
