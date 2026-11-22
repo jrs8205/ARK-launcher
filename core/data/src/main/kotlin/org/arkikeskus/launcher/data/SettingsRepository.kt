@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import org.arkikeskus.launcher.data.profile.HomeProfileKeys
@@ -217,6 +218,18 @@ class SettingsRepository @Inject constructor(
 
     /** The home profile that is on, as these settings see it: the one whose own values they show. */
     val homeProfileId: Flow<Long> = dataStore.data.map { ProfiledPreferences.activeId(it) }.distinctUntilChanged()
+
+    /**
+     * The home profile that was left because its own values could not be read (another one came on in its
+     * place), for as long as the user has not been told ([toldOfLeftHomeProfile]); null when there is none to
+     * tell of.
+     */
+    val leftHomeProfile: Flow<Long?> = profiles?.leftUnread ?: flowOf(null)
+
+    /** The user has been told that the home profile [profileId] was left ([leftHomeProfile]). */
+    fun toldOfLeftHomeProfile(profileId: Long) {
+        profiles?.toldOfLeftProfile(profileId)
+    }
 
     /** The page HOME returns to and the explicit page count, in one settings snapshot (the page
      *  menu's operations own both; see WorkspacePageOperations). */

@@ -263,6 +263,16 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     init {
+        // A profile whose own values could not be read was left and another one came on (at this start, or
+        // while the launcher ran): the user sees another home screen than the one that was on, and is told
+        // why, once. The notice waits in its queue until the home screen is there to show it.
+        viewModelScope.launch {
+            settingsRepository.leftHomeProfile.collect { left ->
+                if (left == null) return@collect
+                notify(HomeNotice.ProfileNotRead)
+                settingsRepository.toldOfLeftHomeProfile(left)
+            }
+        }
         // First-run experience, decided ONCE per install: on an empty home surface, seed the
         // smartspace widget + the default dock (phone/messages/Settings/browser/camera) and show
         // the intro. Device-local flags so removing items never re-seeds, and updating users

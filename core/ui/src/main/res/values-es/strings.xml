@@ -13,6 +13,7 @@
     <string name="notice_work_apps_need_default">Establece ARK-Launcher como launcher predeterminado para pausar las aplicaciones de trabajo.</string>
     <string name="notice_private_space_needs_default">Establece ARK-Launcher como launcher predeterminado para bloquear o desbloquear el espacio privado.</string>
     <string name="notice_change_not_saved">No se pudo guardar el cambio. No se ha cambiado nada.</string>
+    <string name="notice_profile_not_read">No se pudo abrir un perfil. En su lugar se muestra otro perfil.</string>
     <string name="edit_title">Editar</string>
     <string name="edit_icon_hint">Toca el icono para cambiarlo</string>
     <string name="edit_swipe_up">Deslizar hacia arriba abre</string>

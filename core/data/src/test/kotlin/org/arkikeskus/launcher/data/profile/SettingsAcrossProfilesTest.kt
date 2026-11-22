@@ -262,6 +262,10 @@ class SettingsAcrossProfilesTest {
         assertThat(first.baseColour).isEqualTo("blue")
         assertThat(store.current()).isEqualTo(HomeProfile.FIRST_ID)
         assertThat(store.list().map { it.id }).containsExactly(1L, 2L)
+        // The settings say which profile was left, for whoever tells the user, until the user was told.
+        assertThat(started.leftHomeProfile.first()).isEqualTo(2L)
+        started.toldOfLeftHomeProfile(2L)
+        assertThat(started.leftHomeProfile.first()).isNull()
         assertThat(runCatching { store.setActive(2) }.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
         assertThat(store.current()).isEqualTo(HomeProfile.FIRST_ID)
         assertThat(files.store(2).writes).isEqualTo(ownWrites)

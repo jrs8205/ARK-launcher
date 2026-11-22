@@ -13,9 +13,11 @@ import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.DOCK
 import org.arkikeskus.launcher.data.local.HomeItemEntity.Companion.HOME
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.ui.HomeNotice
 import org.junit.Test
+import java.io.File
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -110,6 +112,43 @@ class HomeViewModelNoticesTest {
             assertThat(notices).containsExactly(HomeNotice.HomeFull)
             assertThat(wiring.dao.getByKey(DOCK, app.packageName, app.className, app.userSerial)).isNotNull()
             assertThat(wiring.dao.getByKey(HOME, app.packageName, app.className, app.userSerial)).isNull()
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 13, second run, and the owner's word on it: the user is told. The profile that was on keeps
+     * its values in a file of its own, and at this start that file cannot be read (a folder lies where it
+     * was). The home screen comes up all the same, on the profile whose values the settings file holds, and
+     * says once that a profile could not be opened: without that the user finds another home screen than the
+     * one that was left, and no reason for it. What lies where the file was is not touched.
+     */
+    @Test fun aStartThatLeavesAProfileItCannotReadTellsTheScreenOnce() = runTest {
+        val before = ProductionWiring(context, this)
+        val work = (before.homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile
+        assertThat(before.homeProfiles.switchTo(work.id)).isTrue()
+        before.closeAndLetGoOfTheFiles()
+        val own = File(context.filesDir, "datastore/home_profile_${work.id}.preferences_pb")
+        assertThat(own.delete()).isTrue()
+        assertThat(own.mkdirs()).isTrue()
+
+        val wiring = ProductionWiring(context, this, settingsOn = before.settingsOnDisk)
+        try {
+            val viewModel = wiring.homeViewModel()
+            val notices = collectNotices(viewModel)
+
+            awaitUntil("the notice") { notices.isNotEmpty() }
+            assertThat(wiring.settingsRepository.settings.first().homeProfileId).isEqualTo(1L)
+            // Told once, however often the settings are read after it.
+            repeat(3) {
+                wiring.settingsRepository.settings.first()
+                shadowOf(Looper.getMainLooper()).idle()
+            }
+            assertThat(notices).containsExactly(HomeNotice.ProfileNotRead)
+            assertThat(wiring.settingsRepository.leftHomeProfile.first()).isNull()
+            assertThat(own.isDirectory).isTrue()
             wiring.clear(viewModel)
         } finally {
             wiring.close()

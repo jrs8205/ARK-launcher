@@ -13,6 +13,7 @@
     <string name="notice_work_apps_need_default">Lege ARK-Launcher als Standard-Launcher fest, um geschäftliche Apps zu pausieren.</string>
     <string name="notice_private_space_needs_default">Lege ARK-Launcher als Standard-Launcher fest, um das vertrauliche Profil zu sperren oder zu entsperren.</string>
     <string name="notice_change_not_saved">Die Änderung konnte nicht gespeichert werden. Es wurde nichts geändert.</string>
+    <string name="notice_profile_not_read">Ein Profil konnte nicht geöffnet werden. Stattdessen wird ein anderes Profil angezeigt.</string>
     <string name="edit_title">Bearbeiten</string>
     <string name="edit_icon_hint">Tippe auf das Symbol, um es zu ändern</string>
     <string name="edit_swipe_up">Wischen nach oben öffnet</string>

@@ -269,6 +269,32 @@ class ProfiledPreferencesTest {
         assertThat(result).isEqualTo(view.data.first())
     }
 
+    /**
+     * The owner's word on the round 14 request (2026-11-22): the user is told. The view names the profile that
+     * was left until someone has told the user of it, whether a reading or a change found the store failing;
+     * it names none while no profile was left, and none again once the user was told.
+     */
+    @Test fun theProfileThatWasLeftIsNamedUntilTheUserWasToldOfIt() = runTest {
+        main.edit { it[baseColour] = "blue"; it[active] = 2L }
+        assertThat(view.data.first()[active]).isEqualTo(2L)
+        assertThat(view.leftUnread.value).isNull()
+
+        files.store(2).failReads = IOException("Input/output error")
+        view.data.first()
+        assertThat(view.leftUnread.value).isEqualTo(2L)
+        view.toldOfLeftProfile(2L)
+        assertThat(view.leftUnread.value).isNull()
+
+        // And from a change, with the third profile on and failing.
+        main.edit { it[active] = 3L }
+        files.store(3).failReads = IOException("Input/output error")
+        view.edit { it[longPress] = 0.5f }
+        assertThat(view.leftUnread.value).isEqualTo(3L)
+        // Telling of another profile than the one named does not take the name away.
+        view.toldOfLeftProfile(2L)
+        assertThat(view.leftUnread.value).isEqualTo(3L)
+    }
+
     @Test fun anUpdateReturnsTheNewView() = runTest {
         main.edit { it[longPress] = 1.5f; it[active] = 2L }
 

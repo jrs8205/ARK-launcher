@@ -19,4 +19,8 @@ enum class HomeNotice(@StringRes val message: Int) {
 
     /** The storage refused a change the user made (a full disk): what was there is still there. */
     ChangeNotSaved(R.string.notice_change_not_saved),
+
+    /** The profile that was on could not be read, and another one came on in its place: the home screen
+     *  the user sees is not the one that was left, and this is why. */
+    ProfileNotRead(R.string.notice_profile_not_read),
 }

@@ -11,6 +11,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -110,13 +112,30 @@ class ProfiledPreferences(
      */
     private suspend fun leaveUnreadable(unreadable: Long) = mutex.withLock {
         val now = main.data.first()
-        if (activeId(now) == unreadable && mainStoreId(now) != unreadable) turnedToTheProfileInTheSettingsFile()
+        if (activeId(now) == unreadable && mainStoreId(now) != unreadable) turnedToTheProfileInTheSettingsFile(unreadable)
     }
 
-    /** Says that the profile whose values the settings file holds is on, and returns what the file then
-     *  holds. For a caller that holds [mutex]. */
-    private suspend fun turnedToTheProfileInTheSettingsFile(): Preferences =
+    /** Says that the profile whose values the settings file holds is on in place of [left], and returns what
+     *  the file then holds; [left] is named for the user to be told of ([leftUnread]). For a caller that
+     *  holds [mutex]. */
+    private suspend fun turnedToTheProfileInTheSettingsFile(left: Long): Preferences =
         main.updateData { now -> now.toMutablePreferences().apply { this[ACTIVE] = mainStoreId(now) }.toPreferences() }
+            .also { leftProfile.value = left }
+
+    private val leftProfile = MutableStateFlow<Long?>(null)
+
+    /**
+     * The profile that was left because its own store could not be read, for as long as nobody has told the
+     * user of it ([toldOfLeftProfile]); null when there is none to tell of. The user finds another home screen
+     * than the one that was on, and is owed the reason. In memory: it is told by the process that left the
+     * profile, which is the one that brings the home screen up.
+     */
+    val leftUnread: StateFlow<Long?> = leftProfile
+
+    /** The user has been told that [profileId] was left ([leftUnread]). */
+    fun toldOfLeftProfile(profileId: Long) {
+        leftProfile.compareAndSet(profileId, null)
+    }
 
     override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences = mutex.withLock {
         var shared = main.data.first()
@@ -129,7 +148,7 @@ class ProfiledPreferences(
             try {
                 own = storeOf(activeId(shared)).data.first()
             } catch (failed: IOException) {
-                shared = turnedToTheProfileInTheSettingsFile()
+                shared = turnedToTheProfileInTheSettingsFile(left = activeId(shared))
                 left = true
             }
         }

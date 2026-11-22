@@ -14,9 +14,11 @@ import android.os.UserHandle
 import android.os.UserManager
 import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -67,8 +69,18 @@ import kotlin.jvm.functions.Function0
  * test compile classpath (they are on its runtime classpath), so the few calls that would name
  * their types go through reflection.
  */
-internal class ProductionWiring(private val context: Application, testScope: TestScope) {
+internal class ProductionWiring(
+    private val context: Application,
+    testScope: TestScope,
+    /** The settings file a wiring before this one wrote and let go of ([closeAndLetGoOfTheFiles]): this one
+     *  is then a later start of the same launcher. None: a launcher that starts for the first time. */
+    settingsOn: File? = null,
+) {
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Where the settings file is on the disk. */
+    val settingsOnDisk: File =
+        settingsOn ?: File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
 
     val db: LauncherDatabase = Class.forName("androidx.room.Room")
         .getMethod("inMemoryDatabaseBuilder", Context::class.java, Class::class.java)
@@ -78,8 +90,7 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
 
     /** The settings file itself. Everything but the profile list reads and writes it through [dataStore]. */
     private val settingsFile: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
-        val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
-        val produceFile: () -> File = { file }
+        val produceFile: () -> File = { settingsOnDisk }
         factory.methods
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
             .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
@@ -214,6 +225,13 @@ internal class ProductionWiring(private val context: Application, testScope: Tes
 
     fun close() {
         dataStoreScope.cancel()
+        db.javaClass.getMethod("close").invoke(db)
+    }
+
+    /** [close], and not back before the stores have let go of their files: a file has one store at a time,
+     *  and a wiring made after this one opens the same files ([settingsOnDisk]). */
+    suspend fun closeAndLetGoOfTheFiles() {
+        dataStoreScope.coroutineContext[Job]!!.cancelAndJoin()
         db.javaClass.getMethod("close").invoke(db)
     }
 }
