@@ -173,7 +173,18 @@ class HomeProfileStore(
     }
 
     private suspend fun isKeptUnder(id: Long, kept: Set<Long>): Boolean {
-        val own = files.store(id).data.first()
+        val own = try {
+            files.store(id).data.first()
+        } catch (failed: java.io.IOException) {
+            // A store that is THERE and cannot be read: something is kept under this id, whatever it is,
+            // and it is not this profile's to take or to touch. Thrown from here, it stopped every new
+            // profile at this one file, at each attempt, though the next id was free. That is said of a
+            // store the folder lists. Where the folder cannot be listed either ([HomeProfileFiles.ids]
+            // throws), the failure says nothing about one id: passed over on it, every id would be, and
+            // the next one "free" could be another profile's.
+            if (id in files.ids()) return true
+            throw failed
+        }
         if (own[BEING_MADE] == true) return false
         return id in kept || own.asMap().isNotEmpty()
     }

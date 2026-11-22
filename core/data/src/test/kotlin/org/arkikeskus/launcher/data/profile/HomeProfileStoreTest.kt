@@ -505,6 +505,99 @@ class HomeProfileStoreTest {
     }
 
     /**
+     * Review round 15. A change finds the store of the profile that is on failing and waits for the work that
+     * holds the profile. By its turn the store reads again. The profile was left all the same: the look taken
+     * under the lock was at which profile is on, not at whether it still cannot be read. With switches queued
+     * so (2, left for 1, back to 2), the user's last choice, which had succeeded, was undone. The store is read
+     * again under the lock, and a profile that reads is not left: the change that waited is made as it was
+     * asked, the profile's own values with it.
+     */
+    @Test fun aProfileThatReadsAgainByItsLeaversTurnIsNotLeftAndTheChangeIsMadeAsAsked() = runTest(UnconfinedTestDispatcher()) {
+        theSecondProfileIsOn()
+        val begun = CompletableDeferred<Unit>()
+        val mayEnd = CompletableDeferred<Unit>()
+        val work = launch {
+            store.whileActiveStays {
+                begun.complete(Unit)
+                mayEnd.await()
+            }
+        }
+        begun.await()
+        files.store(2).failReads = unreadable
+        val change = async { view.edit { it[baseColour] = "red"; it[longPress] = 0.5f } }
+        assertThat(change.isCompleted).isFalse()
+
+        files.store(2).failReads = null
+        mayEnd.complete(Unit)
+        work.join()
+        change.await()
+
+        assertThat(store.current()).isEqualTo(2L)
+        assertThat(view.leftUnread.value).isNull()
+        assertThat(files.store(2).now[baseColour]).isEqualTo("red")
+        assertThat(main.now[longPress]).isEqualTo(0.5f)
+        assertThat(main.now[baseColour]).isEqualTo("blue")
+    }
+
+    /** The same for a reader that waited: it reads on from the profile that is on, which reads again. */
+    @Test fun aReaderWhoseProfileReadsAgainByItsTurnReadsOnFromThatProfile() = runTest(UnconfinedTestDispatcher()) {
+        theSecondProfileIsOn()
+        val begun = CompletableDeferred<Unit>()
+        val mayEnd = CompletableDeferred<Unit>()
+        val work = launch {
+            store.whileActiveStays {
+                begun.complete(Unit)
+                mayEnd.await()
+            }
+        }
+        begun.await()
+        files.store(2).failReads = unreadable
+        val read = async { view.data.first() }
+        assertThat(read.isCompleted).isFalse()
+
+        files.store(2).failReads = null
+        mayEnd.complete(Unit)
+        work.join()
+
+        assertThat(read.await()[baseColour]).isEqualTo("green")
+        assertThat(store.current()).isEqualTo(2L)
+        assertThat(view.leftUnread.value).isNull()
+    }
+
+    /**
+     * Review round 15. The id a new profile gets is the first one nothing is kept under, and whether anything
+     * is kept under an id is read from that id's own store. A store that is there and cannot be read threw
+     * out of that question: with the list back at one profile (a damaged settings file) and the second
+     * profile's store unreadable, no profile could be made any more, at every attempt, though the third id
+     * was free. Something IS kept under such an id, whatever it is: it is passed over, and not touched.
+     */
+    @Test fun anIdWhoseStoreIsThereAndCannotBeReadIsPassedOverByANewProfile() = runTest {
+        files.store(2).edit { it[baseColour] = "green" }
+        val ownWrites = files.store(2).writes
+        files.store(2).failReads = unreadable
+
+        val created = store.create("Work", copyOf = null)
+
+        assertThat(created).isEqualTo(HomeProfile(3, "Work"))
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""), HomeProfile(3, "Work")).inOrder()
+        assertThat(files.store(2).writes).isEqualTo(ownWrites)
+        assertThat(files.store(2).now[baseColour]).isEqualTo("green")
+    }
+
+    /** That is for a store that is there. When the stores cannot even be listed, a reading that fails says
+     *  nothing about one id: no id is passed over on that, and no profile is made. */
+    @Test fun noIdIsPassedOverWhenTheStoresCannotBeListedAtAll() = runTest {
+        files.store(2).failReads = unreadable
+        files.failIds = java.io.IOException("the folder could not be read")
+
+        val failure = runCatching { store.create("Work", copyOf = null) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(java.io.IOException::class.java)
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""))
+        assertThat(files.stores.keys).containsExactly(2L)
+    }
+
+    /**
      * Review round 14. Leaving a profile is one write to the settings file, and that file can be one that
      * reads and cannot be written (a full disk). The write then threw in place of the reading: no home screen
      * again. The profile that came on is then on for this run without the file having been told: everything

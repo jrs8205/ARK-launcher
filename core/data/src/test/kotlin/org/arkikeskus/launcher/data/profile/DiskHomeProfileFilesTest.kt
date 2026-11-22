@@ -9,9 +9,12 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -127,6 +130,62 @@ class DiskHomeProfileFilesTest {
         // that made the write is ended by that very news, and what it did after the write (naming the profile)
         // never happened. Over a store in memory the same reader got to the end.
         assertThat(view.leftUnread.value).isEqualTo(2L)
+    }
+
+    /**
+     * Review round 15, with the stores on the disk. A reader finds the store of the profile that is on
+     * failing (a folder lies where its file should be) while something else holds the profile; by the
+     * reader's turn the folder is gone and the store reads. The profile is not left on the word of a failure
+     * that has passed: the reader reads on from it, and nobody is told of a profile that was left.
+     */
+    @Test fun aStoreFileThatReadsAgainBeforeItsProfileIsLeftKeepsItsProfileOn(): Unit = runBlocking {
+        val active = longPreferencesKey(HomeProfileKeys.ACTIVE)
+        val settingsFile = PreferenceDataStoreFactory.create(scope = scope) {
+            context.preferencesDataStoreFile("settings_of_this_test")
+        }
+        settingsFile.edit {
+            it[stringPreferencesKey(HomeProfileKeys.LIST)] = "1\t\n2\tWork"
+            it[active] = 2L
+            it[baseColour] = "blue"
+        }
+        val broken = context.preferencesDataStoreFile("home_profile_2")
+        assertThat(broken.mkdirs()).isTrue()
+        val view = ProfiledPreferences(settingsFile, files)
+
+        view.hold.lock()
+        val read = async(Dispatchers.Default) { view.data.first() }
+        // Time for the reader to find the store failing and to come to the lock.
+        delay(500)
+        assertThat(read.isCompleted).isFalse()
+        assertThat(broken.delete()).isTrue()
+        view.hold.unlock()
+        val seen = withTimeout(10_000) { read.await() }
+
+        assertThat(seen[active]).isEqualTo(2L)
+        // The second profile's own values (it has none), not the first one's blue.
+        assertThat(seen[baseColour]).isNull()
+        assertThat(settingsFile.data.first()[active]).isEqualTo(2L)
+        assertThat(view.leftUnread.value).isNull()
+    }
+
+    /**
+     * Review round 15, with the stores on the disk: the list is one profile, and what lies where the second
+     * profile's store should be cannot be read (a folder). A new profile is made all the same, under the
+     * next id, and what lies there is left as it is.
+     */
+    @Test fun aNewProfileIsMadePastAStoreFileThatCannotBeRead(): Unit = runBlocking {
+        val settingsFile = PreferenceDataStoreFactory.create(scope = scope) {
+            context.preferencesDataStoreFile("settings_of_this_test")
+        }
+        val broken = context.preferencesDataStoreFile("home_profile_2")
+        assertThat(broken.mkdirs()).isTrue()
+        val store = HomeProfileStore(settingsFile, ProfiledPreferences(settingsFile, files), files)
+
+        val created = store.create("Work", copyOf = null)
+
+        assertThat(created?.id).isEqualTo(3L)
+        assertThat(store.list().map { it.id }).containsExactly(1L, 3L).inOrder()
+        assertThat(broken.isDirectory).isTrue()
     }
 
     @Test fun deletingAProfileThatNeverWroteAnythingIsFine() = runBlocking {

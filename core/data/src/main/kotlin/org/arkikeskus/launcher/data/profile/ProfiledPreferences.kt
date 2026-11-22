@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -150,22 +151,26 @@ class ProfiledPreferences(
     override val data: Flow<Preferences> = main.data
         .flatMapLatest { shared ->
             val active = activeId(shared)
-            if (active == mainStoreId(shared)) {
-                flowOf(shared)
-            } else {
-                storeOf(active).data.map { own -> viewOf(shared, own) }.catch { failed ->
-                    if (failed !is IOException) throw failed
-                    // Nothing is handed on from here: the settings file says another profile next, and
-                    // that is what is read.
-                    leaveUnreadable(active, failed)
-                }
-            }
+            if (active == mainStoreId(shared)) flowOf(shared) else ownView(shared, active)
         }
         .distinctUntilChanged()
 
     /**
+     * What is seen while [active], a profile with a store of its own, is on: [shared] with that store's
+     * values. A store that cannot be read ends this with nothing handed on, once the profile is off
+     * ([leaveUnreadable]): the settings file says another profile next, and that is what is read. A store
+     * that reads again by then is read on from here.
+     */
+    private fun ownView(shared: Preferences, active: Long): Flow<Preferences> =
+        storeOf(active).data.map { own -> viewOf(shared, own) }.catch { failed ->
+            if (failed !is IOException) throw failed
+            if (!leaveUnreadable(active, failed)) emitAll(ownView(shared, active))
+        }
+
+    /**
      * [unreadable] is on and its own store cannot be read ([cause]): the profile whose values the settings
-     * file holds comes on ([leaveHeld]).
+     * file holds comes on ([leaveHeld]). True when [unreadable] is off after this; false when it is still
+     * on, because its store reads again.
      *
      * That is a switch, and it is made as one: under [hold], after any work that holds the profile. Made by
      * whoever read the settings first, it was made in the middle of such work too: a restore confirmed for a
@@ -174,9 +179,9 @@ class ProfiledPreferences(
      * profile: it is told that its profile cannot be read ([cause] is thrown), and the profile is left when
      * the work is done. Not for a caller that holds [mutex].
      */
-    private suspend fun leaveUnreadable(unreadable: Long, cause: IOException) {
+    private suspend fun leaveUnreadable(unreadable: Long, cause: IOException): Boolean {
         if (currentCoroutineContext()[HoldingHomeProfile] != null) throw cause
-        hold.withLock { leaveHeld(unreadable) }
+        return hold.withLock { leaveHeld(unreadable) }
     }
 
     /**
@@ -202,11 +207,24 @@ class ProfiledPreferences(
      * to the settings file, as a switch is: which profile is on is one value that the layout, the pictures
      * and the settings all go by. A file that does not take the write leaves the profile left for this run
      * ([unsaved]): the failure of that write is not one more reason for the home screen not to come up.
+     *
+     * True when [unreadable] is off after this (left here, or another profile was on already); false when it
+     * is on and READS: the failure the caller saw was before it had this lock, and a store can read again by
+     * then. The store is read once more under the lock, and a profile that reads is not left: left on the
+     * word of a failure that had passed, the profile the user had just switched back to was taken away again.
      * For a caller that holds [hold], and not [mutex].
      */
-    private suspend fun leaveHeld(unreadable: Long) = mutex.withLock {
+    private suspend fun leaveHeld(unreadable: Long): Boolean = mutex.withLock {
         val now = main.data.first()
-        if (activeId(now) != unreadable || mainStoreId(now) == unreadable) return@withLock
+        if (activeId(now) != unreadable) return@withLock true
+        // Its values are in the settings file now (the profile that lived there was deleted meanwhile).
+        if (mainStoreId(now) == unreadable) return@withLock false
+        try {
+            storeOf(unreadable).data.first()
+            return@withLock false
+        } catch (stillSo: IOException) {
+            // Left, below.
+        }
         val on = mainStoreId(now)
         // The write and the naming of the profile for the user are one step, whatever becomes of the caller.
         // A reader that leaves a profile is ended by the news of it: the settings file hands its new values
@@ -221,6 +239,7 @@ class ProfiledPreferences(
             }
             leftProfile.value = unreadable
         }
+        true
     }
 
     private val leftProfile = MutableStateFlow<Long?>(null)
@@ -246,13 +265,12 @@ class ProfiledPreferences(
         // A write is what a start does first (the settings put their values in their own types before they
         // are read), so the profile that cannot be read is left here as it is by a reader ([data]): with
         // the lock of the writes let go of first, since the hold a switch is made under is taken before it.
+        // A profile that reads again by the time the hold is had was not left: the change is then made once
+        // more as it was asked, its own values with it.
         var left = false
         while (true) {
             when (val done = mutex.withLock { changed(transform, left) }) {
-                is Unreadable -> {
-                    leaveUnreadable(done.profile, done.cause)
-                    left = true
-                }
+                is Unreadable -> if (leaveUnreadable(done.profile, done.cause)) left = true
                 else -> return done as Preferences
             }
         }
