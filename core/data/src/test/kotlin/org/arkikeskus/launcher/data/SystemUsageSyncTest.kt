@@ -634,7 +634,7 @@ class SystemUsageSyncTest {
      */
     @Test fun aLaunchAskedInAnEarlierCountAnswersForNoOpeningOfTheNewOne() = runTest {
         switchOn(at = now - 60_000)
-        val launch = usage.launchAsked(maps.key, at = now - 5_000, period = usage.countPeriod.first())
+        val launch = usage.launchAsked(maps.key, at = now - 5_000)
         settings.setCountSystemUsage(false, now = now - 4_000)
         settings.setCountSystemUsage(true, now = now - 3_000)
         source.resumed += screen("com.maps", "com.maps.Route", now - 1_000)
@@ -651,8 +651,8 @@ class SystemUsageSyncTest {
 
     /** The same by the note alone: asked while the count was off, noted after it was switched on. */
     @Test fun aLaunchAskedWhileTheCountWasOffIsNotKeptWaitingWhenItsNoteComesAfterTheSwitch() = runTest {
-        assertThat(usage.countPeriod.first()).isEqualTo(AppUsageRepository.NO_COUNT)
-        val launch = usage.launchAsked(maps.key, at = now - 5_000, period = usage.countPeriod.first())
+        assertThat(usage.systemCount.first()).isNull()
+        val launch = usage.launchAsked(maps.key, at = now - 5_000)
         switchOn(at = now - 3_000)
 
         usage.recordLaunch(launch)
@@ -663,20 +663,42 @@ class SystemUsageSyncTest {
         assertThat(scoreOf(maps)).isWithin(0.05f).of(2f)
     }
 
-    /** A launch asked in the count that is on is kept waiting as before, and a count that was switched names
-     *  itself anew. */
+    /**
+     * A launch asked in the count that is on is kept waiting as before. Which count a launch is of is told by
+     * its moment against the moment the count began (review round 10): one asked in the very millisecond the
+     * switch was turned on is of the new count (Android's report of it cannot be earlier than that, so the
+     * new count's record has it), one asked a millisecond before is not.
+     */
     @Test fun aLaunchAskedInTheCountThatIsOnStillWaitsForItsReport() = runTest {
         switchOn(at = now - 60_000)
-        val first = usage.countPeriod.first()
-        val launch = usage.launchAsked(maps.key, at = now - 200, period = first)
+        val launch = usage.launchAsked(maps.key, at = now - 200)
 
         usage.recordLaunch(launch)
         assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now - 200)
 
+        val before = usage.launchAsked(mail.key, at = now)
+        val atTheSwitch = usage.launchAsked(maps.key, at = now + 1)
         settings.setCountSystemUsage(false, now = now)
         settings.setCountSystemUsage(true, now = now + 1)
-        assertThat(usage.countPeriod.first()).isNotEqualTo(first)
-        assertThat(usage.countPeriod.first()).isAtLeast(0L)
+        usage.recordLaunch(before)
+        usage.recordLaunch(atTheSwitch)
+
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now + 1)
+    }
+
+    /**
+     * Review round 10. The phone's clock was set back after the count was switched on: the moment the count
+     * began is then later than now, and no launch would be of the count until the clock caught up (each one
+     * counted twice, by its own note and by Android's report). The sync that starts the reading anew starts
+     * the count's own beginning anew with it.
+     */
+    @Test fun aCountWhoseReadingStartsAnewAfterTheClockWasSetBackTakesTheLaunchesAskedFromThenOn() = runTest {
+        switchOn(at = now + 7 * day)
+
+        sync.sync(now)
+        usage.recordLaunch(usage.launchAsked(maps.key, at = now + 1_000))
+
+        assertThat(usage.ownLaunches.first()).containsExactly(maps.key to now + 1_000)
     }
 
     /**

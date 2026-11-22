@@ -292,12 +292,16 @@ class SettingsRepositoryTest {
         assertThat(backup.keys).containsNoneOf(
             AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY,
             AppUsageRepository.SYSTEM_FRONT_KEY, AppUsageRepository.COUNTING_PERIOD_KEY,
+            AppUsageRepository.COUNTING_SINCE_KEY,
         )
         assertThat(backup["count_system_usage"]).isEqualTo(true)
 
         settings.importRaw(backup)
 
         assertThat(usage.systemCount.first()).isEqualTo(count)
+        assertThat(usage.ownLaunches.first()).containsExactly("com.example/Main/0" to 2_000L)
+        // And the moment the count began: a launch asked before it is still not of this count.
+        usage.recordLaunch("com.example/Main/0", at = 500L)
         assertThat(usage.ownLaunches.first()).containsExactly("com.example/Main/0" to 2_000L)
     }
 
@@ -318,6 +322,7 @@ class SettingsRepositoryTest {
                 AppUsageRepository.OWN_LAUNCHES_KEY to "com.other/Main/0\t7",
                 AppUsageRepository.SYSTEM_FRONT_KEY to "com.other",
                 AppUsageRepository.COUNTING_PERIOD_KEY to 99,
+                AppUsageRepository.COUNTING_SINCE_KEY to 5,
             ),
         )
 
@@ -328,7 +333,10 @@ class SettingsRepositoryTest {
         assertThat(usage.systemCount.first()?.period).isEqualTo(1L)
         assertThat(usage.systemCount.first()?.inFront).isNull()
 
+        // Nor the file's word of when the count began: a launch asked before the restore is not of this count.
         usage.recordLaunch("com.example/Main/0", at = 3_000L)
+        assertThat(usage.ownLaunches.first()).isEmpty()
+        usage.recordLaunch("com.example/Main/0", at = System.currentTimeMillis())
         assertThat(usage.ownLaunches.first()).hasSize(1)
         settings.importRaw(mapOf("home_columns" to 5))
 

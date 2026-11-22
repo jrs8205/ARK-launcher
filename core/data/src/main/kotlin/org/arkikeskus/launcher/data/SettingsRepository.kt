@@ -898,8 +898,11 @@ class SettingsRepository @Inject constructor(
             // With them, while apps opened elsewhere are counted: the time Android's own record was read up
             // to, the app in front then and the launcher's own launches since. Cleared, the next read would
             // count openings a second time. And which switching-on the count is of, on or off: that number
-            // only ever grows, so a read made for an earlier count is never taken for a later one.
+            // only ever grows, so a read made for an earlier count is never taken for a later one. And the
+            // moment the count began: without it a launch asked before that moment would be taken for one
+            // of this count.
             val wasCounting = prefs[Keys.COUNT_SYSTEM_USAGE] ?: false
+            val countingSince = prefs[longPreferencesKey(AppUsageRepository.COUNTING_SINCE_KEY)]
             val usageSyncedTo = prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)]
             val ownLaunches = prefs[stringPreferencesKey(AppUsageRepository.OWN_LAUNCHES_KEY)]
             val usageFront = prefs[stringPreferencesKey(AppUsageRepository.SYSTEM_FRONT_KEY)]
@@ -950,6 +953,7 @@ class SettingsRepository @Inject constructor(
             val counting = prefs[Keys.COUNT_SYSTEM_USAGE] ?: false
             if (countingPeriod != null) prefs[longPreferencesKey(AppUsageRepository.COUNTING_PERIOD_KEY)] = countingPeriod
             if (wasCounting && counting) {
+                if (countingSince != null) prefs[longPreferencesKey(AppUsageRepository.COUNTING_SINCE_KEY)] = countingSince
                 if (usageSyncedTo != null) prefs[longPreferencesKey(AppUsageRepository.SYSTEM_SYNC_KEY)] = usageSyncedTo
                 if (ownLaunches != null) prefs[stringPreferencesKey(AppUsageRepository.OWN_LAUNCHES_KEY)] = ownLaunches
                 if (usageFront != null) prefs[stringPreferencesKey(AppUsageRepository.SYSTEM_FRONT_KEY)] = usageFront
@@ -1261,6 +1265,7 @@ class SettingsRepository @Inject constructor(
             "default_layout_seeded", "onboarding_done", "first_run_fresh", "people_held_notifications",
             AppUsageRepository.SYSTEM_SYNC_KEY, AppUsageRepository.OWN_LAUNCHES_KEY,
             AppUsageRepository.SYSTEM_FRONT_KEY, AppUsageRepository.COUNTING_PERIOD_KEY,
+            AppUsageRepository.COUNTING_SINCE_KEY,
             "default_reminder_dismissed",
             // A picked lock/unlock sound is a content URI this phone holds a read grant for; another
             // phone could not play it.

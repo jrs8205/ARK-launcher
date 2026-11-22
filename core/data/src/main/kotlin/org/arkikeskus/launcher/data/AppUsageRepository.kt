@@ -8,7 +8,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -60,7 +59,7 @@ class AppUsageRepository @Inject constructor(
         at: Long = System.currentTimeMillis(),
         androidReports: Boolean = true,
         clock: () -> Long = System::currentTimeMillis,
-    ) = recordLaunch(AskedLaunch(key, at, androidReports, PERIOD_NOT_KNOWN), clock)
+    ) = recordLaunch(AskedLaunch(key, at, androidReports), clock)
 
     /**
      * A launch the launcher has asked Android for, from the moment it is asked ([launchAsked]) until its own
@@ -68,18 +67,16 @@ class AppUsageRepository @Inject constructor(
      * a read of Android's record that gets to the store first ([recordOpenings]) finds the launch here, so
      * Android's report of it is known for the launcher's own in whichever order the two are written.
      *
-     * [period] is the count the launch was asked in ([countPeriod] at that moment). Only in THAT count does it
-     * wait for Android's report: its note can be written after the switch was turned, and the record of the
-     * new count starts after the launch, so its report is never read there. Left waiting, it was taken for
-     * the app's first real opening from elsewhere in the new count, and that opening was not counted.
+     * It waits for Android's report only in the count it was asked in, and that is told by its moment ([at])
+     * against the moment the count that is on began ([isOfCount]): its note can be written after the switch
+     * was turned, and the record of the new count starts after the launch, so its report is never read there.
+     * Left waiting, it was taken for the app's first real opening from elsewhere in the new count, and that
+     * opening was not counted.
      */
-    class AskedLaunch internal constructor(val key: String, val at: Long, val androidReports: Boolean, val period: Long) {
+    class AskedLaunch internal constructor(val key: String, val at: Long, val androidReports: Boolean) {
         /** Android's report of this launch has been read and left out of the count: it waits for none. Set
          *  and read under the lock the notes are written under ([notes]). */
         @Volatile internal var answered = false
-
-        /** Whether the launch was asked in the count [period] (one whose count is not known counts for any). */
-        internal fun isOf(period: Long): Boolean = this.period == PERIOD_NOT_KNOWN || this.period == period
     }
 
     /** The launches asked for whose own note is not in the store yet. Read and changed under its own lock. */
@@ -94,28 +91,31 @@ class AppUsageRepository @Inject constructor(
     private val notes = Mutex()
 
     /**
-     * Which count a launch asked for now is of: the [SystemCount.period] while apps opened elsewhere are
-     * counted, [NO_COUNT] while they are not. For the caller of [launchAsked], which cannot wait for a read
-     * and so follows this.
+     * Whether a launch asked for at [at] is of the count that is on in [p]: asked at or after the moment that
+     * count began ([COUNTING_SINCE_KEY]). Read from the store itself, inside the write that decides by it:
+     * the caller of [launchAsked] cannot wait for a read, and a copy of the store's state kept up by a
+     * coroutine could still say "off" right after the switch was turned on. The launch was then stamped so,
+     * was not kept waiting, and Android's report of it was counted as an opening from elsewhere.
+     *
+     * A launch asked in the very millisecond the count began is of it: Android's report of a launch never
+     * comes before the launch was asked, so it is in the record this count reads. A store with no such moment
+     * (a count that was on before the moment was kept) takes every launch, as it did.
      */
-    val countPeriod: Flow<Long> = dataStore.data
-        .map { p -> if (p[Keys.COUNTING] == true) p[Keys.COUNTING_PERIOD] ?: 0L else NO_COUNT }
-        .distinctUntilChanged()
+    private fun isOfCount(p: Preferences, at: Long): Boolean = at >= (p[Keys.COUNTING_SINCE] ?: Long.MIN_VALUE)
 
     /**
      * The launcher is about to ask Android to start [key], at [at]. Called BEFORE the start, on the caller's
      * thread: from here on a read of Android's record knows of the launch. The caller then either records it
      * ([recordLaunch]) or, when Android refused the start, takes it back ([launchNotMade]). A launch Android
      * does not report ([androidReports] false: a work profile's app) is not kept here: no report is to be
-     * told from it. [period] is the count it is asked in ([AskedLaunch.period]).
+     * told from it. [at] is also what tells which count the launch is of ([isOfCount]).
      */
     fun launchAsked(
         key: String,
         at: Long = System.currentTimeMillis(),
         androidReports: Boolean = true,
-        period: Long = PERIOD_NOT_KNOWN,
     ): AskedLaunch {
-        val launch = AskedLaunch(key, at, androidReports, period)
+        val launch = AskedLaunch(key, at, androidReports)
         if (androidReports) synchronized(asked) { asked += launch }
         return launch
     }
@@ -141,9 +141,9 @@ class AppUsageRepository @Inject constructor(
                 // Not when a read of Android's record has met this launch's report already (the read got to
                 // the store before this note did): the launch then waits for no report, and kept waiting it
                 // would be taken for the next opening of the app from somewhere else. And only in the count
-                // it was asked in ([AskedLaunch.period]).
+                // it was asked in ([isOfCount]).
                 val waits = launch.androidReports && !launch.answered &&
-                    p[Keys.COUNTING] == true && launch.isOf(p[Keys.COUNTING_PERIOD] ?: 0L)
+                    p[Keys.COUNTING] == true && isOfCount(p, launch.at)
                 if (waits) {
                     val launches = parseLaunches(p[Keys.OWN_LAUNCHES]) + (launch.key to launch.at)
                     p[Keys.OWN_LAUNCHES] = serializeLaunches(launches.takeLast(MAX_OWN_LAUNCHES))
@@ -199,7 +199,7 @@ class AppUsageRepository @Inject constructor(
      * the word. (Told inside the write, a write the storage then refused left the word standing for a moment,
      * a note written in that moment did not keep the launch waiting, and the next read, of the same span,
      * counted the launch's report as an opening from elsewhere.) Only the launches asked in this count are
-     * looked at ([AskedLaunch.period]).
+     * looked at ([isOfCount]).
      */
     suspend fun recordOpenings(
         read: SystemCount,
@@ -215,7 +215,7 @@ class AppUsageRepository @Inject constructor(
                 met.clear()
                 if (!isCount(p, read)) return@edit
                 val stored = parseLaunches(p[Keys.OWN_LAUNCHES])
-                val onTheirWay = synchronized(asked) { asked.filter { !it.answered && it.isOf(read.period) } }
+                val onTheirWay = synchronized(asked) { asked.filter { !it.answered && isOfCount(p, it.at) } }
                     .filter { (it.key to it.at) !in stored }
                 val launches = (stored.map { (key, at) -> OwnLaunch(key, at, null) } + onTheirWay.map { OwnLaunch(it.key, it.at, it) })
                     .sortedBy { it.at }
@@ -280,7 +280,9 @@ class AppUsageRepository @Inject constructor(
      * LATER than now, so the phone's clock has been set back since (a read made while it was a week ahead),
      * and every read would wait for that time to come again. Nothing is read back; the launches that waited
      * for a report and the app in front go, as they are of times that are no longer so. It is the same
-     * switching-on of the count. Nothing happens when the count is no longer [read].
+     * switching-on of the count, and it begins at [at] for the launches too ([isOfCount]): its old beginning
+     * can be later than now as well, and no launch would then be of it until the clock caught up. Nothing
+     * happens when the count is no longer [read].
      */
     suspend fun restartCount(read: SystemCount, at: Long) {
         try {
@@ -289,6 +291,7 @@ class AppUsageRepository @Inject constructor(
                 p.remove(Keys.OWN_LAUNCHES)
                 p.remove(Keys.SYSTEM_FRONT)
                 p[Keys.SYSTEM_SYNCED_TO] = at
+                p[Keys.COUNTING_SINCE] = at
             }
         } catch (e: IOException) {
             // Dropped: the next sync finds the same and tries again.
@@ -330,6 +333,7 @@ class AppUsageRepository @Inject constructor(
         val COUNTING = booleanPreferencesKey(COUNTING_KEY)
         val SYSTEM_FRONT = stringPreferencesKey(SYSTEM_FRONT_KEY)
         val COUNTING_PERIOD = longPreferencesKey(COUNTING_PERIOD_KEY)
+        val COUNTING_SINCE = longPreferencesKey(COUNTING_SINCE_KEY)
     }
 
     companion object {
@@ -357,12 +361,11 @@ class AppUsageRepository @Inject constructor(
         /** DataStore key name of the setting "Count apps opened elsewhere" ([SettingsRepository] owns it). */
         const val COUNTING_KEY = "count_system_usage"
 
-        /** [countPeriod] while apps opened elsewhere are not counted: a launch asked then waits for no report. */
-        const val NO_COUNT = -1L
-
-        /** The count a launch was asked in is not known (the store had not been read yet): it is taken to be
-         *  of whichever count is on when it is looked at, as every launch was before launches named theirs. */
-        const val PERIOD_NOT_KNOWN = -2L
+        /** DataStore key name of the moment the count that is on began: when the switch was turned on, or when
+         *  its reading was started anew ([restartCount]). Unlike [SYSTEM_SYNC_KEY] it does not move on with the
+         *  reads: a launch is of this count when it was asked at or after this moment ([isOfCount]). Absent
+         *  while the count is off. This phone's own, as [USAGE_KEY]. */
+        const val COUNTING_SINCE_KEY = "app_usage_counting_since"
 
         /** How many of the launcher's own launches are remembered for the next read of Android's record. They
          *  are few on a phone whose drawer is opened now and then (a read forgets what it has passed); this is
@@ -382,7 +385,13 @@ class AppUsageRepository @Inject constructor(
             if (was && on) return
             prefs.remove(Keys.OWN_LAUNCHES)
             prefs.remove(Keys.SYSTEM_FRONT)
-            if (on) prefs[Keys.SYSTEM_SYNCED_TO] = now else prefs.remove(Keys.SYSTEM_SYNCED_TO)
+            if (on) {
+                prefs[Keys.SYSTEM_SYNCED_TO] = now
+                prefs[Keys.COUNTING_SINCE] = now
+            } else {
+                prefs.remove(Keys.SYSTEM_SYNCED_TO)
+                prefs.remove(Keys.COUNTING_SINCE)
+            }
             if (was != on) prefs[Keys.COUNTING_PERIOD] = (prefs[Keys.COUNTING_PERIOD] ?: 0L) + 1
         }
 

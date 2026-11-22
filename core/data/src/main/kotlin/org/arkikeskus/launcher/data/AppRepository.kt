@@ -8,10 +8,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.di.ApplicationScope
@@ -85,15 +83,6 @@ class AppRepository @Inject constructor(
     /** See [LauncherAppsSource.launchClassName]. */
     fun launchClassName(packageName: String, user: UserHandle): String? = source.launchClassName(packageName, user)
 
-    /**
-     * The count of apps opened elsewhere that is on ([AppUsageRepository.countPeriod]), followed from the start:
-     * a launch is stamped with it the moment it is asked for, on the caller's thread, where a read of the
-     * store cannot be waited for. Not known until the store has first been read; such a launch is treated as
-     * launches were before they named their count.
-     */
-    private val countPeriod: StateFlow<Long> = appUsageRepository.countPeriod
-        .stateIn(scope, SharingStarted.Eagerly, AppUsageRepository.PERIOD_NOT_KNOWN)
-
     /** Launches [appItem] (from [sourceBounds] with [options], see [LauncherAppsSource.launch]); on
      *  success, records the launch for the "most used" ranking (fire-and-forget). An app of the private
      *  space is never recorded, whoever starts it here: the ranking is written to the disk under the
@@ -105,18 +94,15 @@ class AppRepository @Inject constructor(
      *  knows of the launch, though its own note is written by a coroutine that may come after the read. That
      *  is how the two are known for one launch in either order ([AppUsageRepository.recordOpenings]). Android
      *  reports only the apps of the user the launcher runs as: a work profile's app is scored, and waits for
-     *  no report. The launch is stamped with the count it is asked in ([countPeriod]): its note can be written
-     *  after the switch was turned, and it waits for a report only in its own count. */
+     *  no report. Its note can be written after the switch was turned, and it waits for a report only in the
+     *  count it was asked in: the store tells that by the moment of the announcement, as the note is written
+     *  (nothing is read here, on the caller's thread, where a read of the store cannot be waited for). */
     fun launch(appItem: AppItem, sourceBounds: Rect? = null, options: Bundle? = null): Result<Unit> {
         // Nothing of a private app, not even for the moment of its start.
         val asked = if (privateSpace.isPrivate(appItem.userSerial)) {
             null
         } else {
-            appUsageRepository.launchAsked(
-                appItem.key,
-                androidReports = appItem.user == Process.myUserHandle(),
-                period = countPeriod.value,
-            )
+            appUsageRepository.launchAsked(appItem.key, androidReports = appItem.user == Process.myUserHandle())
         }
         val result = source.launch(appItem, sourceBounds, options)
         if (asked != null) {

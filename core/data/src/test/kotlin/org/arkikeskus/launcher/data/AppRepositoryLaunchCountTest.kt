@@ -9,9 +9,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.model.AppItem
 import org.junit.After
@@ -53,8 +56,9 @@ class AppRepositoryLaunchCountTest {
         StartingLauncherApps.whileStarting = null
     }
 
-    private fun TestScope.repository(): AppRepository {
-        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+    /** [dispatcher] is what the repository's own coroutines run on: the unconfined one runs them at once, the
+     *  standard one only when the test lets time go on, as the application's scope does on a busy phone. */
+    private fun TestScope.repository(dispatcher: TestDispatcher = UnconfinedTestDispatcher(testScheduler)): AppRepository {
         val scope = CoroutineScope(backgroundScope.coroutineContext + dispatcher)
         val source = LauncherAppsSource(
             context, IconPackRepository(context), Provider<ImageLoader> { error("unused") }, AppLabelCache(InMemoryAppLabelStore()), profiles,
@@ -77,15 +81,19 @@ class AppRepositoryLaunchCountTest {
     }
 
     /**
-     * Review round 7. A start is stamped with the count it is asked in, and waits for Android's report only in
-     * that one. Here the count is switched on while Android is starting the app, so the start's own note is
-     * written into the new count: it is scored, and it is not kept waiting for a report the new count's record
-     * (which begins after the start) will never have.
+     * Review round 7. A start waits for Android's report only in the count it is asked in. Here the count is
+     * switched on while Android is starting the app, so the start's own note is written into the new count: it
+     * is scored, and it is not kept waiting for a report the new count's record (which begins after the start)
+     * will never have. The count is told by the moment the start was asked for, so the switch is turned a
+     * moment later on the clock too (in the same millisecond the start would be of the new count).
      */
     @Test fun aStartAskedBeforeTheCountWasSwitchedOnIsScoredAndWaitsForNoReport() = runTest {
         val apps = repository()
         advanceUntilIdle()
-        StartingLauncherApps.whileStarting = { runBlocking { settings.setCountSystemUsage(true, now = System.currentTimeMillis()) } }
+        StartingLauncherApps.whileStarting = {
+            Thread.sleep(2)
+            runBlocking { settings.setCountSystemUsage(true, now = System.currentTimeMillis()) }
+        }
 
         assertThat(apps.launch(mail).isSuccess).isTrue()
         advanceUntilIdle()
@@ -97,6 +105,28 @@ class AppRepositoryLaunchCountTest {
         StartingLauncherApps.whileStarting = null
         assertThat(apps.launch(mail).isSuccess).isTrue()
         advanceUntilIdle()
+        assertThat(usage.ownLaunches.first().map { it.first }).containsExactly(mail.key)
+    }
+
+    /**
+     * Review round 10. Whether a start is of the count that is on is told from the store, where the start's
+     * own note is written. It was told from a copy of the store's state that a coroutine of the repository kept
+     * up: right after the switch was turned on the copy could still say "off", the start was stamped so, its
+     * note did not keep it waiting for Android's report, and the next read of Android's record counted the
+     * report as an opening from elsewhere. Two launches for one. Here nothing of the repository's own runs
+     * between the switch and the start.
+     */
+    @Test fun aStartAskedRightAfterTheCountWasSwitchedOnWaitsForItsReport() = runTest {
+        val apps = repository(StandardTestDispatcher(testScheduler))
+        // Everything the repository follows has been read once: the count is off. (The repository's work is
+        // background work of the test, which only runCurrent runs when nothing else is waiting.)
+        runCurrent()
+        settings.setCountSystemUsage(true, now = System.currentTimeMillis())
+
+        assertThat(apps.launch(mail).isSuccess).isTrue()
+        runCurrent()
+
+        assertThat(usage.usage.first().keys).containsExactly(mail.key)
         assertThat(usage.ownLaunches.first().map { it.first }).containsExactly(mail.key)
     }
 
