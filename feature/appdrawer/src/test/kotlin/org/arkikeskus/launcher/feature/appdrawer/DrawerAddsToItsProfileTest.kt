@@ -17,6 +17,7 @@ import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.ui.DockTarget
+import org.arkikeskus.launcher.ui.HomeNotice
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -42,9 +43,6 @@ class DrawerAddsToItsProfileTest {
     private suspend fun DrawerWiring.inDock() =
         homeLayoutRepository.homeItems.first().firstOrNull { it.containerId == DOCK && it.packageName == mail.packageName }
 
-    /** A pause between two writes of the settings file (see where it is used). */
-    private fun betweenWrites() = Thread.sleep(200)
-
     private suspend fun awaitUntil(what: String, done: suspend () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!done()) {
@@ -55,7 +53,7 @@ class DrawerAddsToItsProfileTest {
     }
 
     @Test fun anAppAddedForAProfileThatIsNotOnIsNotAdded() = runTest {
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val viewModel = wiring.viewModel()
 
@@ -76,7 +74,7 @@ class DrawerAddsToItsProfileTest {
      * profile's home screen stays: the menu never offered to remove it from there.
      */
     @Test fun anAppRemovedFromHomeForAProfileThatIsNotOnStays() = runTest {
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val viewModel = wiring.viewModel()
             viewModel.addToHome(mail, profile = 1)
@@ -96,7 +94,7 @@ class DrawerAddsToItsProfileTest {
 
     /** The same for the menu's two dock actions: each is asked for the profile the menu was drawn from. */
     @Test fun theDockIsChangedOnlyForTheProfileThatIsOn() = runTest {
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val viewModel = wiring.viewModel()
 
@@ -127,7 +125,7 @@ class DrawerAddsToItsProfileTest {
      * a profile that is not on, nothing is placed.
      */
     @Test fun whatIsDroppedFromTheDrawerIsPlacedOnlyForTheProfileThatIsOn() = runTest {
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val viewModel = wiring.viewModel()
             val maps = AppItem("com.maps", "com.maps.Main", Process.myUserHandle(), 0L, "Maps")
@@ -160,21 +158,16 @@ class DrawerAddsToItsProfileTest {
     @Test fun aDrawerFoldersEditorChangesOnlyAFolderOfTheProfileThatIsOn() = runTest {
         installFakeApp(context, "com.notes", "Notes")
         installFakeApp(context, "com.mail", "Mail")
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val settings = wiring.settingsRepository
             val notes = "com.notes/com.notes.Main/0"
             val mailKey = "com.mail/com.mail.Main/0"
-            // The settings here are a real file, and each write renames a new file over it. On Windows that
-            // rename fails now and then when it comes right on the heels of another write or of a first read
-            // ("Unable to rename ... .tmp"): the writes of this test are spaced out, and the folder is stored
-            // before the view model begins to read. The wiring reads the file itself as it starts (the app
-            // repository follows the usage count from its first moment), so the first write waits a moment too.
-            betweenWrites()
+            // The settings are kept in memory here (review round 11): this is about WHICH profile's folder
+            // changes, and with a real file the test failed for the file's reasons (on Windows the rename
+            // that ends a write is refused now and then; pauses between the writes did not make it sure).
             val id = settings.createDrawerFolder("Tools")
-            betweenWrites()
             settings.addAppsToDrawerFolder(id, listOf(notes, mailKey))
-            betweenWrites()
             suspend fun folders() = settings.drawerFolders.first()
             val viewModel = wiring.viewModel()
 
@@ -191,12 +184,59 @@ class DrawerAddsToItsProfileTest {
             assertThat(folders()).containsExactly(org.arkikeskus.launcher.data.DrawerFolder(id, "Tools", listOf(notes, mailKey)))
             assertThat(settings.folderIcons.first()).isEmpty()
 
-            // For the profile that is on: sorted by the apps' names, then renamed.
-            viewModel.sortDrawerFolderByName(id, profile = 1)
-            awaitUntil("the folder sorted") { folders().single().appKeys == listOf(mailKey, notes) }
-            betweenWrites()
-            viewModel.renameDrawerFolder(id, "Other", profile = 1)
-            awaitUntil("the folder renamed") { folders().single().name == "Other" }
+            // For the profile that is on: sorted by the apps' names, then renamed. Each is waited for by the
+            // work that writes it, not by a pause.
+            val sorted = viewModel.sortDrawerFolderByName(id, profile = 1)
+            awaitUntil("the sort") { sorted.isCompleted }
+            assertThat(folders().single().appKeys).containsExactly(mailKey, notes).inOrder()
+            val renamed = viewModel.renameDrawerFolder(id, "Other", profile = 1)
+            awaitUntil("the new name") { renamed.isCompleted }
+            assertThat(folders().single().name).isEqualTo("Other")
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 11. What the folder's editor asks is written to the settings, and the storage can refuse a
+     * write (a full disk). The refusal escaped from the coroutine that asked, and an exception nobody handles
+     * there ends the home process. The folder stays as it was, the user is told, and nothing is thrown; the
+     * next change, with room again, is made.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun aFolderChangeTheStorageRefusesLeavesTheFolderAsItWasAndSaysSo() = runTest {
+        installFakeApp(context, "com.notes", "Notes")
+        installFakeApp(context, "com.mail", "Mail")
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
+        try {
+            val settings = wiring.settingsRepository
+            val notes = "com.notes/com.notes.Main/0"
+            val mailKey = "com.mail/com.mail.Main/0"
+            val id = settings.createDrawerFolder("Tools")
+            settings.addAppsToDrawerFolder(id, listOf(notes, mailKey))
+            suspend fun folder() = settings.drawerFolders.first().single()
+            val viewModel = wiring.viewModel()
+            val notices = java.util.Collections.synchronizedList(ArrayList<HomeNotice>())
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.notices.collect { notices += it } }
+
+            wiring.settingsInMemory!!.failWrites = java.io.IOException("No space left on device")
+            val refused = listOf(
+                viewModel.sortDrawerFolderByName(id, profile = 1),
+                viewModel.renameDrawerFolder(id, "Other", profile = 1),
+                viewModel.removeAppFromDrawerFolder(id, mailKey, profile = 1),
+            )
+            awaitUntil("the answers") { refused.all { it.isCompleted } }
+
+            assertThat(refused.map { it.isCancelled }).containsExactly(false, false, false)
+            assertThat(folder()).isEqualTo(org.arkikeskus.launcher.data.DrawerFolder(id, "Tools", listOf(notes, mailKey)))
+            awaitUntil("the notices") { notices.size == 3 }
+            assertThat(notices).containsExactly(HomeNotice.ChangeNotSaved, HomeNotice.ChangeNotSaved, HomeNotice.ChangeNotSaved)
+
+            wiring.settingsInMemory!!.failWrites = null
+            val sorted = viewModel.sortDrawerFolderByName(id, profile = 1)
+            awaitUntil("the sort") { sorted.isCompleted }
+            assertThat(folder().appKeys).containsExactly(mailKey, notes).inOrder()
             wiring.clear(viewModel)
         } finally {
             wiring.close()
@@ -212,24 +252,17 @@ class DrawerAddsToItsProfileTest {
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test fun noStateShowsOneProfilesFolderOrItsIconUnderAnotherProfilesId() = runTest {
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val settings = wiring.settingsRepository
-            betweenWrites()
             val ofFirst = settings.createDrawerFolder("Of the first")
-            betweenWrites()
             settings.setFolderIcon(FolderIconKey.drawer(ofFirst), CustomIcon.FromPack("com.pack", "first"))
-            betweenWrites()
             val work = (wiring.homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile.id
-            betweenWrites()
             assertThat(wiring.homeProfiles.switchTo(work)).isTrue()
             settings.settings.first { it.homeProfileId == work }
-            betweenWrites()
             // The same id in both profiles: each profile numbers its own folders.
             assertThat(settings.createDrawerFolder("Of Work")).isEqualTo(ofFirst)
-            betweenWrites()
             settings.setFolderIcon(FolderIconKey.drawer(ofFirst), CustomIcon.FromPack("com.pack", "work"))
-            betweenWrites()
             val viewModel = wiring.viewModel()
             val seen = java.util.Collections.synchronizedList(ArrayList<AppDrawerUiState>())
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect { seen += it } }
@@ -240,7 +273,6 @@ class DrawerAddsToItsProfileTest {
 
             repeat(6) { round ->
                 val to = if (round % 2 == 0) 1L else work
-                betweenWrites()
                 assertThat(wiring.homeProfiles.switchTo(to)).isTrue()
                 awaitUntil("the folder of profile $to") { shows(to, if (to == 1L) "Of the first" else "Of Work") }
             }
@@ -262,7 +294,7 @@ class DrawerAddsToItsProfileTest {
     }
 
     @Test fun anAppAddedForTheProfileThatIsOnIsAdded() = runTest {
-        val wiring = DrawerWiring(context, this)
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {
             val viewModel = wiring.viewModel()
 

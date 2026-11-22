@@ -39,6 +39,7 @@ import org.arkikeskus.launcher.data.local.HomeItemDao
 import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
 import org.arkikeskus.launcher.data.profile.DiskHomeProfileFiles
+import org.arkikeskus.launcher.data.profile.HomeProfileFiles
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.data.profile.HomeProfileStore
 import org.arkikeskus.launcher.data.search.AppSearchProvider
@@ -57,7 +58,7 @@ import kotlin.jvm.functions.Function0
 
 /**
  * The drawer ViewModel's real collaborators without Hilt (the home module's ProductionWiring, cut
- * to what the drawer needs): an in-memory Room database, a DataStore on a temp file and the real
+ * to what the drawer needs): an in-memory Room database, a DataStore on a temp file (or, where a test says so, in memory) and the real
  * LauncherApps path. Room, DataStore and Coil are implementation details of core/data and not on
  * this module's test compile classpath, so the few calls that name their types go through reflection.
  */
@@ -66,6 +67,9 @@ internal class DrawerWiring(
     testScope: TestScope,
     /** The profiles of the test device as the platform types them; only the own user unless a test says so. */
     initialProfiles: List<ProfileSnapshot> = listOf(ProfileSnapshot(serial = 0, kind = ProfileKind.Own, badged = false, paused = false)),
+    /** False keeps the settings (and the further home profiles' own) in memory ([InMemoryPreferences]): for a
+     *  test that writes them and is not about the file. */
+    settingsOnDisk: Boolean = true,
 ) {
     /** The device's profiles now. A lock or unlock request is granted at once and reported, as Android does. */
     var profiles: List<ProfileSnapshot> = initialProfiles
@@ -93,14 +97,17 @@ internal class DrawerWiring(
         .let { builder -> builder.javaClass.getMethod("allowMainThreadQueries").invoke(builder) }
         .let { builder -> builder.javaClass.getMethod("build").invoke(builder) as LauncherDatabase }
     /** The settings file itself. Everything but the profile list reads and writes it through [dataStore]. */
-    private val settingsFile: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
+    private val settingsFile: Any = if (!settingsOnDisk) InMemoryPreferences() else Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
         val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
         val produceFile: () -> File = { file }
         factory.methods
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
             .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
     }
-    private val profileFiles = DiskHomeProfileFiles(context, dataStoreScope)
+
+    /** The settings kept in memory, where the test asked for that: the way to make their writes fail. */
+    val settingsInMemory: InMemoryPreferences? = settingsFile as? InMemoryPreferences
+    private val profileFiles: HomeProfileFiles = if (settingsOnDisk) DiskHomeProfileFiles(context, dataStoreScope) else InMemoryHomeProfileFiles()
 
     /** The settings as the launcher sees them: what the home profiles share, with the own values of the one
      *  that is on. With one profile this is the settings file itself. */

@@ -10,6 +10,7 @@
     <string name="home_full">Aloitusnäyttö on täynnä</string>
     <string name="notice_work_apps_need_default">Aseta ARK-Launcher oletuskäynnistimeksi, jotta voit keskeyttää työsovellukset.</string>
     <string name="notice_private_space_needs_default">Aseta ARK-Launcher oletuskäynnistimeksi, jotta voit lukita yksityisen tilan tai avata sen lukituksen.</string>
+    <string name="notice_change_not_saved">Muutosta ei voitu tallentaa. Mitään ei muutettu.</string>
     <string name="folder_default_name">Kansio</string>
     <string name="popup_widgets">Widgetit</string>
     <string name="edit_title">Muokkaa</string>

@@ -12,6 +12,7 @@
     <string name="popup_widgets">Виджеты</string>
     <string name="notice_work_apps_need_default">Сделайте ARK-Launcher лаунчером по умолчанию, чтобы приостановить рабочие приложения.</string>
     <string name="notice_private_space_needs_default">Сделайте ARK-Launcher лаунчером по умолчанию, чтобы блокировать и разблокировать частное пространство.</string>
+    <string name="notice_change_not_saved">Не удалось сохранить изменение. Ничего не изменено.</string>
     <string name="edit_title">Изменить</string>
     <string name="edit_icon_hint">Нажмите на значок, чтобы изменить его</string>
     <string name="edit_swipe_up">Свайп вверх открывает</string>

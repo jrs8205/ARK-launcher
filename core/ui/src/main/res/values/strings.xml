@@ -10,6 +10,7 @@
     <string name="home_full">The home screen is full</string>
     <string name="notice_work_apps_need_default">Set ARK-Launcher as your default launcher to pause work apps.</string>
     <string name="notice_private_space_needs_default">Set ARK-Launcher as your default launcher to lock or unlock Private space.</string>
+    <string name="notice_change_not_saved">The change could not be saved. Nothing was changed.</string>
     <string name="folder_default_name">Folder</string>
     <string name="popup_widgets">Widgets</string>
     <string name="edit_title">Edit</string>

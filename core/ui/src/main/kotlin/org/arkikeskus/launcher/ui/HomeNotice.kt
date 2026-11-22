@@ -16,4 +16,7 @@ enum class HomeNotice(@StringRes val message: Int) {
 
     /** Only the default launcher may lock or unlock the private space: nothing changed. */
     PrivateSpaceNeedsDefault(R.string.notice_private_space_needs_default),
+
+    /** The storage refused a change the user made (a full disk): what was there is still there. */
+    ChangeNotSaved(R.string.notice_change_not_saved),
 }

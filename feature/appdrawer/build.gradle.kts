@@ -16,6 +16,8 @@ dependencies {
     testImplementation(libs.google.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    // A settings store in memory for the tests that are not about the settings file.
+    testImplementation(libs.androidx.datastore.preferences)
     testImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

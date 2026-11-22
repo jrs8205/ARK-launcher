@@ -12,6 +12,7 @@
     <string name="popup_widgets">Widgets</string>
     <string name="notice_work_apps_need_default">Defina o ARK-Launcher como tela inicial padrão para pausar os apps de trabalho.</string>
     <string name="notice_private_space_needs_default">Defina o ARK-Launcher como tela inicial padrão para bloquear ou desbloquear o espaço privado.</string>
+    <string name="notice_change_not_saved">Não foi possível salvar a alteração. Nada foi alterado.</string>
     <string name="edit_title">Editar</string>
     <string name="edit_icon_hint">Toque no ícone para alterá-lo</string>
     <string name="edit_swipe_up">Deslizar para cima abre</string>

@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.appdrawer
 
 import android.content.Context
 import android.util.Log
+import java.io.IOException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -658,9 +659,19 @@ class AppDrawerViewModel @Inject constructor(
      * drawer folder's id is its profile's own: a profile made as a copy has folders with the very same ids, so
      * the id alone does not say which folder is meant. [work] runs while that profile is on and stays on;
      * with another one on by now it does not run, and the other profile's folder of that id is left as it was.
+     * A change the storage refuses is told to the user ([HomeNotice.ChangeNotSaved]) and changes nothing.
      */
     private fun onFolderOf(profile: Long, work: suspend () -> Unit) =
-        viewModelScope.launch { onLayoutOf(profile, work) }
+        viewModelScope.launch {
+            try {
+                onLayoutOf(profile, work)
+            } catch (e: IOException) {
+                // The storage refused the write (a full disk). A write of the settings changes nothing when it
+                // fails, so the folder is as it was; the user is told. Let go from here, the refusal ended the
+                // home process: nothing handles an exception of this scope.
+                notify(HomeNotice.ChangeNotSaved)
+            }
+        }
 
     /** The icon picked for a drawer folder (null = back to its preview). */
     fun setDrawerFolderIcon(id: Long, icon: CustomIcon?, profile: Long) =
