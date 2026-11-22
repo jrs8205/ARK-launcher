@@ -149,7 +149,10 @@ internal fun ScreensaverRows() {
     // The request was answered "no" here: the row then says what is missing. A second "no" with no dialog
     // shown is the lasting one, and only the app's own notification settings can change it.
     var sendingRefused by rememberSaveable { mutableStateOf(false) }
-    val sendingRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    // The answer is what turns the switch on, and the screensaver's settings are no home profile's own: asked
+    // under a name of its own, so that the answer arrives though the page started anew meanwhile
+    // ([rememberKeptLauncher]).
+    val sendingRequest = rememberKeptLauncher("screensaver-notifications", ActivityResultContracts.RequestPermission()) { granted ->
         maySend = granted
         batteryFull.set(granted)
         if (!granted) {

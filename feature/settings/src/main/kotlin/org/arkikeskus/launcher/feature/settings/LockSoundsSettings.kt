@@ -8,7 +8,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -167,6 +167,12 @@ private fun SoundSourceDialog(title: String, onPick: (SoundSource) -> Unit, onDi
  * [LockSoundsSection] wired to the phone: the file picker (any audio type, kept readable across
  * restarts with a persistable grant), the phone's sound picker (its ringtones, notification and alarm
  * sounds; long ones are cut short when played), a preview player, and the system sound settings.
+ *
+ * Each sound has a request of its own for each picker, four in all, under names that are always the same
+ * ([rememberKeptLauncher]): the request itself says which sound an answer is for. The sounds are the same for
+ * every home profile, while the page they are on starts anew with another profile: with one request per picker
+ * and the sound it was opened for kept beside it on the page, a profile switch and a recreation under the open
+ * picker lost both, and the picked sound was not set.
  */
 @Composable
 internal fun LockSoundsSettings(
@@ -177,7 +183,6 @@ internal fun LockSoundsSettings(
     onSetSound: (SoundSlot, String) -> Unit,
 ) {
     val context = LocalContext.current
-    var pending by rememberSaveable { mutableStateOf<SoundSlot?>(null) }
     val current: (SoundSlot) -> String = { if (it == SoundSlot.Lock) lockUri else unlockUri }
     val set: (SoundSlot, String) -> Unit = { slot, uri ->
         // The same file may be both sounds: its grant goes only once neither uses it.
@@ -185,19 +190,10 @@ internal fun LockSoundsSettings(
         releaseFileGrant(context, current(slot), stillUsed = setOf(uri, other))
         onSetSound(slot, uri)
     }
-    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        val slot = pending ?: return@rememberLauncherForActivityResult
-        pending = null
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-        set(slot, uri.toString())
-    }
-    val phonePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val slot = pending ?: return@rememberLauncherForActivityResult
-        pending = null
-        val uri = result.data?.let { IntentCompat.getParcelableExtra(it, RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java) }
-        if (uri != null) set(slot, uri.toString())
-    }
+    val lockFilePicker = rememberSoundFilePicker(SoundSlot.Lock, set)
+    val unlockFilePicker = rememberSoundFilePicker(SoundSlot.Unlock, set)
+    val lockPhonePicker = rememberPhoneSoundPicker(SoundSlot.Lock, set)
+    val unlockPhonePicker = rememberPhoneSoundPicker(SoundSlot.Unlock, set)
     val player = remember(context) { ShortSoundPlayer(context) }
     DisposableEffect(player) { onDispose { player.stop() } }
     val phoneTitle = stringResource(R.string.settings_sound_from_phone)
@@ -210,19 +206,20 @@ internal fun LockSoundsSettings(
         onChoose = { slot, source ->
             when (source) {
                 SoundSource.None -> set(slot, "")
+                // A phone without the picker has no handler for it: launching throws, and nothing is asked.
                 SoundSource.File -> {
-                    pending = slot
-                    runCatching { filePicker.launch(arrayOf("audio/*")) }.onFailure { pending = null }
+                    val picker = if (slot == SoundSlot.Lock) lockFilePicker else unlockFilePicker
+                    runCatching { picker.launch(arrayOf("audio/*")) }
                 }
                 SoundSource.Phone -> {
-                    pending = slot
+                    val picker = if (slot == SoundSlot.Lock) lockPhonePicker else unlockPhonePicker
                     val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALL)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, phoneTitle)
                         .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, current(slot).takeIf { it.isNotBlank() }?.toUri())
-                    runCatching { phonePicker.launch(intent) }.onFailure { pending = null }
+                    runCatching { picker.launch(intent) }
                 }
             }
         },
@@ -235,6 +232,34 @@ internal fun LockSoundsSettings(
             }
         },
     )
+}
+
+/** The request for a file as the sound of [slot]: a picked file is kept readable across restarts, and handed
+ *  to [onPicked] with the sound it is for. */
+@Composable
+private fun rememberSoundFilePicker(slot: SoundSlot, onPicked: (SoundSlot, String) -> Unit): ActivityResultLauncher<Array<String>> {
+    val context = LocalContext.current
+    return rememberKeptLauncher(soundRequestName(SoundSource.File, slot), ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberKeptLauncher
+        runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        onPicked(slot, uri.toString())
+    }
+}
+
+/** The request for one of the phone's own sounds as the sound of [slot]. */
+@Composable
+private fun rememberPhoneSoundPicker(slot: SoundSlot, onPicked: (SoundSlot, String) -> Unit): ActivityResultLauncher<Intent> =
+    rememberKeptLauncher(soundRequestName(SoundSource.Phone, slot), ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.let { IntentCompat.getParcelableExtra(it, RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java) }
+        if (uri != null) onPicked(slot, uri.toString())
+    }
+
+/** The name a sound's picker request is registered under: one for each picker of each sound, written out so
+ *  that it stays what it is whatever the constants are called. */
+private fun soundRequestName(source: SoundSource, slot: SoundSlot): String {
+    val picker = if (source == SoundSource.File) "file" else "phone"
+    val sound = if (slot == SoundSlot.Lock) "lock" else "unlock"
+    return "sound-$picker-$sound"
 }
 
 /** A picked sound's name: the phone's own title for its sounds, the file name for a file. Read from

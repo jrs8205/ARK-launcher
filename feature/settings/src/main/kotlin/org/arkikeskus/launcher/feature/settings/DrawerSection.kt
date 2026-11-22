@@ -214,7 +214,9 @@ internal fun ContactsSearchRow(s: LauncherSettings, actions: SettingsActions) {
 @Composable
 private fun ContactsSearchToggle(enabled: Boolean, onSetEnabled: (Boolean) -> Unit) {
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    // The answer is what turns the switch on, and the setting is the same for every home profile: asked under
+    // a name of its own, so that the answer arrives though the page started anew meanwhile ([rememberKeptLauncher]).
+    val launcher = rememberKeptLauncher("search-contacts", ActivityResultContracts.RequestPermission()) { granted ->
         onSetEnabled(granted) // grant → on; deny → stays off
     }
     SwitchRow(stringResource(R.string.settings_search_contacts), enabled) { wantOn ->

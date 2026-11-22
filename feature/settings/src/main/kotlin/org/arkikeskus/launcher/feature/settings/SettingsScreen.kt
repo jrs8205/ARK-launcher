@@ -282,7 +282,15 @@ internal fun SettingsContent(
                 // above and stay. A question left open over a switch was answered for the profile that had
                 // come on: the page tells its view model the profile it shows now, and a copy of a profile
                 // has drawer folders with the same ids.
-                key(pagesOf) {
+                //
+                // Not the backup screen. What it has open binds itself to its profile: an export keeps the
+                // profile of the tap, and a restore is held to the profiles its question names. And it waits
+                // for the system's file pickers: under this key, a profile switch and a recreation under an
+                // open picker left nobody registered for its answer (what a page keeps comes back only under
+                // the same key), and the new backup file stayed empty with no word of it.
+                if (shown == SettingsCategory.BACKUP.key) {
+                    backupScreen { pageKey = null }
+                } else key(pagesOf) {
                 when (shown) {
                     SCREEN_MAIN -> SettingsMainPage(
                         onOpen = { pageKey = it.key },
@@ -322,9 +330,6 @@ internal fun SettingsContent(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
-
-                    // The backup category has one thing on it: the backup screen itself.
-                    SettingsCategory.BACKUP.key -> backupScreen { pageKey = null }
 
                     else -> {
                         val category = SettingsCategory.fromKey(shown) ?: return@AnimatedContent
