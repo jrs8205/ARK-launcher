@@ -118,15 +118,16 @@ class FirstStartSeedTest {
         try {
             val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
             val viewModel = wiring.firstStartHomeViewModel()
-            // The seed has put the clock on the first profile and waits for the app list. (Waited for here:
-            // the seed's steps hold the profile, and its coroutine goes on only when this test turns the
-            // main looper, so a switch asked for in the middle of one would wait for ever in a test.)
+            // The seed has put the clock on the first profile: it is at the wait for the app list, or on its
+            // way there.
             awaitUntil("the clock") { wiring.rowsOfProfile(1).isNotEmpty() }
-            repeat(5) { shadowOf(Looper.getMainLooper()).idle() }
 
-            // In Settings meanwhile: the other profile comes on, and the first one is deleted.
-            assertThat(wiring.homeProfiles.switchTo(own.id)).isTrue()
-            assertThat(wiring.homeProfiles.delete(1)).isEqualTo(HomeProfileRepository.Deleted.Done)
+            // In Settings meanwhile: the other profile comes on, and the first one is deleted. Asked for while
+            // the looper turns: the clock's row is in the database before the seed's step is back on the main
+            // thread and has let go of the profile (review round 18).
+            assertThat(whileTheMainLooperTurns("the switch") { wiring.homeProfiles.switchTo(own.id) }).isTrue()
+            assertThat(whileTheMainLooperTurns("the deletion") { wiring.homeProfiles.delete(1) })
+                .isEqualTo(HomeProfileRepository.Deleted.Done)
             // And the app list arrives, with an app the default dock is made of.
             installFakeApp(context, "com.mail", "Mail")
             isTheDefaultSettingsApp("com.mail")

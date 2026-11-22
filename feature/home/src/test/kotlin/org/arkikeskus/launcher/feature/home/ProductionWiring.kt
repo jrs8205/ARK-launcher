@@ -17,8 +17,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -238,6 +240,24 @@ internal class ProductionWiring(
         dataStoreScope.coroutineContext[Job]!!.cancelAndJoin()
         db.javaClass.getMethod("close").invoke(db)
     }
+}
+
+/**
+ * Runs [work], which needs the home profile's hold (a switch, a deletion), while the main looper turns, and
+ * hands back what it gave. A ViewModel's step may have the hold right then, and it goes on, and lets go of
+ * the hold, only when the looper turns: asked for on the test's own thread, [work] would wait for a hold that
+ * nobody is left to give back. A row the step wrote is no sign that the step is over: the row is in the
+ * database before the step is back on the main thread.
+ */
+internal suspend fun <T> whileTheMainLooperTurns(what: String, work: suspend () -> T): T = coroutineScope {
+    val asked = async(Dispatchers.Default) { work() }
+    val deadline = System.currentTimeMillis() + 10_000
+    while (!asked.isCompleted) {
+        check(System.currentTimeMillis() < deadline) { "Timed out waiting for $what" }
+        shadowOf(Looper.getMainLooper()).idle()
+        Thread.sleep(10)
+    }
+    asked.await()
 }
 
 /**
