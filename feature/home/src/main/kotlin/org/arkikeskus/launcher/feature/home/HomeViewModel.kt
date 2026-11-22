@@ -34,6 +34,7 @@ import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.ShortcutIconKey
 import org.arkikeskus.launcher.data.RemainingPins
 import org.arkikeskus.launcher.data.HomeLayoutRepository
+import org.arkikeskus.launcher.data.HomeProfileGrid
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
 import org.arkikeskus.launcher.data.PlaceResult
 import org.arkikeskus.launcher.data.ShortcutPinLock
@@ -284,13 +285,20 @@ class HomeViewModel @Inject constructor(
         // ever starts (Android's screensaver settings lead there), and a profile made and switched to in
         // it was "the home" this ran for: the profile the user had made as an empty one got the clock,
         // the first profile stayed empty, and the seed was marked done for the install.
+        //
+        // And whether there IS a first profile is looked at in the step that writes its rows, under the hold
+        // a deletion takes ([inTheOriginalHome]). Looked at once, before the wait for the app list, a first
+        // profile deleted in Settings during that wait still got the dock's rows: rows under an id the list
+        // no longer had, shown by no profile and found by the next restore as a home screen nobody is
+        // listed for. The old dock's rows were written without the look at all.
         viewModelScope.launch {
             val original = HomeProfile.FIRST_ID
             // Versions before 0.9.7 kept the dock as a favourites key list: rows first, the key
-            // only once they exist (a death in between re-runs this, and the rows are skipped).
+            // only once they exist (a death in between re-runs this, and the rows are skipped). With
+            // the first profile gone there is no home screen for that dock: the key goes, no rows.
             val legacyDock = settingsRepository.legacyDockFavorites()
             if (legacyDock.isNotEmpty()) {
-                homeLayoutRepository.inProfile(original) { homeLayoutRepository.migrateDockFavorites(legacyDock) }
+                inTheOriginalHome(original) { homeLayoutRepository.migrateDockFavorites(legacyDock) }
                 settingsRepository.clearLegacyDockFavorites()
             }
             val seeded = settingsRepository.defaultLayoutSeededOnce()
@@ -305,13 +313,11 @@ class HomeViewModel @Inject constructor(
                 decided
             }
             if (!seeded) {
-                // No grid: the first profile was deleted before the home screen first started. There is
-                // no original home screen to seed then, and the profiles there are were made as they are.
-                val grid = if (fresh) settingsRepository.gridOfHomeProfile(original) else null
-                if (grid != null) {
-                    homeLayoutRepository.inProfile(original) {
-                        // Idempotent on a retry: the widget only while home is still empty, the dock
-                        // only while the favorites are still empty.
+                if (fresh) {
+                    // Idempotent on a retry: the widget only while home is still empty, the dock
+                    // only while the favorites are still empty. Two steps, each with its own look at
+                    // the first profile: the clock is there at once, and the dock when the app list is.
+                    inTheOriginalHome(original) { grid ->
                         if (homeLayoutRepository.isHomeEmpty()) {
                             // Full width so the centered clock sits in the middle of the screen.
                             homeLayoutRepository.addBuiltin(
@@ -319,9 +325,12 @@ class HomeViewModel @Inject constructor(
                                 grid.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, grid.homeColumns, grid.homeRows,
                             )
                         }
-                        // The app list needs a beat on a cold start; a fresh device always has apps.
-                        val apps = appRepository.apps.first { it.isNotEmpty() }
-                        val dockKeys = resolveDefaultDockKeys(context, apps)
+                    }
+                    // The app list needs a beat on a cold start; a fresh device always has apps. Waited
+                    // for with nothing held: everything that needs the profile would wait with it.
+                    val apps = appRepository.apps.first { it.isNotEmpty() }
+                    val dockKeys = resolveDefaultDockKeys(context, apps)
+                    inTheOriginalHome(original) { grid ->
                         if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
                             val byKey = apps.associateBy { it.key }
                             homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
@@ -829,6 +838,20 @@ class HomeViewModel @Inject constructor(
     fun addToHome(appItem: AppItem, profile: Long) = viewModelScope.launch {
         val added = onHomeOf(profile) { s -> homeLayoutRepository.addToHome(appItem, s.homeColumns, s.homeRows) }
         if (added == false) notify(HomeNotice.HomeFull)
+    }
+
+    /**
+     * Runs [work] with its layout calls going to the home profile [original], when there is such a profile:
+     * handed that profile's grid, and nothing run when the profile is not there. The look and the work are one
+     * step under the hold a deletion of a profile takes ([HomeLayoutRepository.whileProfileStays]), so the
+     * rows [work] writes are a listed profile's. Nothing slow belongs in [work]: a switch, a page operation
+     * and a pin request wait for it.
+     */
+    private suspend fun inTheOriginalHome(original: Long, work: suspend (grid: HomeProfileGrid) -> Unit) {
+        homeLayoutRepository.whileProfileStays {
+            val grid = settingsRepository.gridOfHomeProfile(original) ?: return@whileProfileStays
+            homeLayoutRepository.inProfile(original) { work(grid) }
+        }
     }
 
     /** Queues a notice for the screen; the buffer absorbs a burst while nothing collects yet. */
