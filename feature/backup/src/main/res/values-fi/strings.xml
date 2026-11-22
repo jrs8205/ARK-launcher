@@ -27,6 +27,10 @@
         <item quantity="one">%1$d muuta profiilia ei voitu poistaa. Se on nyt tyhjä: poista se kohdassa Asetukset ▸ Profiilit.</item>
         <item quantity="other">%1$d muuta profiilia ei voitu poistaa. Ne ovat nyt tyhjiä: poista ne kohdassa Asetukset ▸ Profiilit.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">%1$d poistetun profiilin sovellusvalikon taustakuvaa ei voitu poistaa. Seuraava palautus poistaa sen.</item>
+        <item quantity="other">%1$d poistetun profiilin sovellusvalikon taustakuvia ei voitu poistaa. Seuraava palautus poistaa ne.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Palauta</string>
     <string name="backup_cancel">Peruuta</string>
     <string name="backup_last_time">Viimeksi: %1$s</string>

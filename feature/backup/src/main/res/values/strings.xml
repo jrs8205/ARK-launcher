@@ -27,6 +27,10 @@
         <item quantity="one">%1$d other profile could not be deleted. It is empty now: delete it in Settings ▸ Profiles.</item>
         <item quantity="other">%1$d other profiles could not be deleted. They are empty now: delete them in Settings ▸ Profiles.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">The app drawer wallpaper of %1$d deleted profile could not be removed. The next restore removes it.</item>
+        <item quantity="other">The app drawer wallpapers of %1$d deleted profiles could not be removed. The next restore removes them.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Restore</string>
     <string name="backup_cancel">Cancel</string>
     <string name="backup_last_time">Last: %1$s</string>

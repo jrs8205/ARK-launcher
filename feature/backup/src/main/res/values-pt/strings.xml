@@ -29,6 +29,11 @@
         <item quantity="many">Não foi possível excluir %1$d outros perfis. Eles estão vazios agora: exclua-os em Configurações ▸ Perfis.</item>
         <item quantity="other">Não foi possível excluir %1$d outros perfis. Eles estão vazios agora: exclua-os em Configurações ▸ Perfis.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">Não foi possível remover o papel de parede da gaveta de apps de %1$d perfil excluído. A próxima restauração o removerá.</item>
+        <item quantity="many">Não foi possível remover os papéis de parede da gaveta de apps de %1$d perfis excluídos. A próxima restauração os removerá.</item>
+        <item quantity="other">Não foi possível remover os papéis de parede da gaveta de apps de %1$d perfis excluídos. A próxima restauração os removerá.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Restaurar</string>
     <string name="backup_cancel">Cancelar</string>
     <string name="backup_last_time">Último: %1$s</string>

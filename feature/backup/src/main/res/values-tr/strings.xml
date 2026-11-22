@@ -27,6 +27,10 @@
         <item quantity="one">%1$d diğer profil silinemedi. Artık boş: Ayarlar ▸ Profiller bölümünden silin.</item>
         <item quantity="other">%1$d diğer profil silinemedi. Artık boş: Ayarlar ▸ Profiller bölümünden silin.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">Silinen %1$d profilin uygulama çekmecesi duvar kağıdı kaldırılamadı. Bir sonraki geri yükleme onu kaldırır.</item>
+        <item quantity="other">Silinen %1$d profilin uygulama çekmecesi duvar kağıtları kaldırılamadı. Bir sonraki geri yükleme onları kaldırır.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Geri yükle</string>
     <string name="backup_cancel">İptal</string>
     <string name="backup_last_time">Son yedek: %1$s</string>

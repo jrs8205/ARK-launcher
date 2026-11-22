@@ -29,6 +29,11 @@
         <item quantity="many">No se pudieron eliminar %1$d otros perfiles. Ahora están vacíos: elimínalos en Configuración ▸ Perfiles.</item>
         <item quantity="other">No se pudieron eliminar %1$d otros perfiles. Ahora están vacíos: elimínalos en Configuración ▸ Perfiles.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">No se pudo quitar el fondo del cajón de aplicaciones de %1$d perfil eliminado. La próxima restauración lo quitará.</item>
+        <item quantity="many">No se pudieron quitar los fondos del cajón de aplicaciones de %1$d perfiles eliminados. La próxima restauración los quitará.</item>
+        <item quantity="other">No se pudieron quitar los fondos del cajón de aplicaciones de %1$d perfiles eliminados. La próxima restauración los quitará.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Restaurar</string>
     <string name="backup_cancel">Cancelar</string>
     <string name="backup_last_time">Última copia: %1$s</string>

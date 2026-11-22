@@ -22,8 +22,10 @@ sealed interface BackupEvent {
      *  user never named) when there are several profiles; null with one, where there is nothing to tell apart. */
     data class Exported(val name: String, val profile: String? = null) : BackupEvent
     /** The backup is in. [profilesLeft] other home profiles are still listed, empty: their rows went with the
-     *  restore, and the list could not be written after it (`RestoreResult.profilesLeft`). */
-    data class Restored(val restored: Int, val skipped: Int, val profilesLeft: Int = 0) : BackupEvent
+     *  restore, and the list could not be written after it (`RestoreResult.profilesLeft`). [picturesLeft]: of
+     *  that many profiles that went, the picture behind the app drawer could not be removed from the disk
+     *  (`RestoreResult.picturesLeft`). */
+    data class Restored(val restored: Int, val skipped: Int, val profilesLeft: Int = 0, val picturesLeft: Int = 0) : BackupEvent
     data object InvalidFile : BackupEvent
     data object TooLarge : BackupEvent
 
@@ -45,7 +47,7 @@ sealed interface BackupEvent {
     /** A message too long to read in a short snackbar: it stays until dismissed or timed out long. */
     val needsTimeToRead: Boolean
         get() = this is ReadBlocked || this is ProfilesChanged || this is ExportProfileChanged ||
-            (this is Restored && profilesLeft > 0)
+            (this is Restored && (profilesLeft > 0 || picturesLeft > 0))
 }
 
 @HiltViewModel

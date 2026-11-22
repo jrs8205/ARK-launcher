@@ -27,6 +27,10 @@
         <item quantity="one">%1$d anderes Profil konnte nicht gelöscht werden. Es ist jetzt leer: Lösche es unter Einstellungen ▸ Profile.</item>
         <item quantity="other">%1$d andere Profile konnten nicht gelöscht werden. Sie sind jetzt leer: Lösche sie unter Einstellungen ▸ Profile.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">Das Hintergrundbild des App-Drawers von %1$d gelöschten Profil konnte nicht entfernt werden. Die nächste Wiederherstellung entfernt es.</item>
+        <item quantity="other">Die Hintergrundbilder des App-Drawers von %1$d gelöschten Profilen konnten nicht entfernt werden. Die nächste Wiederherstellung entfernt sie.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Wiederherstellen</string>
     <string name="backup_cancel">Abbrechen</string>
     <string name="backup_last_time">Zuletzt: %1$s</string>

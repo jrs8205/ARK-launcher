@@ -31,6 +31,12 @@
         <item quantity="many">Nie udało się usunąć %1$d innych profili. Są teraz puste: usuń je w Ustawienia ▸ Profile.</item>
         <item quantity="other">Nie udało się usunąć %1$d innych profili. Są teraz puste: usuń je w Ustawienia ▸ Profile.</item>
     </plurals>
+    <plurals name="backup_restore_pictures_left">
+        <item quantity="one">Nie udało się usunąć tapety szuflady aplikacji %1$d usuniętego profilu. Następne przywracanie ją usunie.</item>
+        <item quantity="few">Nie udało się usunąć tapet szuflady aplikacji %1$d usuniętych profili. Następne przywracanie je usunie.</item>
+        <item quantity="many">Nie udało się usunąć tapet szuflady aplikacji %1$d usuniętych profili. Następne przywracanie je usunie.</item>
+        <item quantity="other">Nie udało się usunąć tapet szuflady aplikacji %1$d usuniętych profili. Następne przywracanie je usunie.</item>
+    </plurals>
     <string name="backup_restore_confirm_ok">Przywróć</string>
     <string name="backup_cancel">Anuluj</string>
     <string name="backup_last_time">Ostatnio: %1$s</string>

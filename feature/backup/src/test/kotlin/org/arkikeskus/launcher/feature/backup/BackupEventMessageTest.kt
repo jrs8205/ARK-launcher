@@ -62,6 +62,29 @@ class BackupEventMessageTest {
         assertThat(BackupEvent.Restored(5, 3).needsTimeToRead).isFalse()
     }
 
+    /**
+     * Review round 14. The backup is in and the other profiles are gone from the list, but the picture behind
+     * the app drawer of one of them could not be removed from the disk. The result said nothing of it: said
+     * now with the result, on a line of its own, with what becomes of the picture, and long enough to need its
+     * time. Everything a restore's result says reaches the screen.
+     */
+    @Test fun aRestoreThatLeftAPictureOfAProfileThatWentSaysSo() {
+        val left = BackupEvent.Restored(5, 0, picturesLeft = 1)
+        val text = backupEventMessage(res, left)
+
+        assertThat(text).startsWith(res.getString(R.string.backup_restored))
+        assertThat(text).contains(res.getQuantityString(R.plurals.backup_restore_pictures_left, 1, 1))
+        assertThat(text).contains("The next restore removes it")
+        assertThat(left.needsTimeToRead).isTrue()
+        // With profiles that are still listed as well, both are said.
+        val both = backupEventMessage(res, BackupEvent.Restored(5, 0, profilesLeft = 1, picturesLeft = 2))
+        assertThat(both).contains("1 other profile could not be deleted")
+        assertThat(both).contains(res.getQuantityString(R.plurals.backup_restore_pictures_left, 2, 2))
+
+        assertThat(restoredEvent(org.arkikeskus.launcher.data.backup.RestoreResult(5, 1, profilesLeft = 2, picturesLeft = 3)))
+            .isEqualTo(BackupEvent.Restored(5, 1, profilesLeft = 2, picturesLeft = 3))
+    }
+
     /** Nothing was restored because the profiles changed under the question: the text says so and what to do,
      *  and it is long enough to need its time. */
     @Test fun changedProfilesSayThatNothingWasRestored() {
