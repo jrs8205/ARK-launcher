@@ -766,8 +766,10 @@ class SettingsRepository @Inject constructor(
     suspend fun referencedAppKeys(): Set<String> {
         val keys = LinkedHashSet<String>()
         // Of every home profile: an app is the same app whichever profile is on. The shared settings come
-        // with the first reading; each profile's own with its own.
-        for (prefs in listOf(dataStore.data.first()) + ownValuesOfEveryProfile()) {
+        // with the first reading; each profile's own with its own. Of the profiles [renameAppKeys] then
+        // writes to: this runs at every start of the home screen, and it is no reader that deletes, so
+        // stores that cannot be listed leave it the profiles that are named, not a failure.
+        for (prefs in listOf(dataStore.data.first()) + profiles?.valuesOfProfilesToCorrect().orEmpty()) {
             for (name in APP_KEY_PREFS) {
                 val raw = prefs[stringPreferencesKey(name)] ?: continue
                 rewriteAppKeys(name, raw) { keys += it; it }

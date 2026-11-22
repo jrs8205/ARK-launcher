@@ -183,6 +183,30 @@ class SettingsAcrossProfilesTest {
         assertThat(settings.referencedAppKeys()).containsExactly("h/h.M/0", "one/one.M/0", "two/two.M/0")
     }
 
+    /**
+     * Review round 11. The app keys are read at every start of the home screen (an app whose launcher activity
+     * was renamed is followed in the settings). They were read through "every profile", which fails when the
+     * profiles' stores cannot be listed. That failure is for the reader that DELETES what no profile names; here
+     * it escaped at the start, every time the folder could not be read. The keys are read from the profiles that
+     * can be told of, which are the ones the correction is then written to; the pictures in use are still not
+     * known until the stores can be listed.
+     */
+    @Test fun theAppKeysAreReadFromTheProfilesThereAreWhileTheStoresCannotBeListed() = runTest {
+        settings.setAppHidden("h/h.M/0", true)
+        settings.setLeftSwipeAppKey("one/one.M/0")
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setLeftSwipeAppKey("two/two.M/0")
+        files.failIds = java.io.IOException("the folder could not be read")
+
+        assertThat(settings.referencedAppKeys()).containsExactly("h/h.M/0", "one/one.M/0", "two/two.M/0")
+        settings.renameAppKeys(mapOf("one/one.M/0" to "one/one.New/0"))
+        assertThat(settings.referencedAppKeys()).containsExactly("h/h.M/0", "one/one.New/0", "two/two.M/0")
+
+        val pictures = runCatching { settings.folderIconsOfEveryProfile() }
+        assertThat(pictures.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+    }
+
     @Test fun theFolderIconsOfEveryProfileAreKnown() = runTest {
         val home = CustomIcon.FromFile("home.png")
         val work = CustomIcon.FromFile("work.png")

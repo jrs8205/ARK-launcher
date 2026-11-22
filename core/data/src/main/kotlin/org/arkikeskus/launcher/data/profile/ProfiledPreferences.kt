@@ -146,8 +146,26 @@ class ProfiledPreferences(
      */
     suspend fun valuesOfEveryProfile(): List<Preferences> = mutex.withLock {
         val shared = main.data.first()
+        valuesOf(everyProfile(shared), shared)
+    }
+
+    /**
+     * The own values of the profiles a correction reaches ([updateEveryProfile]): every profile, or, while
+     * the unlisted stores cannot be listed, those that are named or being made. For a reader that corrects
+     * and does not delete: what an app key is to be changed to is looked up from these, at every start of the
+     * home screen, and a folder that cannot be read must not stop the start. ([valuesOfEveryProfile] fails
+     * then, as it must: what it leaves out would be taken for used by nobody.) Not for a caller that holds
+     * [mutex].
+     */
+    suspend fun valuesOfProfilesToCorrect(): List<Preferences> = mutex.withLock {
+        val shared = main.data.first()
+        valuesOf(profilesToCorrect(shared), shared)
+    }
+
+    /** The own values of [ids], each from where it is kept. For a caller that holds [mutex]. */
+    private suspend fun valuesOf(ids: List<Long>, shared: Preferences): List<Preferences> {
         val inMain = mainStoreId(shared)
-        everyProfile(shared).map { id -> perProfileOf(if (id == inMain) shared else files.store(id).data.first()) }
+        return ids.map { id -> perProfileOf(if (id == inMain) shared else files.store(id).data.first()) }
     }
 
     /** Every profile something of its own is kept for: those the list in [shared] names, in its order, then
@@ -161,6 +179,15 @@ class ProfiledPreferences(
         (HomeProfile.decode(shared[LIST]).map { it.id } + beingMade).distinct()
 
     /**
+     * The profiles a correction is read from and written to: [everyProfile], or [namedOrBeingMade] while
+     * the unlisted stores cannot be listed. A correction is not a deletion: the profiles there are still get
+     * it, and a store nobody names is shown to nobody meanwhile. One rule for the reader and the writer, so
+     * that they keep to one set. For a caller that holds [mutex].
+     */
+    private suspend fun profilesToCorrect(shared: Preferences): List<Long> =
+        try { everyProfile(shared) } catch (e: IOException) { namedOrBeingMade(shared) }
+
+    /**
      * Runs [transform] on the own values of every profile [valuesOfEveryProfile] reads: those the list names
      * and those that are being made ([making]), in one holding of [mutex]. What is corrected in every profile
      * (an app's key that changed) must reach the same profiles a reader of every profile sees: written to the
@@ -169,11 +196,7 @@ class ProfiledPreferences(
      * that holds [mutex].
      */
     suspend fun updateEveryProfile(transform: (MutablePreferences) -> Unit) = mutex.withLock {
-        val shared = main.data.first()
-        // A correction, not a deletion: when the unlisted stores cannot be listed, the profiles there are
-        // still get it (a store nobody names is shown to nobody meanwhile).
-        val ids = try { everyProfile(shared) } catch (e: IOException) { namedOrBeingMade(shared) }
-        for (id in ids) updateProfileLocked(id, transform)
+        for (id in profilesToCorrect(main.data.first())) updateProfileLocked(id, transform)
     }
 
     /** Runs [transform] on the own values of [profileId] alone, whether it is on or not; anything it sets
