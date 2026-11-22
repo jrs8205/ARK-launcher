@@ -64,6 +64,9 @@ data class HomeFolderIcons(
 /** When the home profile [homeProfileId] was last exported to a file ([timeMs], epoch ms; 0 = never). */
 data class LastBackup(val homeProfileId: Long, val timeMs: Long)
 
+/** The grid of one home profile: its home screen's columns and rows and its dock's columns. */
+data class HomeProfileGrid(val homeColumns: Int, val homeRows: Int, val dockColumns: Int)
+
 /**
  * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
  * `preferencesDataStore` in DataModule) so the repository's merge logic can be unit-tested on the
@@ -555,6 +558,33 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setDockEnabled(value: Boolean) = edit { it[Keys.DOCK_ENABLED] = value }
     suspend fun setDockColumns(value: Int) = edit { it[Keys.DOCK_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }
+
+    /**
+     * The grid of the home profile [profileId], whichever profile is on; null when there is no such profile.
+     * For what is about one profile by name and not about the one that is on: the first start's default
+     * layout is the first profile's, and another profile can be on by then. Clamped as [settings] clamps it.
+     */
+    suspend fun gridOfHomeProfile(profileId: Long): HomeProfileGrid? {
+        val seen = dataStore.data.first()
+        if (ProfiledPreferences.listed(seen).none { it.id == profileId }) return null
+        val own = if (profiles == null || ProfiledPreferences.activeId(seen) == profileId) seen else profiles.profileValues(profileId)
+        return HomeProfileGrid(
+            homeColumns = (own[Keys.HOME_COLUMNS] ?: 4).coerceIn(MIN_COLUMNS, MAX_COLUMNS),
+            homeRows = (own[Keys.HOME_ROWS] ?: 6).coerceIn(MIN_ROWS, MAX_ROWS),
+            dockColumns = (own[Keys.DOCK_COLUMNS] ?: 4).coerceIn(MIN_COLUMNS, MAX_COLUMNS),
+        )
+    }
+
+    /** The dock's columns of the home profile [profileId], whichever profile is on; nothing for a profile
+     *  that is not there ([gridOfHomeProfile]). */
+    suspend fun setDockColumnsOf(profileId: Long, value: Int) {
+        val columns = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS)
+        if (profiles == null) {
+            if (ProfiledPreferences.listed(dataStore.data.first()).any { it.id == profileId }) edit { it[Keys.DOCK_COLUMNS] = columns }
+        } else {
+            profiles.updateListedProfile(profileId) { it[Keys.DOCK_COLUMNS] = columns }
+        }
+    }
     suspend fun setHomeColumns(value: Int) = edit { it[Keys.HOME_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }
     suspend fun setHomeRows(value: Int) = edit { it[Keys.HOME_ROWS] = value.coerceIn(MIN_ROWS, MAX_ROWS) }
     suspend fun setDrawerColumns(value: Int) = edit { it[Keys.DRAWER_COLUMNS] = value.coerceIn(MIN_COLUMNS, MAX_COLUMNS) }

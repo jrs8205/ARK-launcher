@@ -110,6 +110,13 @@ class HomeLayoutRepository @Inject constructor(
     suspend fun <T> whileProfileStays(work: suspend () -> T): T = dao.whileActiveStays { work() }
 
     /**
+     * Runs [work] with its layout calls going to the home profile [profileId], whichever profile is on. For
+     * what is about one profile by name: the first start's default layout is the FIRST profile's, and a
+     * profile made in Settings before the home screen ever started can be the one that is on by then.
+     */
+    suspend fun <T> inProfile(profileId: Long, work: suspend () -> T): T = inHomeProfile(profileId) { work() }
+
+    /**
      * One layout operation: one transaction in ONE home profile. The profile is read once, before the work
      * starts, and named around it, so a profile switch in the middle cannot leave half the work in each.
      */

@@ -278,12 +278,19 @@ class HomeViewModel @Inject constructor(
         // smartspace widget + the default dock (phone/messages/Settings/browser/camera) and show
         // the intro. Device-local flags so removing items never re-seeds, and updating users
         // (non-empty home) get the flags silently without any of it.
+        //
+        // All of it is the ORIGINAL home screen's: the first profile's, named around every layout call
+        // and every setting below, whichever profile is on. Settings can be opened before the home screen
+        // ever starts (Android's screensaver settings lead there), and a profile made and switched to in
+        // it was "the home" this ran for: the profile the user had made as an empty one got the clock,
+        // the first profile stayed empty, and the seed was marked done for the install.
         viewModelScope.launch {
+            val original = HomeProfile.FIRST_ID
             // Versions before 0.9.7 kept the dock as a favourites key list: rows first, the key
             // only once they exist (a death in between re-runs this, and the rows are skipped).
             val legacyDock = settingsRepository.legacyDockFavorites()
             if (legacyDock.isNotEmpty()) {
-                homeLayoutRepository.migrateDockFavorites(legacyDock)
+                homeLayoutRepository.inProfile(original) { homeLayoutRepository.migrateDockFavorites(legacyDock) }
                 settingsRepository.clearLegacyDockFavorites()
             }
             val seeded = settingsRepository.defaultLayoutSeededOnce()
@@ -293,31 +300,35 @@ class HomeViewModel @Inject constructor(
             // mid-seed leaves the home non-empty, which must not flip a fresh install into an
             // "updating user" on the retry (dock never seeded, intro never shown).
             val fresh = settingsRepository.firstRunFreshOnce() ?: run {
-                val decided = homeLayoutRepository.isHomeEmpty()
+                val decided = homeLayoutRepository.inProfile(original) { homeLayoutRepository.isHomeEmpty() }
                 settingsRepository.setFirstRunFresh(decided)
                 decided
             }
             if (!seeded) {
-                if (fresh) {
-                    val settings = settingsRepository.settings.first()
-                    // Idempotent on a retry: the widget only while home is still empty, the dock
-                    // only while the favorites are still empty.
-                    if (homeLayoutRepository.isHomeEmpty()) {
-                        // Full width so the centered clock sits in the middle of the screen.
-                        homeLayoutRepository.addBuiltin(
-                            HomeItemEntity.BUILTIN_SMARTSPACE,
-                            settings.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, settings.homeColumns, settings.homeRows,
-                        )
-                    }
-                    // The app list needs a beat on a cold start; a fresh device always has apps.
-                    val apps = appRepository.apps.first { it.isNotEmpty() }
-                    val dockKeys = resolveDefaultDockKeys(context, apps)
-                    if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
-                        val byKey = apps.associateBy { it.key }
-                        homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
-                        // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
-                        if (dockKeys.size > settings.dockColumns) {
-                            settingsRepository.setDockColumns(dockKeys.size)
+                // No grid: the first profile was deleted before the home screen first started. There is
+                // no original home screen to seed then, and the profiles there are were made as they are.
+                val grid = if (fresh) settingsRepository.gridOfHomeProfile(original) else null
+                if (grid != null) {
+                    homeLayoutRepository.inProfile(original) {
+                        // Idempotent on a retry: the widget only while home is still empty, the dock
+                        // only while the favorites are still empty.
+                        if (homeLayoutRepository.isHomeEmpty()) {
+                            // Full width so the centered clock sits in the middle of the screen.
+                            homeLayoutRepository.addBuiltin(
+                                HomeItemEntity.BUILTIN_SMARTSPACE,
+                                grid.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, grid.homeColumns, grid.homeRows,
+                            )
+                        }
+                        // The app list needs a beat on a cold start; a fresh device always has apps.
+                        val apps = appRepository.apps.first { it.isNotEmpty() }
+                        val dockKeys = resolveDefaultDockKeys(context, apps)
+                        if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
+                            val byKey = apps.associateBy { it.key }
+                            homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
+                            // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
+                            if (dockKeys.size > grid.dockColumns) {
+                                settingsRepository.setDockColumnsOf(original, dockKeys.size)
+                            }
                         }
                     }
                 }

@@ -191,11 +191,15 @@ internal class ProductionWiring(
     suspend fun homeViewModel(): HomeViewModel {
         settingsRepository.setDefaultLayoutSeeded()
         settingsRepository.setOnboardingDone()
-        return HomeViewModel(
-            context, settingsRepository, appRepository, homeLayoutRepository, NotificationBadgeRepository(), SignalMonitor(context),
-            CustomIconStore(settingsRepository, CustomIconSource(context, IconPackRepository(context))),
-        )
+        return firstStartHomeViewModel()
     }
+
+    /** The ViewModel of the launcher's FIRST start of the home screen: nothing was seeded yet and the intro
+     *  was not seen, so its first-run work is still to do. */
+    fun firstStartHomeViewModel(): HomeViewModel = HomeViewModel(
+        context, settingsRepository, appRepository, homeLayoutRepository, NotificationBadgeRepository(), SignalMonitor(context),
+        CustomIconStore(settingsRepository, CustomIconSource(context, IconPackRepository(context))),
+    )
 
     fun clear(viewModel: HomeViewModel) {
         letThePinLockGo()

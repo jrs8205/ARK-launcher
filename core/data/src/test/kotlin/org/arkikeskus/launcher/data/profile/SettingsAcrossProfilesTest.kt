@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.AppUsageRepository
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.HomeFolderIcons
+import org.arkikeskus.launcher.data.HomeProfileGrid
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.HomeProfile
@@ -273,6 +274,33 @@ class SettingsAcrossProfilesTest {
         files.store(2).failReads = null
         store.setActive(2)
         assertThat(started.settings.first().baseColour).isEqualTo("green")
+    }
+
+    /**
+     * Review round 16. The first start's default layout is the FIRST profile's, whichever profile is on by
+     * then (a profile can be made and switched to before the home screen ever starts). So that profile's grid
+     * is read, and its dock widened for the seed, by the profile's id: read and written through "the settings
+     * of the profile that is on", they were another profile's.
+     */
+    @Test fun theGridOfAProfileIsReadAndItsDockWidenedWhicheverProfileIsOn() = runTest {
+        settings.setHomeColumns(5)
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        settings.setHomeColumns(3)
+
+        assertThat(settings.gridOfHomeProfile(1)).isEqualTo(HomeProfileGrid(homeColumns = 5, homeRows = 6, dockColumns = 4))
+        settings.setDockColumnsOf(1, 5)
+
+        assertThat(settings.gridOfHomeProfile(1)?.dockColumns).isEqualTo(5)
+        // The profile that is on has its own grid and its own dock, as they were.
+        assertThat(settings.settings.first().homeColumns).isEqualTo(3)
+        assertThat(settings.settings.first().dockColumns).isEqualTo(4)
+        assertThat(settings.gridOfHomeProfile(2)).isEqualTo(HomeProfileGrid(homeColumns = 3, homeRows = 6, dockColumns = 4))
+        // A profile that is not there has no grid, and nothing is written for it.
+        assertThat(settings.gridOfHomeProfile(7)).isNull()
+        settings.setDockColumnsOf(7, 5)
+        assertThat(files.stores.keys).doesNotContain(7L)
+        assertThat(settings.settings.first().dockColumns).isEqualTo(4)
     }
 
     /** Review round 14: the same start with a settings file that reads and cannot be written (a full disk).
