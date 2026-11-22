@@ -114,6 +114,13 @@ class HomeProfileStore(
         // lost, and be cleared. (Dying between the two leaves it unlisted and unmarked: kept, never taken.)
         files.store(profile.id).updateData { it.toMutablePreferences().apply { remove(BEING_MADE) }.toPreferences() }
         main.edit {
+            // Both pointers as they were READ, in the write that lengthens the list. One that named no
+            // profile of the list was not followed (the first profile was); a settings file that comes from
+            // 1.2.1 can hold such a one. Left as it was, it became a true pointer the moment a profile of
+            // that id was listed: that profile was on without a switch, or the settings file was read as
+            // its own and the user's profile read an empty store.
+            it[ACTIVE] = ProfiledPreferences.activeId(now)
+            it[MAIN_STORE] = ProfiledPreferences.mainStoreId(now)
             it[LIST] = HomeProfile.encode(list + profile)
             it[LAST_ID] = maxOf(ProfiledPreferences.lastId(now), profile.id)
         }

@@ -324,6 +324,35 @@ class HomeProfileStoreTest {
         assertThat(main.now[mainStore]).isEqualTo(3L)
     }
 
+    /**
+     * Review round 13. A pointer that names no profile of the list is not followed (the first profile is read),
+     * and it must not come true when a profile of that id is made. A settings file that comes from 1.2.1 can
+     * hold one, as that version kept a key it did not know. The next profile got exactly that id, and listing
+     * it made the pointer a true one: the new profile was on though nobody had switched to it, and the
+     * settings file was read as its own while the user's first profile read an empty store. Listing a profile
+     * writes both pointers as they were read, in the write that lengthens the list.
+     */
+    @Test fun aPointerThatNamedNoProfileIsNotFollowedOnceAProfileOfThatIdIsListed() = runTest {
+        view.edit { it[baseColour] = "blue" }
+        main.updateData {
+            it.toMutablePreferences().apply {
+                this[mainStore] = 2L
+                this[longPreferencesKey(HomeProfileKeys.ACTIVE)] = 2L
+            }.toPreferences()
+        }
+        assertThat(store.current()).isEqualTo(1L)
+
+        val created = store.create("Work", copyOf = null)!!
+
+        assertThat(created.id).isEqualTo(2L)
+        // Nobody switched: the first profile is on, and its values are where they were.
+        assertThat(store.current()).isEqualTo(1L)
+        assertThat(ProfiledPreferences.mainStoreId(main.now)).isEqualTo(1L)
+        assertThat(view.data.first()[baseColour]).isEqualTo("blue")
+        assertThat(view.profileValues(1)[baseColour]).isEqualTo("blue")
+        assertThat(view.profileValues(created.id).names()).isEmpty()
+    }
+
     @Test fun aSwitchWaitsWhileSomeoneNeedsTheProfileToStay() = runTest {
         store.create("Work", copyOf = null)
         var onDuringTheWork = 0L
