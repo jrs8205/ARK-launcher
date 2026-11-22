@@ -44,12 +44,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.feature.screensaver.R
 import org.arkikeskus.launcher.feature.screensaver.NotificationIconGroup
 import org.arkikeskus.launcher.feature.screensaver.NotificationRowFit
 import org.arkikeskus.launcher.feature.screensaver.fitNotificationRow
+import org.arkikeskus.launcher.ui.LocalBackgroundDispatcher
 
 // The pieces the screensaver's styles share: the clock block, the notification row, the
 // text fitting and the battery's colours.
@@ -272,6 +272,7 @@ private fun NotificationIconRowContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val background = LocalBackgroundDispatcher.current
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -282,7 +283,7 @@ private fun NotificationIconRowContent(
                 // Review round 10: a URI-backed icon reads a content provider, so the decode
                 // runs off the main thread and the icon appears when it is ready.
                 val bitmap by produceState<ImageBitmap?>(null, group.newestPostTime, iconSizePx) {
-                    value = withContext(Dispatchers.IO) {
+                    value = withContext(background) {
                         loadNotificationIcon(context, group.smallIcon, iconSizePx)
                     }
                 }

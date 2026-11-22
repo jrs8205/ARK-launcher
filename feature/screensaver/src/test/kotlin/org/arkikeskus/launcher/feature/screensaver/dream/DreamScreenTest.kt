@@ -20,7 +20,10 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import org.arkikeskus.launcher.feature.screensaver.R
+import org.arkikeskus.launcher.ui.LocalBackgroundDispatcher
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +31,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.util.Locale
+import kotlin.coroutines.CoroutineContext
 
 /**
  * The screensaver as a whole, drawn from a fixed sample: what each style puts on the screen
@@ -54,11 +58,56 @@ class DreamScreenTest {
         landscape: Boolean,
         onTap: (() -> Unit)? = null,
         state: DreamUiState = sample(),
+        background: CoroutineDispatcher = Dispatchers.Unconfined,
     ) {
         shownOptions = options
         compose.setContent {
-            DreamScreen(state = state, options = shownOptions, landscape = landscape, onTap = onTap, moving = false)
+            // What the screen reads off the main thread (the notification icons) is read at once, on this
+            // thread. Read on another thread, it comes back on that thread under the rule, and the screen is
+            // then worked on from two threads at once.
+            CompositionLocalProvider(LocalBackgroundDispatcher provides background) {
+                DreamScreen(state = state, options = shownOptions, landscape = landscape, onTap = onTap, moving = false)
+            }
         }
+    }
+
+    /** A dispatcher that runs what it is given only when the test says so, on the test's own thread. */
+    private class PacedDispatcher : CoroutineDispatcher() {
+        private val waiting = ArrayDeque<Runnable>()
+
+        val held: Int get() = synchronized(waiting) { waiting.size }
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            synchronized(waiting) { waiting.addLast(block) }
+        }
+
+        fun runAll() {
+            while (true) (synchronized(waiting) { waiting.removeFirstOrNull() } ?: return).run()
+        }
+    }
+
+    /**
+     * Review rounds 12 and 13, from full test runs. One test here failed once with "performMeasureAndLayout
+     * called during measure layout", and once a test never came back from waiting for the screen to be idle.
+     * The notification icons were read on the IO dispatcher whatever the test did. Under the test rule what
+     * was read came back on the thread it was read on, and that thread went on with the screen's own work
+     * (the change was applied and the next frame asked for from there) while the test's thread was in the
+     * middle of the same. The row reads on the dispatcher its place gives it ([LocalBackgroundDispatcher]):
+     * here one that runs only when told, so no icon is there before, and every icon is there after.
+     */
+    @Test
+    fun `the notification icons are read on the dispatcher the screen's place gives it`() {
+        val paced = PacedDispatcher()
+        show(landscape = false, background = paced)
+        compose.waitForIdle()
+
+        // The count beside an icon is drawn with its icon: the sample's second group has two.
+        assertThat(paced.held).isEqualTo(3)
+        assertThat(countOf("2")).isEqualTo(0)
+
+        paced.runAll()
+        compose.waitForIdle()
+        assertThat(countOf("2")).isEqualTo(1)
     }
 
     /** How many texts on the screen are, or contain, [text]. */

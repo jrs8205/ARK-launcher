@@ -3,11 +3,14 @@ package org.arkikeskus.launcher.feature.screensaver.dream
 import android.app.Application
 import android.content.Intent
 import android.os.BatteryManager
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.arkikeskus.launcher.data.ActiveNotification
+import org.arkikeskus.launcher.ui.LocalBackgroundDispatcher
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,9 +49,13 @@ class DreamStateCollectorTest {
         // The clock ticks for as long as the screensaver is up: the test moves time itself.
         compose.mainClock.autoAdvance = false
         compose.setContent {
-            val collected = rememberDreamUiState(LocalContext.current, DreamOptions(), notifications, onChargeState) {}
-            state = collected
-            DreamScreen(state = collected, options = DreamOptions(), landscape = false, onTap = {})
+            // The row's icons are read at once, on this thread: read on another one they come back on it
+            // under the rule, and the screen is then worked on from two threads at once.
+            CompositionLocalProvider(LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
+                val collected = rememberDreamUiState(LocalContext.current, DreamOptions(), notifications, onChargeState) {}
+                state = collected
+                DreamScreen(state = collected, options = DreamOptions(), landscape = false, onTap = {})
+            }
         }
         frames()
         return { compose.runOnIdle { state!! } }

@@ -11,8 +11,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
 import org.arkikeskus.launcher.feature.screensaver.R
 import org.arkikeskus.launcher.feature.screensaver.MAX_FONT_SCALE
+import org.arkikeskus.launcher.ui.LocalBackgroundDispatcher
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -128,7 +130,12 @@ class DreamStyleFitTest {
         var options by mutableStateOf(DreamOptions())
         var state by mutableStateOf(worstCaseDreamUiState(context, DreamChargeState.CHARGING))
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, MAX_FONT_SCALE)) {
+            CompositionLocalProvider(
+                LocalDensity provides Density(1f, MAX_FONT_SCALE),
+                // The icons are read at once, on this thread: read on another one they come back on it
+                // under the rule, and the screen is then worked on from two threads at once.
+                LocalBackgroundDispatcher provides Dispatchers.Unconfined,
+            ) {
                 DreamScreen(state = state, options = options, landscape = landscape, onTap = null, moving = false)
             }
         }
@@ -137,7 +144,7 @@ class DreamStyleFitTest {
                 options = DreamOptions(style = style, showCalendar = true)
                 state = worstCaseDreamUiState(context, chargeState)
                 compose.waitForIdle()
-                // The icons are decoded off the main thread; the row has its height, and
+                // The icons are decoded in an effect of their own; the row has its height, and
                 // its counts, only once they are in. A style may leave the row out when it
                 // runs out of room (Gauges on its side), so the wait is for a row that is
                 // on the screen: it names itself to screen readers as soon as it is.
