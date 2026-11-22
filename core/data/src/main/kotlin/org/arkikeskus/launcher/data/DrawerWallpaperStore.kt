@@ -156,6 +156,8 @@ class DrawerWallpaperStore internal constructor(
     private val context: Context,
     /** Where the files are read and written; a test hands in one it can pace. */
     private val io: CoroutineDispatcher,
+    /** The files in a folder, or null when the folder could not be read ([File.listFiles]). */
+    private val filesIn: (File) -> Array<File>? = { it.listFiles() },
 ) {
     /** The launcher's own store: its picture is that of the home profile that is on. */
     @Inject constructor(
@@ -267,12 +269,19 @@ class DrawerWallpaperStore internal constructor(
     /**
      * Gives the home profile [to] a copy of [from]'s picture, when [from] has one: a profile made as a copy. The
      * file keeps its name, which carries its lightness. False when the picture could not be copied whole (no
-     * space left): nothing of it is left then. As a pick, the copy is written to a part-file (not a picture
+     * space left) or [from]'s folder could not be read: nothing of it is left then. As a pick, the copy is written to a part-file (not a picture
      * yet) and renamed when it is whole: written straight under the picture's name, half a file was taken for
      * the profile's picture.
      */
     suspend fun copy(from: Long, to: Long): Boolean = withContext(io) {
-        val source = dirOf(from).listFiles()?.filter { it.isFile && it.extension == "jpg" }?.maxByOrNull { it.lastModified() }
+        val folder = dirOf(from)
+        // No folder: the profile never had a picture (a pick makes the folder), and that is no failure.
+        if (!folder.exists()) return@withContext true
+        // A folder that is there and gives no listing could not be READ: that is not a profile without a
+        // picture. Answered as one, the copy of the profile was reported as made without the picture the
+        // user had chosen for its source (the check before the copy can list a folder this one cannot).
+        val files = filesIn(folder) ?: return@withContext false
+        val source = files.filter { it.isFile && it.extension == "jpg" }.maxByOrNull { it.lastModified() }
             ?: return@withContext true
         val target = dirOf(to)
         val part = File(target, "${UUID.randomUUID()}$PART_SUFFIX")

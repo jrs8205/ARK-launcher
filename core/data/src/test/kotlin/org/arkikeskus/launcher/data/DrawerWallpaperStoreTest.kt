@@ -293,6 +293,24 @@ class DrawerWallpaperStoreTest {
         assertThat(store.copy(from = 5, to = 6)).isTrue()
     }
 
+    /**
+     * Review round 12. "No picture to copy" is what a missing or an empty folder says. A folder that is there
+     * and gives no listing could not be READ, and that was answered the same way: the copy of the profile was
+     * reported as made, without the picture the user had chosen for its source. Such a copy says it failed.
+     */
+    @Test fun aCopyWhoseSourceFolderCannotBeReadSaysSoAndIsNotTakenForAProfileWithoutAPicture() = runBlocking<Unit> {
+        DrawerWallpaperStore(context, Dispatchers.Unconfined).set(picture(Color.WHITE), 1)
+        val source = File(context.filesDir, "drawer_wallpaper")
+        val store = DrawerWallpaperStore(context, Dispatchers.Unconfined, filesIn = { if (it == source) null else it.listFiles() })
+
+        assertThat(store.copy(from = 1, to = 2)).isFalse()
+
+        assertThat(jpgsOf(2)).isEmpty()
+        // A folder that is there and empty is still a profile without a picture.
+        File(context.filesDir, "drawer_wallpaper_7").mkdirs()
+        assertThat(store.copy(from = 7, to = 8)).isTrue()
+    }
+
     @Test fun aCopyThatCannotBeWrittenSaysSoAndLeavesNoPicture() = runBlocking<Unit> {
         val store = DrawerWallpaperStore(context, Dispatchers.Unconfined)
         store.set(picture(Color.WHITE), 1)
