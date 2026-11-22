@@ -1,6 +1,7 @@
 package org.arkikeskus.launcher.feature.backup
 
 import android.content.res.Resources
+import android.net.Uri
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -10,8 +11,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import org.arkikeskus.launcher.data.backup.ConfirmedProfiles
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.HomeProfile
@@ -53,6 +62,45 @@ internal class StoredProfilesLostInRestore @Inject constructor(
 ) : ProfilesLostInRestore {
     override fun profiles(): Flow<RestoreProfiles> =
         combine(profiles.profiles, profiles.activeId, profiles.unlistedHomeScreens, ::profilesARestoreDeletes)
+}
+
+/**
+ * A restore's question on a screen that can ask it more than once (the backup screen stays open between two
+ * restores): the profiles a restore would meet ([profiles]), and the restore that is held to them ([restore]).
+ *
+ * Part of what the question names is found from files (a profile's own store or picture kept under an id the
+ * list does not name), and a file says nothing when it changes: the profiles are followed as the rows and the
+ * list change, and nothing more. Read once when the screen opened, a listing that failed then left an id out
+ * of every question this screen asked. The restore refused each time, as it must, and the user could not get
+ * past it without leaving the screen. So the following is begun ANEW, which reads the files again, each time
+ * the question is shown ([opened]) and after a restore that found the profiles changed.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal class RestoreQuestion(
+    private val lost: ProfilesLostInRestore,
+    private val restorer: BackupRestorer,
+    scope: CoroutineScope,
+) {
+    /** Counts the times the profiles were asked to be read anew. */
+    private val readings = MutableStateFlow(0)
+
+    /** The home profiles a restore would meet now; null until they have been read. While they are read
+     *  anew, the value of the reading before stands. */
+    val profiles: StateFlow<RestoreProfiles?> =
+        readings.flatMapLatest { lost.profiles() }.stateIn<RestoreProfiles?>(scope, SharingStarted.Eagerly, null)
+
+    /** The question is about to be shown: what it names is read anew. */
+    fun opened() = readAgain()
+
+    /** Restores [uri], held to the profiles the question showed ([asked]). When they were no longer so, the
+     *  next question is to name the profiles that restore met. */
+    suspend fun restore(uri: Uri, asked: RestoreProfiles): BackupEvent {
+        val event = restorer.restoreFrom(uri, asked.confirmed) {}
+        if (event == BackupEvent.ProfilesChanged) readAgain()
+        return event
+    }
+
+    private fun readAgain() = readings.update { it + 1 }
 }
 
 /** The one that is on ([activeId]) and every other profile of [profiles], in the list's order; and the home

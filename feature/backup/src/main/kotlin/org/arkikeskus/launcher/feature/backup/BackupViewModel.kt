@@ -52,7 +52,7 @@ sealed interface BackupEvent {
 class BackupViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val backupRepository: BackupRepository,
-    private val restorer: BackupRestorer,
+    restorer: BackupRestorer,
     private val settings: SettingsRepository,
     lost: ProfilesLostInRestore,
 ) : ViewModel() {
@@ -60,9 +60,13 @@ class BackupViewModel @Inject constructor(
     private val _events = MutableSharedFlow<BackupEvent>(extraBufferCapacity = 4)
     val events = _events.asSharedFlow()
 
+    private val question = RestoreQuestion(lost, restorer, viewModelScope)
+
     /** The home profiles a restore would meet now, for its question; null until they have been read. */
-    val restoreProfiles: StateFlow<RestoreProfiles?> =
-        lost.profiles().stateIn<RestoreProfiles?>(viewModelScope, SharingStarted.Eagerly, null)
+    val restoreProfiles: StateFlow<RestoreProfiles?> = question.profiles
+
+    /** The restore's question is about to be shown ([RestoreQuestion.opened]). */
+    fun restoreQuestionOpened() = question.opened()
 
     /** When the home profile that is on was last exported to a file, WITH that profile (one value: the
      *  screen shows the time only beside the profile it is of); null until it has been read. */
@@ -91,7 +95,7 @@ class BackupViewModel @Inject constructor(
 
     /** Restores [uri], held to the profiles its question showed ([asked]). */
     fun importFrom(uri: Uri, asked: RestoreProfiles) = viewModelScope.launch {
-        _events.emit(restorer.restoreFrom(uri, asked.confirmed) {})
+        _events.emit(question.restore(uri, asked))
     }
 
     internal companion object {

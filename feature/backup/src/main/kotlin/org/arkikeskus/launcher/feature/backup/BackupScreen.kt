@@ -60,7 +60,13 @@ fun BackupScreen(
     // --- File launchers ---
     val openDoc = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> if (uri != null) pendingImport = uri }
+    ) { uri ->
+        if (uri != null) {
+            // The question is asked now: what it names is read anew (this screen can ask more than once).
+            viewModel.restoreQuestionOpened()
+            pendingImport = uri
+        }
+    }
 
     // A ROM without a documents UI has no handler for the pickers: launching one throws, and the
     // backup screen runs in the home process. Say so instead.
