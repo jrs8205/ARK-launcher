@@ -91,7 +91,7 @@ class WidgetIdSweepTest {
         val before = PendingWidgetIds(now = { 1_000_000L }).apply { persistIn(storage) }
         // The bind dialog is open for 100 when the process dies.
         assertThat(storeIn(before).acceptWidget(ClockRequest(), Binder(allowed = false), onHome))
-            .isEqualTo(WidgetPinOutcome.NeedsPermission(100))
+            .isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
 
         // The next process: the home screen comes back first and sweeps.
         val after = PendingWidgetIds(now = { 1_000_000L + 60_000L }).apply { persistIn(storage) }
@@ -148,7 +148,7 @@ class WidgetIdSweepTest {
         val request = ClockRequest()
         // The request holds its id while the system's bind dialog is open.
         val outcome = store.acceptWidget(request, binder, onHome)
-        assertThat(outcome).isEqualTo(WidgetPinOutcome.NeedsPermission(100))
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
 
         val rowsRead = CompletableDeferred<Unit>()
         val resume = CompletableDeferred<Unit>()
@@ -165,7 +165,7 @@ class WidgetIdSweepTest {
         rowsRead.await()
         // The user allowed the bind: the request stores its row right now.
         val stored = launch(Dispatchers.Default) {
-            store.acceptBoundWidget(request, binder, 100, onHome)
+            store.acceptBoundWidget(request, binder, 100, profileId = 1, decide = onHome)
         }
         delay(500)
         resume.complete(Unit)

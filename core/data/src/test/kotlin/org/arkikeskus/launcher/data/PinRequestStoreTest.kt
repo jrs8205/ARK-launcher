@@ -180,14 +180,14 @@ class PinRequestStoreTest {
 
         val outcome = store.acceptWidget(request, binder, at(clockAt))
 
-        assertThat(outcome).isEqualTo(WidgetPinOutcome.NeedsPermission(100))
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
         assertThat(request.acceptedWith).isNull()
         assertThat(widgetRows()).isEmpty()
         assertThat(binder.deleted).isEmpty()
         assertThat(100 in pending).isTrue()
 
         // The user allowed the bind in the system dialog.
-        val accepted = store.acceptBoundWidget(request, binder, 100, at(clockAt))
+        val accepted = store.acceptBoundWidget(request, binder, 100, profileId = 1, decide = at(clockAt))
 
         assertThat(dao.getById((accepted as WidgetPinOutcome.Added).rowId)!!.appWidgetId).isEqualTo(100)
         assertThat(request.acceptedWith).isEqualTo(100)

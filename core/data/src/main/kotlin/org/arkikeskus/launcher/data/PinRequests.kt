@@ -180,8 +180,10 @@ sealed interface WidgetPinOutcome {
     data class Added(val rowId: Long) : WidgetPinOutcome
 
     /** The system wants the user asked: open `ACTION_APPWIDGET_BIND` for [appWidgetId], then
-     *  [PinRequestStore.acceptBoundWidget] on OK or [PinRequestStore.releaseWidgetId] on cancel. */
-    data class NeedsPermission(val appWidgetId: Int) : WidgetPinOutcome
+     *  [PinRequestStore.acceptBoundWidget] on OK or [PinRequestStore.releaseWidgetId] on cancel.
+     *  [profileId] is the home profile the widget was confirmed for, the one that was on: it is kept with
+     *  the id over the dialog and handed back with it, since another profile can be on by the answer. */
+    data class NeedsPermission(val appWidgetId: Int, val profileId: Long) : WidgetPinOutcome
 
     /** Home as it was right before the accept is no [PinDecision.Confirm] ([decision]): nothing was
      *  accepted and no id is left allocated. */
@@ -364,11 +366,14 @@ class PinRequestStore @Inject constructor(
      * Allocates a host id for the widget [request] and binds it. Bound without asking →
      * [acceptBoundWidget] at once; the system wants the user asked → [WidgetPinOutcome.NeedsPermission]
      * with the id kept allocated (and in [pendingWidgetIds]) for the dialog's outcome; no id or a
-     * bind that threw → [WidgetPinOutcome.Failed] with nothing left allocated.
+     * bind that threw → [WidgetPinOutcome.Failed] with nothing left allocated. The widget is for the home
+     * profile that is on as this starts, the one the user said yes on: bound at once or after the dialog,
+     * it is stored there or nowhere.
      */
     suspend fun acceptWidget(
         request: WidgetPinRequest, binder: WidgetBinder, decide: suspend () -> CurrentPlacement,
     ): WidgetPinOutcome = withContext(NonCancellable + Dispatchers.IO) {
+        val confirmedIn = homeLayoutRepository.profileOn()
         // Protected from the host-id sweep from the moment it exists until it is in a row or freed;
         // allocated under the guard, so a sweep running now has either seen it pending or not seen it.
         val id = pendingWidgetIds.guard {
@@ -379,8 +384,8 @@ class PinRequestStore @Inject constructor(
             free(binder, id)
             return@withContext WidgetPinOutcome.Failed
         }
-        if (!bound.getOrThrow()) return@withContext WidgetPinOutcome.NeedsPermission(id)
-        acceptBoundWidget(request, binder, id, decide)
+        if (!bound.getOrThrow()) return@withContext WidgetPinOutcome.NeedsPermission(id, confirmedIn)
+        acceptBoundWidget(request, binder, id, confirmedIn, decide)
     }
 
     /**
@@ -392,13 +397,20 @@ class PinRequestStore @Inject constructor(
      * or freed in the host — not a [PinDecision.Confirm] ([WidgetPinOutcome.Refused]), the system
      * refused the accept or the row couldn't be stored ([WidgetPinOutcome.Failed]). As for a shortcut
      * ([acceptShortcut]), the home profile that is on stays on from the decision to the row.
+     *
+     * And that profile is [profileId], the one the widget was confirmed for
+     * ([WidgetPinOutcome.NeedsPermission.profileId]), or nothing is added ([WidgetPinOutcome.Failed], the
+     * id freed, the request not accepted). Android's bind dialog is another app's window: the user can
+     * leave it, switch profile in Settings and come back to allow, and a place decided at the answer on
+     * the profile that is on by then would put the widget on a home screen it was never confirmed for.
      */
     suspend fun acceptBoundWidget(
-        request: WidgetPinRequest, binder: WidgetBinder, appWidgetId: Int, decide: suspend () -> CurrentPlacement,
+        request: WidgetPinRequest, binder: WidgetBinder, appWidgetId: Int, profileId: Long,
+        decide: suspend () -> CurrentPlacement,
     ): WidgetPinOutcome = withContext(NonCancellable + Dispatchers.IO) {
         // The order of the three: the profile's hold, the pin lock, the sweep's guard. Under the guard the
         // id goes from pending to stored in one step: the sweep sees it in one or the other.
-        val outcome = homeLayoutRepository.whileProfileStays {
+        val outcome = homeLayoutRepository.whileProfileIsOn(profileId) {
             ShortcutPinLock.withLock {
                 pendingWidgetIds.guard {
                     val now = decide()
@@ -420,7 +432,7 @@ class PinRequestStore @Inject constructor(
                     } ?: WidgetPinOutcome.Failed
                 }
             }
-        }
+        } ?: WidgetPinOutcome.Failed // Another profile is on: not this home screen's widget.
         // An accepted request whose row failed leaves the id bound to nothing: freeing it unbinds.
         if (outcome !is WidgetPinOutcome.Added) free(binder, appWidgetId)
         outcome

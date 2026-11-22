@@ -100,6 +100,10 @@ class HomeLayoutRepository @Inject constructor(
     /** Whether [profileId] is the home profile that is on right now. */
     suspend fun isProfileOn(profileId: Long): Boolean = dao.resolvedProfile() == profileId
 
+    /** The home profile that is on right now: for what must later be done in THIS profile or not at all
+     *  ([whileProfileIsOn]), with something of another app's in between (a dialog of Android's). */
+    suspend fun profileOn(): Long = dao.resolvedProfile()
+
     /**
      * Runs [work] while the home profile that is on stays on: a switch asked for meanwhile waits and happens
      * after it. For work of several steps about "home as it is now" whose steps each read the profile anew:

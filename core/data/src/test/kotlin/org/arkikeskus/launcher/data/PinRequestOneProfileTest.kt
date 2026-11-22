@@ -115,4 +115,50 @@ class PinRequestOneProfileTest {
         assertThat(rowsOf(2)).isEmpty()
         assertThat(active.state.value).isEqualTo(2L)
     }
+
+    /**
+     * Review round 18. Android wants the user asked before it binds the widget, and its dialog is another
+     * app's window: the user can leave it, switch profile and come back to allow. The widget was confirmed
+     * on profile 1's home; the answer must not decide a place for it on profile 2's. The store says which
+     * profile the id is for, takes that profile back with the id, and stores the widget only while it is on:
+     * otherwise the request is not accepted, nothing is decided, and the id is given back.
+     */
+    @Test
+    fun aWidgetAllowedAfterASwitchIsStoredInNoProfileAndItsIdGivenBack() = runBlocking<Unit> {
+        val provider = ComponentName("com.clock", "com.clock.Analog")
+        var acceptedWith: Int? = null
+        val request = object : WidgetPinRequest {
+            override val item: PinItem = PinItem.Widget(provider.flattenToString(), "Analog clock", ownProfile = true)
+            override val info = AppWidgetProviderInfo().also { it.provider = provider }
+            override var isValid: Boolean = true
+            override fun accept(): Boolean = false
+            override fun accept(appWidgetId: Int): Boolean = true.also { acceptedWith = appWidgetId }
+            override fun loadPreview(context: Context) = PinPreview("Clock", icon = null)
+        }
+        val deleted = ArrayList<Int>()
+        val binder = object : WidgetBinder {
+            override fun allocateId(): Int = 100
+            override fun bindIfAllowed(appWidgetId: Int, info: AppWidgetProviderInfo): Boolean = false
+            override fun deleteId(appWidgetId: Int) { deleted += appWidgetId }
+        }
+        var decided = 0
+        val onHome: suspend () -> CurrentPlacement = {
+            decided++
+            CurrentPlacement(PinDecision.Confirm(0, 1, 2, spanX = 2, spanY = 2), columns = 4, rows = 6)
+        }
+
+        val asked = store.acceptWidget(request, binder, onHome)
+        assertThat(asked).isEqualTo(WidgetPinOutcome.NeedsPermission(100, profileId = 1))
+        // With the dialog open, another profile comes on; then the user allows the bind.
+        active.switchTo(2)
+        val outcome = store.acceptBoundWidget(request, binder, 100, (asked as WidgetPinOutcome.NeedsPermission).profileId, onHome)
+
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
+        assertThat(rowsOf(2)).isEmpty()
+        assertThat(rowsOf(1)).isEmpty()
+        assertThat(acceptedWith).isNull()
+        assertThat(decided).isEqualTo(0)
+        assertThat(deleted).containsExactly(100)
+        assertThat(100 in pending).isFalse()
+    }
 }

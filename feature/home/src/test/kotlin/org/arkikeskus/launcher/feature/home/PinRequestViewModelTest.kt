@@ -489,4 +489,25 @@ class PinRequestViewModelTest {
         assertThat(binder.deleted).containsExactly(4203)
         assertThat(4203 in PendingWidgetIds.shared).isFalse()
     }
+
+    /**
+     * Review round 18. The home profile of the tap is kept in the saved state beside the id
+     * ([PinRequestAcrossProfilesTest]). A state that names an id and no profile (one saved before the
+     * profile was kept there) says nothing of which home screen the widget was confirmed for: nothing is
+     * added, the id is given back, and the confirmation is open for another tap.
+     */
+    @Test
+    fun anIdSavedWithoutTheProfileOfItsTapIsGivenBackAndNotAdded() {
+        val binder = Binder(4211)
+        val vm = viewModel(SavedStateHandle(mapOf("pinRequest.awaitingBind" to 4211)), binder)
+        awaitUntil("the id held") { 4211 in PendingWidgetIds.shared }
+        confirmOpen(vm)
+
+        vm.onBindResult(allowed = true)
+        awaitUntil("the id settled") { 4211 !in PendingWidgetIds.shared }
+
+        assertThat(widgetIds()).isEmpty()
+        assertThat(binder.deleted).containsExactly(4211)
+        awaitUntil("the confirmation free again") { (vm.uiState.value as? PinRequestUiState.Confirm)?.busy == false }
+    }
 }

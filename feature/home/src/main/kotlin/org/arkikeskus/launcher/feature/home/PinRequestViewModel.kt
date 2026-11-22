@@ -72,6 +72,24 @@ class PinRequestViewModel @Inject constructor(
             savedState[KEY_AWAITING_BIND] = value
         }
 
+    /**
+     * The home profile [awaitingBind] was confirmed for: the one that was on at the tap. Kept beside the
+     * id, in the saved state too, and handed back to the store with it: the bind dialog is another app's
+     * window, the user can switch profile in Settings while it is open, and the widget is this profile's
+     * or nobody's. Set before the id and dropped after it, so an id is never there without it.
+     */
+    private var awaitingBindProfile: Long? = savedState.get<Long>(KEY_AWAITING_BIND_PROFILE)
+        set(value) {
+            field = value
+            savedState[KEY_AWAITING_BIND_PROFILE] = value
+        }
+
+    /** The id out for the bind dialog is settled (stored, freed or handed on): nothing is waited for. */
+    private fun noBindAwaited() {
+        awaitingBind = null
+        awaitingBindProfile = null
+    }
+
     /** A bind answer that came before the request was handed over (a recreated process). */
     private var earlyBindAnswer: Boolean? = null
 
@@ -126,7 +144,7 @@ class PinRequestViewModel @Inject constructor(
             // first, or free the id when there is nothing left to add it to.
             val held = awaitingBind ?: return@launch
             if (decision !is PinDecision.Confirm) {
-                awaitingBind = null
+                noBindAwaited()
                 withContext(NonCancellable) { pinRequestStore.releaseWidgetId(binder, held) }
             } else {
                 earlyBindAnswer?.let { handleBindAnswer(it) }
@@ -210,7 +228,12 @@ class PinRequestViewModel @Inject constructor(
                             is WidgetPinOutcome.Added -> newItems.add(it.rowId)
                             // Gone while the bind call was out: nobody would open the dialog or free the id.
                             is WidgetPinOutcome.NeedsPermission ->
-                                if (cleared) pinRequestStore.releaseWidgetId(binder, it.appWidgetId) else awaitingBind = it.appWidgetId
+                                if (cleared) {
+                                    pinRequestStore.releaseWidgetId(binder, it.appWidgetId)
+                                } else {
+                                    awaitingBindProfile = it.profileId
+                                    awaitingBind = it.appWidgetId
+                                }
                             is WidgetPinOutcome.Refused, WidgetPinOutcome.Failed -> Unit
                         }
                     }
@@ -261,20 +284,24 @@ class PinRequestViewModel @Inject constructor(
 
     private fun handleBindAnswer(allowed: Boolean) {
         val appWidgetId = awaitingBind ?: return
+        val profileId = awaitingBindProfile
         val confirm = _uiState.value as? PinRequestUiState.Confirm
         val request = request as? WidgetPinRequest
         viewModelScope.launch {
             // From here the id ends in a row or freed, whatever happens to the confirmation meanwhile.
             val end: PinRequestUiState = withContext(NonCancellable) {
-                awaitingBind = null
+                noBindAwaited()
                 earlyBindAnswer = null
-                if (!allowed || request == null) {
+                // No profile with the id (a state saved before it was kept there): nothing says which home
+                // screen the widget was confirmed for. As a bind that was not allowed: the user can tap again.
+                if (!allowed || request == null || profileId == null) {
                     pinRequestStore.releaseWidgetId(binder, appWidgetId)
                     return@withContext confirm?.copy(busy = false, bindRequest = null) ?: PinRequestUiState.Finished()
                 }
                 // Decided again by the store: the lock (which wins over the app's request here too), the
-                // grid or home itself may have changed while the dialog was open.
-                when (val outcome = pinRequestStore.acceptBoundWidget(request, binder, appWidgetId) { placementNow(request) }) {
+                // grid or home itself may have changed while the dialog was open. Not the profile: the
+                // widget is stored in the one it was confirmed for, or not at all.
+                when (val outcome = pinRequestStore.acceptBoundWidget(request, binder, appWidgetId, profileId) { placementNow(request) }) {
                     is WidgetPinOutcome.Added -> {
                         newItems.add(outcome.rowId)
                         PinRequestUiState.Finished(addedLabel = confirm?.label ?: itemLabel(request.item))
@@ -292,7 +319,7 @@ class PinRequestViewModel @Inject constructor(
         // The confirmation went away (a newer request replaced it) while the bind dialog's answer
         // was still out: the id would otherwise stay allocated until the home screen's next sweep.
         awaitingBind?.let { id ->
-            awaitingBind = null
+            noBindAwaited()
             pinRequestStore.abandonWidgetId(binder, id)
         }
     }
@@ -316,5 +343,6 @@ class PinRequestViewModel @Inject constructor(
 
     private companion object {
         const val KEY_AWAITING_BIND = "pinRequest.awaitingBind"
+        const val KEY_AWAITING_BIND_PROFILE = "pinRequest.awaitingBindProfile"
     }
 }
