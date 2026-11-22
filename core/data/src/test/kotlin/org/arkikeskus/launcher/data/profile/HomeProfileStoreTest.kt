@@ -353,6 +353,55 @@ class HomeProfileStoreTest {
         assertThat(view.profileValues(created.id).names()).isEmpty()
     }
 
+    /**
+     * Review round 13. The memory of the highest id given is a number, and the next id is one more. A settings
+     * file that comes from 1.2.1 can hold the last number there is under that name (that version kept a key it
+     * did not know): one more was then a negative id. The profile was reported as made, and the list, which
+     * reads no such id, never showed it. A memory after which no id follows was not written here (this
+     * launcher gives ids one by one), and it says nothing: the ids go on from the list.
+     */
+    @Test fun aMemoryOfTheLastIdThereIsDoesNotMakeTheNextIdANegativeOne() = runTest {
+        main.updateData {
+            it.toMutablePreferences().apply { this[longPreferencesKey(HomeProfileKeys.LAST_ID)] = Long.MAX_VALUE }.toPreferences()
+        }
+
+        val created = store.create("Work", copyOf = null)
+
+        assertThat(created).isEqualTo(HomeProfile(2, "Work"))
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""), HomeProfile(2, "Work")).inOrder()
+        assertThat(ProfiledPreferences.lastId(main.now)).isEqualTo(2L)
+    }
+
+    /** Review round 13. And where the list itself holds the last id there is, no id is left: a profile is not
+     *  made, and that is found out before anything of it is written. */
+    @Test fun noProfileIsMadeWhenNoIdIsLeft() = runTest {
+        main.updateData {
+            it.toMutablePreferences().apply {
+                this[stringPreferencesKey(HomeProfileKeys.LIST)] = "1\t\n${Long.MAX_VALUE}\tWork"
+            }.toPreferences()
+        }
+        val mainWrites = main.writes
+
+        val failure = runCatching { store.prepare("Next", copyOf = null) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(IllegalStateException::class.java)
+        assertThat(main.writes).isEqualTo(mainWrites)
+        assertThat(files.stores.values.sumOf { it.writes }).isEqualTo(0)
+        assertThat(store.list().map { it.id }).containsExactly(1L, Long.MAX_VALUE).inOrder()
+    }
+
+    /** Review round 13. A profile the list would not read back is not listed, whoever hands it over: listing it
+     *  said "made" of a profile nothing would ever show. */
+    @Test fun aProfileTheListWouldNotReadBackIsNotListed() = runTest {
+        val mainWrites = main.writes
+
+        assertThat(store.publish(HomeProfile(-3, "Work"))).isFalse()
+
+        assertThat(main.writes).isEqualTo(mainWrites)
+        assertThat(files.stores.values.sumOf { it.writes }).isEqualTo(0)
+        assertThat(store.list()).containsExactly(HomeProfile(1, ""))
+    }
+
     @Test fun aSwitchWaitsWhileSomeoneNeedsTheProfileToStay() = runTest {
         store.create("Work", copyOf = null)
         var onDuringTheWork = 0L

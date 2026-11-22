@@ -82,7 +82,8 @@ class HomeProfileStore(
      * profile's own store says that it is being made ([HomeProfileKeys.BEING_MADE]) until [publish].
      *
      * A write that fails (a full disk) is thrown to the caller, with what it may have left of the file taken
-     * away first: there is no profile to give up ([discard]) when this did not return one.
+     * away first: there is no profile to give up ([discard]) when this did not return one. So is having no
+     * id left to give ([freeId]), before anything is written.
      */
     suspend fun prepare(name: String, copyOf: Long?, kept: Set<Long> = emptySet()): HomeProfile? = view.mutex.withLock {
         val now = main.data.first()
@@ -104,11 +105,13 @@ class HomeProfileStore(
         profile
     }
 
-    /** Lists [profile], made with [prepare] and whole now; false when the list filled up meanwhile. */
+    /** Lists [profile], made with [prepare] and whole now; false when the list filled up meanwhile, and for a
+     *  profile the list would not read back (an id that is none): listed, it was "made" and never shown. */
     suspend fun publish(profile: HomeProfile): Boolean = view.mutex.withLock {
         val now = main.data.first()
         val list = profilesIn(now)
         if (list.size >= HomeProfile.MAX_PROFILES || list.any { it.id == profile.id }) return@withLock false
+        if (HomeProfile.decode(HomeProfile.encode(list + profile)).none { it.id == profile.id }) return@withLock false
         // Whole now, and said so in its own store BEFORE it is listed: listed first, a profile whose mark was
         // never taken out would look like an attempt that died to whoever reads its store after the list was
         // lost, and be cleared. (Dying between the two leaves it unlisted and unmarked: kept, never taken.)
@@ -149,8 +152,14 @@ class HomeProfileStore(
      * it is given again for its maker to clear.
      */
     private suspend fun freeId(now: Preferences, list: List<HomeProfile>, kept: Set<Long>): Long {
-        var id = maxOf(ProfiledPreferences.lastId(now), list.maxOf { it.id }) + 1
-        while (isKeptUnder(id, kept)) id++
+        var id = maxOf(ProfiledPreferences.lastId(now), list.maxOf { it.id })
+        do {
+            // One more than the last number there is is a negative one: an id the list does not read, under
+            // which a profile was written, reported as made and never shown. No id is left then, and that is
+            // said before anything of a profile is written.
+            check(id < Long.MAX_VALUE) { "no home profile id is left" }
+            id++
+        } while (isKeptUnder(id, kept))
         return id
     }
 

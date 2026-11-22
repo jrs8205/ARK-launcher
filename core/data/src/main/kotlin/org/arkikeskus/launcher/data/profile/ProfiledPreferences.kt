@@ -293,8 +293,13 @@ class ProfiledPreferences(
         /** The profile whose own values the settings file itself holds ([listedOrFirst]). */
         fun mainStoreId(shared: Preferences): Long = listedOrFirst(shared, HomeProfileKeys.MAIN_STORE)
 
-        /** The highest profile id ever given, as far as the settings file says (0 = it says nothing). */
-        fun lastId(shared: Preferences): Long = shared.kept<Long>(HomeProfileKeys.LAST_ID) ?: 0L
+        /**
+         * The highest profile id ever given, as far as the settings file says (0 = it says nothing). The last
+         * number there is says nothing either: no id follows it, so it is not a memory this launcher wrote
+         * (ids are given one by one), and believed, it left no profile to be made ever again.
+         */
+        fun lastId(shared: Preferences): Long =
+            shared.kept<Long>(HomeProfileKeys.LAST_ID)?.takeIf { it < Long.MAX_VALUE } ?: 0L
 
         /**
          * The profile [name] points at when that is a profile of the list; else the first profile (the first

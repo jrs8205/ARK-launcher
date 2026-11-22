@@ -945,6 +945,23 @@ class HomeProfileRepositoryTest {
     }
 
     /**
+     * Review round 13. Where no profile id is left (the list holds the last number there is, which only a
+     * settings file that was not written here can), a profile is not made and Settings is told so. One more
+     * than that number is a negative id: the profile was reported as made, and the list never showed it.
+     */
+    @Test fun aProfileIsNotMadeWhenNoIdIsLeftAndThatIsSaid() = runTest {
+        main.updateData {
+            it.toMutablePreferences().apply {
+                this[stringPreferencesKey(HomeProfileKeys.LIST)] = "1\t\n${Long.MAX_VALUE}\tWork"
+            }.toPreferences()
+        }
+
+        assertThat(profiles.create("Next", copyOf = null)).isEqualTo(HomeProfileRepository.Created.Failed)
+
+        assertThat(store.list().map { it.id }).containsExactly(1L, Long.MAX_VALUE).inOrder()
+    }
+
+    /**
      * Review round 5. The first thing written of a new profile is its own values, and that write can fail as
      * any other (a full disk). It is a profile that could not be made, said as one ([Created.Failed]): the
      * failure used to be thrown to Settings, which asks without catching, and took the launcher down.
