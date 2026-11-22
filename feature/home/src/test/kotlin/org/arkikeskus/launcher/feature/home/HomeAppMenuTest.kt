@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.home
 
 import android.app.Application
 import android.os.Process
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -9,7 +10,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.IntOffset
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Dispatchers
 import org.arkikeskus.launcher.model.AppItem
+import org.arkikeskus.launcher.ui.LocalBackgroundDispatcher
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,19 +36,25 @@ class HomeAppMenuTest {
 
     private fun show(locked: Boolean, inDock: Boolean = false) {
         compose.setContent {
-            HomeAppMenu(
-                app = mail,
-                anchor = IntOffset(200, 200),
-                preferAbove = false,
-                inDock = inDock,
-                locked = locked,
-                held = false,
-                onRename = { renamed++ },
-                onRemove = { removed++ },
-                onPinShortcut = {},
-                onWidgets = {},
-                onDismiss = { dismissed++ },
-            )
+            // The menu asks Android for the app's shortcuts and widgets before it shows (the shadow answers).
+            // Asked on another thread, the answer comes back on that thread under the rule, and the menu's
+            // rows were then put on screen from it: "Only the original thread that created a view hierarchy
+            // can touch its views", once in a whole-task run. Here it asks at once, on this thread.
+            CompositionLocalProvider(LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
+                HomeAppMenu(
+                    app = mail,
+                    anchor = IntOffset(200, 200),
+                    preferAbove = false,
+                    inDock = inDock,
+                    locked = locked,
+                    held = false,
+                    onRename = { renamed++ },
+                    onRemove = { removed++ },
+                    onPinShortcut = {},
+                    onWidgets = {},
+                    onDismiss = { dismissed++ },
+                )
+            }
         }
         // The card shows once its shortcut query (off the main thread) has answered.
         compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }

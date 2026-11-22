@@ -95,15 +95,22 @@ class AppDrawerScreenTest {
 
     private fun show() {
         compose.setContent {
-            AppDrawerScreen(
-                onClose = {},
-                onOpenSettings = {},
-                homeSignals = homeSignals,
-                drawerOpen = drawerOpen.value,
-                dragController = drag,
-                onDragOutStart = { dragOuts++ },
-                viewModel = viewModel,
-            )
+            // An app's menu asks Android for its shortcuts and widgets before it shows. Asked on another
+            // thread, the answer comes back on that thread under the rule and the screen is then worked on
+            // from two threads at once (the home screen's menu test failed so once). Here it asks at once.
+            androidx.compose.runtime.CompositionLocalProvider(
+                org.arkikeskus.launcher.ui.LocalBackgroundDispatcher provides kotlinx.coroutines.Dispatchers.Unconfined,
+            ) {
+                AppDrawerScreen(
+                    onClose = {},
+                    onOpenSettings = {},
+                    homeSignals = homeSignals,
+                    drawerOpen = drawerOpen.value,
+                    dragController = drag,
+                    onDragOutStart = { dragOuts++ },
+                    viewModel = viewModel,
+                )
+            }
         }
         settle()
         // The screen's state is put together from the app list, the settings and the home rows, and until
