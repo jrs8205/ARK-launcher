@@ -575,6 +575,14 @@ class SettingsRepository @Inject constructor(
         )
     }
 
+    /**
+     * Whether there is a home profile [profileId], as that changes. For what waits for something on one
+     * profile's behalf (the first start waits for the app list to seed the first profile's dock) and must
+     * stop waiting when the profile is deleted meanwhile.
+     */
+    fun homeProfileListed(profileId: Long): Flow<Boolean> =
+        dataStore.data.map { seen -> ProfiledPreferences.listed(seen).any { it.id == profileId } }.distinctUntilChanged()
+
     /** The dock's columns of the home profile [profileId], whichever profile is on; nothing for a profile
      *  that is not there ([gridOfHomeProfile]). */
     suspend fun setDockColumnsOf(profileId: Long, value: Int) {

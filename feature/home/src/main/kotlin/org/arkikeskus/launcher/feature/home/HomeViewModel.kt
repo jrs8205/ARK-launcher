@@ -20,11 +20,13 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -317,7 +319,7 @@ class HomeViewModel @Inject constructor(
                     // Idempotent on a retry: the widget only while home is still empty, the dock
                     // only while the favorites are still empty. Two steps, each with its own look at
                     // the first profile: the clock is there at once, and the dock when the app list is.
-                    val thereIsAnOriginalHome = inTheOriginalHome(original) { grid ->
+                    inTheOriginalHome(original) { grid ->
                         if (homeLayoutRepository.isHomeEmpty()) {
                             // Full width so the centered clock sits in the middle of the screen.
                             homeLayoutRepository.addBuiltin(
@@ -326,14 +328,19 @@ class HomeViewModel @Inject constructor(
                             )
                         }
                     }
-                    // No first profile, no dock to wait for the apps for: the wait below ends only when
-                    // Android lists an app, and the seed's mark and the intro would wait with it.
-                    if (thereIsAnOriginalHome) {
-                        // The app list needs a beat on a cold start; a fresh device always has apps. Waited
-                        // for with nothing held: everything that needs the profile would wait with it.
-                        val apps = appRepository.apps.first { it.isNotEmpty() }
+                    // The app list needs a beat on a cold start; a fresh device always has apps. Waited
+                    // for with nothing held: everything that needs the profile would wait with it. And
+                    // waited for only while there is a first profile to seed a dock for: with no such
+                    // profile, now or at any moment of the wait, it ends with no apps (null). It would
+                    // otherwise end only when Android lists an app, and with an app list that stays
+                    // empty the seed's mark and the intro would wait for good.
+                    val apps = merge<List<AppItem>?>(
+                        appRepository.apps.filter { it.isNotEmpty() },
+                        settingsRepository.homeProfileListed(original).filter { listed -> !listed }.map { null },
+                    ).first()
+                    if (apps != null) {
                         val dockKeys = resolveDefaultDockKeys(context, apps)
-                        // Looked for again: the profile can have been deleted during the wait.
+                        // Looked for again, under the hold: the profile can have been deleted since.
                         inTheOriginalHome(original) { grid ->
                             if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
                                 val byKey = apps.associateBy { it.key }
@@ -850,14 +857,14 @@ class HomeViewModel @Inject constructor(
      * handed that profile's grid, and nothing run when the profile is not there. The look and the work are one
      * step under the hold a deletion of a profile takes ([HomeLayoutRepository.whileProfileStays]), so the
      * rows [work] writes are a listed profile's. Nothing slow belongs in [work]: a switch, a page operation
-     * and a pin request wait for it. Returns whether the profile was there.
+     * and a pin request wait for it.
      */
-    private suspend fun inTheOriginalHome(original: Long, work: suspend (grid: HomeProfileGrid) -> Unit): Boolean =
+    private suspend fun inTheOriginalHome(original: Long, work: suspend (grid: HomeProfileGrid) -> Unit) {
         homeLayoutRepository.whileProfileStays {
-            val grid = settingsRepository.gridOfHomeProfile(original) ?: return@whileProfileStays false
+            val grid = settingsRepository.gridOfHomeProfile(original) ?: return@whileProfileStays
             homeLayoutRepository.inProfile(original) { work(grid) }
-            true
         }
+    }
 
     /** Queues a notice for the screen; the buffer absorbs a burst while nothing collects yet. */
     private fun notify(notice: HomeNotice) {

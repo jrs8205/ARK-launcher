@@ -170,6 +170,34 @@ class FirstStartSeedTest {
     }
 
     /**
+     * Review round 19. The same deletion, and no app ever comes. Whether there was a first profile was known
+     * from the clock's step only: deleted after it, with Android's app list staying empty, the wait for the
+     * apps did not end, though there was no dock left to seed: the seed was not marked done and the intro
+     * not shown. The wait ends with the first app or with the profile going, whichever comes first.
+     */
+    @Test fun aFirstProfileDeletedWhileTheSeedWaitsEndsTheWaitThoughNoAppEverComes() = runTest {
+        // No app, now or later.
+        val wiring = ProductionWiring(context, this)
+        try {
+            val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            val viewModel = wiring.firstStartHomeViewModel()
+            awaitUntil("the clock") { wiring.rowsOfProfile(1).isNotEmpty() }
+
+            assertThat(whileTheMainLooperTurns("the switch") { wiring.homeProfiles.switchTo(own.id) }).isTrue()
+            assertThat(whileTheMainLooperTurns("the deletion") { wiring.homeProfiles.delete(1) })
+                .isEqualTo(HomeProfileRepository.Deleted.Done)
+            awaitUntil("the seed to be done with") { wiring.settingsRepository.defaultLayoutSeededOnce() }
+            awaitUntil("the intro") { viewModel.showOnboarding.value }
+
+            assertThat(wiring.rowsOfProfile(1)).isEmpty()
+            assertThat(wiring.rowsOfProfile(own.id)).isEmpty()
+            wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
      * And without any race: the dock a version before 0.9.7 kept as a list of keys is turned into rows at a
      * start, and that was done for the first profile without a look at whether there is one. With the first
      * profile deleted before the home screen first started, its rows were made under the id that was gone.
