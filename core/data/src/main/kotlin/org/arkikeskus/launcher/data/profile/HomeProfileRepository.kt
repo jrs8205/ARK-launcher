@@ -114,9 +114,10 @@ class HomeProfileRepository @Inject constructor(
                 return@whileActiveStays Created.Failed
             }
             try {
-                // What an attempt that died left under this id (an id is given again until it is listed).
+                // What an attempt that died left under this id (an id is given again until it is listed). A
+                // picture of it that cannot be removed would be the new profile's: no profile is made over it.
                 dropRows(profile.id)
-                drawerPictures.delete(profile.id)
+                check(drawerPictures.delete(profile.id)) { "what an earlier attempt left could not be cleared" }
                 if (copyOf != null) {
                     val folderIds = layout.copyProfile(from = copyOf, to = profile.id)
                     // A home folder's own icon is filed by its row id, and the copy's folders are new rows.
@@ -278,8 +279,8 @@ class HomeProfileRepository @Inject constructor(
         /** The storage failed before anything of the profile went: it is whole and still listed. */
         Failed,
 
-        /** Its home screen and its pictures are gone, but the list could not be written: the profile is still
-         *  listed, with nothing on it. Deleting it again finishes the work. */
+        /** Its home screen is gone, but its picture could not be removed or the list could not be written: the
+         *  profile is still listed, with nothing on it. Deleting it again finishes the work. */
         LeftEmpty,
     }
 
@@ -290,8 +291,9 @@ class HomeProfileRepository @Inject constructor(
      * profile being deleted, after its rows had gone, left it listed, on, and with an empty home screen.
      *
      * A step the storage does not take (a full disk) is said as a result, not thrown: [Deleted.Failed] when
-     * nothing of the profile had gone yet, [Deleted.LeftEmpty] when its rows had and the list could not be
-     * written after them. Settings asks without catching, and tells the user which of the two it is.
+     * nothing of the profile had gone yet, [Deleted.LeftEmpty] when its rows had and its picture could not be
+     * removed, or the list could not be written, after them. Settings asks without catching, and tells the
+     * user which of the two it is.
      */
     suspend fun delete(id: Long): Deleted = withContext(NonCancellable) {
         store.whileActiveStays { active ->
@@ -304,7 +306,9 @@ class HomeProfileRepository @Inject constructor(
                 // The rows first: from here on the profile shows nothing, and what is left of it can be deleted
                 // again ([dropRows] pins its shortcuts again as the other profiles still have them).
                 gone = dropRows(id)
-                drawerPictures.delete(id)
+                // Its picture next, and whether it went: one that is still on the disk is still the
+                // profile's, so the profile stays listed and is deleted again ([Deleted.LeftEmpty]).
+                check(drawerPictures.delete(id)) { "the drawer's picture could not be removed" }
                 // Its folders' pictures, if no other profile shows them, go with the unused pictures at the next start.
                 if (store.delete(id)) Deleted.Done else Deleted.LeftEmpty
             } catch (e: CancellationException) {

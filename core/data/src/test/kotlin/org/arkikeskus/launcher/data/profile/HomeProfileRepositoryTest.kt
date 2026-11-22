@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.room.Room
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.common.truth.Truth.assertThat
@@ -942,6 +943,57 @@ class HomeProfileRepositoryTest {
         files.store(work.id).failReads = null
         assertThat(profiles.switchTo(work.id)).isTrue()
         assertThat(settings.settings.first().homeProfileId).isEqualTo(work.id)
+    }
+
+    /**
+     * Review round 13, second run. A deletion removed the profile's picture folder and did not look at whether
+     * it went: with a picture that could not be removed it took the profile out of the list and said it was
+     * gone, and the picture stayed on the disk under an id nothing names any more. The profile is now left
+     * listed, with its home screen gone, as when the list cannot be written: deleting it again finishes the
+     * work, and that is what Settings tells the user.
+     */
+    @Test fun aProfileWhosePictureCannotBeRemovedIsLeftListedToBeDeletedAgain() = runTest {
+        var removable = false
+        // A folder that is not there is removed; one that is there goes only when the disk lets it.
+        val pictures = DrawerWallpaperStore(
+            context, Dispatchers.IO, remove = { if (removable) it.deleteRecursively() else !it.exists() },
+        )
+        val repository = HomeProfileRepository(store, layout, settings, resolver, pictures) { released += it }
+        val work = (repository.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile
+        pictures.set(picture(Color.RED), work.id)
+        inHomeProfile(work.id) { dao.insert(app("com.chat", 0)) }
+
+        assertThat(repository.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.LeftEmpty)
+
+        assertThat(store.list().map { it.id }).containsExactly(1L, work.id).inOrder()
+        assertThat(pictures.profilesWithPictures()).contains(work.id)
+        assertThat(rowsOf(work.id)).isEmpty()
+
+        removable = true
+        assertThat(repository.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(pictures.profilesWithPictures()).doesNotContain(work.id)
+    }
+
+    /**
+     * The same look where a new profile is made. An id is given again while only an attempt that died was
+     * ever kept under it, and its maker begins by clearing what that attempt left. A picture left there that
+     * could not be removed was passed over: the new profile was made over it and showed, behind its drawer,
+     * a picture nobody had chosen for it. No profile is made then, and that is said.
+     */
+    @Test fun noProfileIsMadeOverAPictureAnEarlierAttemptLeftThatCannotBeCleared() = runTest {
+        val pictures = DrawerWallpaperStore(context, Dispatchers.IO, remove = { !it.exists() })
+        val repository = HomeProfileRepository(store, layout, settings, resolver, pictures) { released += it }
+        // What an attempt that died left under the id the next profile gets: its picture, and a store that
+        // says it was being made.
+        pictures.set(picture(Color.RED), 2)
+        files.store(2).updateData {
+            it.toMutablePreferences().apply { this[booleanPreferencesKey(HomeProfileKeys.BEING_MADE)] = true }.toPreferences()
+        }
+
+        assertThat(repository.create("Work", copyOf = null)).isEqualTo(HomeProfileRepository.Created.Failed)
+
+        assertThat(store.list().map { it.id }).containsExactly(1L)
     }
 
     /**

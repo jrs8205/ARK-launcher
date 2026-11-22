@@ -158,6 +158,8 @@ class DrawerWallpaperStore internal constructor(
     private val io: CoroutineDispatcher,
     /** The files in a folder, or null when the folder could not be read ([File.listFiles]). */
     private val filesIn: (File) -> Array<File>? = { it.listFiles() },
+    /** Removes a folder with what is in it; false when something of it is still there ([File.deleteRecursively]). */
+    private val remove: (File) -> Boolean = { it.deleteRecursively() },
 ) {
     /** The launcher's own store: its picture is that of the home profile that is on. */
     @Inject constructor(
@@ -314,16 +316,21 @@ class DrawerWallpaperStore internal constructor(
         }
     }
 
-    /** Removes the picture of the home profile [profile] with its folder: the profile was deleted. A pick or a
-     *  removal on its way there loses its ticket: nothing is saved for a profile that is gone. */
-    suspend fun delete(profile: Long) = withContext(io) {
+    /**
+     * Removes the picture of the home profile [profile] with its folder: the profile was deleted. A pick or a
+     * removal on its way there loses its ticket: nothing is saved for a profile that is gone.
+     *
+     * False when something of the folder is still on the disk (a file that could not be removed); true when
+     * it is gone, or was never there. The caller decides what that means: a deletion that went on regardless
+     * took the profile out of the list and left its picture under an id nothing names any more.
+     */
+    suspend fun delete(profile: Long): Boolean = withContext(io) {
         val gone = dirOf(profile)
         synchronized(publishLock) {
             ticketsOf(profile).incrementAndGet()
             if (profile == shownProfile) publish(profile, null)
-            gone.deleteRecursively()
+            remove(gone)
         }
-        Unit
     }
 
     /**
