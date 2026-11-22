@@ -1,6 +1,8 @@
 package org.arkikeskus.launcher.data.profile
 
 import com.google.common.truth.Truth.assertThat
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -232,6 +234,45 @@ class SettingsAcrossProfilesTest {
         // Readable again: its key is found again, to be corrected then.
         files.store(2).failReads = null
         assertThat(settings.referencedAppKeys()).containsExactly("h/h.M/0", "one/one.New/0", "two/two.M/0")
+    }
+
+    /**
+     * Review round 12. The released 1.2.1 kept a key it did not know in the type its backup file gave it, so a
+     * settings file that comes to this version from it can hold anything under the profile bookkeeping's
+     * names (a hand-edited backup restored there). A text where a number is kept threw at the first reading of
+     * the profile that is on, which is the first thing the home screen does; a number that names no profile
+     * showed an empty home screen in place of the user's own. What is not of its type, or names no profile of
+     * the list, is read as not there: the first profile is on, with the values the settings file holds.
+     */
+    @Test fun profileBookkeepingOfAnotherTypeOrNamingNoProfileIsReadAsNotThere() = runTest {
+        settings.setBaseColour("blue")
+        main.edit {
+            it[stringPreferencesKey(HomeProfileKeys.ACTIVE)] = "2"
+            it[stringPreferencesKey(HomeProfileKeys.MAIN_STORE)] = "2"
+            it[longPreferencesKey(HomeProfileKeys.LIST)] = 5L
+            it[stringPreferencesKey(HomeProfileKeys.LAST_ID)] = "many"
+        }
+
+        assertThat(settings.settings.first().homeProfileId).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+        assertThat(store.list().map { it.id }).containsExactly(HomeProfile.FIRST_ID)
+
+        // Numbers that name no profile of the list.
+        main.edit {
+            it[longPreferencesKey(HomeProfileKeys.ACTIVE)] = 7L
+            it[longPreferencesKey(HomeProfileKeys.MAIN_STORE)] = 7L
+        }
+        assertThat(settings.settings.first().homeProfileId).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(store.current()).isEqualTo(HomeProfile.FIRST_ID)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
+
+        // And the bookkeeping goes on from there: a new profile is the second one, and can be switched to.
+        store.create("Work", copyOf = null)
+        store.setActive(2)
+        assertThat(settings.settings.first().homeProfileId).isEqualTo(2L)
+        assertThat(settings.settings.first().baseColour).isEqualTo("orange")
+        store.setActive(1)
+        assertThat(settings.settings.first().baseColour).isEqualTo("blue")
     }
 
     @Test fun theFolderIconsOfEveryProfileAreKnown() = runTest {

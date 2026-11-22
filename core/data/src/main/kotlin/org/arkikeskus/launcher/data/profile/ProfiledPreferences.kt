@@ -183,7 +183,7 @@ class ProfiledPreferences(
 
     /** The profiles the list in [shared] names, in its order, then those being made. */
     private fun namedOrBeingMade(shared: Preferences): List<Long> =
-        (HomeProfile.decode(shared[LIST]).map { it.id } + beingMade).distinct()
+        (listed(shared).map { it.id } + beingMade).distinct()
 
     /**
      * The profiles a correction is read from and written to: [everyProfile], or [namedOrBeingMade] while
@@ -223,7 +223,7 @@ class ProfiledPreferences(
      * holds too, so nothing is written for a profile that is gone (that would bring its store file back).
      */
     suspend fun updateListedProfile(profileId: Long, transform: (MutablePreferences) -> Unit): Boolean = mutex.withLock {
-        if (HomeProfile.decode(main.data.first()[LIST]).none { it.id == profileId }) return@withLock false
+        if (listed(main.data.first()).none { it.id == profileId }) return@withLock false
         updateProfileLocked(profileId, transform)
         true
     }
@@ -268,11 +268,45 @@ class ProfiledPreferences(
         private val MAIN_STORE = longPreferencesKey(HomeProfileKeys.MAIN_STORE)
         private val LIST = stringPreferencesKey(HomeProfileKeys.LIST)
 
-        /** The profile that is on according to the settings file's values. */
-        fun activeId(shared: Preferences): Long = shared[ACTIVE] ?: HomeProfile.FIRST_ID
+        /**
+         * What is kept under [name] when it is a [T]; null when nothing is, or when it is of another type.
+         *
+         * The profile bookkeeping is read through this, never by a typed key alone: the released 1.2.1 kept
+         * a key it did not know in the type its backup file gave it, so a settings file that comes from it
+         * can hold a text where this version keeps a number (a hand-edited backup restored there). A typed
+         * key hands such a value over as it is, and the first use of it throws: for the profile that is on
+         * that was the home screen's first reading.
+         */
+        private inline fun <reified T> Preferences.kept(name: String): T? {
+            @Suppress("UNCHECKED_CAST")
+            val value: Any? = this[stringPreferencesKey(name) as Preferences.Key<Any>]
+            return value as? T
+        }
 
-        /** The profile whose own values the settings file itself holds. */
-        fun mainStoreId(shared: Preferences): Long = shared[MAIN_STORE] ?: HomeProfile.FIRST_ID
+        /** The profiles the list in [shared] names: the one first profile when there is no list, or what is
+         *  kept under its name is no list. */
+        fun listed(shared: Preferences): List<HomeProfile> = HomeProfile.decode(shared.kept<String>(HomeProfileKeys.LIST))
+
+        /** The profile that is on according to the settings file's values ([listedOrFirst]). */
+        fun activeId(shared: Preferences): Long = listedOrFirst(shared, HomeProfileKeys.ACTIVE)
+
+        /** The profile whose own values the settings file itself holds ([listedOrFirst]). */
+        fun mainStoreId(shared: Preferences): Long = listedOrFirst(shared, HomeProfileKeys.MAIN_STORE)
+
+        /** The highest profile id ever given, as far as the settings file says (0 = it says nothing). */
+        fun lastId(shared: Preferences): Long = shared.kept<Long>(HomeProfileKeys.LAST_ID) ?: 0L
+
+        /**
+         * The profile [name] points at when that is a profile of the list; else the first profile (the first
+         * of the list when the list has no profile of that id any more). Every state this launcher writes
+         * keeps both pointers on listed profiles, so a pointer that names none was not written here: followed
+         * all the same, it showed an empty home screen in place of the user's own, or read the settings
+         * file's values as nobody's.
+         */
+        private fun listedOrFirst(shared: Preferences, name: String): Long {
+            val ids = listed(shared).map { it.id }
+            return shared.kept<Long>(name)?.takeIf { it in ids } ?: ids.firstOrNull { it == HomeProfile.FIRST_ID } ?: ids.first()
+        }
 
         /** Copies into the receiver every value of [from] whose name passes [take]. */
         internal fun MutablePreferences.copy(from: Preferences, take: (String) -> Boolean) {

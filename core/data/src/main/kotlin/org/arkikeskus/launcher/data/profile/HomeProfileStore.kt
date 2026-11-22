@@ -115,7 +115,7 @@ class HomeProfileStore(
         files.store(profile.id).updateData { it.toMutablePreferences().apply { remove(BEING_MADE) }.toPreferences() }
         main.edit {
             it[LIST] = HomeProfile.encode(list + profile)
-            it[LAST_ID] = maxOf(now[LAST_ID] ?: 0L, profile.id)
+            it[LAST_ID] = maxOf(ProfiledPreferences.lastId(now), profile.id)
         }
         // Listed: from here the list itself says that its values count.
         view.made(profile.id)
@@ -142,7 +142,7 @@ class HomeProfileStore(
      * it is given again for its maker to clear.
      */
     private suspend fun freeId(now: Preferences, list: List<HomeProfile>, kept: Set<Long>): Long {
-        var id = maxOf(now[LAST_ID] ?: 0L, list.maxOf { it.id }) + 1
+        var id = maxOf(ProfiledPreferences.lastId(now), list.maxOf { it.id }) + 1
         while (isKeptUnder(id, kept)) id++
         return id
     }
@@ -310,7 +310,7 @@ class HomeProfileStore(
         if (next != list) main.edit { it[LIST] = HomeProfile.encode(next) }
     }
 
-    private fun profilesIn(values: Preferences): List<HomeProfile> = HomeProfile.decode(values[LIST])
+    private fun profilesIn(values: Preferences): List<HomeProfile> = ProfiledPreferences.listed(values)
 
     private companion object {
         val ACTIVE = longPreferencesKey(HomeProfileKeys.ACTIVE)

@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 
@@ -35,6 +37,10 @@ class ProfiledPreferencesTest {
     private val longPress = floatPreferencesKey("long_press_scale")
 
     private fun Preferences.names(): Set<String> = asMap().keys.map { it.name }.toSet()
+
+    /** The profiles there are in these tests. The view follows a pointer (the profile that is on, the one the
+     *  settings file holds) only to a profile the list names: a pointer to none is read as the first profile. */
+    @Before fun threeProfiles() = runBlocking<Unit> { main.edit { it[list] = "1\t\n2\tWork\n3\tPlay" } }
 
     @Test fun withOneProfileTheViewIsTheExistingFile() = runTest {
         view.edit { it[homeColumns] = 5; it[longPress] = 1.5f }
