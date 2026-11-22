@@ -42,10 +42,11 @@ class AppActionPopupDenseTest {
                 // [wrapped] is the row whose label is too long for one line (German for "Add to home").
                 actions = (1..rows).map { PopupAction(if (it == wrapped) wrappedLabel else "Row $it") {} },
                 onDismiss = {},
+                shortcutsOf = { emptyList() },
             )
         }
-        // The card shows once its shortcut query (off the main thread) has answered.
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("Row 1").fetchSemanticsNodes().isNotEmpty() }
+        // The menu is handed its shortcuts: nothing of it comes back from another thread, so there is no wait.
+        compose.waitForIdle()
     }
 
     /** From one row's top to the next one's: the row's height and the 2 dp between the rows of a group. */

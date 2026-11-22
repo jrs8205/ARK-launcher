@@ -172,6 +172,8 @@ fun AppActionPopup(
     onPinShortcut: ((AppShortcuts.Item) -> Unit)? = null,
     onWidgets: (() -> Unit)? = null,
     hasWidgets: (suspend (AppItem) -> Boolean)? = null,
+    /** The app's shortcuts for the menu; null = asked of Android here, off the main thread. */
+    shortcutsOf: (suspend (AppItem) -> List<AppShortcuts.Item>)? = null,
     held: Boolean = false,
     locked: Boolean = false,
     /** The palette of the surface the menu opens from when that is not the theme root's (the app drawer with the
@@ -187,7 +189,7 @@ fun AppActionPopup(
     // Null = still being asked for; the card waits for both (or the wait below) before it shows.
     var shortcuts by remember(app.key) { mutableStateOf<List<AppShortcuts.Item>?>(null) }
     LaunchedEffect(app.key) {
-        shortcuts = withContext(Dispatchers.IO) { AppShortcuts.query(context, app) }
+        shortcuts = shortcutsOf?.invoke(app) ?: withContext(Dispatchers.IO) { AppShortcuts.query(context, app) }
     }
     var widgets by remember(app.key) { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(app.key, onWidgets != null) {

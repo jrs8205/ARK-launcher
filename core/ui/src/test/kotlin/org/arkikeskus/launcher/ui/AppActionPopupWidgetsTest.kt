@@ -35,12 +35,13 @@ class AppActionPopupWidgetsTest {
                 preferAbove = false,
                 actions = listOf(PopupAction("App info") {}),
                 onDismiss = { dismissed++ },
+                shortcutsOf = { emptyList() },
                 onWidgets = onWidgets,
                 hasWidgets = { queried++; hasWidgets },
             )
         }
-        // The card shows once its shortcut query (off the main thread) has answered.
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }
+        // The menu is handed its shortcuts: nothing of it comes back from another thread, so there is no wait.
+        compose.waitForIdle()
     }
 
     @Test fun anAppWithWidgetsGetsAWidgetsRowAboveTheActions() {

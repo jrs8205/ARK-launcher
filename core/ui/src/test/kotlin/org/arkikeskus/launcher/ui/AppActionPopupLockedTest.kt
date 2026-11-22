@@ -49,6 +49,29 @@ class AppActionPopupLockedTest {
 
     private val app = AppItem("com.example", "Main", Process.myUserHandle(), 0L, "Example")
 
+    /**
+     * Review round 12. The menu can be handed its shortcuts ([AppActionPopup]'s `shortcutsOf`), as it can be
+     * handed the answer about widgets: Android is then not asked, and nothing of the menu comes back from
+     * another thread. A test of the menu's layout failed in a full run because the answer of the real query
+     * was written from the thread it was made on. Here Android would answer "New message" to any query.
+     */
+    @Test fun aMenuHandedItsShortcutsDoesNotAskAndroidForThem() {
+        compose.setContent {
+            AppActionPopup(
+                app = app,
+                anchor = IntOffset(200, 40),
+                preferAbove = false,
+                actions = listOf(PopupAction("App info") {}),
+                onDismiss = {},
+                shortcutsOf = { emptyList() },
+            )
+        }
+        compose.waitForIdle()
+
+        compose.onNodeWithText("App info").assertIsDisplayed()
+        compose.onNodeWithText("New message").assertDoesNotExist()
+    }
+
     private fun show(locked: Boolean) {
         compose.setContent {
             AppActionPopup(

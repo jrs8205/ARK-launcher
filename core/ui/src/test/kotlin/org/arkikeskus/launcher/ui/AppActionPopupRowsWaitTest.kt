@@ -42,6 +42,7 @@ class AppActionPopupRowsWaitTest {
                 preferAbove = false,
                 actions = listOf(PopupAction("App info") {}),
                 onDismiss = {},
+                shortcutsOf = { emptyList() },
                 onWidgets = {},
                 hasWidgets = { widgets.await() },
             )
@@ -79,6 +80,7 @@ class AppActionPopupRowsWaitTest {
                     preferAbove = false,
                     actions = listOf(PopupAction("App info") {}),
                     onDismiss = { dismissed++; shown = false },
+                    shortcutsOf = { emptyList() },
                     onWidgets = {},
                     hasWidgets = { widgets.await() },
                 )

@@ -70,7 +70,7 @@ class PopupMenuPaletteTest {
     @Test fun anAppMenuOnTheHomeScreenShowsTheThemeRootsColour() {
         compose.setContent {
             LauncherTheme(palette = tealBase) {
-                AppActionPopup(app, anchor, preferAbove = false, actions = listOf(PopupAction("App info") {}), onDismiss = {})
+                AppActionPopup(app, anchor, preferAbove = false, actions = listOf(PopupAction("App info") {}), onDismiss = {}, shortcutsOf = { emptyList() })
             }
         }
         assertThat(colourOf("App info")).isEqualTo(tealBase.onContainer)
@@ -81,7 +81,7 @@ class PopupMenuPaletteTest {
             LauncherTheme(palette = tealBase) {
                 AppActionPopup(
                     app, anchor, preferAbove = false, actions = listOf(PopupAction("App info") {}), onDismiss = {},
-                    palette = violet,
+                    palette = violet, shortcutsOf = { emptyList() },
                 )
             }
         }

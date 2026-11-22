@@ -44,11 +44,12 @@ class AppActionPopupHeldTest {
                 preferAbove = false,
                 actions = listOf(PopupAction("App info") { picked++ }),
                 onDismiss = {},
+                shortcutsOf = { emptyList() },
                 held = held,
             )
         }
-        // The card shows once its shortcut query (off the main thread) has answered.
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("App info").fetchSemanticsNodes().isNotEmpty() }
+        // The menu is handed its shortcuts: nothing of it comes back from another thread, so there is no wait.
+        compose.waitForIdle()
     }
 
     private fun popupWindow(): View = Shadow.extract<ShadowWindowManagerImpl>(compose.activity.windowManager)
