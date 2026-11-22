@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data.smartspace
 
+import android.os.SystemClock
 import java.util.Locale
 
 /** A resolved place name and whether it came from the network fallback. */
@@ -18,7 +19,13 @@ internal class PlaceNameCache(
     private val maxAgeMs: Long,
     /** The least time between two questions put to the network, answered or not. */
     private val networkIntervalMs: Long = NETWORK_PLACE_NAME_INTERVAL_MS,
-    private val now: () -> Long = System::currentTimeMillis,
+    /**
+     * The clock both lengths of time are counted on (the name's age and the wait between two questions to the
+     * network): the time since boot, which only goes forward. Not the wall clock: these are lengths of time
+     * inside one process, kept nowhere, and a wall clock that was set back a day made the next question to the
+     * network a day and a half hour away, with no name to show meanwhile after a change of language.
+     */
+    private val now: () -> Long = SystemClock::elapsedRealtime,
 ) {
     /** When the network was last asked; null = never. */
     private var networkAskedAtMs: Long? = null
