@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
@@ -242,20 +243,28 @@ internal class ProductionWiring(
 }
 
 /**
- * Runs [work], which needs the home profile's hold (a switch, a deletion), while the main looper turns, and
- * hands back what it gave. A ViewModel's step may have the hold right then, and it goes on, and lets go of
- * the hold, only when the looper turns: asked for on the test's own thread, [work] would wait for a hold that
- * nobody is left to give back. A row the step wrote is no sign that the step is over: the row is in the
- * database before the step is back on the main thread.
+ * Runs [work], which asks something of the stores (the settings, the home rows, the home profiles), on
+ * another thread while the main looper turns, and hands back what it gave or throws what it threw.
+ *
+ * In place of `runBlocking` on the test's own thread. That thread is the main thread, and a view model's
+ * coroutines go on there only when its looper turns. The stores hand a lock on to whoever has waited for it
+ * longest: the home profile's hold (a switch, a deletion), the lock every change of the settings is made
+ * under, the one the settings file makes its first read under. A ViewModel's step may have such a lock right
+ * then, or be next in line for it, and it goes on, and lets go of the lock, only when the looper turns: asked
+ * for on the test's own thread with the looper stopped, [work] would wait for a lock that nobody is left to
+ * give back. A row the step wrote is no sign that the step is over: the row is in the database before the
+ * step is back on the main thread. (The drawer's tests have the same helper beside their own wiring; a run of
+ * the whole test task stood still there, in a test that read the home rows so.)
  *
  * Not done within [limitMs]: the test fails ("Timed out waiting for [what]"), and never hangs. The work is
  * not this call's child, since a parent waits for its child: work that cannot be cancelled (a profile's
  * deletion waits for the hold in a step that is not cancellable) would keep the test waiting for good. It is
- * told to end, and the looper turns on for as long again while it does: whoever has the hold may need a turn
+ * told to end, and the looper turns on for as long again while it does: whoever has the lock may need a turn
  * of the looper to let go of it, and with the looper stopped the two would wait for each other. Work that
  * still has not ended by then is left behind, and the failure is given all the same.
  */
-internal suspend fun <T> whileTheMainLooperTurns(what: String, limitMs: Long = 10_000, work: suspend () -> T): T {
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun <T> whileTheMainLooperTurns(what: String = "what was asked of the stores", limitMs: Long = 10_000, work: suspend () -> T): T {
     val asked = CoroutineScope(Dispatchers.Default).async { work() }
     turnTheMainLooper(limitMs) { asked.isCompleted }
     if (!asked.isCompleted) {
@@ -263,7 +272,7 @@ internal suspend fun <T> whileTheMainLooperTurns(what: String, limitMs: Long = 1
         turnTheMainLooper(limitMs) { asked.isCompleted }
         error("Timed out waiting for $what")
     }
-    return asked.await()
+    return asked.getCompleted()
 }
 
 /** Turns the main looper until [done], for [limitMs] at most. */

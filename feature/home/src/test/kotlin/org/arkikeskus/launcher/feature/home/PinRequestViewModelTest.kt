@@ -14,7 +14,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.PendingWidgetIds
@@ -157,7 +156,7 @@ class PinRequestViewModelTest {
         }
     }
 
-    private fun widgetIds() = runBlocking { dao.getContainer(HOME).filter { it.isWidget }.map { it.appWidgetId } }
+    private fun widgetIds() = whileTheMainLooperTurns { dao.getContainer(HOME).filter { it.isWidget }.map { it.appWidgetId } }
 
     private fun confirmOpen(vm: PinRequestViewModel) {
         vm.attach(clockRequest())
@@ -256,7 +255,7 @@ class PinRequestViewModelTest {
 
     @Test
     fun aGridChangedWhileTheHomeScreenWasAwayMeasuresTheWidgetOnTheNewGrid() {
-        runBlocking {
+        whileTheMainLooperTurns {
             settings.setHomeColumns(6)
             settings.setHomeRows(6)
         }
@@ -273,13 +272,13 @@ class PinRequestViewModelTest {
 
     @Test
     fun aWidgetThatOpensASecondPageIsMeasuredOnTheGridTheDotsLeaveIt() {
-        runBlocking {
+        whileTheMainLooperTurns {
             settings.setHomeColumns(4)
             settings.setHomeRows(6)
             // The only page is full.
             dao.insert(HomeItemEntity(page = 0, cellX = 0, cellY = 0, spanX = 4, spanY = 6, appWidgetId = 1, widgetProvider = "p"))
         }
-        val now = runBlocking { settings.settings.first() }
+        val now = whileTheMainLooperTurns { settings.settings.first() }
         val vm = viewModel(SavedStateHandle(), Binder(4211, allowed = true))
         // Measured as home is now, one page and no dots: 450 dp, 75 a row.
         vm.cellSize = HomeCellSize().apply { publish(75f, 75f, columns = 4, rows = 6, chrome = workspaceChrome(now, pageCount = 1, fontScale = 1f, dockIcons = 0)) }
@@ -297,7 +296,7 @@ class PinRequestViewModelTest {
      *  taller dock, a shorter grid. The measured cell is not that grid's. */
     @Test
     fun aDockCutToFewerLargerIconsWhileHomeWasAwayIsNotMeasuredOnTheOldGrid() {
-        runBlocking {
+        whileTheMainLooperTurns {
             settings.setHomeColumns(4)
             settings.setHomeRows(6)
             settings.setShowDockLabels(true)
@@ -306,13 +305,13 @@ class PinRequestViewModelTest {
             }
             settings.setDockColumns(7)
         }
-        val measured = runBlocking { settings.settings.first() }
+        val measured = whileTheMainLooperTurns { settings.settings.first() }
         val vm = viewModel(SavedStateHandle(), Binder(4213))
         // The home screen as last laid out: seven 32 dp icons, a 72 dp dock row, 346 dp of grid.
         vm.cellSize = HomeCellSize().apply {
             publish(80f, 346f / 6, columns = 4, rows = 6, chrome = workspaceChrome(measured, pageCount = 1, fontScale = 1f, dockIcons = 7))
         }
-        runBlocking { settings.setDockColumns(4) }
+        whileTheMainLooperTurns { settings.setDockColumns(4) }
 
         vm.attach(clockRequest(minHeight = 340))
         awaitUntil("the decision") { vm.uiState.value !is PinRequestUiState.Loading }
@@ -323,7 +322,7 @@ class PinRequestViewModelTest {
 
     @Test
     fun beforeTheWorkspaceHasMeasuredTheWidgetIsEstimatedInTheConfirmationsWindow() {
-        runBlocking {
+        whileTheMainLooperTurns {
             settings.setHomeColumns(4)
             settings.setHomeRows(6)
         }
@@ -338,11 +337,11 @@ class PinRequestViewModelTest {
         assertThat((vm.uiState.value as PinRequestUiState.Confirm).spanY).isEqualTo(6)
     }
 
-    private fun widgetSpanX() = runBlocking { dao.getContainer(HOME).filter { it.isWidget }.map { it.spanX } }
+    private fun widgetSpanX() = whileTheMainLooperTurns { dao.getContainer(HOME).filter { it.isWidget }.map { it.spanX } }
 
     /** 4 columns of 100 dp when the confirmation opens; [change] runs while it is open. */
     private fun confirmOnFourColumns(binder: Binder): PinRequestViewModel {
-        runBlocking {
+        whileTheMainLooperTurns {
             settings.setHomeColumns(4)
             settings.setHomeRows(6)
         }
@@ -358,7 +357,7 @@ class PinRequestViewModelTest {
     fun aGridChangedWhileTheConfirmationWasOpenSizesTheWidgetOnTheNewGrid() {
         val vm = confirmOnFourColumns(Binder(4206, allowed = true))
 
-        runBlocking { settings.setHomeColumns(6) }
+        whileTheMainLooperTurns { settings.setHomeColumns(6) }
         vm.add()
         awaitUntil("the widget stored") { widgetSpanX().isNotEmpty() }
 
@@ -372,7 +371,7 @@ class PinRequestViewModelTest {
         vm.add()
         awaitUntil("the bind dialog") { (vm.uiState.value as? PinRequestUiState.Confirm)?.bindRequest != null }
 
-        runBlocking { settings.setHomeColumns(6) }
+        whileTheMainLooperTurns { settings.setHomeColumns(6) }
         vm.onBindResult(allowed = true)
         awaitUntil("the widget stored") { widgetSpanX().isNotEmpty() }
 
@@ -411,7 +410,7 @@ class PinRequestViewModelTest {
         awaitUntil("the outcome") { vm.uiState.value.let { it !is PinRequestUiState.Confirm } }
 
         assertThat(vm.uiState.value).isEqualTo(PinRequestUiState.Locked)
-        assertThat(runBlocking { dao.getContainer(HOME).filter { it.isShortcut } }).isEmpty()
+        assertThat(whileTheMainLooperTurns { dao.getContainer(HOME).filter { it.isShortcut } }).isEmpty()
     }
 
     /**
@@ -480,7 +479,7 @@ class PinRequestViewModelTest {
         vm.add()
         awaitUntil("the bind dialog") { (vm.uiState.value as? PinRequestUiState.Confirm)?.bindRequest != null }
 
-        runBlocking { settings.setDesktopLocked(true) }
+        whileTheMainLooperTurns { settings.setDesktopLocked(true) }
         vm.onBindResult(allowed = true)
         awaitUntil("the outcome") { vm.uiState.value !is PinRequestUiState.Confirm }
 
