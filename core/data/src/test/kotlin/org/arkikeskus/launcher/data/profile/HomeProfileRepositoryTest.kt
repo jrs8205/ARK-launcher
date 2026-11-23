@@ -1070,4 +1070,23 @@ class HomeProfileRepositoryTest {
         assertThat(ran).isEqualTo(1)
         assertThat(layout.isProfileOn(1L)).isTrue()
     }
+
+    @Test fun unreadableProfileLeavesTheGridColumnsUntouched() = runTest {
+        assertGridReadFails { profiles.setHomeColumns(3, 1L) }
+    }
+
+    @Test fun unreadableProfileLeavesTheGridRowsUntouched() = runTest {
+        assertGridReadFails { profiles.setHomeRows(5, 1L) }
+    }
+
+    private suspend fun assertGridReadFails(change: suspend () -> Boolean) {
+        dao.insert(app("com.edge", 3))
+        val before = settings.settings.first()
+        val rows = rowsOf(1)
+        main.failReads = java.io.IOException("cannot open profile")
+        assertThat(change()).isFalse()
+        main.failReads = null
+        assertThat(settings.settings.first()).isEqualTo(before)
+        assertThat(rowsOf(1)).isEqualTo(rows)
+    }
 }

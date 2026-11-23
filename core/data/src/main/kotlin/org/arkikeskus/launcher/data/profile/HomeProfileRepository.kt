@@ -255,8 +255,8 @@ class HomeProfileRepository @Inject constructor(
      * behind a switch, and it then packed the icons of the profile that came on, and could shrink its widgets,
      * for a size the user had chosen while looking at the other one.
      */
-    suspend fun setHomeColumns(value: Int, profileId: Long): Boolean = store.whileActiveStays { active ->
-        if (active != profileId) return@whileActiveStays false
+    suspend fun setHomeColumns(value: Int, profileId: Long): Boolean = withReadableProfile(false) { active ->
+        if (active != profileId) return@withReadableProfile false
         val now = settings.settings.first()
         if (value < now.homeColumns) layout.reflow(value, now.homeRows)
         settings.setHomeColumns(value)
@@ -264,8 +264,8 @@ class HomeProfileRepository @Inject constructor(
     }
 
     /** As [setHomeColumns], for the rows. */
-    suspend fun setHomeRows(value: Int, profileId: Long): Boolean = store.whileActiveStays { active ->
-        if (active != profileId) return@whileActiveStays false
+    suspend fun setHomeRows(value: Int, profileId: Long): Boolean = withReadableProfile(false) { active ->
+        if (active != profileId) return@withReadableProfile false
         val now = settings.settings.first()
         if (value < now.homeRows) layout.reflow(now.homeColumns, value)
         settings.setHomeRows(value)
