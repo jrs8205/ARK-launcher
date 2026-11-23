@@ -697,9 +697,7 @@ class AppDrawerScreenTest {
         assertThat(field.size.height).isAtLeast(with(compose.density) { 48.dp.roundToPx() })
         assertThat(field.boundsInRoot.bottom).isAtMost(window.toFloat())
         assertThat(field.boundsInRoot.top).isAtLeast(0f)
-        // The card does not fit over the field here: it is given no place. (Its node is still found by a
-        // test; what is not placed is not drawn, takes no touch and no focus, and is not handed to a screen
-        // reader.)
+        // The card has no place in this window.
         compose.onNodeWithTag(DRAWER_FREQUENT_TAG).assertIsNotDisplayed()
     }
 
@@ -711,6 +709,21 @@ class AppDrawerScreenTest {
         app.performTouchInput { click() }
         settle()
         assertThat(closeCalls).isEqualTo(1)
+    }
+
+    @Test fun aFocusedFrequentAppCannotLaunchAfterTheCardIsHidden() {
+        showWithAMostUsedApp(searchAtBottom = true, height = 400.dp)
+        val app = compose.onNode(androidx.compose.ui.test.hasAnyAncestor(hasTestTag(DRAWER_FREQUENT_TAG))
+            and androidx.compose.ui.test.hasText(mailApp))
+        app.requestFocus()
+        app.assertIsFocused()
+        compose.runOnIdle { windowHeight.value = 150.dp }
+        settle()
+        compose.onNodeWithTag(DRAWER_FREQUENT_TAG).assertIsNotDisplayed()
+        compose.onRoot().performKeyInput { pressKey(Key.Enter) }
+        settle()
+        assertThat(closeCalls).isEqualTo(0)
+        compose.onNodeWithTag(DRAWER_SEARCH_FIELD_TAG).assertIsFocused()
     }
 
     /** A search covers the drawer with its results: the "most used" card gives its place to them. */

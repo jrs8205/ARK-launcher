@@ -4,6 +4,7 @@ import android.view.View
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -58,6 +59,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -706,6 +711,7 @@ private fun AppDrawerContent(
             // Issue #33: asked for, the field sits under the apps, in reach of the thumb on a tall phone, and the
             // "most used" card sits right above it instead of leading the grid.
             val fieldAtBottom = showSearch && searchAtBottom
+            val searchFocus = remember { FocusRequester() }
             val searchField: @Composable () -> Unit = {
                 // A pill in the container colour with what is read on a container; no underline. On a see-through
                 // drawer the pill is as see-through, and its text is what reads on what shows through it.
@@ -723,6 +729,7 @@ private fun AppDrawerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .focusRequester(searchFocus)
                         .testTag(DRAWER_SEARCH_FIELD_TAG),
                 )
             }
@@ -906,6 +913,7 @@ private fun AppDrawerContent(
                     when (tab) {
                         DrawerTab.Personal -> if (fieldAtBottom) {
                             PersonalGridWithFrequentCard(
+                                searchFocus = searchFocus,
                                 minimumGridHeight = 8.dp + maxOf(48.dp, drawerIconSize) + 8.dp,
                                 grid = { DrawerGrid(gridState, 0.dp, idleContent) },
                                 card = {
@@ -970,16 +978,28 @@ private fun AppDrawerContent(
  * including its padding, before giving any of the Personal page to the optional card. */
 @Composable
 private fun PersonalGridWithFrequentCard(
+    searchFocus: FocusRequester,
     minimumGridHeight: Dp,
     grid: @Composable () -> Unit,
     card: @Composable () -> Unit,
 ) {
+    var cardVisible by remember { mutableStateOf(false) }
+    var cardHasFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(cardVisible, cardHasFocus) {
+        if (!cardVisible && cardHasFocus) searchFocus.requestFocus()
+    }
     Layout(content = {
         Box { grid() }
-        Box { card() }
+        Box(
+            Modifier
+                .onFocusChanged { cardHasFocus = it.hasFocus }
+                .onPreviewKeyEvent { !cardVisible }
+                .focusGroup(),
+        ) { card() }
     }) { measurables, constraints ->
         val measuredCard = measurables[1].measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
         val fits = measuredCard.height <= constraints.maxHeight - minimumGridHeight.roundToPx()
+        cardVisible = fits
         val cardHeight = if (fits) measuredCard.height else 0
         val gridArea = measurables[0].measure(constraints.copy(
             minHeight = (constraints.minHeight - cardHeight).coerceAtLeast(0),
