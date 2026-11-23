@@ -85,6 +85,13 @@ class BackupEventMessageTest {
             .isEqualTo(BackupEvent.Restored(5, 1, profilesLeft = 2, picturesLeft = 3))
     }
 
+    @Test fun aRestoreThatCouldNotClearProfileSettingsShowsTheWarning() {
+        val result = org.arkikeskus.launcher.data.backup.RestoreResult(2, 0, settingsCleanupIncomplete = true)
+        val event = restoredEvent(result)
+        assertThat(backupEventMessage(res, event)).contains("profile settings")
+        assertThat(event.needsTimeToRead).isTrue()
+    }
+
     /** Nothing was restored because the profiles changed under the question: the text says so and what to do,
      *  and it is long enough to need its time. */
     @Test fun changedProfilesSayThatNothingWasRestored() {

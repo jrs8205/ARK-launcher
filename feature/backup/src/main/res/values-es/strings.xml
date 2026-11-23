@@ -34,6 +34,7 @@
         <item quantity="many">No se pudieron quitar los fondos del cajón de aplicaciones de %1$d perfiles eliminados. La próxima restauración los quitará.</item>
         <item quantity="other">No se pudieron quitar los fondos del cajón de aplicaciones de %1$d perfiles eliminados. La próxima restauración los quitará.</item>
     </plurals>
+    <string name="backup_restore_profile_settings_cleanup">No se pudo confirmar que se hayan eliminado todos los ajustes antiguos de los perfiles de la pantalla de inicio. Vuelve a restaurar la copia de seguridad para intentarlo de nuevo.</string>
     <string name="backup_restore_confirm_ok">Restaurar</string>
     <string name="backup_cancel">Cancelar</string>
     <string name="backup_last_time">Última copia: %1$s</string>

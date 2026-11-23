@@ -31,6 +31,7 @@
         <item quantity="one">Das Hintergrundbild des App-Drawers von %1$d gelöschten Profil konnte nicht entfernt werden. Die nächste Wiederherstellung entfernt es.</item>
         <item quantity="other">Die Hintergrundbilder des App-Drawers von %1$d gelöschten Profilen konnten nicht entfernt werden. Die nächste Wiederherstellung entfernt sie.</item>
     </plurals>
+    <string name="backup_restore_profile_settings_cleanup">Es konnte nicht bestätigt werden, dass alle alten Einstellungen der Startbildschirmprofile gelöscht wurden. Stelle die Sicherung erneut wieder her, um es noch einmal zu versuchen.</string>
     <string name="backup_restore_confirm_ok">Wiederherstellen</string>
     <string name="backup_cancel">Abbrechen</string>
     <string name="backup_last_time">Zuletzt: %1$s</string>

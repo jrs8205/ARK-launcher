@@ -34,6 +34,7 @@
         <item quantity="many">Les fonds d’écran de la liste des applications de %1$d profils supprimés n\'ont pas pu être retirés. La prochaine restauration les retirera.</item>
         <item quantity="other">Les fonds d’écran de la liste des applications de %1$d profils supprimés n\'ont pas pu être retirés. La prochaine restauration les retirera.</item>
     </plurals>
+    <string name="backup_restore_profile_settings_cleanup">La suppression de tous les anciens réglages des profils de l’écran d’accueil n’a pas pu être confirmée. Restaurez à nouveau la sauvegarde pour réessayer.</string>
     <string name="backup_restore_confirm_ok">Restaurer</string>
     <string name="backup_cancel">Annuler</string>
     <string name="backup_last_time">Dernière sauvegarde : %1$s</string>

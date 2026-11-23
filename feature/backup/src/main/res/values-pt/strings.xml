@@ -34,6 +34,7 @@
         <item quantity="many">Não foi possível remover os papéis de parede da gaveta de apps de %1$d perfis excluídos. A próxima restauração os removerá.</item>
         <item quantity="other">Não foi possível remover os papéis de parede da gaveta de apps de %1$d perfis excluídos. A próxima restauração os removerá.</item>
     </plurals>
+    <string name="backup_restore_profile_settings_cleanup">Não foi possível confirmar a remoção de todas as configurações antigas dos perfis da tela inicial. Restaure o backup novamente para tentar de novo.</string>
     <string name="backup_restore_confirm_ok">Restaurar</string>
     <string name="backup_cancel">Cancelar</string>
     <string name="backup_last_time">Último: %1$s</string>

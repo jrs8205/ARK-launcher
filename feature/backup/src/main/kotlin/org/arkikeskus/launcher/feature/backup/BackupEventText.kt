@@ -5,7 +5,7 @@ import org.arkikeskus.launcher.data.backup.RestoreResult
 
 /** What the screen is told of a restore that went through: everything [result] says. */
 internal fun restoredEvent(result: RestoreResult): BackupEvent.Restored =
-    BackupEvent.Restored(result.restored, result.skipped, result.profilesLeft, result.picturesLeft)
+    BackupEvent.Restored(result.restored, result.skipped, result.profilesLeft, result.picturesLeft, result.settingsCleanupIncomplete)
 
 /** The text [event] shows: on the backup screen's snackbar and in the "Open with" import's dialog. */
 internal fun backupEventMessage(res: Resources, event: BackupEvent): String = when (event) {
@@ -32,6 +32,7 @@ internal fun backupEventMessage(res: Resources, event: BackupEvent): String = wh
                 .takeIf { event.profilesLeft > 0 },
             res.getQuantityString(R.plurals.backup_restore_pictures_left, event.picturesLeft, event.picturesLeft)
                 .takeIf { event.picturesLeft > 0 },
+            res.getString(R.string.backup_restore_profile_settings_cleanup).takeIf { event.settingsCleanupIncomplete },
         ).joinToString("\n")
     }
     BackupEvent.InvalidFile -> res.getString(R.string.backup_import_invalid)

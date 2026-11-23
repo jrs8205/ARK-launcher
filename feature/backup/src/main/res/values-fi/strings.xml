@@ -31,6 +31,7 @@
         <item quantity="one">%1$d poistetun profiilin sovellusvalikon taustakuvaa ei voitu poistaa. Seuraava palautus poistaa sen.</item>
         <item quantity="other">%1$d poistetun profiilin sovellusvalikon taustakuvia ei voitu poistaa. Seuraava palautus poistaa ne.</item>
     </plurals>
+    <string name="backup_restore_profile_settings_cleanup">Kaikkien vanhojen kotiprofiilien asetusten poistumista ei voitu varmistaa. Voit yrittää uudelleen palauttamalla varmuuskopion.</string>
     <string name="backup_restore_confirm_ok">Palauta</string>
     <string name="backup_cancel">Peruuta</string>
     <string name="backup_last_time">Viimeksi: %1$s</string>

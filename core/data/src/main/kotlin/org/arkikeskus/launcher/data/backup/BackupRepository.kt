@@ -35,7 +35,14 @@ import javax.inject.Singleton
  * (it could not be removed). The layout is restored all the same; what is left is found by the next restore
  * as a home screen no profile is listed for, and removed then.
  */
-data class RestoreResult(val restored: Int, val skipped: Int, val profilesLeft: Int = 0, val picturesLeft: Int = 0)
+data class RestoreResult(
+    val restored: Int,
+    val skipped: Int,
+    val profilesLeft: Int = 0,
+    val picturesLeft: Int = 0,
+    /** Removing all agreed-to profile settings could not be verified. The restored items are in place. */
+    val settingsCleanupIncomplete: Boolean = false,
+)
 
 /**
  * The home profiles as a restore's question showed them: the one that is on ([activeId]), which the restore
@@ -227,7 +234,7 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         // While the profile that is on stays on: the settings, the rows and the list of profiles this
         // leaves are of one profile, and a switch in the middle put the rows in one and left another.
-        val (profilesLeft, picturesLeft) = withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
+        return withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
             // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
             // was read after the question, and a profile made meanwhile would go without a word. Under the
             // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
@@ -306,9 +313,15 @@ class BackupRepository @Inject constructor(
                 ?.let { still -> gone.count { it in still } }
                 ?: notCleared.size
             repinShortcuts(previousLayout, entities)
-            left to pictures
+            // A settings file can survive an unsuccessful delete even after its profile left the list.
+            // Verify just the ids covered by this restore. If listing fails, the cleanup is unconfirmed.
+            val settingsCleanupIncomplete = gone.isNotEmpty() && profiles != null && try {
+                profiles.unlistedStores().any { it in gone }
+            } catch (_: java.io.IOException) {
+                true
+            }
+            RestoreResult(entities.size, mapping.skipped, left, pictures, settingsCleanupIncomplete)
         } } }
-        return RestoreResult(entities.size, mapping.skipped, profilesLeft, picturesLeft)
     }
 
     /** Whether nothing is left of the drawer picture of the home profile [id]: its folder went, or there was

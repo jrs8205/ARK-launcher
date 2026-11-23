@@ -846,6 +846,21 @@ class BackupProfilesTest {
         assertThat(settings.settings.first().baseColour).isEqualTo("blue")
     }
 
+    @Test fun aRestoreReportsSettingsThatCouldNotBeRemovedAndCanRetry() = runTest {
+        files.store(2).updateData {
+            it.toMutablePreferences().apply { this[androidx.datastore.preferences.core.stringPreferencesKey("base_colour")] = "green" }
+        }
+        val confirmed = ConfirmedProfiles(activeId = 1, otherIds = emptySet(), unlistedIds = setOf(2L))
+        files.failDelete = java.io.IOException("file cannot be removed")
+        val restored = repo().restoreDocument(backup, installed, confirmed)
+        assertThat(restored.restored).isEqualTo(2)
+        assertThat(store.unlistedStores()).containsExactly(2L)
+        assertThat(restored.settingsCleanupIncomplete).isTrue()
+        files.failDelete = null
+        assertThat(repo().restoreDocument(backup, installed, confirmed).settingsCleanupIncomplete).isFalse()
+        assertThat(store.unlistedStores()).isEmpty()
+    }
+
     /** A restore that cannot find out what is kept under the unlisted ids does not go on as if there were
      *  nothing: it fails before its first write. */
     @Test fun aRestoreThatCannotListTheProfilesStoresWritesNothing() = runTest {
