@@ -305,4 +305,15 @@ class ProfiledPreferencesTest {
         assertThat(result[active]).isEqualTo(2L)
         assertThat(result).isEqualTo(view.data.first())
     }
+
+    @Test fun iconSwipeDistanceKeepsItsExistingSharedValueAcrossProfiles() = runTest {
+        val distance = floatPreferencesKey("icon_swipe_distance")
+        main.edit { it[distance] = 2.25f }
+        val settings = org.arkikeskus.launcher.data.SettingsRepository(view, view)
+        main.edit { it[active] = 2L }
+        assertThat(settings.settings.first().iconSwipeDistance).isEqualTo(2.25f)
+        settings.setIconSwipeDistance(7.5f)
+        main.edit { it[active] = 1L }
+        assertThat(settings.settings.first().iconSwipeDistance).isEqualTo(7.5f)
+    }
 }

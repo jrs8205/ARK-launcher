@@ -49,12 +49,13 @@ class FolderSwipeUpTest {
     private var drawerDrags = 0
     private var shadeOpens = 0
 
-    private fun show(folderSwipeOpensFirstApp: Boolean, entries: List<HomeEntry> = listOf(tools)) {
+    private fun show(folderSwipeOpensFirstApp: Boolean, entries: List<HomeEntry> = listOf(tools), distance: Float = 1f) {
         compose.setContent {
             Box(
                 Modifier
                     .size(300.dp, 400.dp)
                     .pixelHomeSwipe(
+                        iconSwipeDistance = distance,
                         swipeUpForDrawer = true,
                         swipeDownForNotifications = true,
                         dragController = drag,
@@ -159,5 +160,26 @@ class FolderSwipeUpTest {
         assertThat(swipeUpTarget(folderUnderFinger = true, folderSwipeOpensFirstApp = false, swipeUpForDrawer = true)).isEqualTo(SwipeUpTarget.DRAWER)
         assertThat(swipeUpTarget(folderUnderFinger = false, folderSwipeOpensFirstApp = true, swipeUpForDrawer = true)).isEqualTo(SwipeUpTarget.DRAWER)
         assertThat(swipeUpTarget(folderUnderFinger = false, folderSwipeOpensFirstApp = true, swipeUpForDrawer = false)).isEqualTo(SwipeUpTarget.NONE)
+    }
+
+    @Test fun aFolderAtMaximumSwipeDistanceOnlyOpensItsFirstAppPastTenSlops() {
+        show(folderSwipeOpensFirstApp = true, distance = 10f)
+        val start = compose.onNodeWithText("Tools").fetchSemanticsNode().boundsInRoot.center
+        val slop = android.view.ViewConfiguration.get(org.robolectric.RuntimeEnvironment.getApplication()).scaledTouchSlop
+        fun pull(pixels: Float) {
+            compose.onRoot().performTouchInput {
+                down(start)
+                moveBy(Offset(0f, -pixels))
+                up()
+            }
+            compose.waitForIdle()
+        }
+        pull(10f * slop - 2f)
+        assertThat(swipedFolders).isEmpty()
+        assertThat(opened).isEmpty()
+        pull(10f * slop + 2f)
+        assertThat(swipedFolders).containsExactly(7L)
+        assertThat(drawerDrags).isEqualTo(0)
+        assertThat(shadeOpens).isEqualTo(0)
     }
 }

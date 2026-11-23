@@ -155,8 +155,13 @@ class SettingsRepositoryTest {
 
         repo.setIconSwipeDistance(2.5f)
         assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(2.5f)
-        repo.setIconSwipeDistance(9f)
-        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(4.0f)
+        repo.setIconSwipeDistance(7.5f)
+        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(7.5f)
+        val imported = newRepository()
+        imported.importRaw(repo.exportRaw())
+        assertThat(imported.settings.first().iconSwipeDistance).isEqualTo(7.5f)
+        repo.setIconSwipeDistance(12f)
+        assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(10f)
         repo.setIconSwipeDistance(0.2f)
         assertThat(repo.settings.first().iconSwipeDistance).isEqualTo(1.0f)
 

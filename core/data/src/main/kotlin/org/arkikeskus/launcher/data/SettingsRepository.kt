@@ -1182,7 +1182,7 @@ class SettingsRepository @Inject constructor(
         const val MIN_GLASS_OPACITY = 0.05f
         const val MAX_GLASS_OPACITY = 0.6f
         const val MIN_ICON_SWIPE_DISTANCE = 1.0f
-        const val MAX_ICON_SWIPE_DISTANCE = 4.0f
+        const val MAX_ICON_SWIPE_DISTANCE = 10.0f
 
         /** Valid range for the drawer blur strength slider (a multiplier on the 0.9.9 blur radius); the bottom is a
          *  tenth because a quarter still hid the wallpaper's detail on the owner's Pixel. */

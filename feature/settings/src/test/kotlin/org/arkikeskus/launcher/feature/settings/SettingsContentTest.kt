@@ -1,6 +1,10 @@
 package org.arkikeskus.launcher.feature.settings
 
 import android.app.Application
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasAnySibling
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isToggleable
@@ -53,5 +57,16 @@ class SettingsContentTest {
             .performClick()
         compose.waitForIdle()
         assertThat(recorded.calls).containsExactly("setSwipeUp" to listOf(false))
+    }
+
+    @Test fun iconSwipeDistanceOffersHalfStepsUpToOneThousandPercent() {
+        show(LauncherSettings(iconSwipeDistance = 10f))
+        compose.onNodeWithTag(categoryTag(SettingsCategory.GESTURES.key)).performScrollTo().performClick()
+        val row = hasAnyAncestor(hasTestTag(settingTag("G7")))
+        val slider = compose.onNode(row and SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo), useUnmergedTree = true)
+        val info = slider.performScrollTo().fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo]
+        assertThat(info.range).isEqualTo(1f..10f)
+        assertThat(info.steps).isEqualTo(17)
+        compose.onNodeWithText(res.getString(R.string.settings_percent, 1000)).assertExists()
     }
 }

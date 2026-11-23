@@ -14,6 +14,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.ui.LongPressScale
@@ -67,8 +68,8 @@ internal fun GesturesRows(s: LauncherSettings, allApps: List<AppItem>, actions: 
             description = stringResource(R.string.settings_icon_swipe_distance_desc),
             value = s.iconSwipeDistance,
             onValueChange = actions::setIconSwipeDistance,
-            valueRange = 1f..4f,
-            step = 0.25f,
+            valueRange = SettingsRepository.MIN_ICON_SWIPE_DISTANCE..SettingsRepository.MAX_ICON_SWIPE_DISTANCE,
+            step = 0.5f,
             valueText = { resources.getString(R.string.settings_percent, (it * 100).roundToInt()) },
         )
     }
