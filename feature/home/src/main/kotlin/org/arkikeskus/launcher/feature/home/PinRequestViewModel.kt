@@ -10,8 +10,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.HomeLayoutRepository
@@ -49,6 +51,15 @@ class PinRequestViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<PinRequestUiState>(PinRequestUiState.Loading)
     val uiState: StateFlow<PinRequestUiState> = _uiState
+
+    /**
+     * The home profile that is on, as this confirmation knows it; null until the settings have answered
+     * once. Followed from the start, so that a tap can take it then and there ([add]): asked of the settings
+     * at the tap, the answer can wait (a change of the file is being written), and a switch that ends
+     * meanwhile was answered as the profile of the tap.
+     */
+    private val homeProfileOn: StateFlow<Long?> = settingsRepository.homeProfileId
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private var request: PinRequest? = null
 
@@ -114,6 +125,9 @@ class PinRequestViewModel @Inject constructor(
         if (this.request != null) return
         this.request = request
         viewModelScope.launch {
+            // Nothing is shown, and so nothing can be tapped, before the confirmation knows which home
+            // profile is on: a tap takes it as it is known then ([add]).
+            homeProfileOn.first { it != null }
             val now = decideNow(request)
             val decision = now.decision
             val cell = now.cell
@@ -211,12 +225,14 @@ class PinRequestViewModel @Inject constructor(
         val confirm = _uiState.value as? PinRequestUiState.Confirm ?: return
         if (confirm.busy) return
         val request = request ?: return
+        // The home profile of the tap, taken here and now from what the confirmation already knows, before
+        // anything is waited for: the item is this profile's or nobody's. Everything below takes its time
+        // (the settings, the rows, the store's locks), a switch asked for in Settings can end during any of
+        // it, and a profile asked for then would be the new one. The store adds to this one only while it
+        // is on. (Known since before the confirmation was shown: [attach].)
+        val profileId = homeProfileOn.value ?: return
         _uiState.value = confirm.copy(busy = true)
         viewModelScope.launch {
-            // The home profile of the tap, read before anything else is: the item is this profile's or
-            // nobody's. The look at the home screen below takes its time (settings, rows), a switch asked
-            // for in Settings can end during it, and a profile read after it would be the new one.
-            val profileId = homeLayoutRepository.profileOn()
             // Decided again: the lock, the grid or home itself may have changed while the sheet was open.
             val now = decideNow(request)
             if (now.decision !is PinDecision.Confirm) {

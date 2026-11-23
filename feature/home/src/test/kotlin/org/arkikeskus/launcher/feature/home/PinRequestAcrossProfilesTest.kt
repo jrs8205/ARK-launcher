@@ -10,6 +10,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -97,6 +98,24 @@ class PinRequestAcrossProfilesTest {
      */
     private fun switchingOnce(armed: AtomicBoolean, wiring: ProductionWiring, to: Long): () -> Unit = {
         if (armed.compareAndSet(true, false)) runBlocking { check(wiring.homeProfiles.switchTo(to)) }
+    }
+
+    /**
+     * A switch to [to] that is asked for while the tap's first read of the settings waits ([held]), with the
+     * read let go after it. When the tap asked the settings which profile was on, that read was made under
+     * no lock: the switch ENDED while it waited, and the tap was then told the new profile. A tap that asks
+     * nothing reads the settings themselves first, under the lock every change of them is made under: the
+     * switch stands in line behind that read with the home profile's hold in its hand, and ends as soon as
+     * the read is let go, before the store can have the hold. Either way the switch has ended, and the first
+     * profile is off, by the time the store is asked to add anything.
+     */
+    private suspend fun switchedWhileTheTapsFirstReadWaits(wiring: ProductionWiring, held: HeldRead, to: Long) {
+        awaitUntil("the tap's first read of the settings") { held.began }
+        val switch = CoroutineScope(Dispatchers.Default).async { wiring.homeProfiles.switchTo(to) }
+        awaitUntil("the switch to end or to stand in line") { switch.isCompleted || wiring.profileHoldIsTaken }
+        held.letGo()
+        awaitUntil("the switch") { switch.isCompleted }
+        assertThat(switch.await()).isTrue()
     }
 
     private fun confirmation(wiring: ProductionWiring, saved: SavedStateHandle, binder: WidgetBinder) =
@@ -276,6 +295,62 @@ class PinRequestAcrossProfilesTest {
             assertThat(widgetsOf(wiring, other.id)).isEmpty()
             assertThat(binder.deleted).isEmpty()
             assertThat(4803 in PendingWidgetIds.shared).isFalse()
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /**
+     * Review round 20. The profile of the tap was READ at the tap, as the first thing the tap's coroutine
+     * did, and a read of the settings file can wait (a change of the file is being written, the disk is
+     * busy). A switch that ended while it waited was read as the profile of the tap, and the store, asked
+     * for that one, stored the item in it: a shortcut said yes to on one home screen went to the other.
+     *
+     * The confirmation follows which profile is on from its start, and a tap takes what it knows then and
+     * there, without waiting for anything. Here whatever the tap reads of the settings first is held back, a
+     * switch to another profile is asked for, and the read is let go ([switchedWhileTheTapsFirstReadWaits]).
+     */
+    @Test fun aShortcutIsNotAddedToAProfileThatCameOnBeforeTheTapHadReadAnything() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            val vm = confirmation(wiring, SavedStateHandle(), Binder(4807))
+            vm.attach(chatRequest())
+            awaitUntil("the confirmation") { vm.uiState.value is PinRequestUiState.Confirm }
+
+            val firstRead = wiring.holdTheNextReadOfTheSettings()
+            vm.add()
+            switchedWhileTheTapsFirstReadWaits(wiring, firstRead, to = other.id)
+            awaitUntil("the confirmation to close") { vm.uiState.value is PinRequestUiState.Finished }
+
+            assertThat(wiring.rowsOfProfile(other.id).mapNotNull { it.shortcutId }).isEmpty()
+            assertThat(wiring.rowsOfProfile(1).mapNotNull { it.shortcutId }).isEmpty()
+            assertThat((vm.uiState.value as PinRequestUiState.Finished).failed).isTrue()
+        } finally {
+            wiring.close()
+        }
+    }
+
+    /** The same tap for a widget that Android binds without asking. */
+    @Test fun aWidgetIsNotAddedToAProfileThatCameOnBeforeTheTapHadReadAnything() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val other = (wiring.homeProfiles.create("Other", copyOf = null) as HomeProfileRepository.Created.Done).profile
+            val binder = Binder(4808, bindsAtOnce = true)
+            val vm = confirmation(wiring, SavedStateHandle(), binder)
+            vm.attach(clockRequest())
+            awaitUntil("the confirmation") { vm.uiState.value is PinRequestUiState.Confirm }
+
+            val firstRead = wiring.holdTheNextReadOfTheSettings()
+            vm.add()
+            switchedWhileTheTapsFirstReadWaits(wiring, firstRead, to = other.id)
+            awaitUntil("the confirmation to close") { vm.uiState.value is PinRequestUiState.Finished }
+
+            assertThat(widgetsOf(wiring, other.id)).isEmpty()
+            assertThat(widgetsOf(wiring, 1)).isEmpty()
+            assertThat((vm.uiState.value as PinRequestUiState.Finished).failed).isTrue()
+            assertThat(binder.deleted).containsExactly(4808)
+            assertThat(4808 in PendingWidgetIds.shared).isFalse()
         } finally {
             wiring.close()
         }

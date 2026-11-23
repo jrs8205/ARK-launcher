@@ -320,9 +320,9 @@ class PinRequestStore @Inject constructor(
      * ([HomeLayoutRepository.whileProfileIsOn], taken before the pin lock): the place was decided from
      * that profile's rows, grid and lock, and the row is stored in it.
      *
-     * That profile is [profileId], the one that was on when the user said yes, read by the caller before
-     * anything else it does with the tap ([HomeLayoutRepository.profileOn]) and not by this store: the
-     * caller judges the request against the home screen first, and a switch can end meanwhile. Another
+     * That profile is [profileId], the one that was on when the user said yes: what the caller knew at the
+     * tap, taken there without waiting for anything, and not read by this store. The caller judges the
+     * request against the home screen first, any read can wait, and a switch can end meanwhile. Another
      * profile on by now: nothing is accepted ([ShortcutPinOutcome.Failed]).
      */
     suspend fun acceptShortcut(

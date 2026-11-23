@@ -13,6 +13,7 @@ import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
 import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -23,8 +24,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.arkikeskus.launcher.data.AppRepository
@@ -61,6 +65,9 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.util.ReflectionHelpers
 import org.robolectric.util.ReflectionHelpers.ClassParameter.from
 import java.io.File
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Proxy
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Provider
 import kotlin.jvm.functions.Function0
 
@@ -90,12 +97,49 @@ internal class ProductionWiring(
         .let { builder -> builder.javaClass.getMethod("allowMainThreadQueries").invoke(builder) }
         .let { builder -> builder.javaClass.getMethod("build").invoke(builder) as LauncherDatabase }
 
+    /** The read of the settings file that waits to be let go, when a test has asked for one ([holdTheNextReadOfTheSettings]). */
+    private val nextRead = AtomicReference<HeldRead?>(null)
+
+    /**
+     * Holds back the NEXT read of the settings file, whoever makes it, until the test lets it go
+     * ([HeldRead.letGo]); every read after it goes through as always. A read of the file can wait (a change
+     * of it is being written, the disk is busy), and what it then answers is the file as it is when it is
+     * let go: the way to have something end while a reader waits.
+     */
+    fun holdTheNextReadOfTheSettings(): HeldRead = HeldRead().also { nextRead.set(it) }
+
     /** The settings file itself. Everything but the profile list reads and writes it through [dataStore]. */
     private val settingsFile: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
         val produceFile: () -> File = { settingsOnDisk }
         factory.methods
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
             .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
+    }.let { file -> readThroughAGate(file) }
+
+    /**
+     * [file], with its reads going through [nextRead] first. The store's type is not on this module's test
+     * compile classpath, so it is stood in for by name: what is read (`data`) is the file's own flow behind
+     * the gate, and everything else (a change) goes to the file as it is.
+     */
+    private fun readThroughAGate(file: Any): Any {
+        val store = Class.forName("androidx.datastore.core.DataStore")
+        @Suppress("UNCHECKED_CAST")
+        val read = store.getMethod("getData").invoke(file) as Flow<Any?>
+        val gated: Flow<Any?> = flow {
+            nextRead.getAndSet(null)?.hold()
+            emitAll(read)
+        }
+        return Proxy.newProxyInstance(store.classLoader, arrayOf(store)) { _, method, args ->
+            if (method.name == "getData") {
+                gated
+            } else {
+                try {
+                    method.invoke(file, *(args ?: emptyArray()))
+                } catch (thrown: InvocationTargetException) {
+                    throw thrown.targetException
+                }
+            }
+        }
     }
     private val profileFiles = DiskHomeProfileFiles(context, dataStoreScope)
 
@@ -103,6 +147,11 @@ internal class ProductionWiring(
      *  that is on. With one profile this is the settings file itself. */
     private val dataStore: Any = Class.forName("org.arkikeskus.launcher.data.profile.ProfiledPreferences")
         .constructors.single().newInstance(settingsFile, profileFiles)
+
+    /** Whether somebody has the home profile's hold right now (a switch, or work that keeps the profile on):
+     *  how a test sees that a switch it asked for has got as far as standing in line. */
+    val profileHoldIsTaken: Boolean
+        get() = (dataStore.javaClass.methods.single { it.name.startsWith("getHold") }.invoke(dataStore) as Mutex).isLocked
     private val profileStore =
         HomeProfileStore::class.java.constructors.single().newInstance(settingsFile, dataStore, profileFiles) as HomeProfileStore
 
@@ -239,6 +288,25 @@ internal class ProductionWiring(
     suspend fun closeAndLetGoOfTheFiles() {
         dataStoreScope.coroutineContext[Job]!!.cancelAndJoin()
         db.javaClass.getMethod("close").invoke(db)
+    }
+}
+
+/** One read of the settings file that a test holds back ([ProductionWiring.holdTheNextReadOfTheSettings]). */
+internal class HeldRead {
+    private val waiting = CompletableDeferred<Unit>()
+    private val mayRead = CompletableDeferred<Unit>()
+
+    /** A reader has come and waits. */
+    val began: Boolean get() = waiting.isCompleted
+
+    /** The reader that waits, or the one that comes, reads the file as it is now. */
+    fun letGo() {
+        mayRead.complete(Unit)
+    }
+
+    internal suspend fun hold() {
+        waiting.complete(Unit)
+        mayRead.await()
     }
 }
 
