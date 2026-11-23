@@ -38,6 +38,8 @@
         <item quantity="other">Не удалось удалить обои списка приложений %1$d удалённых профилей. Следующее восстановление удалит их.</item>
     </plurals>
     <string name="backup_restore_profile_settings_cleanup">Не удалось подтвердить удаление всех старых настроек профилей главного экрана. Чтобы повторить попытку, восстановите резервную копию ещё раз.</string>
+    <string name="backup_profiles_unreadable">Не удалось прочитать профили главного экрана.</string>
+    <string name="backup_retry">Попробовать снова</string>
     <string name="backup_restore_confirm_ok">Восстановить</string>
     <string name="backup_cancel">Отмена</string>
     <string name="backup_last_time">Последняя копия: %1$s</string>

@@ -53,35 +53,54 @@ class RestoreQuestionTest {
 
     @Test fun theProfilesAreReadAgainWhenTheQuestionIsOpened() = runTest {
         val question = question()
-        assertThat(question.profiles.value).isEqualTo(onDisk)
+        assertThat(question.reader.state.value.profiles).isEqualTo(onDisk)
 
         onDisk = whole
-        assertThat(question.profiles.value).isNotEqualTo(whole)
+        assertThat(question.reader.state.value.profiles).isNotEqualTo(whole)
         question.opened()
 
-        assertThat(question.profiles.value).isEqualTo(whole)
+        assertThat(question.reader.state.value.profiles).isEqualTo(whole)
     }
 
     @Test fun aRestoreThatFoundTheProfilesChangedHasThemReadAgain() = runTest {
         val question = question()
-        val shown = question.profiles.value!!
+        val shown = question.reader.state.value.profiles!!
         onDisk = whole
 
         assertThat(question.restore(file, shown)).isEqualTo(BackupEvent.ProfilesChanged)
 
         // The next question on this screen names what the restore met.
-        assertThat(question.profiles.value).isEqualTo(whole)
+        assertThat(question.reader.state.value.profiles).isEqualTo(whole)
     }
 
     /** Any other outcome leaves the value followed as it was: nothing is read for nothing. */
     @Test fun aRestoreThatWentThroughReadsNothingAgain() = runTest {
         val question = question()
-        val shown = question.profiles.value!!
+        val shown = question.reader.state.value.profiles!!
         outcome = BackupEvent.InvalidFile
         val before = readings
 
         assertThat(question.restore(file, shown)).isEqualTo(BackupEvent.InvalidFile)
 
         assertThat(readings).isEqualTo(before)
+    }
+
+    @Test fun unreadableProfilesInvalidateTheSettingsQuestionAndCanBeReadAgain() = runTest {
+        var broken = false
+        val source = ProfilesLostInRestore { flow {
+            if (broken) throw java.io.IOException("cannot read profiles")
+            emit(whole)
+        } }
+        val question = RestoreQuestion(source, restorer, backgroundScope)
+        testScheduler.runCurrent()
+        assertThat(question.reader.state.value.profiles).isEqualTo(whole)
+        broken = true
+        question.opened()
+        testScheduler.runCurrent()
+        assertThat(question.reader.state.value).isEqualTo(RestoreProfileRead.Failed)
+        broken = false
+        question.opened()
+        testScheduler.runCurrent()
+        assertThat(question.reader.state.value.profiles).isEqualTo(whole)
     }
 }

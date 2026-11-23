@@ -32,6 +32,8 @@
         <item quantity="other">The app drawer wallpapers of %1$d deleted profiles could not be removed. The next restore removes them.</item>
     </plurals>
     <string name="backup_restore_profile_settings_cleanup">Removal of all old home profile settings could not be confirmed. Restore the backup again to retry.</string>
+    <string name="backup_profiles_unreadable">Could not read home profiles.</string>
+    <string name="backup_retry">Try again</string>
     <string name="backup_restore_confirm_ok">Restore</string>
     <string name="backup_cancel">Cancel</string>
     <string name="backup_last_time">Last: %1$s</string>

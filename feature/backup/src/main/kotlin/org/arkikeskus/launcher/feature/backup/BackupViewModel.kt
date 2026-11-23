@@ -6,6 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -71,15 +74,22 @@ class BackupViewModel @Inject constructor(
     private val question = RestoreQuestion(lost, restorer, viewModelScope)
 
     /** The home profiles a restore would meet now, for its question; null until they have been read. */
-    val restoreProfiles: StateFlow<RestoreProfiles?> = question.profiles
+    internal val profileReader = question.reader
 
     /** The restore's question is about to be shown ([RestoreQuestion.opened]). */
     fun restoreQuestionOpened() = question.opened()
 
     /** When the home profile that is on was last exported to a file, WITH that profile (one value: the
      *  screen shows the time only beside the profile it is of); null until it has been read. */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val lastBackup: StateFlow<LastBackup?> =
-        settings.localLastBackup.stateIn<LastBackup?>(viewModelScope, SharingStarted.Eagerly, null)
+        profileReader.state.flatMapLatest { read ->
+            if (read !is RestoreProfileRead.Ready) flowOf(null)
+            else settings.localLastBackup.catch<LastBackup?> { failure ->
+                if (failure !is java.io.IOException) throw failure
+                emit(null)
+            }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val appVersion: String
         get() = runCatching {
@@ -103,7 +113,7 @@ class BackupViewModel @Inject constructor(
 
     /** Restores [uri], held to the profiles its question showed ([asked]). */
     fun importFrom(uri: Uri, asked: RestoreProfiles) = viewModelScope.launch {
-        _events.emit(question.restore(uri, asked))
+        if (profileReader.state.value is RestoreProfileRead.Ready) _events.emit(question.restore(uri, asked))
     }
 
     internal companion object {

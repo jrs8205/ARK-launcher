@@ -160,4 +160,16 @@ class RestoreConfirmTest {
 
         assertThat(handed).containsExactly(shown)
     }
+
+    @Test fun aFailedProfileReadOffersOnlyRetryAndCancel() {
+        var retries = 0
+        compose.setContent {
+            RestoreConfirmDialog(null, onConfirm = { restores++ }, onDismiss = { dismissals++ }, retry = { retries++ })
+        }
+        compose.onNodeWithText(res.getString(R.string.backup_profiles_unreadable)).assertIsDisplayed()
+        compose.onNodeWithText(res.getString(R.string.backup_restore_confirm_ok)).assertDoesNotExist()
+        compose.onNodeWithText(res.getString(R.string.backup_retry)).performClick()
+        assertThat(retries).isEqualTo(1)
+        assertThat(restores).isEqualTo(0)
+    }
 }

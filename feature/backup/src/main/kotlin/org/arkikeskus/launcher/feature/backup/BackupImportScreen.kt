@@ -36,10 +36,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -86,8 +84,7 @@ class BackupImportViewModel @Inject constructor(
     lost: ProfilesLostInRestore,
 ) : ViewModel() {
     /** The home profiles a restore would meet now, for its question; null until they have been read. */
-    val restoreProfiles: StateFlow<RestoreProfiles?> =
-        lost.profiles().stateIn<RestoreProfiles?>(viewModelScope, SharingStarted.Eagerly, null)
+    internal val profileReader = RestoreProfileReader(lost, viewModelScope)
 
     private val _state = MutableStateFlow<BackupImportState>(BackupImportState.Confirm)
     val state: StateFlow<BackupImportState> = _state.asStateFlow()
@@ -97,7 +94,7 @@ class BackupImportViewModel @Inject constructor(
      *  so a rotation mid-restore shows the same step again instead of asking anew. [asked] is the
      *  profiles the question showed: the restore is held to them. */
     fun restore(uri: Uri, asked: RestoreProfiles) {
-        if (_state.value != BackupImportState.Confirm) return
+        if (_state.value != BackupImportState.Confirm || profileReader.state.value !is RestoreProfileRead.Ready) return
         _state.value = BackupImportState.Reading
         job = viewModelScope.launch {
             val event = restorer.restoreFrom(uri, asked.confirmed) { _state.value = BackupImportState.Restoring }
@@ -127,10 +124,11 @@ fun BackupImportScreen(
     viewModel: BackupImportViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val profiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
+    val reading by viewModel.profileReader.state.collectAsStateWithLifecycle()
     BackupImportDialog(
         state = state,
-        profiles = profiles,
+        profiles = reading.profiles,
+        retry = if (reading == RestoreProfileRead.Failed) viewModel.profileReader::retry else null,
         // The profiles the question names are the ones the restore is held to: the dialog hands them over.
         onRestore = { shown -> viewModel.restore(uri, shown) },
         onLeave = { if (viewModel.leave()) onFinish() },
@@ -145,22 +143,11 @@ internal fun BackupImportDialog(
     profiles: RestoreProfiles?,
     onRestore: (RestoreProfiles) -> Unit,
     onLeave: () -> Unit,
+    retry: (() -> Unit)? = null,
 ) {
     when (state) {
-        BackupImportState.Confirm -> AlertDialog(
-            onDismissRequest = onLeave,
-            title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
-            // A restore leaves one home profile: the others it deletes are named. Restore waits until they
-            // have been read, so the question is never answered before it says what goes.
-            text = { DialogText(restoreConfirmText(LocalResources.current, profiles)) },
-            confirmButton = {
-                TextButton(onClick = { profiles?.let(onRestore) }, enabled = profiles != null) {
-                    Text(stringResource(R.string.backup_restore_confirm_ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onLeave) { Text(stringResource(R.string.backup_cancel)) }
-            },
+        BackupImportState.Confirm -> RestoreConfirmDialog(
+            profiles, onConfirm = onRestore, onDismiss = onLeave, retry = retry, body = { DialogText(it) },
         )
         // Back, a tap outside and Cancel stop the import: the file may never arrive.
         BackupImportState.Reading -> AlertDialog(

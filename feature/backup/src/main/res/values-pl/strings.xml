@@ -38,6 +38,8 @@
         <item quantity="other">Nie udało się usunąć tapet szuflady aplikacji %1$d usuniętych profili. Następne przywracanie je usunie.</item>
     </plurals>
     <string name="backup_restore_profile_settings_cleanup">Nie udało się potwierdzić usunięcia wszystkich starych ustawień profili ekranu głównego. Aby spróbować ponownie, przywróć kopię zapasową jeszcze raz.</string>
+    <string name="backup_profiles_unreadable">Nie udało się odczytać profili ekranu głównego.</string>
+    <string name="backup_retry">Spróbuj ponownie</string>
     <string name="backup_restore_confirm_ok">Przywróć</string>
     <string name="backup_cancel">Anuluj</string>
     <string name="backup_last_time">Ostatnio: %1$s</string>

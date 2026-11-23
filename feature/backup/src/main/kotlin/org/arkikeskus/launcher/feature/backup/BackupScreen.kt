@@ -105,7 +105,8 @@ fun BackupScreen(
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             // A file holds the one profile that is on: with several profiles the button and the time below
             // say which (ExportTexts).
-            val exportProfiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
+            val reading by viewModel.profileReader.state.collectAsStateWithLifecycle()
+            val exportProfiles = reading.profiles
             ExportButton(exportProfiles, guarded = ::guarded, onExport = viewModel::exportTo)
             OutlinedButton(
                 onClick = { guarded { openDoc.launch(arrayOf("application/json")) } },
@@ -122,9 +123,10 @@ fun BackupScreen(
 
     // --- File import confirm dialog ---
     pendingImport?.let { uri ->
-        val profiles by viewModel.restoreProfiles.collectAsStateWithLifecycle()
+        val reading by viewModel.profileReader.state.collectAsStateWithLifecycle()
         RestoreConfirmDialog(
-            profiles = profiles,
+            profiles = reading.profiles,
+            retry = if (reading == RestoreProfileRead.Failed) viewModel.profileReader::retry else null,
             // The profiles the question names are the ones the restore is held to: the dialog hands them over.
             onConfirm = { shown -> viewModel.importFrom(uri, shown); pendingImport = null },
             onDismiss = { pendingImport = null },

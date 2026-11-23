@@ -121,15 +121,15 @@ class HomeProfileRepositoryTest {
         assertThat(profiles.unlistedHomeScreens.first()).containsExactly(4L, 5L, 6L)
     }
 
-    /** While the stores cannot be listed the question's value is what CAN be read (the rows), and reading it
-     *  fails nothing: the restore reads the same for itself, and it is the one that must not go on. */
-    @Test fun whatCannotBeListedIsLeftOutOfTheQuestionsValue() = runTest {
+    @Test fun anUnreadableStoreListingPreventsConfirmingAPartialList() = runTest {
         dao.insert(app("com.mail", 0))
         inHomeProfile(4) { dao.insert(app("com.left", 0)) }
         files.store(5).updateData { it.toMutablePreferences().apply { this[androidx.datastore.preferences.core.stringPreferencesKey("base_colour")] = "green" } }
         files.failIds = java.io.IOException("the folder could not be read")
 
-        assertThat(profiles.unlistedHomeScreens.first()).containsExactly(4L)
+        assertThat(runCatching { profiles.unlistedHomeScreens.first() }.exceptionOrNull()).isInstanceOf(java.io.IOException::class.java)
+        files.failIds = null
+        assertThat(profiles.unlistedHomeScreens.first()).containsExactly(4L, 5L)
     }
 
     @Test fun aCopyHasTheLayoutTheLookAndTheFolderIconsOfItsSource() = runTest {

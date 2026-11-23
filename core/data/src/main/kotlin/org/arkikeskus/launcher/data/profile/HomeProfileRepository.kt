@@ -51,13 +51,12 @@ class HomeProfileRepository @Inject constructor(
      * others' things are still there; a copy or a restore that died leaves such things too. Nothing shows
      * them and nothing takes their ids ([create]); a restore removes them all, so its question says so.
      *
-     * Read again whenever the rows or the list change. What cannot be listed right now is left out here:
-     * the restore reads the same for itself before it writes, and refuses when the two do not agree.
+     * A failed listing leaves the question unanswered. Read it all again when the user retries.
      */
     val unlistedHomeScreens: Flow<Set<Long>> =
         combine(layout.profilesWithRowsNow, store.profiles) { withRows, listed ->
-            val stores = try { store.unlistedStores() } catch (e: IOException) { emptySet() }
-            val pictures = try { drawerPictures.profilesWithPictures() } catch (e: IOException) { emptySet() }
+            val stores = store.unlistedStores()
+            val pictures = drawerPictures.profilesWithPictures()
             withRows + stores + pictures - listed.mapTo(HashSet()) { it.id }
         }.distinctUntilChanged()
 

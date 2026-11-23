@@ -16,7 +16,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import java.io.IOException
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -64,9 +66,32 @@ internal class StoredProfilesLostInRestore @Inject constructor(
         combine(profiles.profiles, profiles.activeId, profiles.unlistedHomeScreens, ::profilesARestoreDeletes)
 }
 
+internal sealed class RestoreProfileRead(val profiles: RestoreProfiles?) {
+    object Loading : RestoreProfileRead(null)
+    object Failed : RestoreProfileRead(null)
+    class Ready(profiles: RestoreProfiles) : RestoreProfileRead(profiles)
+}
+
+/** Each retry starts a fresh subscription, including after an I/O error ended the previous one. */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal class RestoreProfileReader(lost: ProfilesLostInRestore, scope: CoroutineScope) {
+    private val attempts = MutableStateFlow(0)
+    val state = attempts.flatMapLatest {
+        flow<RestoreProfileRead> {
+            emit(RestoreProfileRead.Loading)
+            lost.profiles().collect { emit(RestoreProfileRead.Ready(it)) }
+        }.catch { failure ->
+            if (failure !is IOException) throw failure
+            emit(RestoreProfileRead.Failed)
+        }
+    }.stateIn(scope, SharingStarted.Eagerly, RestoreProfileRead.Loading)
+
+    fun retry() = attempts.update { it + 1 }
+}
+
 /**
  * A restore's question on a screen that can ask it more than once (the backup screen stays open between two
- * restores): the profiles a restore would meet ([profiles]), and the restore that is held to them ([restore]).
+ * restores): the profiles a restore would meet ([reader]), and the restore that is held to them ([restore]).
  *
  * Part of what the question names is found from files (a profile's own store or picture kept under an id the
  * list does not name), and a file says nothing when it changes: the profiles are followed as the rows and the
@@ -75,32 +100,22 @@ internal class StoredProfilesLostInRestore @Inject constructor(
  * past it without leaving the screen. So the following is begun ANEW, which reads the files again, each time
  * the question is shown ([opened]) and after a restore that found the profiles changed.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 internal class RestoreQuestion(
-    private val lost: ProfilesLostInRestore,
+    lost: ProfilesLostInRestore,
     private val restorer: BackupRestorer,
     scope: CoroutineScope,
 ) {
-    /** Counts the times the profiles were asked to be read anew. */
-    private val readings = MutableStateFlow(0)
+    val reader = RestoreProfileReader(lost, scope)
 
-    /** The home profiles a restore would meet now; null until they have been read. While they are read
-     *  anew, the value of the reading before stands. */
-    val profiles: StateFlow<RestoreProfiles?> =
-        readings.flatMapLatest { lost.profiles() }.stateIn<RestoreProfiles?>(scope, SharingStarted.Eagerly, null)
-
-    /** The question is about to be shown: what it names is read anew. */
-    fun opened() = readAgain()
+    fun opened() = reader.retry()
 
     /** Restores [uri], held to the profiles the question showed ([asked]). When they were no longer so, the
      *  next question is to name the profiles that restore met. */
     suspend fun restore(uri: Uri, asked: RestoreProfiles): BackupEvent {
         val event = restorer.restoreFrom(uri, asked.confirmed) {}
-        if (event == BackupEvent.ProfilesChanged) readAgain()
+        if (event == BackupEvent.ProfilesChanged) reader.retry()
         return event
     }
-
-    private fun readAgain() = readings.update { it + 1 }
 }
 
 /** The one that is on ([activeId]) and every other profile of [profiles], in the list's order; and the home
@@ -145,21 +160,28 @@ internal fun restoreConfirmText(resources: Resources, profiles: RestoreProfiles?
  * confirmed ones). The text and the button take the one value of this composition.
  */
 @Composable
-internal fun RestoreConfirmDialog(profiles: RestoreProfiles?, onConfirm: (RestoreProfiles) -> Unit, onDismiss: () -> Unit) {
+internal fun RestoreConfirmDialog(
+    profiles: RestoreProfiles?,
+    onConfirm: (RestoreProfiles) -> Unit,
+    onDismiss: () -> Unit,
+    retry: (() -> Unit)? = null,
+    body: @Composable (String) -> Unit = { Text(it, Modifier.verticalScroll(rememberScrollState())) },
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
         // It scrolls: with many profiles to name, on a small window at a large font, the text is taller
         // than the dialog, and a cut text let Restore be tapped without the last names having been seen.
         text = {
-            Text(
-                restoreConfirmText(LocalResources.current, profiles),
-                Modifier.verticalScroll(rememberScrollState()),
-            )
+            body(if (retry != null) stringResource(R.string.backup_profiles_unreadable) else restoreConfirmText(LocalResources.current, profiles))
         },
         confirmButton = {
-            TextButton(onClick = { profiles?.let(onConfirm) }, enabled = profiles != null) {
-                Text(stringResource(R.string.backup_restore_confirm_ok))
+            if (retry != null) {
+                TextButton(onClick = retry) { Text(stringResource(R.string.backup_retry)) }
+            } else {
+                TextButton(onClick = { profiles?.let(onConfirm) }, enabled = profiles != null) {
+                    Text(stringResource(R.string.backup_restore_confirm_ok))
+                }
             }
         },
         dismissButton = {

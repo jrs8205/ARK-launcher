@@ -75,6 +75,7 @@ class BackupImportViewModelTest {
     @Test fun confirmingReadsThenRestoresAndShowsTheOutcome() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
+        advanceUntilIdle()
 
         vm.restore(file, shown)
         advanceUntilIdle()
@@ -94,6 +95,7 @@ class BackupImportViewModelTest {
     @Test fun leavingWhileTheFileIsReadStopsTheImport() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
+        advanceUntilIdle()
         vm.restore(file, shown)
         advanceUntilIdle()
 
@@ -107,6 +109,7 @@ class BackupImportViewModelTest {
     @Test fun leavingWhileTheLayoutIsReplacedIsRefused() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
+        advanceUntilIdle()
         vm.restore(file, shown)
         restorer.read.complete(Unit)
         advanceUntilIdle()
@@ -122,6 +125,7 @@ class BackupImportViewModelTest {
     @Test fun leavingBeforeConfirmingRestoresNothing() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
+        advanceUntilIdle()
 
         assertThat(vm.leave()).isTrue()
         vm.restore(file, shown)
@@ -134,6 +138,7 @@ class BackupImportViewModelTest {
     @Test fun theFileIsRestoredOnlyOnce() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
+        advanceUntilIdle()
 
         vm.restore(file, shown)
         vm.restore(file, shown)
@@ -154,19 +159,19 @@ class BackupImportViewModelTest {
         val profiles = MutableSharedFlow<RestoreProfiles>()
         val vm = BackupImportViewModel(FakeRestorer(), ProfilesLostInRestore { profiles })
         advanceUntilIdle()
-        assertThat(vm.restoreProfiles.value).isNull()
+        assertThat(vm.profileReader.state.value.profiles).isNull()
 
         profiles.emit(RestoreProfiles(1, listOf(HomeProfile(2, "Work"), HomeProfile(3, "Evening"))))
         advanceUntilIdle()
 
-        assertThat(vm.restoreProfiles.value?.names).containsExactly("Work", "Evening").inOrder()
+        assertThat(vm.profileReader.state.value.profiles?.names).containsExactly("Work", "Evening").inOrder()
     }
 
     @Test fun withOneProfileARestoreDeletesNone() = runTest(dispatcher) {
         val vm = BackupImportViewModel(FakeRestorer(), oneProfile)
         advanceUntilIdle()
 
-        assertThat(vm.restoreProfiles.value?.names).isEmpty()
+        assertThat(vm.profileReader.state.value.profiles?.names).isEmpty()
     }
 
     /**
@@ -177,11 +182,34 @@ class BackupImportViewModelTest {
     @Test fun theRestoreCarriesTheProfilesItsQuestionShowed() = runTest(dispatcher) {
         val restorer = FakeRestorer()
         val vm = BackupImportViewModel(restorer, oneProfile)
+        advanceUntilIdle()
         val asked = RestoreProfiles(activeId = 2, deleted = listOf(HomeProfile(1, ""), HomeProfile(3, "Evening")))
 
         vm.restore(file, asked)
         advanceUntilIdle()
 
         assertThat(restorer.agreedTo).containsExactly(ConfirmedProfiles(activeId = 2, otherIds = setOf(1L, 3L)))
+    }
+
+    @Test fun unreadableProfilesDoNotCrashAnOpenWithQuestion() = runTest(dispatcher) {
+        val restorer = FakeRestorer()
+        var broken = true
+        val vm = BackupImportViewModel(restorer, ProfilesLostInRestore {
+            kotlinx.coroutines.flow.flow {
+                if (broken) throw java.io.IOException("cannot read profiles")
+                emit(shown)
+            }
+        })
+        advanceUntilIdle()
+        assertThat(vm.profileReader.state.value).isEqualTo(RestoreProfileRead.Failed)
+        vm.restore(file, shown)
+        advanceUntilIdle()
+        assertThat(restorer.restored).isEmpty()
+        broken = false
+        vm.profileReader.retry()
+        vm.restore(file, shown)
+        advanceUntilIdle()
+        assertThat(restorer.restored).isEmpty()
+        assertThat(vm.profileReader.state.value.profiles).isEqualTo(shown)
     }
 }
