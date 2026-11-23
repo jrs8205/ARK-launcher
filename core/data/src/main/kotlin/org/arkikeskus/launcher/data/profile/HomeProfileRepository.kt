@@ -101,17 +101,17 @@ class HomeProfileRepository @Inject constructor(
      * is therefore only ever an attempt's left-overs.
      */
     suspend fun create(name: String, copyOf: Long?): Created = withContext(NonCancellable) {
-        store.whileActiveStays {
+        withReadableProfile(Created.Failed) {
             // Its own values are the first thing written, and that write fails as any other can (a full disk):
             // nothing is made of the profile then, and the store leaves nothing of the attempt.
             val profile = try {
-                if (copyOf != null && store.list().none { it.id == copyOf }) return@whileActiveStays Created.Failed
+                if (copyOf != null && store.list().none { it.id == copyOf }) return@withReadableProfile Created.Failed
                 val kept = layout.profilesWithRows() + drawerPictures.profilesWithPictures()
-                store.prepare(name, copyOf, kept) ?: return@whileActiveStays Created.Full
+                store.prepare(name, copyOf, kept) ?: return@withReadableProfile Created.Full
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                return@whileActiveStays Created.Failed
+                return@withReadableProfile Created.Failed
             }
             try {
                 // What an attempt that died left under this id (an id is given again until it is listed). A
@@ -173,6 +173,13 @@ class HomeProfileRepository @Inject constructor(
             }
         }
         gone
+    }
+
+    /** Opening the active profile can fail before the operation gets its turn inside the lock. */
+    private suspend fun <T> withReadableProfile(onFailure: T, work: suspend (Long) -> T): T = try {
+        store.whileActiveStays(work)
+    } catch (_: IOException) {
+        onFailure
     }
 
     /** Switches to [id]. False when the storage did not take the change (a full disk): the profile that was
@@ -296,12 +303,12 @@ class HomeProfileRepository @Inject constructor(
      * user which of the two it is.
      */
     suspend fun delete(id: Long): Deleted = withContext(NonCancellable) {
-        store.whileActiveStays { active ->
+        withReadableProfile(Deleted.Failed) { active ->
             var gone: DeletedProfileRows? = null
             val result = try {
                 val list = store.list()
                 val index = list.indexOfFirst { it.id == id }
-                if (list.size <= 1 || index < 0) return@whileActiveStays Deleted.Refused
+                if (list.size <= 1 || index < 0) return@withReadableProfile Deleted.Refused
                 if (active == id) store.setActiveLocked((list.getOrNull(index + 1) ?: list[index - 1]).id)
                 // The rows first: from here on the profile shows nothing, and what is left of it can be deleted
                 // again ([dropRows] pins its shortcuts again as the other profiles still have them).

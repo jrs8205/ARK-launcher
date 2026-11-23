@@ -882,6 +882,24 @@ class HomeProfileRepositoryTest {
         assertThat(resolver.pins["com.chat" to 0L]).containsExactly("family")
     }
 
+    @Test fun anUnreadableSettingsFileRefusesCreationBeforePreparingAProfile() = runTest {
+        main.failReads = java.io.IOException("unreadable settings")
+        assertThat(profiles.create("New", null)).isEqualTo(HomeProfileRepository.Created.Failed)
+        main.failReads = null
+        assertThat(store.list().map { it.id }).containsExactly(1L)
+        assertThat(files.ids()).isEmpty()
+    }
+
+    @Test fun anUnreadableSettingsFileRefusesDeletionAndKeepsTheProfile() = runTest {
+        val other = created("Other", copyCurrent = false)
+        inHomeProfile(other.id) { dao.insert(app("com.mail", 0)) }
+        main.failReads = java.io.IOException("unreadable settings")
+        assertThat(profiles.delete(other.id)).isEqualTo(HomeProfileRepository.Deleted.Failed)
+        main.failReads = null
+        assertThat(store.list()).contains(other)
+        assertThat(rowsOf(other.id).single().packageName).isEqualTo("com.mail")
+    }
+
     /**
      * Review round 6. Switching, renaming and deleting write the list of profiles, and that write fails as any
      * other can (a full disk). Each says so as its result and throws nothing: Settings asks without catching,
