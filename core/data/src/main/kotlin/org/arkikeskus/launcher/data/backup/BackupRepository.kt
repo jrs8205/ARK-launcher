@@ -84,7 +84,8 @@ class BackupRepository @Inject constructor(
     private val widgetIds: WidgetIdReleaser? = null,
 ) {
     /** Runs [work] while the home profile that is on stays on (a switch asked for meanwhile waits). */
-    private suspend fun <T> whileProfileStays(work: suspend () -> T): T = profiles?.whileActiveStays { work() } ?: work()
+    private suspend fun <T> whileProfileStays(work: suspend (Long) -> T): T =
+        if (profiles != null) profiles.whileActiveStays(work) else homeItemDao.whileActiveStays(work)
 
     /** The settings and the rows of the profile that is on: of ONE profile, so the two are read while it
      *  stays on (a switch between them gave one profile's grid with another's rows). */
@@ -149,8 +150,7 @@ class BackupRepository @Inject constructor(
         expectedProfile: Long?,
         write: suspend (BackupDocument) -> Unit,
     ): ExportedProfile {
-        val read = whileProfileStays {
-            val active = homeItemDao.resolvedProfile()
+        val read = whileProfileStays { active ->
             if (expectedProfile != null && active != expectedProfile) throw ExportProfileChangedException()
             val list = profiles?.list().orEmpty()
             val exported = ExportedProfile(active, list.firstOrNull { it.id == active }?.name.orEmpty(), list.size > 1)
@@ -234,7 +234,7 @@ class BackupRepository @Inject constructor(
         // or removed meanwhile must wait for it instead of being overwritten by this snapshot.
         // While the profile that is on stays on: the settings, the rows and the list of profiles this
         // leaves are of one profile, and a switch in the middle put the rows in one and left another.
-        return withContext(NonCancellable) { whileProfileStays { ShortcutPinLock.withLock {
+        return withContext(NonCancellable) { whileProfileStays { active -> ShortcutPinLock.withLock {
             // The profiles the user agreed to lose are the profiles there are, or nothing is written: the file
             // was read after the question, and a profile made meanwhile would go without a word. Under the
             // hold no profile is made, deleted or switched to, so what is checked here is what is replaced.
@@ -247,7 +247,6 @@ class BackupRepository @Inject constructor(
             // word given for something unlisted, nor the other way round.
             var unlisted = emptySet<Long>()
             if (confirmed != null && profiles != null) {
-                val active = profiles.current()
                 val listed = profiles.list().map { it.id }.toSet() - active
                 val kept = homeItemDao.profileIds().toSet() + profiles.unlistedStores() + drawerPictures?.profilesWithPictures().orEmpty()
                 unlisted = kept - active - listed
@@ -281,7 +280,6 @@ class BackupRepository @Inject constructor(
             // today that is no id). The ids of the profile that is on are left to the home screen, whose
             // host holds their views: it frees what no row holds when its rows change.
             widgetIds?.let { releaser ->
-                val active = homeItemDao.resolvedProfile()
                 val held = entities.mapNotNullTo(HashSet()) { it.appWidgetId }
                 previousLayout.filter { it.homeProfileId != active }
                     .mapNotNull { it.appWidgetId }

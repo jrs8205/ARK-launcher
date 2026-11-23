@@ -901,4 +901,22 @@ class BackupProfilesTest {
         assertThat(repo().restoreDocument(backup, installed, retry).settingsCleanupIncomplete).isFalse()
         assertThat(store.unlistedStores()).isEmpty()
     }
+
+    @Test fun aReadFailureAfterReplacingRowsStillReportsTheRestoreAndFreesRemovedWidgets() = runTest {
+        twoProfiles()
+        store.setActive(1)
+        inHomeProfile(2) { dao.insert(widget("com.previous", 412, 0)) }
+        val freed = mutableListOf<Int>()
+        val confirmed = ConfirmedProfiles(activeId = 1, otherIds = setOf(2L))
+        val interrupted = object : HomeItemDao by dao {
+            override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) {
+                dao.replaceEveryProfile(items)
+                main.onNextRead = { throw IOException("read after replacing rows") }
+            }
+        }
+        val result = repo(interrupted, widgetIds = { freed += it }).restoreDocument(backup, installed, confirmed)
+        assertThat(result.restored).isEqualTo(2)
+        assertThat(dao.getAllOfEveryProfile().map { it.packageName }).containsExactly("com.mail", "com.maps")
+        assertThat(freed).containsExactly(412)
+    }
 }
