@@ -51,7 +51,8 @@ class PinRequestViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<PinRequestUiState>(PinRequestUiState.Loading)
     val uiState: StateFlow<PinRequestUiState> = _uiState
 
-    /** Last profile observed by the confirmation. Captured synchronously at the tap. */
+    /** Capture the observed profile at the tap. A fresh read can finish after a switch and put the item
+     * on a different home screen from the one the user just confirmed. */
     private var homeProfileOn: Long? = null
 
     private var request: PinRequest? = null
