@@ -5,6 +5,9 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.os.Looper
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
 import com.google.common.truth.Truth.assertThat
@@ -13,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.data.AppRowResolver
 import org.arkikeskus.launcher.data.HomeLayoutRepository
@@ -37,6 +41,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -54,6 +59,7 @@ class PinRequestViewModelTest {
 
     private lateinit var db: LauncherDatabase
     private lateinit var dao: HomeItemDao
+    @Volatile private var refuseReads = false
     private lateinit var settings: SettingsRepository
     private lateinit var store: PinRequestStore
 
@@ -74,14 +80,14 @@ class PinRequestViewModelTest {
             .let { builder -> builder.javaClass.getMethod("allowMainThreadQueries").invoke(builder) }
             .let { builder -> builder.javaClass.getMethod("build").invoke(builder) as LauncherDatabase }
         dao = LauncherDatabase::class.java.getMethod("homeItemDao").invoke(db) as HomeItemDao
-        val dataStore: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
-            val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
-            val produceFile: () -> File = { file }
-            factory.methods
-                .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
-                .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
+        val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
+        val dataStore = PreferenceDataStoreFactory.create(scope = dataStoreScope) { file }
+        val settingsFile = object : DataStore<Preferences> by dataStore {
+            override val data = dataStore.data.onEach {
+                if (refuseReads) throw IOException("settings cannot be read")
+            }
         }
-        settings = SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, null) as SettingsRepository
+        settings = SettingsRepository(settingsFile)
         store = PinRequestStore(HomeLayoutRepository(db, dao, Resolver), Resolver, dataStoreScope)
     }
 
@@ -161,6 +167,45 @@ class PinRequestViewModelTest {
     private fun confirmOpen(vm: PinRequestViewModel) {
         vm.attach(clockRequest())
         awaitUntil("the confirmation") { vm.uiState.value is PinRequestUiState.Confirm }
+    }
+
+    @Test fun anUnreadableProfileEndsTheRestoredConfirmationAndReleasesItsId() {
+        refuseReads = true
+        val id = 5911
+        val saved = SavedStateHandle(mapOf("pinRequest.awaitingBind" to id, "pinRequest.awaitingBindProfile" to 1L))
+        val binder = Binder(id)
+        val vm = viewModel(saved, binder)
+        vm.attach(clockRequest())
+        awaitUntil("the failed confirmation and its released id") {
+            vm.uiState.value == PinRequestUiState.Finished(failed = true) && synchronized(binder.deleted) { id in binder.deleted }
+        }
+        assertThat(id in PendingWidgetIds.shared).isFalse()
+        assertThat(saved.get<Int>("pinRequest.awaitingBind")).isNull()
+    }
+
+    @Test fun aReadFailureWithTheBindDialogOpenEndsTheRequestAndIgnoresItsLateAnswer() {
+        val binder = Binder(5912)
+        val vm = viewModel(SavedStateHandle(), binder)
+        confirmOpen(vm)
+        vm.add()
+        awaitUntil("bind dialog") { (vm.uiState.value as? PinRequestUiState.Confirm)?.bindRequest != null }
+        refuseReads = true
+        whileTheMainLooperTurns { settings.setShowFrequentApps(true) }
+        awaitUntil("the failed confirmation and its released id") {
+            vm.uiState.value == PinRequestUiState.Finished(failed = true) && synchronized(binder.deleted) { 5912 in binder.deleted }
+        }
+        vm.onBindResult(true)
+        assertThat(widgetIds()).isEmpty()
+        assertThat(binder.deleted).containsExactly(5912)
+    }
+
+    @Test fun aReadFailureDuringAddEndsTheRequest() {
+        val vm = viewModel(SavedStateHandle(), Binder(5913))
+        confirmOpen(vm)
+        refuseReads = true
+        vm.add()
+        awaitUntil("the failed confirmation") { vm.uiState.value == PinRequestUiState.Finished(failed = true) }
+        assertThat(widgetIds()).isEmpty()
     }
 
     @Test

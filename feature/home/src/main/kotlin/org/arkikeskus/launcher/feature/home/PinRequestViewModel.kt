@@ -10,10 +10,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.HomeLayoutRepository
@@ -31,6 +29,7 @@ import org.arkikeskus.launcher.data.ShortcutPinOutcome
 import org.arkikeskus.launcher.data.decidePinRequest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.LauncherSettings
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -52,14 +51,8 @@ class PinRequestViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<PinRequestUiState>(PinRequestUiState.Loading)
     val uiState: StateFlow<PinRequestUiState> = _uiState
 
-    /**
-     * The home profile that is on, as this confirmation knows it; null until the settings have answered
-     * once. Followed from the start, so that a tap can take it then and there ([add]): asked of the settings
-     * at the tap, the answer can wait (a change of the file is being written), and a switch that ends
-     * meanwhile was answered as the profile of the tap.
-     */
-    private val homeProfileOn: StateFlow<Long?> = settingsRepository.homeProfileId
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    /** Last profile observed by the confirmation. Captured synchronously at the tap. */
+    private var homeProfileOn: Long? = null
 
     private var request: PinRequest? = null
 
@@ -125,44 +118,66 @@ class PinRequestViewModel @Inject constructor(
         if (this.request != null) return
         this.request = request
         viewModelScope.launch {
-            // Nothing is shown, and so nothing can be tapped, before the confirmation knows which home
-            // profile is on: a tap takes it as it is known then ([add]).
-            homeProfileOn.first { it != null }
-            val now = decideNow(request)
-            val decision = now.decision
-            val cell = now.cell
-            _uiState.value = when (decision) {
-                PinDecision.Dismiss -> PinRequestUiState.Finished()
-                PinDecision.Locked -> PinRequestUiState.Locked
-                PinDecision.NoSpace -> PinRequestUiState.NoSpace
-                PinDecision.WorkProfile -> PinRequestUiState.WorkProfile
-                PinDecision.TooBig -> PinRequestUiState.TooBig
-                is PinDecision.Confirm -> {
-                    val preview = withContext(Dispatchers.IO) { runCatching { request.loadPreview(context) }.getOrNull() }
-                    val item = request.item
-                    PinRequestUiState.Confirm(
-                        appLabel = preview?.appLabel ?: labelFallback(item),
-                        label = itemLabel(item),
-                        icon = preview?.icon?.asImageBitmap(),
-                        spanX = decision.spanX,
-                        spanY = decision.spanY,
-                        widget = (request as? WidgetPinRequest)?.let {
-                            WidgetPinPreview(it.info, decision.spanX * cell.widthDp, decision.spanY * cell.heightDp)
-                        },
-                        // A recreated process still waiting for the bind dialog's answer.
-                        busy = awaitingBind != null,
-                    )
+            try {
+                settingsRepository.homeProfileId.collect { profile ->
+                    val first = homeProfileOn == null
+                    homeProfileOn = profile
+                    if (first) showConfirmation(request)
                 }
+            } catch (_: IOException) {
+                homeProfileOn = null
+                val state = _uiState.value
+                // An accept already in progress owns its outcome, including any id still coming back.
+                if (state !is PinRequestUiState.Finished &&
+                    !(state is PinRequestUiState.Confirm && state.busy && awaitingBind == null)
+                ) finishUnreadableRequest()
             }
-            // A recreated process with an id out for the bind dialog: answer it now if the answer came
-            // first, or free the id when there is nothing left to add it to.
-            val held = awaitingBind ?: return@launch
-            if (decision !is PinDecision.Confirm) {
-                noBindAwaited()
-                withContext(NonCancellable) { pinRequestStore.releaseWidgetId(binder, held) }
-            } else {
-                earlyBindAnswer?.let { handleBindAnswer(it) }
+        }
+    }
+
+    private suspend fun finishUnreadableRequest() {
+        val held = awaitingBind
+        noBindAwaited()
+        earlyBindAnswer = null
+        _uiState.value = PinRequestUiState.Finished(failed = true)
+        if (held != null) pinRequestStore.releaseWidgetId(binder, held)
+    }
+
+    private suspend fun showConfirmation(request: PinRequest) {
+        val now = decideNow(request)
+        val decision = now.decision
+        val cell = now.cell
+        _uiState.value = when (decision) {
+            PinDecision.Dismiss -> PinRequestUiState.Finished()
+            PinDecision.Locked -> PinRequestUiState.Locked
+            PinDecision.NoSpace -> PinRequestUiState.NoSpace
+            PinDecision.WorkProfile -> PinRequestUiState.WorkProfile
+            PinDecision.TooBig -> PinRequestUiState.TooBig
+            is PinDecision.Confirm -> {
+                val preview = withContext(Dispatchers.IO) { runCatching { request.loadPreview(context) }.getOrNull() }
+                val item = request.item
+                PinRequestUiState.Confirm(
+                    appLabel = preview?.appLabel ?: labelFallback(item),
+                    label = itemLabel(item),
+                    icon = preview?.icon?.asImageBitmap(),
+                    spanX = decision.spanX,
+                    spanY = decision.spanY,
+                    widget = (request as? WidgetPinRequest)?.let {
+                        WidgetPinPreview(it.info, decision.spanX * cell.widthDp, decision.spanY * cell.heightDp)
+                    },
+                    // A recreated process still waiting for the bind dialog's answer.
+                    busy = awaitingBind != null,
+                )
             }
+        }
+        // A recreated process with an id out for the bind dialog: answer it now if the answer came
+        // first, or free the id when there is nothing left to add it to.
+        val held = awaitingBind ?: return
+        if (decision !is PinDecision.Confirm) {
+            noBindAwaited()
+            withContext(NonCancellable) { pinRequestStore.releaseWidgetId(binder, held) }
+        } else {
+            earlyBindAnswer?.let { handleBindAnswer(it) }
         }
     }
 
@@ -230,11 +245,20 @@ class PinRequestViewModel @Inject constructor(
         // (the settings, the rows, the store's locks), a switch asked for in Settings can end during any of
         // it, and a profile asked for then would be the new one. The store adds to this one only while it
         // is on. (Known since before the confirmation was shown: [attach].)
-        val profileId = homeProfileOn.value ?: return
+        val profileId = homeProfileOn ?: return
         _uiState.value = confirm.copy(busy = true)
         viewModelScope.launch {
             // Decided again: the lock, the grid or home itself may have changed while the sheet was open.
-            val now = decideNow(request)
+            val now = try {
+                decideNow(request)
+            } catch (_: IOException) {
+                finishUnreadableRequest()
+                return@launch
+            }
+            if (homeProfileOn == null) {
+                finishUnreadableRequest()
+                return@launch
+            }
             if (now.decision !is PinDecision.Confirm) {
                 _uiState.value = refusal(now.decision)
                 return@launch
@@ -243,20 +267,20 @@ class PinRequestViewModel @Inject constructor(
                 // Finishing the activity clears this scope; an allocated id is never left half-way. What
                 // becomes of the id is settled inside, where the scope's end can't skip it.
                 val outcome = withContext(NonCancellable) {
-                    pinRequestStore.acceptWidget(request, binder, profileId) { placementNow(request) }.also {
-                        when (it) {
-                            is WidgetPinOutcome.Added -> newItems.add(it.rowId)
-                            // Gone while the bind call was out: nobody would open the dialog or free the id.
-                            is WidgetPinOutcome.NeedsPermission ->
-                                if (cleared) {
-                                    pinRequestStore.releaseWidgetId(binder, it.appWidgetId)
-                                } else {
-                                    awaitingBindProfile = it.profileId
-                                    awaitingBind = it.appWidgetId
-                                }
-                            is WidgetPinOutcome.Refused, WidgetPinOutcome.Failed -> Unit
+                    val result = pinRequestStore.acceptWidget(request, binder, profileId) { placementNow(request) }
+                    when (result) {
+                        is WidgetPinOutcome.Added -> newItems.add(result.rowId)
+                        is WidgetPinOutcome.NeedsPermission -> {
+                            if (cleared || homeProfileOn == null) {
+                                pinRequestStore.releaseWidgetId(binder, result.appWidgetId)
+                                return@withContext WidgetPinOutcome.Failed
+                            }
+                            awaitingBindProfile = result.profileId
+                            awaitingBind = result.appWidgetId
                         }
+                        is WidgetPinOutcome.Refused, WidgetPinOutcome.Failed -> Unit
                     }
+                    result
                 }
                 _uiState.value = when (outcome) {
                     is WidgetPinOutcome.Added -> PinRequestUiState.Finished(addedLabel = confirm.label)
@@ -330,7 +354,9 @@ class PinRequestViewModel @Inject constructor(
                     else -> PinRequestUiState.Finished(failed = true)
                 }
             }
-            _uiState.value = end
+            _uiState.value = if (end is PinRequestUiState.Confirm && homeProfileOn == null) {
+                PinRequestUiState.Finished(failed = true)
+            } else end
         }
     }
 

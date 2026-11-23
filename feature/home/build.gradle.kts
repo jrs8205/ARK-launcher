@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:launcher"))
     implementation(libs.androidx.core.ktx)
+    testImplementation(libs.androidx.datastore.preferences)
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
     testImplementation(libs.kotlinx.coroutines.test)
