@@ -93,7 +93,6 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -756,22 +755,25 @@ private fun AppDrawerContent(
                     content = content,
                 )
             }
+            val frequentCard: @Composable () -> Unit = {
+                FrequentAppsCard(
+                    apps = frequentApps,
+                    columns = columns,
+                    badges = badges,
+                    badgeShowCount = badgeShowCount,
+                    badgeScale = badgeScale,
+                    showLabels = showLabels,
+                    iconSize = drawerIconSize,
+                    onAppClick = onAppClick,
+                    onAppLongClick = onAppLongClick,
+                )
+            }
             val entries = remember(folders, apps, mixFolders) { drawerEntries(folders, apps, mixFolders) }
             val idleContent: LazyGridScope.() -> Unit = {
                 run {
                     if (frequentApps.isNotEmpty() && !fieldAtBottom) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "frequent" }) {
-                            FrequentAppsCard(
-                                apps = frequentApps,
-                                columns = columns,
-                                badges = badges,
-                                badgeShowCount = badgeShowCount,
-                                badgeScale = badgeScale,
-                                showLabels = showLabels,
-                                iconSize = drawerIconSize,
-                                onAppClick = onAppClick,
-                                onAppLongClick = onAppLongClick,
-                            )
+                            frequentCard()
                         }
                     }
                     // The folders lead, or sit among the apps by name (issue #22); each tile keeps its
@@ -902,7 +904,19 @@ private fun AppDrawerContent(
                     userScrollEnabled = !dragController.isDragging,
                 ) { tab ->
                     when (tab) {
-                        DrawerTab.Personal -> DrawerGrid(gridState, 0.dp, idleContent)
+                        DrawerTab.Personal -> if (fieldAtBottom) {
+                            PersonalGridWithFrequentCard(
+                                minimumGridHeight = 8.dp + maxOf(48.dp, drawerIconSize) + 8.dp,
+                                grid = { DrawerGrid(gridState, 0.dp, idleContent) },
+                                card = {
+                                    if (frequentApps.isNotEmpty()) {
+                                        Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp)) { frequentCard() }
+                                    }
+                                },
+                            )
+                        } else {
+                            DrawerGrid(gridState, 0.dp, idleContent)
+                        }
                         DrawerTab.Work -> if (workProfile != null) {
                             WorkPage(
                                 workProfile = workProfile,
@@ -943,28 +957,7 @@ private fun AppDrawerContent(
                 // A column, not a box: with a second tab the pages are a tab row and the pager under it
                 // (DrawerTabPages emits both into its caller's column), and a box laid the pager over the row.
                 Column(modifier = Modifier.weight(1f)) { pages() }
-                // On the Personal page only, as in the grid, and not over a search's results.
-                val card: (@Composable () -> Unit)? =
-                    if (!searching && frequentApps.isNotEmpty() && selectedTab == DrawerTab.Personal) {
-                        {
-                            Box(modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp)) {
-                                FrequentAppsCard(
-                                    apps = frequentApps,
-                                    columns = columns,
-                                    badges = badges,
-                                    badgeShowCount = badgeShowCount,
-                                    badgeScale = badgeScale,
-                                    showLabels = showLabels,
-                                    iconSize = drawerIconSize,
-                                    onAppClick = onAppClick,
-                                    onAppLongClick = onAppLongClick,
-                                )
-                            }
-                        }
-                    } else {
-                        null
-                    }
-                CardOverBottomSearchField(card = card, field = searchField)
+                searchField()
             } else {
                 pages()
             }
@@ -973,35 +966,28 @@ private fun AppDrawerContent(
     }
 }
 
-/**
- * The foot of the drawer when the search field sits at the bottom: the "most used" [card], when there is one,
- * over the [field].
- *
- * The field is measured first and keeps its whole height. The card is shown when all of it fits in what is
- * then left, and is left out when it does not: in a low window (the keyboard up on a phone held sideways, a
- * small split screen) a card cut short is no card, and the apps' own grid above takes what there is. Laid out
- * as two rows of the drawer's column, the card was measured before the field and took all the height that was
- * left: the field got none, and with it went the only way to begin a search.
- */
+/** The tab row and bottom search field have their space already. Keep a tappable row in the grid,
+ * including its padding, before giving any of the Personal page to the optional card. */
 @Composable
-private fun CardOverBottomSearchField(card: (@Composable () -> Unit)?, field: @Composable () -> Unit) {
-    Layout(
-        content = {
-            Box { field() }
-            if (card != null) Box { card() }
-        },
-    ) { measurables, constraints ->
-        val loose = constraints.copy(minHeight = 0)
-        val fieldPlaced = measurables[0].measure(loose)
-        val left = if (constraints.hasBoundedHeight) constraints.maxHeight - fieldPlaced.height else Constraints.Infinity
-        // At the height it asks for, whatever is left: it is shown whole or not at all.
-        val cardPlaced = measurables.getOrNull(1)
-            ?.measure(loose.copy(maxHeight = Constraints.Infinity))
-            ?.takeIf { it.height <= left }
-        val cardHeight = cardPlaced?.height ?: 0
-        layout(constraints.constrainWidth(maxOf(fieldPlaced.width, cardPlaced?.width ?: 0)), cardHeight + fieldPlaced.height) {
-            cardPlaced?.placeRelative(0, 0)
-            fieldPlaced.placeRelative(0, cardHeight)
+private fun PersonalGridWithFrequentCard(
+    minimumGridHeight: Dp,
+    grid: @Composable () -> Unit,
+    card: @Composable () -> Unit,
+) {
+    Layout(content = {
+        Box { grid() }
+        Box { card() }
+    }) { measurables, constraints ->
+        val measuredCard = measurables[1].measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        val fits = measuredCard.height <= constraints.maxHeight - minimumGridHeight.roundToPx()
+        val cardHeight = if (fits) measuredCard.height else 0
+        val gridArea = measurables[0].measure(constraints.copy(
+            minHeight = (constraints.minHeight - cardHeight).coerceAtLeast(0),
+            maxHeight = constraints.maxHeight - cardHeight,
+        ))
+        layout(gridArea.width, gridArea.height + cardHeight) {
+            gridArea.placeRelative(0, 0)
+            if (fits) measuredCard.placeRelative(0, gridArea.height)
         }
     }
 }

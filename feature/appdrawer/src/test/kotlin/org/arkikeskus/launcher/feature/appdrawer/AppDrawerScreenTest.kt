@@ -43,6 +43,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -98,10 +99,14 @@ class AppDrawerScreenTest {
         wiring.close()
     }
 
-    /** [height]: how tall the drawer's window is; the whole screen when none is given. */
+    private val windowHeight = mutableStateOf<Dp?>(null)
+    private var closeCalls = 0
+
+    /** [height] constrains the drawer for split-screen and resize tests. */
     private fun show(height: Dp? = null) {
+        windowHeight.value = height
         compose.setContent {
-            Box(modifier = if (height != null) Modifier.height(height) else Modifier) {
+            Box(modifier = windowHeight.value?.let { Modifier.height(it) } ?: Modifier) {
             // An app's menu asks Android for its shortcuts and widgets before it shows. Asked on another
             // thread, the answer comes back on that thread under the rule the tests had then and the screen is then worked on
             // from two threads at once (the home screen's menu test failed so once). Here it asks at once.
@@ -109,7 +114,7 @@ class AppDrawerScreenTest {
                 org.arkikeskus.launcher.ui.LocalBackgroundDispatcher provides kotlinx.coroutines.Dispatchers.Unconfined,
             ) {
                 AppDrawerScreen(
-                    onClose = {},
+                    onClose = { closeCalls++ },
                     onOpenSettings = {},
                     homeSignals = homeSignals,
                     drawerOpen = drawerOpen.value,
@@ -696,6 +701,16 @@ class AppDrawerScreenTest {
         // test; what is not placed is not drawn, takes no touch and no focus, and is not handed to a screen
         // reader.)
         compose.onNodeWithTag(DRAWER_FREQUENT_TAG).assertIsNotDisplayed()
+    }
+
+    @Test fun theFrequentCardLeavesATappableAppInTheGrid() {
+        showWithAMostUsedApp(searchAtBottom = true, height = 290.dp)
+        val grid = compose.onNode(androidx.compose.ui.test.hasScrollAction()).fetchSemanticsNode()
+        assertThat(grid.size.height).isAtLeast(with(compose.density) { 56.dp.roundToPx() })
+        val app = compose.onNodeWithText(mapsApp)
+        app.performTouchInput { click() }
+        settle()
+        assertThat(closeCalls).isEqualTo(1)
     }
 
     /** A search covers the drawer with its results: the "most used" card gives its place to them. */
