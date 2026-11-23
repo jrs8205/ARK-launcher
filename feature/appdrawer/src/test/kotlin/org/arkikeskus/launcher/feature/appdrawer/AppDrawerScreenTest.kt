@@ -4,7 +4,12 @@ import android.app.Application
 import androidx.core.graphics.createBitmap
 import android.graphics.Bitmap
 import android.os.Looper
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -14,6 +19,7 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
@@ -92,8 +98,10 @@ class AppDrawerScreenTest {
         wiring.close()
     }
 
-    private fun show() {
+    /** [height]: how tall the drawer's window is; the whole screen when none is given. */
+    private fun show(height: Dp? = null) {
         compose.setContent {
+            Box(modifier = if (height != null) Modifier.height(height) else Modifier) {
             // An app's menu asks Android for its shortcuts and widgets before it shows. Asked on another
             // thread, the answer comes back on that thread under the rule the tests had then and the screen is then worked on
             // from two threads at once (the home screen's menu test failed so once). Here it asks at once.
@@ -109,6 +117,7 @@ class AppDrawerScreenTest {
                     onDragOutStart = { dragOuts++ },
                     viewModel = viewModel,
                 )
+            }
             }
         }
         settle()
@@ -626,12 +635,12 @@ class AppDrawerScreenTest {
     // --- Issue #33: the search field at the bottom -----------------------------------------------------
 
     /** The drawer with the "most used" card showing the mail app; returns once it is laid out. */
-    private fun showWithAMostUsedApp(searchAtBottom: Boolean) {
+    private fun showWithAMostUsedApp(searchAtBottom: Boolean, height: Dp? = null) {
         whileTheMainLooperTurns {
             wiring.settingsRepository.setShowFrequentApps(true)
             wiring.settingsRepository.setDrawerSearchAtBottom(searchAtBottom)
         }
-        show()
+        show(height)
         awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
         val mail = viewModel.uiState.value.apps.first { it.packageName == mailApp }
         viewModel.onAppClick(mail) // a launch is what puts an app on the card
@@ -666,6 +675,27 @@ class AppDrawerScreenTest {
         // The card is no longer the grid's first item: the apps' own tiles are above it.
         val tiles = compose.onAllNodesWithText(mailApp).fetchSemanticsNodes().map { it.boundsInRoot.top }
         assertThat(tiles.min()).isLessThan(card.top)
+    }
+
+    /**
+     * Review round 20. In a low window (the keyboard up on a phone held sideways, a small split screen) the
+     * drawer's column measured the "most used" card before the field under it: the card took all the height
+     * that was left and the field got none, 0 dp, with nothing to tap to begin a search. The field is given
+     * its place first. The card is shown when all of it fits over the field, and gives way when it does not.
+     */
+    @Test fun inALowWindowTheBottomSearchFieldKeepsItsHeightAndTheMostUsedCardGivesWay() {
+        showWithAMostUsedApp(searchAtBottom = true, height = 150.dp)
+
+        val field = compose.onNodeWithTag(DRAWER_SEARCH_FIELD_TAG).fetchSemanticsNode()
+        val window = with(compose.density) { 150.dp.roundToPx() }
+        // A whole touch target, and all of it inside the window.
+        assertThat(field.size.height).isAtLeast(with(compose.density) { 48.dp.roundToPx() })
+        assertThat(field.boundsInRoot.bottom).isAtMost(window.toFloat())
+        assertThat(field.boundsInRoot.top).isAtLeast(0f)
+        // The card does not fit over the field here: it is given no place. (Its node is still found by a
+        // test; what is not placed is not drawn, takes no touch and no focus, and is not handed to a screen
+        // reader.)
+        compose.onNodeWithTag(DRAWER_FREQUENT_TAG).assertIsNotDisplayed()
     }
 
     /** A search covers the drawer with its results: the "most used" card gives its place to them. */
