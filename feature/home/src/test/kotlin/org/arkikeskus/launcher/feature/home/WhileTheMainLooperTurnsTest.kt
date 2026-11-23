@@ -14,6 +14,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
@@ -25,6 +27,8 @@ import kotlin.time.Duration.Companion.seconds
  * in a step that is not cancellable) ends only when whoever has the hold has had the turn of the looper it
  * needs: the two waited for each other, and a test that should have failed hung instead. The looper turns on
  * while the work ends, and the helper is back with its failure whether the work ends or not.
+ *
+ * (The helper is a plain function since round 20; these tests are still coroutines.)
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
@@ -33,11 +37,19 @@ class WhileTheMainLooperTurnsTest {
     @Test fun workThatOutlastsTheLimitFailsTheTestAndIsGivenTheLooperItNeedsToEnd() = runTest(timeout = 8.seconds) {
         val hold = Mutex(locked = true)
         val ended = AtomicBoolean(false)
+        val entered = CountDownLatch(1)
         val main = Handler(Looper.getMainLooper())
+        // The helper's time runs from its call, and its work begins when a thread of the default pool is
+        // free: on a busy machine that can be after the limit, and work that is told to end before it began
+        // has no end to be let run to (review round 20). The first turn of the looper the helper makes waits
+        // here until the work is inside its `try`, so the limit is met or passed with the work under way:
+        // what is measured is how the work is let end, not how soon a thread was found for it.
+        main.post { entered.await(10, TimeUnit.SECONDS) }
 
         val failure = try {
             whileTheMainLooperTurns("the hold", limitMs = 300) {
                 try {
+                    entered.countDown()
                     awaitCancellation()
                 } finally {
                     // The helper's time is up (it has told the work to end). Whoever has the hold lets go of
