@@ -886,4 +886,19 @@ class BackupProfilesTest {
         assertThat(store.list()).containsExactly(HomeProfile(2, "Work"))
         assertThat(settings.settings.first().baseColour).isEqualTo("blue")
     }
+
+    @Test fun aListedProfileWhoseSettingsSurviveCanBeCleanedOnRetry() = runTest {
+        twoProfiles()
+        store.setActive(1)
+        val first = ConfirmedProfiles(activeId = 1, otherIds = setOf(2L))
+        files.failDelete = IOException("cannot remove settings")
+        val restored = repo().restoreDocument(backup, installed, first)
+        assertThat(restored.restored).isEqualTo(2)
+        assertThat(restored.settingsCleanupIncomplete).isTrue()
+        assertThat(store.unlistedStores()).containsExactly(2L)
+        files.failDelete = null
+        val retry = ConfirmedProfiles(activeId = 1, otherIds = emptySet(), unlistedIds = setOf(2L))
+        assertThat(repo().restoreDocument(backup, installed, retry).settingsCleanupIncomplete).isFalse()
+        assertThat(store.unlistedStores()).isEmpty()
+    }
 }
