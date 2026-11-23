@@ -197,51 +197,23 @@ class HomeProfileRepository @Inject constructor(
         false
     }
 
-    /**
-     * Saves a picture behind the app drawer for the home profile [profileId] with [save], unless that profile
-     * is gone: false then, with nothing kept. The picture is picked in the system's picker, and the profile it
-     * was picked for can be deleted before the picker answers, or while the picture is read and saved. A
-     * picture saved for a profile that is not in the list could never be removed again, so one that was saved
-     * across the deletion is taken away with its folder.
-     *
-     * [save] is handed the pick's place among the user's picks and removals of that picture
-     * ([DrawerWallpaperStore.Pick]), taken HERE, before anything waits: the list is read first, and a removal
-     * the user asks for while that read waits is the later action. Taken only at the save, the pick came after
-     * the removal, and the picture the user had just removed showed.
-     *
-     * The profile is not held while the picture is read and saved: reading a picture from another app can take
-     * as long as it likes. The LAST look at the list is made under the hold a deletion keeps from its first
-     * step to its last ([delete]): a deletion clears the picture folder and only then takes the profile out of
-     * the list, and a look between the two found the profile listed and kept a picture in the folder that had
-     * just been cleared. Now the look is before the deletion (which then clears what was saved) or after it
-     * (and clears it here).
-     */
+    /** Reserve the pick before reading the list. Decode and encode outside the profile lock, then
+     * publish only while the target is still listed. Cancelling or failing a read leaves the old file intact. */
     suspend fun setDrawerPicture(
         profileId: Long,
         save: suspend (DrawerWallpaperStore, DrawerWallpaperStore.Pick) -> Boolean,
     ): Boolean {
-        val pick = drawerPictures.pick(profileId)
-        if (store.list().none { it.id == profileId }) return false
-        var kept = false
-        try {
-            kept = save(drawerPictures, pick)
-        } finally {
-            // Once the save has begun, the last look is made whatever becomes of the caller. Settings asks and
-            // can be left the same moment: its coroutine is then cancelled while it waits for a deletion's
-            // hold, or right after the picture was written, and without this look the picture stayed in the
-            // folder of a profile that was gone. Reading and saving the picture itself can still be cancelled.
-            kept = withContext(NonCancellable) {
-                store.whileActiveStays {
-                    if (store.list().any { it.id == profileId }) {
-                        kept
-                    } else {
-                        drawerPictures.delete(profileId)
-                        false
-                    }
-                }
+        val pick = drawerPictures.stagedPick(profileId)
+        return try {
+            if (store.list().none { it.id == profileId } || !save(drawerPictures, pick)) return false
+            store.whileActiveStays {
+                store.list().any { it.id == profileId } && drawerPictures.publishPrepared(pick)
             }
+        } catch (_: IOException) {
+            false
+        } finally {
+            withContext(NonCancellable) { drawerPictures.discardPrepared(pick) }
         }
-        return kept
     }
 
     /**

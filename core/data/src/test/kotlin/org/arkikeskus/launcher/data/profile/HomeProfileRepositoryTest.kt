@@ -649,6 +649,7 @@ class HomeProfileRepositoryTest {
         val work = created("Work", copyCurrent = false)
         val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
         val picked = CompletableDeferred<Boolean>()
+        val prepared = CompletableDeferred<Unit>()
         val test = this
 
         val deleting = async(Dispatchers.Default) { repository.delete(work.id) }
@@ -659,10 +660,10 @@ class HomeProfileRepositoryTest {
             // list: there the picker answers.
             main.onNextRead = {
                 test.launch(Dispatchers.Default) {
-                    picked.complete(repository.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick) })
+                    picked.complete(repository.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick).also { prepared.complete(Unit) } })
                 }
-                // The picture is saved while the profile is still listed...
-                withTimeout(5_000) { while (folder.listFiles().orEmpty().none { it.extension == "jpg" }) delay(5) }
+                // The candidate is prepared while the profile is still listed...
+                withTimeout(5_000) { prepared.await() }
                 // ...and the pick gets the time to come to its end, if it can before the deletion has.
                 withTimeoutOrNull(300) { picked.await() }
             }
@@ -694,6 +695,7 @@ class HomeProfileRepositoryTest {
         val work = created("Work", copyCurrent = false)
         val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
         var picking: Job? = null
+        val prepared = CompletableDeferred<Unit>()
         val test = this
 
         val deleting = async(Dispatchers.Default) { repository.delete(work.id) }
@@ -701,9 +703,9 @@ class HomeProfileRepositoryTest {
             withTimeout(5_000) { while (!io.waiting) delay(5) }
             main.onNextRead = {
                 picking = test.launch(Dispatchers.Default) {
-                    repository.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick) }
+                    repository.setDrawerPicture(work.id) { store, pick -> store.set(picture(Color.WHITE), pick).also { prepared.complete(Unit) } }
                 }
-                withTimeout(5_000) { while (folder.listFiles().orEmpty().none { it.extension == "jpg" }) delay(5) }
+                withTimeout(5_000) { prepared.await() }
                 // The pick has its picture saved and has come to wait for the deletion; Settings is left now.
                 delay(150)
                 picking!!.cancel()
@@ -1088,5 +1090,22 @@ class HomeProfileRepositoryTest {
         main.failReads = null
         assertThat(settings.settings.first()).isEqualTo(before)
         assertThat(rowsOf(1)).isEqualTo(rows)
+    }
+
+    @Test fun unreadableProfilePreventsPickingAPicture() = runTest {
+        main.failReads = java.io.IOException("cannot open profile")
+        assertThat(profiles.setDrawerPicture(1L) { _, _ -> error("must not start saving") }).isFalse()
+    }
+
+    @Test fun unreadableProfileAfterPreparingAPictureKeepsTheOriginal() = runTest {
+        assertThat(drawerPictures.set(picture(Color.RED), 1L)).isTrue()
+        val old = checkNotNull(drawerPictures.current.value).file
+        val result = profiles.setDrawerPicture(1L) { pictures, pick ->
+            pictures.set(picture(Color.BLUE), pick).also { main.failReads = java.io.IOException("cannot confirm profile") }
+        }
+        assertThat(result).isFalse()
+        assertThat(old.isFile).isTrue()
+        assertThat(drawerPictures.current.value?.file).isEqualTo(old)
+        assertThat(old.parentFile!!.listFiles().orEmpty().toList()).containsExactly(old)
     }
 }

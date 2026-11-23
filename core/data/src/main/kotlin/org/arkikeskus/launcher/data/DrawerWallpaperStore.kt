@@ -220,19 +220,38 @@ class DrawerWallpaperStore internal constructor(
      * [set]: what the user does to that picture AFTER this moment (a removal, another pick) overtakes the
      * pick, however long the way to its save is.
      */
-    class Pick internal constructor(val profile: Long, internal val ticket: Int)
+    class Pick internal constructor(val profile: Long, internal val ticket: Int, internal val stageOnly: Boolean) {
+        internal var prepared: DrawerWallpaper? = null
+    }
 
     /** The place of a pick made now for the home profile [profile] ([Pick]). */
-    fun pick(profile: Long): Pick = Pick(profile, ticketsOf(profile).incrementAndGet())
+    fun pick(profile: Long): Pick = Pick(profile, ticketsOf(profile).incrementAndGet(), stageOnly = false)
+
+    /** Reserve the user's place now, but leave the old picture visible until the caller confirms the profile. */
+    internal fun stagedPick(profile: Long): Pick = Pick(profile, ticketsOf(profile).incrementAndGet(), stageOnly = true)
+
+    internal suspend fun publishPrepared(pick: Pick): Boolean = withContext(io) {
+        synchronized(publishLock) { publishPreparedLocked(pick) }
+    }
+
+    internal suspend fun discardPrepared(pick: Pick) = withContext(io) {
+        synchronized(publishLock) {
+            pick.prepared?.file?.delete()
+            pick.prepared = null
+            // A deleted profile's slow writer can have recreated its folder. Only an empty folder can go.
+            dirOf(pick.profile).delete()
+            Unit
+        }
+    }
 
     /** [import] for a pick whose place was taken earlier ([pick]). */
     suspend fun import(uri: Uri, pick: Pick): Boolean = withContext(io) {
         val picture = runCatching { decode(uri) }.getOrNull() ?: return@withContext false
-        save(picture, pick.profile, pick.ticket)
+        save(picture, pick)
     }
 
     /** [set] for a pick whose place was taken earlier ([pick]). */
-    suspend fun set(picture: Bitmap, pick: Pick): Boolean = withContext(io) { save(picture, pick.profile, pick.ticket) }
+    suspend fun set(picture: Bitmap, pick: Pick): Boolean = withContext(io) { save(picture, pick) }
 
     /** Removes the picture of the home profile [profile]; its drawer shows the system wallpaper through again. Every
      *  published picture on disk goes, not only the current one: a crash between a pick's rename and the deletion of
@@ -334,8 +353,8 @@ class DrawerWallpaperStore internal constructor(
     }
 
     /**
-     * Encodes [picture] into a part-file in the home profile [profile]'s folder (not a picture yet: [load] never takes
-     * one), then -- if [ticket] is still that profile's latest action -- renames it under the lock to its final name,
+     * Encodes [picture] into a part-file in the [pick]'s profile folder (not a picture yet: [load] never takes
+     * one), then -- if the ticket is still that profile's latest action -- renames it under the lock to its final name,
      * which carries its lightness ([pictureFileName]), and shows it when its profile is the one that shows. The rename
      * is atomic, so a start can only ever load a picture that was published whole, with its own lightness; a process
      * that dies mid-save leaves a part-file that the next start sweeps ([atStart]). The pictures this one replaces go
@@ -344,8 +363,8 @@ class DrawerWallpaperStore internal constructor(
      * picture that was there: it is reported as false, never thrown into the caller's coroutine (that took the
      * launcher down).
      */
-    private fun save(picture: Bitmap, profile: Long, ticket: Int): Boolean {
-        val folder = dirOf(profile)
+    private fun save(picture: Bitmap, pick: Pick): Boolean {
+        val folder = dirOf(pick.profile)
         folder.mkdirs()
         val part = File(folder, "${UUID.randomUUID()}$PART_SUFFIX")
         val lightness = runCatching {
@@ -355,19 +374,30 @@ class DrawerWallpaperStore internal constructor(
             }
             lightnessOf(picture)
         }.getOrNull()
-        val luminance = lightness?.let { storedLuminance(it.mean) }
-        var published = false
-        synchronized(publishLock) {
-            if (luminance == null || ticket != ticketsOf(profile).get()) return@synchronized
-            val replaced = publishedPictures(folder)
-            val target = File(folder, pictureFileName(luminance))
-            if (!part.renameTo(target)) return@synchronized
-            if (profile == shownProfile) publish(profile, DrawerWallpaper(target, luminance, lightness))
-            replaced.forEach { it.delete() }
-            published = true
+        return synchronized(publishLock) {
+            if (lightness == null || pick.ticket != ticketsOf(pick.profile).get()) {
+                part.delete()
+                return@synchronized false
+            }
+            pick.prepared?.file?.delete()
+            pick.prepared = DrawerWallpaper(part, storedLuminance(lightness.mean), lightness)
+            pick.stageOnly || publishPreparedLocked(pick)
         }
-        if (!published) part.delete()
-        return published
+    }
+
+    private fun publishPreparedLocked(pick: Pick): Boolean {
+        val ready = pick.prepared ?: return false
+        pick.prepared = null
+        val folder = dirOf(pick.profile)
+        val replaced = publishedPictures(folder)
+        val target = File(folder, pictureFileName(ready.luminance))
+        if (pick.ticket != ticketsOf(pick.profile).get() || !ready.file.renameTo(target)) {
+            ready.file.delete()
+            return false
+        }
+        if (pick.profile == shownProfile) publish(pick.profile, DrawerWallpaper(target, ready.luminance, ready.lightness))
+        replaced.forEach { it.delete() }
+        return true
     }
 
     /**
