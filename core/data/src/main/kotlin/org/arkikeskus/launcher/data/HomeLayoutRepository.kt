@@ -94,8 +94,20 @@ class HomeLayoutRepository @Inject constructor(
      * empty, that a cell is free) is not true of the profile its call would then reach. Not for a caller that
      * already holds the profile ([ActiveHomeProfile.whileActiveStays] does not nest).
      */
-    suspend fun <T> whileProfileIsOn(profileId: Long, work: suspend () -> T): T? =
-        dao.whileActiveStays { active -> if (active == profileId) work() else null }
+    suspend fun <T> whileProfileIsOn(profileId: Long, work: suspend () -> T): T? {
+        var started = false
+        return try {
+            dao.whileActiveStays { active ->
+                if (active != profileId) return@whileActiveStays null
+                started = true
+                work()
+            }
+        } catch (failure: java.io.IOException) {
+            // Only a failed profile check means the request was refused without changing the layout.
+            if (started) throw failure
+            null
+        }
+    }
 
     /** Whether [profileId] is the home profile that is on right now. */
     suspend fun isProfileOn(profileId: Long): Boolean = dao.resolvedProfile() == profileId

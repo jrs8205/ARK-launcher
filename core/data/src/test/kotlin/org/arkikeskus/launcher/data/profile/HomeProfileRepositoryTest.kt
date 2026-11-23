@@ -1108,4 +1108,14 @@ class HomeProfileRepositoryTest {
         assertThat(drawerPictures.current.value?.file).isEqualTo(old)
         assertThat(old.parentFile!!.listFiles().orEmpty().toList()).containsExactly(old)
     }
+
+    @Test fun unreadableTargetRejectsLayoutWorkButAStartedFailurePropagates() = runTest {
+        main.failReads = java.io.IOException("unreadable target")
+        assertThat(layout.whileProfileIsOn<Boolean>(1) { error("must not modify layout") }).isNull()
+        main.failReads = null
+        val failure = java.io.IOException("failed inside the layout change")
+        val thrown = runCatching { layout.whileProfileIsOn(1) { throw failure } }.exceptionOrNull()
+        assertThat(thrown).isInstanceOf(java.io.IOException::class.java)
+        assertThat(thrown).hasMessageThat().isEqualTo(failure.message)
+    }
 }
