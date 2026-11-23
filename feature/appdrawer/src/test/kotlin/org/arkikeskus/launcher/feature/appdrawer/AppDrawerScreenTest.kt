@@ -1271,4 +1271,24 @@ class AppDrawerScreenTest {
 
         assertThat(viewModel.uiState.value.query).isEmpty()
     }
+
+    @Test fun theKeyboardCanOpenAGridAppAfterTheFrequentCardDisappears() {
+        showWithAMostUsedApp(searchAtBottom = true, height = 400.dp)
+        compose.onNode(androidx.compose.ui.test.hasAnyAncestor(hasTestTag(DRAWER_FREQUENT_TAG))
+            and androidx.compose.ui.test.hasText(mailApp)).requestFocus()
+        compose.runOnIdle { windowHeight.value = 150.dp }
+        settle()
+        val search = compose.onNodeWithTag(DRAWER_SEARCH_FIELD_TAG)
+        search.assertIsFocused()
+        for (key in listOf(Key.Tab, Key.DirectionUp)) {
+            search.requestFocus()
+            compose.onRoot().performKeyInput { pressKey(key) }
+            settle()
+            compose.onNode(androidx.compose.ui.test.isFocused() and
+                androidx.compose.ui.test.hasAnyAncestor(androidx.compose.ui.test.hasScrollAction())).assertExists()
+        }
+        compose.onRoot().performKeyInput { pressKey(Key.Enter) }
+        settle()
+        assertThat(closeCalls).isEqualTo(1)
+    }
 }

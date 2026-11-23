@@ -59,9 +59,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -712,6 +721,7 @@ private fun AppDrawerContent(
             // "most used" card sits right above it instead of leading the grid.
             val fieldAtBottom = showSearch && searchAtBottom
             val searchFocus = remember { FocusRequester() }
+            val drawerFocus = LocalFocusManager.current
             val searchField: @Composable () -> Unit = {
                 // A pill in the container colour with what is read on a container; no underline. On a see-through
                 // drawer the pill is as see-through, and its text is what reads on what shows through it.
@@ -729,6 +739,13 @@ private fun AppDrawerContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .onPreviewKeyEvent { event ->
+                            // A single-line field consumes Up itself. From the empty bottom field it should
+                            // reach a visible app above, just as Tab can reach it.
+                            fieldAtBottom && query.isEmpty() && event.key == Key.DirectionUp &&
+                                event.type == KeyEventType.KeyDown && !event.isShiftPressed && !event.isCtrlPressed &&
+                                !event.isAltPressed && !event.isMetaPressed && drawerFocus.moveFocus(FocusDirection.Up)
+                        }
                         .focusRequester(searchFocus)
                         .testTag(DRAWER_SEARCH_FIELD_TAG),
                 )
@@ -993,7 +1010,7 @@ private fun PersonalGridWithFrequentCard(
         Box(
             Modifier
                 .onFocusChanged { cardHasFocus = it.hasFocus }
-                .onPreviewKeyEvent { !cardVisible }
+                .onPreviewKeyEvent { !cardVisible && it.key.isButtonKey }
                 .focusGroup(),
         ) { card() }
     }) { measurables, constraints ->
@@ -1768,6 +1785,7 @@ private fun DrawerAppCell(
         privateMark = if (privateMark) stringResource(R.string.private_space_entry) else null,
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
+            .keyClickable(onClick = { onAppClick(currentApp) }, onLongClick = { onAppLongClick(currentApp, bounds) })
             // The tap and the menu as actions too, for whoever cannot make the pointer gesture: a screen
             // reader lists them, and nothing else told it that the app has a menu.
             .semantics(mergeDescendants = true) {

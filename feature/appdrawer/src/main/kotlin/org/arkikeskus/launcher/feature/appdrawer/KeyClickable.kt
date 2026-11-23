@@ -68,7 +68,7 @@ internal fun Modifier.keyClickable(onClick: () -> Unit, onLongClick: () -> Unit)
 }
 
 /** The keys that press a button. */
-private val Key.isButtonKey: Boolean
+internal val Key.isButtonKey: Boolean
     get() = this == Key.Enter || this == Key.NumPadEnter || this == Key.DirectionCenter || this == Key.Spacebar
 
 /** One key press on a tile: the timer of its hold, and whether the hold has fired. */
