@@ -218,4 +218,45 @@ class PinRequestOneProfileTest {
         assertThat(deleted).containsExactly(100)
         assertThat(100 in pending).isFalse()
     }
+
+    /**
+     * Review round 20. Android wants the user asked before it binds the widget, and the widget's profile is
+     * no longer on: a switch ended between the tap and the bind. The answer was "ask the user" all the same,
+     * with nothing looked at, and Android's dialog opened for a widget that allowing could no longer add.
+     * Nothing is asked for then: the add has failed, and the id is given back.
+     */
+    @Test
+    fun aWidgetThatNeedsTheUsersLeaveIsNotAskedForOnceItsProfileIsNoLongerOn() = runBlocking<Unit> {
+        val provider = ComponentName("com.clock", "com.clock.Analog")
+        var acceptedWith: Int? = null
+        val request = object : WidgetPinRequest {
+            override val item: PinItem = PinItem.Widget(provider.flattenToString(), "Analog clock", ownProfile = true)
+            override val info = AppWidgetProviderInfo().also { it.provider = provider }
+            override var isValid: Boolean = true
+            override fun accept(): Boolean = false
+            override fun accept(appWidgetId: Int): Boolean = true.also { acceptedWith = appWidgetId }
+            override fun loadPreview(context: Context) = PinPreview("Clock", icon = null)
+        }
+        val deleted = ArrayList<Int>()
+        val binder = object : WidgetBinder {
+            override fun allocateId(): Int = 100
+            override fun bindIfAllowed(appWidgetId: Int, info: AppWidgetProviderInfo): Boolean = false
+            override fun deleteId(appWidgetId: Int) { deleted += appWidgetId }
+        }
+        var decided = 0
+        active.switchTo(2)
+
+        val outcome = store.acceptWidget(request, binder, profileId = 1) {
+            decided++
+            CurrentPlacement(PinDecision.Confirm(0, 1, 2, spanX = 2, spanY = 2), columns = 4, rows = 6)
+        }
+
+        assertThat(outcome).isEqualTo(WidgetPinOutcome.Failed)
+        assertThat(deleted).containsExactly(100)
+        assertThat(100 in pending).isFalse()
+        assertThat(acceptedWith).isNull()
+        assertThat(decided).isEqualTo(0)
+        assertThat(rowsOf(1)).isEmpty()
+        assertThat(rowsOf(2)).isEmpty()
+    }
 }

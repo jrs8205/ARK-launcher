@@ -379,8 +379,9 @@ class PinRequestStore @Inject constructor(
     /**
      * Allocates a host id for the widget [request] and binds it. Bound without asking →
      * [acceptBoundWidget] at once; the system wants the user asked → [WidgetPinOutcome.NeedsPermission]
-     * with the id kept allocated (and in [pendingWidgetIds]) for the dialog's outcome; no id or a
-     * bind that threw → [WidgetPinOutcome.Failed] with nothing left allocated. The widget is for the home
+     * with the id kept allocated (and in [pendingWidgetIds]) for the dialog's outcome, unless [profileId] is
+     * no longer the profile that is on; no id, a bind that threw or a profile that is no longer on →
+     * [WidgetPinOutcome.Failed] with nothing left allocated. The widget is for the home
      * profile [profileId], the one that was on when the user said yes ([acceptShortcut] says who reads it,
      * and when): bound at once or after the dialog, it is stored there or nowhere.
      */
@@ -397,7 +398,23 @@ class PinRequestStore @Inject constructor(
             free(binder, id)
             return@withContext WidgetPinOutcome.Failed
         }
-        if (!bound.getOrThrow()) return@withContext WidgetPinOutcome.NeedsPermission(id, profileId)
+        if (!bound.getOrThrow()) {
+            // The user is asked only while the widget's profile is still on. Another one on by now (a switch
+            // ended between the tap and here): allowing the bind could no longer add the widget, so Android's
+            // dialog is not opened for it. Asked under the profile's hold, as the accept after the dialog asks
+            // again: a switch that is under way ends first, and its answer is the one that counts. A store that
+            // cannot be read is no home screen to ask for either.
+            val stillOn = try {
+                homeLayoutRepository.whileProfileIsOn(profileId) { true } ?: false
+            } catch (unread: IOException) {
+                false
+            }
+            if (!stillOn) {
+                free(binder, id)
+                return@withContext WidgetPinOutcome.Failed
+            }
+            return@withContext WidgetPinOutcome.NeedsPermission(id, profileId)
+        }
         acceptBoundWidget(request, binder, id, profileId, decide)
     }
 
