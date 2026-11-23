@@ -5,7 +5,6 @@ import android.os.Looper
 import android.os.Process
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import org.arkikeskus.launcher.data.FolderIconKey
 import org.arkikeskus.launcher.data.local.HomeItemEntity
@@ -40,7 +39,13 @@ class DrawerFolderToHomeTest {
     private val mail = app("mail")
     private val maps = app("maps")
 
-    private fun homeRows(): List<HomeItemEntity> = runBlocking { wiring.homeLayoutRepository.homeItems.first() }
+    /** Asked while the main looper turns ([whileTheMainLooperTurns]): asked on this thread alone, the read can
+     *  come to wait behind the view model for a lock that the view model gives back only when the looper turns.
+     *  A run of the whole test task stood still here so. */
+    private fun homeRows(): List<HomeItemEntity> =
+        whileTheMainLooperTurns("the home rows") { wiring.homeLayoutRepository.homeItems.first() }
+
+    private fun folderIcons() = whileTheMainLooperTurns("the folders' icons") { wiring.settingsRepository.folderIcons.first() }
 
     /** The view model's writes run on its own scope: waits, bounded, until the home rows say [done]. */
     private fun awaitHome(what: String, done: (List<HomeItemEntity>) -> Boolean): List<HomeItemEntity> {
@@ -87,11 +92,11 @@ class DrawerFolderToHomeTest {
 
         val folder = awaitHome("the folder is on home") { rows -> rows.any { it.isFolder } }.single { it.isFolder }
         val deadline = System.currentTimeMillis() + 10_000
-        while (runBlocking { wiring.settingsRepository.folderIcons.first() }[FolderIconKey.home(folder.id)] == null) {
+        while (folderIcons()[FolderIconKey.home(folder.id)] == null) {
             check(System.currentTimeMillis() < deadline) { "Timed out waiting for the folder's icon" }
             pause()
         }
-        assertThat(runBlocking { wiring.settingsRepository.folderIcons.first() }[FolderIconKey.home(folder.id)]).isEqualTo(icon)
+        assertThat(folderIcons()[FolderIconKey.home(folder.id)]).isEqualTo(icon)
     }
 
     /** A picture of the user's is one file with one owner: the copy on home does not share it (deleting either
@@ -102,6 +107,6 @@ class DrawerFolderToHomeTest {
 
         val folder = awaitHome("the folder is on home") { rows -> rows.any { it.isFolder } }.single { it.isFolder }
         repeat(10) { pause() } // nothing is to come: give a wrong write the time to land
-        assertThat(runBlocking { wiring.settingsRepository.folderIcons.first() }[FolderIconKey.home(folder.id)]).isNull()
+        assertThat(folderIcons()[FolderIconKey.home(folder.id)]).isNull()
     }
 }

@@ -40,7 +40,6 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.runBlocking
 import org.arkikeskus.launcher.ui.ADD_APPS_ROW_TAG
 import org.arkikeskus.launcher.ui.HomeDragController
 import androidx.compose.ui.geometry.Offset
@@ -144,7 +143,7 @@ class AppDrawerScreenTest {
     private fun addApps() = context.getString(R.string.folder_add_apps)
 
     private fun showWithFolder(name: String = "Tools") {
-        runBlocking { wiring.settingsRepository.createDrawerFolder(name) }
+        whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder(name) }
         show()
         awaitText(name)
     }
@@ -172,12 +171,12 @@ class AppDrawerScreenTest {
     /** Issue #32: a drawer folder's apps stand in the order they were added, which soon looks like no order.
      *  The editor sorts them by name on request, as a home folder's editor does. */
     @Test fun theEditorSortsTheFoldersAppsByName() {
-        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        val id = whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
         val members = listOf(notesApp, mailApp, docsApp)
         awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
         val byPackage = viewModel.uiState.value.apps.associateBy { it.packageName }
-        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, members.map { byPackage.getValue(it).key }) }
+        whileTheMainLooperTurns { wiring.settingsRepository.addAppsToDrawerFolder(id, members.map { byPackage.getValue(it).key }) }
         awaitState("the folder holds the three as they were added") { s ->
             s.folders.firstOrNull()?.apps?.map { it.packageName } == members
         }
@@ -201,7 +200,7 @@ class AppDrawerScreenTest {
         show()
         awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
         val mail = viewModel.uiState.value.apps.first { it.packageName == mailApp }
-        runBlocking { wiring.settingsRepository.setAppHidden(mail.key, true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setAppHidden(mail.key, true) }
         awaitState("the hidden app left the list") { s -> s.apps.none { it.packageName == mailApp } }
         return mail.key
     }
@@ -226,7 +225,7 @@ class AppDrawerScreenTest {
      *  and its menu does not offer to hide what is hidden already. */
     @Test fun askedForTheSearchFindsAHiddenAppThatTheListStillDoesNotShow() {
         showWithMailHidden()
-        runBlocking { wiring.settingsRepository.setSearchHiddenApps(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setSearchHiddenApps(true) }
 
         search("mail")
 
@@ -277,7 +276,7 @@ class AppDrawerScreenTest {
      */
     @Test fun aFoldersEditorAndItsQuestionGoWhenAnotherProfileComesOn() {
         showWithFolder()
-        val copy = runBlocking {
+        val copy = whileTheMainLooperTurns {
             (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
         }
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
@@ -287,7 +286,7 @@ class AppDrawerScreenTest {
         compose.onNodeWithText(context.getString(R.string.folder_delete_title)).assertExists()
 
         // The switch that had been waiting is made while the question is open.
-        runBlocking { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
+        whileTheMainLooperTurns { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
         awaitState("the copy is on") { it.homeProfileId == copy && it.folders.size == 1 }
         settle()
 
@@ -309,14 +308,14 @@ class AppDrawerScreenTest {
      * switch and the release places nothing.
      */
     @Test fun aFolderBeingDraggedIsLetGoWhenAnotherProfileComesOnAndItsReleasePlacesNothing() {
-        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        val id = whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
         val members = listOf(mailApp, mapsApp)
         awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
         val byPackage = viewModel.uiState.value.apps.associateBy { it.packageName }
-        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, members.map { byPackage.getValue(it).key }) }
+        whileTheMainLooperTurns { wiring.settingsRepository.addAppsToDrawerFolder(id, members.map { byPackage.getValue(it).key }) }
         awaitState("the folder holds the two") { s -> s.folders.firstOrNull()?.apps?.size == 2 }
-        val copy = runBlocking {
+        val copy = whileTheMainLooperTurns {
             (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
         }
         settle()
@@ -335,7 +334,7 @@ class AppDrawerScreenTest {
         assertThat(drag.moving).isTrue()
 
         // The switch that had been waiting is made while the folder is in the air.
-        runBlocking { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
+        whileTheMainLooperTurns { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
         awaitState("the copy is on") { it.homeProfileId == copy && it.folders.firstOrNull()?.apps?.size == 2 }
         settle()
 
@@ -345,7 +344,7 @@ class AppDrawerScreenTest {
         settle()
         Thread.sleep(300)
         settle()
-        val rows = runBlocking { wiring.homeLayoutRepository.profilesWithRows() }
+        val rows = whileTheMainLooperTurns { wiring.homeLayoutRepository.profilesWithRows() }
         assertThat(rows).isEmpty()
     }
 
@@ -353,13 +352,13 @@ class AppDrawerScreenTest {
     @Test fun anAppsMenuGoesWhenAnotherProfileComesOn() {
         show()
         awaitText(mailApp)
-        val copy = runBlocking {
+        val copy = whileTheMainLooperTurns {
             (wiring.homeProfiles.create("Copy", copyOf = 1) as HomeProfileRepository.Created.Done).profile.id
         }
         compose.onNodeWithText(mailApp).performTouchInput { longClick() }
         awaitText(appInfo())
 
-        runBlocking { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
+        whileTheMainLooperTurns { assertThat(wiring.homeProfiles.switchTo(copy)).isTrue() }
         awaitState("the copy is on") { it.homeProfileId == copy }
         settle()
 
@@ -412,7 +411,7 @@ class AppDrawerScreenTest {
 
     /** The setting sorts the folders by name, case aside; off, they keep the user's order. */
     @Test fun foldersSortByNameWhenTheSettingIsOn() {
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.settingsRepository.createDrawerFolder("Tools")
             wiring.settingsRepository.createDrawerFolder("games")
         }
@@ -420,13 +419,13 @@ class AppDrawerScreenTest {
         awaitState("both folders are listed") { it.folders.size == 2 }
         assertThat(viewModel.uiState.value.folders.map { it.name }).containsExactly("Tools", "games").inOrder()
 
-        runBlocking { wiring.settingsRepository.setSortDrawerFolders(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setSortDrawerFolders(true) }
         awaitState("the folders are sorted") { it.folders.map { f -> f.name } == listOf("games", "Tools") }
     }
 
     /** The editor moves its folder a step among the folders; the first cannot go earlier. */
     @Test fun theEditorMovesAFolderLater() {
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.settingsRepository.createDrawerFolder("Tools")
             wiring.settingsRepository.createDrawerFolder("Games")
         }
@@ -457,7 +456,7 @@ class AppDrawerScreenTest {
 
     /** Sorted A-Z the order is not the user's to change, so the editor offers no moves. */
     @Test fun theEditorHidesMovesWhileFoldersSortByName() {
-        runBlocking { wiring.settingsRepository.setSortDrawerFolders(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setSortDrawerFolders(true) }
         showWithFolder()
         awaitState("the setting reached the drawer") { it.sortDrawerFolders }
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
@@ -469,7 +468,7 @@ class AppDrawerScreenTest {
 
     /** Issue #22: off, the folders lead the grid; on, a folder takes its place among the apps by name. */
     @Test fun foldersSitAmongTheAppsByNameWhenMixingIsOn() {
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.settingsRepository.createDrawerFolder("Tools")
             wiring.settingsRepository.createDrawerFolder("games")
         }
@@ -479,7 +478,7 @@ class AppDrawerScreenTest {
         assertThat(orderOf("Tools")).isLessThan(orderOf("games"))
         assertThat(orderOf("games")).isLessThan(orderOf(mailApp))
 
-        runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setMixDrawerFolders(true) }
         awaitState("the setting reached the drawer") { it.mixDrawerFolders }
         settle()
         assertThat(orderOf(mailApp)).isLessThan(orderOf("games"))
@@ -495,11 +494,11 @@ class AppDrawerScreenTest {
     /** A Telegram request: the drawer's folder card has as many columns as the folder columns setting. */
     @Test fun theFolderCardFollowsTheFolderColumnsSetting() {
         val members = listOf(mailApp, mapsApp, notesApp, docsApp)
-        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        val id = whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
         awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
         val keys = viewModel.uiState.value.apps.filter { it.packageName in members }.map { it.key }
-        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        whileTheMainLooperTurns { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
         awaitState("the folder holds the four") { it.folders.firstOrNull()?.apps?.size == 4 }
         settle()
         compose.onNodeWithText("Tools").performClick()
@@ -508,7 +507,7 @@ class AppDrawerScreenTest {
         // Four members A-Z: com.docs, com.mail, com.maps, com.notes fill one row of four.
         assertThat(topOf(notesApp)).isEqualTo(topOf(mailApp))
 
-        runBlocking { wiring.settingsRepository.setFolderColumns(3) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setFolderColumns(3) }
         awaitState("the setting reached the drawer") { it.folderColumns == 3 }
         settle()
         assertThat(topOf(notesApp)).isGreaterThan(topOf(mailApp))
@@ -517,11 +516,11 @@ class AppDrawerScreenTest {
     /** A Telegram request after 1.0.4: the folder card follows the folder appearance settings (app names off). */
     @Test fun theFolderCardFollowsTheFolderAppearanceSettings() {
         val members = listOf(mailApp, mapsApp)
-        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        val id = whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
         awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
         val keys = viewModel.uiState.value.apps.filter { it.packageName in members }.map { it.key }
-        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        whileTheMainLooperTurns { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
         awaitState("the folder holds the two") { it.folders.firstOrNull()?.apps?.size == 2 }
         settle()
         compose.onNodeWithText("Tools").performClick()
@@ -529,7 +528,7 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_FOLDER_CARD_TAG).assertExists()
         compose.onNodeWithText(mailApp).assertExists()
 
-        runBlocking { wiring.settingsRepository.setFolderShowLabels(false) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setFolderShowLabels(false) }
         awaitState("the setting reached the drawer") { !it.folderStyle.showLabels }
         settle()
 
@@ -540,11 +539,11 @@ class AppDrawerScreenTest {
     /** Issue #31: an app on a folder's card has the long-press menu an app in the grid has, and the card stays
      *  under the menu (the menu changes nothing in the folder). */
     @Test fun aLongPressOnAnAppOfTheFolderCardOpensItsMenu() {
-        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        val id = whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
         awaitState("the app is listed") { s -> s.apps.any { it.packageName == mailApp } }
         val keys = viewModel.uiState.value.apps.filter { it.packageName == mailApp }.map { it.key }
-        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        whileTheMainLooperTurns { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
         awaitState("the folder holds it") { it.folders.firstOrNull()?.apps?.size == 1 }
         settle()
         compose.onNodeWithText("Tools").performClick()
@@ -572,7 +571,7 @@ class AppDrawerScreenTest {
     /** Issue #30 (a follow-up): the lock keeps the home screen as it is, not the menu shut. A hold on an app of
      *  the grid opens the menu's short form and lifts nothing, so a pull afterwards drags nothing out. */
     @Test fun onALockedDesktopAHoldOnAnAppOfTheGridOpensTheShortMenuAndLiftsNothing() {
-        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDesktopLocked(true) }
         show()
         awaitState("the app is listed, on a locked desktop") { s -> s.desktopLocked && s.apps.any { it.packageName == mailApp } }
         settle()
@@ -594,7 +593,7 @@ class AppDrawerScreenTest {
 
     /** The same on a folder's card: the short menu, and the card stays under it (the release is no tap). */
     @Test fun onALockedDesktopAHoldOnAnAppOfTheFolderCardOpensTheShortMenu() {
-        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDesktopLocked(true) }
         showWithFilledFolder()
         awaitState("the lock reached the drawer") { it.desktopLocked }
         settle()
@@ -610,7 +609,7 @@ class AppDrawerScreenTest {
 
     /** A tap on the card's app still launches it on a locked desktop (the card closes with the launch). */
     @Test fun onALockedDesktopATapOnAnAppOfTheFolderCardStillLaunchesIt() {
-        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDesktopLocked(true) }
         showWithFilledFolder()
         awaitState("the lock reached the drawer") { it.desktopLocked }
         settle()
@@ -628,7 +627,7 @@ class AppDrawerScreenTest {
 
     /** The drawer with the "most used" card showing the mail app; returns once it is laid out. */
     private fun showWithAMostUsedApp(searchAtBottom: Boolean) {
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.settingsRepository.setShowFrequentApps(true)
             wiring.settingsRepository.setDrawerSearchAtBottom(searchAtBottom)
         }
@@ -684,7 +683,7 @@ class AppDrawerScreenTest {
     /** The same on the "most used" card, the drawer's third way to an app's menu: it never asked the lock (older
      *  than the folder card's menu), and "Add to home" went through from there too. */
     @Test fun onALockedDesktopAHoldOnAMostUsedAppOpensTheShortMenu() {
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.settingsRepository.setDesktopLocked(true)
             wiring.settingsRepository.setShowFrequentApps(true)
         }
@@ -703,12 +702,12 @@ class AppDrawerScreenTest {
 
     /** The drawer's folder "Tools" holding Mail and Maps, on screen. */
     private fun showWithFilledFolder() {
-        val id = runBlocking { wiring.settingsRepository.createDrawerFolder("Tools") }
+        val id = whileTheMainLooperTurns { wiring.settingsRepository.createDrawerFolder("Tools") }
         show()
         val members = listOf(mailApp, mapsApp)
         awaitState("the apps are listed") { s -> members.all { p -> s.apps.any { it.packageName == p } } }
         val keys = viewModel.uiState.value.apps.filter { it.packageName in members }.map { it.key }
-        runBlocking { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
+        whileTheMainLooperTurns { wiring.settingsRepository.addAppsToDrawerFolder(id, keys) }
         awaitState("the folder holds the two") { it.folders.firstOrNull()?.apps?.size == 2 }
         settle()
     }
@@ -742,7 +741,7 @@ class AppDrawerScreenTest {
         settle()
         assertThat(drag.isDragging).isFalse()
         compose.onNodeWithText(addApps()).assertDoesNotExist()
-        assertThat(runBlocking { wiring.homeLayoutRepository.homeItems.first() }).isEmpty()
+        assertThat(whileTheMainLooperTurns { wiring.homeLayoutRepository.homeItems.first() }).isEmpty()
     }
 
     /** Dropped on the home grid, a copy of the folder is made there; the drawer keeps its own. */
@@ -763,7 +762,7 @@ class AppDrawerScreenTest {
         settle()
 
         val deadline = System.currentTimeMillis() + 10_000
-        while (runBlocking { wiring.homeLayoutRepository.homeItems.first() }.count { !it.isFolder } < 2) {
+        while (whileTheMainLooperTurns { wiring.homeLayoutRepository.homeItems.first() }.count { !it.isFolder } < 2) {
             check(System.currentTimeMillis() < deadline) { "Timed out waiting for the folder's copy on home" }
             Thread.sleep(20)
             // The drop's work may still have a step waiting on the main thread: a wait that only sleeps never
@@ -771,7 +770,7 @@ class AppDrawerScreenTest {
             shadowOf(Looper.getMainLooper()).idle()
             compose.waitForIdle()
         }
-        val rows = runBlocking { wiring.homeLayoutRepository.homeItems.first() }
+        val rows = whileTheMainLooperTurns { wiring.homeLayoutRepository.homeItems.first() }
         val folder = rows.single { it.isFolder }
         assertThat(folder.folderName).isEqualTo("Tools")
         assertThat(rows.filter { it.containerId == folder.id }.map { it.packageName }).containsExactly(mailApp, mapsApp)
@@ -807,7 +806,7 @@ class AppDrawerScreenTest {
 
     /** A locked desktop takes nothing new: the folder is not lifted; its editor (the drawer's own) still opens. */
     @Test fun onALockedDesktopAFolderIsNotLifted() {
-        runBlocking { wiring.settingsRepository.setDesktopLocked(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDesktopLocked(true) }
         showWithFilledFolder()
         awaitState("the lock reached the drawer") { it.desktopLocked }
         settle()
@@ -822,7 +821,7 @@ class AppDrawerScreenTest {
 
     /** Mixed among the apps the order is by name, so the editor offers no moves. */
     @Test fun theEditorHidesMovesWhileFoldersMixWithTheApps() {
-        runBlocking { wiring.settingsRepository.setMixDrawerFolders(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setMixDrawerFolders(true) }
         showWithFolder()
         awaitState("the setting reached the drawer") { it.mixDrawerFolders }
         compose.onNodeWithText("Tools").performTouchInput { longClick() }
@@ -837,7 +836,7 @@ class AppDrawerScreenTest {
         show()
         awaitState("the default opacity") { it.backgroundOpacity == 1f }
 
-        runBlocking { wiring.settingsRepository.setDrawerBackgroundOpacity(0.6f) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerBackgroundOpacity(0.6f) }
         awaitState("the chosen opacity") { it.backgroundOpacity == 0.6f }
     }
 
@@ -847,10 +846,10 @@ class AppDrawerScreenTest {
         show()
         awaitState("the theme's colour") { it.backgroundColor == null }
 
-        runBlocking { wiring.settingsRepository.setDrawerBackgroundColor(0xFF42A5F5.toInt()) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerBackgroundColor(0xFF42A5F5.toInt()) }
         awaitState("the chosen colour") { it.backgroundColor == 0xFF42A5F5.toInt() }
 
-        runBlocking { wiring.settingsRepository.setDrawerBackgroundColor(null) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerBackgroundColor(null) }
         awaitState("the theme's colour again") { it.backgroundColor == null }
     }
 
@@ -860,10 +859,10 @@ class AppDrawerScreenTest {
         show()
         awaitState("automatic") { it.labelColor == null }
 
-        runBlocking { wiring.settingsRepository.setDrawerLabelColor(0xFF42A5F5.toInt()) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerLabelColor(0xFF42A5F5.toInt()) }
         awaitState("the chosen colour") { it.labelColor == 0xFF42A5F5.toInt() }
 
-        runBlocking { wiring.settingsRepository.setDrawerLabelColor(null) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerLabelColor(null) }
         awaitState("automatic again") { it.labelColor == null }
     }
 
@@ -876,15 +875,15 @@ class AppDrawerScreenTest {
      */
     @Test fun theDrawerDoesNotShowAnotherProfilesPicture() {
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
+        whileTheMainLooperTurns { wiring.drawerWallpaper.set(dark, 1) }
         show()
         awaitState("the first profile's picture") { it.homeProfileId == 1L && it.wallpaper != null }
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertExists()
-        val work = runBlocking {
+        val work = whileTheMainLooperTurns {
             (wiring.homeProfiles.create("Work", copyOf = null) as HomeProfileRepository.Created.Done).profile.id
         }
 
-        runBlocking { assertThat(wiring.homeProfiles.switchTo(work)).isTrue() }
+        whileTheMainLooperTurns { assertThat(wiring.homeProfiles.switchTo(work)).isTrue() }
         awaitState("Work is on") { it.homeProfileId == work }
         settle()
 
@@ -892,7 +891,7 @@ class AppDrawerScreenTest {
         assertThat(viewModel.uiState.value.wallpaper).isNull()
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
         // Back on the first profile, its picture is its own again.
-        runBlocking { assertThat(wiring.homeProfiles.switchTo(1)).isTrue() }
+        whileTheMainLooperTurns { assertThat(wiring.homeProfiles.switchTo(1)).isTrue() }
         awaitState("the first profile's picture again") { it.homeProfileId == 1L && it.wallpaper != null }
     }
 
@@ -904,11 +903,11 @@ class AppDrawerScreenTest {
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
 
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
+        whileTheMainLooperTurns { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertExists()
 
-        runBlocking { wiring.drawerWallpaper.clear(1) }
+        whileTheMainLooperTurns { wiring.drawerWallpaper.clear(1) }
         awaitState("no picture again") { it.wallpaper == null }
         compose.onNodeWithTag(DRAWER_WALLPAPER_TAG).assertDoesNotExist()
     }
@@ -918,7 +917,7 @@ class AppDrawerScreenTest {
         show()
         awaitState("no dim") { it.pictureDim == 0f }
 
-        runBlocking { wiring.settingsRepository.setDrawerPictureDim(0.3f) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerPictureDim(0.3f) }
         awaitState("the chosen dim") { it.pictureDim == 0.3f }
     }
 
@@ -928,11 +927,11 @@ class AppDrawerScreenTest {
         show()
         awaitText("com.mail")
         val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0L, "Mail")
-        runBlocking { wiring.homeLayoutRepository.addToHome(mail, columns = 4, rows = 6) }
+        whileTheMainLooperTurns { wiring.homeLayoutRepository.addToHome(mail, columns = 4, rows = 6) }
         awaitState("home knows the app") { mail.key in it.homeKeys }
         compose.onNodeWithText("com.mail").assertExists() // the default: still listed
 
-        runBlocking { wiring.settingsRepository.setHideHomeAppsFromDrawer(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setHideHomeAppsFromDrawer(true) }
         awaitState("the app left the list") { it.apps.none { a -> a.key == mail.key } }
         settle()
         compose.onAllNodesWithText("com.mail").assertCountEquals(0)
@@ -946,13 +945,13 @@ class AppDrawerScreenTest {
         show()
         awaitText("com.mail")
         val mail = AppItem("com.mail", "com.mail.Main", Process.myUserHandle(), 0L, "Mail")
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.homeLayoutRepository.addToDock(mail)
             wiring.settingsRepository.setHideHomeAppsFromDrawer(true)
         }
         awaitState("the dock app left the list") { it.apps.none { a -> a.key == mail.key } }
 
-        runBlocking { wiring.settingsRepository.setDockEnabled(false) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDockEnabled(false) }
         awaitState("the dock is off, the app is back") { it.apps.any { a -> a.key == mail.key } }
     }
 
@@ -961,15 +960,15 @@ class AppDrawerScreenTest {
         show()
         awaitState("the default scale") { it.iconScale == 1f }
 
-        runBlocking { wiring.settingsRepository.setIconScale(1.2f) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setIconScale(1.2f) }
         awaitState("home's scale while the drawer's is unset") { it.iconScale == 1.2f }
-        runBlocking { wiring.settingsRepository.setDrawerIconScale(0.9f) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerIconScale(0.9f) }
         awaitState("the drawer's own scale") { it.iconScale == 0.9f }
     }
 
     /** Issue #17: with "Show folder names" off the drawer's folder tiles carry no name. */
     @Test fun theFolderTileHidesItsNameWhenTheSettingIsOff() {
-        runBlocking {
+        whileTheMainLooperTurns {
             wiring.settingsRepository.setShowDrawerFolderNames(false)
             wiring.settingsRepository.createDrawerFolder("Tools")
         }
@@ -981,7 +980,7 @@ class AppDrawerScreenTest {
         // Only the visible text goes: TalkBack still gets the name from the tile.
         compose.onNodeWithContentDescription("Tools").assertExists()
 
-        runBlocking { wiring.settingsRepository.setShowDrawerFolderNames(true) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setShowDrawerFolderNames(true) }
         awaitText("Tools")
         compose.onAllNodesWithContentDescription("Tools").assertCountEquals(0)
     }
@@ -1070,7 +1069,7 @@ class AppDrawerScreenTest {
     @Test fun theEditDialogKeepsItsOwnTextOverADarkPicture() {
         showWithApp()
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
+        whileTheMainLooperTurns { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         settle()
         assertThat(textColorOf(mailApp).luminance()).isGreaterThan(0.5f)
@@ -1087,7 +1086,7 @@ class AppDrawerScreenTest {
     @Test fun theSearchSectionTitlesFollowTheDrawersTextOverADarkPicture() {
         showWithApp()
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
+        whileTheMainLooperTurns { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         settle()
 
@@ -1111,7 +1110,7 @@ class AppDrawerScreenTest {
         assertThat(textColorOf(hint).luminance()).isLessThan(0.5f)
 
         val dark = createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.BLACK) }
-        runBlocking { wiring.drawerWallpaper.set(dark, 1) }
+        whileTheMainLooperTurns { wiring.drawerWallpaper.set(dark, 1) }
         awaitState("the dark picture") { it.wallpaper != null && it.wallpaper!!.luminance < 0.05f }
         settle()
 

@@ -9,7 +9,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import org.arkikeskus.launcher.data.ProfileKind
 import org.arkikeskus.launcher.data.ProfileSnapshot
@@ -68,7 +67,7 @@ class DrawerBottomSearchTabsTest {
     }
 
     private fun showWithTheSearchField(atBottom: Boolean) {
-        runBlocking { wiring.settingsRepository.setDrawerSearchAtBottom(atBottom) }
+        whileTheMainLooperTurns { wiring.settingsRepository.setDrawerSearchAtBottom(atBottom) }
         compose.setContent { AppDrawerScreen(onClose = {}, onOpenSettings = {}, viewModel = viewModel) }
         await("the tabs and the apps") {
             val state = viewModel.uiState.value

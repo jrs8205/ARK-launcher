@@ -6,12 +6,17 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
+import android.os.Looper
 import android.os.Process
 import android.os.UserHandle
+import androidx.datastore.core.DataMigration
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -53,6 +58,8 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.util.ReflectionHelpers
 import org.robolectric.util.ReflectionHelpers.ClassParameter.from
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.inject.Provider
 import kotlin.jvm.functions.Function0
 
@@ -70,7 +77,17 @@ internal class DrawerWiring(
     /** False keeps the settings (and the further home profiles' own) in memory ([InMemoryPreferences]): for a
      *  test that writes them and is not about the file. */
     settingsOnDisk: Boolean = true,
+    /** True keeps the settings file's first read from ending until the test lets it ([settingsFirstReadMayEnd]):
+     *  for a test that is about a slow one (a busy machine makes it slow by itself). Whoever asks the file
+     *  first makes that read, and everyone else who asks waits for it. */
+    settingsFirstReadWaits: Boolean = false,
 ) {
+    /** Open once the settings file's first read is under way, where it waits to be let go on. */
+    val settingsFirstReadBegan = CountDownLatch(1)
+
+    /** Opened by the test: the settings file's first read may end. */
+    val settingsFirstReadMayEnd = CountDownLatch(1)
+
     /** The device's profiles now. A lock or unlock request is granted at once and reported, as Android does. */
     var profiles: List<ProfileSnapshot> = initialProfiles
         private set
@@ -100,9 +117,10 @@ internal class DrawerWiring(
     private val settingsFile: Any = if (!settingsOnDisk) InMemoryPreferences() else Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
         val file = File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
         val produceFile: () -> File = { file }
+        val atFirstRead = if (settingsFirstReadWaits) listOf(HeldFirstRead(settingsFirstReadBegan, settingsFirstReadMayEnd)) else emptyList()
         factory.methods
             .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
-            .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
+            .invoke(factory.getField("INSTANCE").get(null), null, atFirstRead, dataStoreScope, produceFile)
     }
 
     /** The settings kept in memory, where the test asked for that: the way to make their writes fail. */
@@ -190,6 +208,62 @@ internal class DrawerWiring(
     fun close() {
         dataStoreScope.cancel()
         db.javaClass.getMethod("close").invoke(db)
+    }
+}
+
+/**
+ * A first read of the settings file that does not end before the test lets it ([mayEnd]), or ten seconds
+ * have passed. The file's store runs this once, inside the read that every other reader waits for, and
+ * nothing is changed by it.
+ */
+private class HeldFirstRead(private val began: CountDownLatch, private val mayEnd: CountDownLatch) : DataMigration<Preferences> {
+    override suspend fun shouldMigrate(currentData: Preferences): Boolean {
+        began.countDown()
+        mayEnd.await(10, TimeUnit.SECONDS)
+        return false
+    }
+
+    override suspend fun migrate(currentData: Preferences): Preferences = currentData
+
+    override suspend fun cleanUp() = Unit
+}
+
+/**
+ * Runs [work], which asks something of the stores (the settings, the home rows, the home profiles), on
+ * another thread while the main looper turns, and hands back what it gave or throws what it threw.
+ *
+ * In place of `runBlocking` on the test's own thread. That thread is the main thread, and a view model's
+ * coroutines go on there only when its looper turns. The stores hand a lock on to whoever has waited for it
+ * longest: the settings file makes its first read under one, and every change of the settings and every
+ * switch of the home profile is made under one. Handed to a view model's coroutine, the lock is given back
+ * when the looper turns, and a test that waits for it with the looper stopped waits for good. A run of the
+ * whole test task stood still so on a busy machine, where the first read took long enough for a test to come
+ * and wait behind the view model ([WhileTheMainLooperTurnsTest]).
+ *
+ * Not done within [limitMs]: the test fails ("Timed out waiting for [what]"), and never hangs. The work is
+ * not this call's child, since a parent waits for its child, and work that cannot be cancelled would keep
+ * the test waiting. It is told to end, and the looper turns on for as long again while it does: whoever has
+ * the lock may need a turn of the looper to let go of it. Work that still has not ended by then is left
+ * behind, and the failure is given all the same.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun <T> whileTheMainLooperTurns(what: String = "what was asked of the stores", limitMs: Long = 10_000, work: suspend () -> T): T {
+    val asked = CoroutineScope(Dispatchers.Default).async { work() }
+    turnTheMainLooper(limitMs) { asked.isCompleted }
+    if (!asked.isCompleted) {
+        asked.cancel()
+        turnTheMainLooper(limitMs) { asked.isCompleted }
+        error("Timed out waiting for $what")
+    }
+    return asked.getCompleted()
+}
+
+/** Turns the main looper until [done], for [limitMs] at most. */
+private fun turnTheMainLooper(limitMs: Long, done: () -> Boolean) {
+    val deadline = System.currentTimeMillis() + limitMs
+    while (!done() && System.currentTimeMillis() < deadline) {
+        shadowOf(Looper.getMainLooper()).idle()
+        if (!done()) Thread.sleep(2)
     }
 }
 

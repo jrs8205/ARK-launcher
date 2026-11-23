@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import org.arkikeskus.launcher.data.ProfileKind
 import org.arkikeskus.launcher.data.ProfileSnapshot
@@ -43,7 +42,7 @@ class PrivateTabStateTest {
     private fun drawer(vararg profiles: ProfileSnapshot, before: suspend (DrawerWiring) -> Unit = {}) {
         installFakeApp(context, "com.mail", "Mail")
         wiring = DrawerWiring(context, TestScope(), profiles.toList())
-        runBlocking { before(wiring) }
+        whileTheMainLooperTurns { before(wiring) }
         viewModel = wiring.viewModel()
         collector.launch { viewModel.uiState.collect {} }
         // The stores answer from their own threads: the app list is there once they have.
