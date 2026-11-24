@@ -49,4 +49,10 @@ class ProfileNoticesTest {
         assertThat(gridNotice(GridChange.Failed)).isEqualTo(SettingsNotice.PROFILE_NOT_CHANGED)
         assertThat(gridNotice(GridChange.ReflowedButNotSaved)).isEqualTo(SettingsNotice.GRID_REFLOWED)
     }
+
+    @Test fun finnishGridReflowNoticeUsesTheApprovedWording() {
+        val config = Configuration(context.resources.configuration).apply { setLocale(Locale.forLanguageTag("fi")) }
+        val text = context.createConfigurationContext(config).getString(settingsNoticeText(SettingsNotice.GRID_REFLOWED))
+        assertThat(text).isEqualTo("Ruudukon kokoa ei voitu tallentaa. Kotinäytön kohteet ovat saattaneet siirtyä.")
+    }
 }
