@@ -197,21 +197,33 @@ class HomeProfileRepository @Inject constructor(
     }
 
     /** Reserve the pick before reading the list. Decode and encode outside the profile lock, then
-     * publish only while the target is still listed. Cancelling or failing a read leaves the old file intact. */
+     * publish only while the target is still listed. A failed read keeps the old file. Once staged, the
+     * pick finishes its profile and ticket checks even if Settings closes. */
     suspend fun setDrawerPicture(
         profileId: Long,
         save: suspend (DrawerWallpaperStore, DrawerWallpaperStore.Pick) -> Boolean,
     ): Boolean {
         val pick = drawerPictures.stagedPick(profileId)
         return try {
-            if (store.list().none { it.id == profileId } || !save(drawerPictures, pick)) return false
-            store.whileActiveStays {
-                store.list().any { it.id == profileId } && drawerPictures.publishPrepared(pick)
+            if (store.list().none { it.id == profileId }) return false
+            val prepared = try {
+                save(drawerPictures, pick)
+            } catch (cancelled: CancellationException) {
+                // The IO dispatcher may have staged the file just before returning to a cancelled caller.
+                if (pick.prepared != null) confirmPreparedPicture(pick)
+                throw cancelled
             }
+            prepared && confirmPreparedPicture(pick)
         } catch (_: IOException) {
             false
         } finally {
             withContext(NonCancellable) { drawerPictures.discardPrepared(pick) }
+        }
+    }
+
+    private suspend fun confirmPreparedPicture(pick: DrawerWallpaperStore.Pick): Boolean = withContext(NonCancellable) {
+        withReadableProfile(false) {
+            store.list().any { it.id == pick.profile } && drawerPictures.publishPrepared(pick)
         }
     }
 

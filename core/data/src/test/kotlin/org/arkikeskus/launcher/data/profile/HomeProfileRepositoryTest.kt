@@ -587,7 +587,7 @@ class HomeProfileRepositoryTest {
         val folder = File(context.filesDir, "drawer_wallpaper_${work.id}")
         var saves = 0
 
-        // Deleted while the picture was being read and saved: the save brings its folder back.
+        // Deleted while the picker was reading. Staging must leave the deleted profile folder absent.
         val whileSaving = profiles.setDrawerPicture(work.id) { store, pick ->
             assertThat(profiles.delete(work.id)).isEqualTo(HomeProfileRepository.Deleted.Done)
             saves++
@@ -1117,5 +1117,41 @@ class HomeProfileRepositoryTest {
         val thrown = runCatching { layout.whileProfileIsOn(1) { throw failure } }.exceptionOrNull()
         assertThat(thrown).isInstanceOf(java.io.IOException::class.java)
         assertThat(thrown).hasMessageThat().isEqualTo(failure.message)
+    }
+
+    @Test fun aPreparedPictureIsPublishedAfterSettingsClosesWhileWaitingForTheLock() = runBlocking<Unit> {
+        assertThat(drawerPictures.set(picture(Color.RED), 1)).isTrue()
+        val old = checkNotNull(drawerPictures.current.value).file
+        val prepared = CompletableDeferred<Unit>()
+        val picking = store.whileActiveStays {
+            launch {
+                profiles.setDrawerPicture(1) { pictures, pick ->
+                    pictures.set(picture(Color.BLUE), pick).also { check(it); prepared.complete(Unit) }
+                }
+            }.also {
+                withTimeout(5_000) { prepared.await() }
+                it.cancel()
+            }
+        }
+        withTimeout(5_000) { picking.join() }
+        assertThat(old.exists()).isFalse()
+        assertThat(drawerPictures.current.value!!.file.isFile).isTrue()
+        assertThat(context.filesDir.walk().none { it.extension == "part" }).isTrue()
+    }
+
+    @Test fun cancellationAsThePreparedFileReturnsFromTheWriterStillFinishesThePick() = runBlocking<Unit> {
+        val prepared = CompletableDeferred<Unit>()
+        val picking = launch {
+            profiles.setDrawerPicture(1) { pictures, pick ->
+                check(pictures.set(picture(Color.BLUE), pick))
+                prepared.complete(Unit)
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        withTimeout(5_000) { prepared.await() }
+        picking.cancel()
+        withTimeout(5_000) { picking.join() }
+        assertThat(drawerPictures.current.value!!.file.isFile).isTrue()
+        assertThat(context.filesDir.walk().none { it.extension == "part" }).isTrue()
     }
 }
