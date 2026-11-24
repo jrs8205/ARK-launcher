@@ -522,4 +522,20 @@ class DrawerWallpaperStoreTest {
         assertThat(store.current.value!!.luminance).isWithin(0.01f).of(0f)
         assertThat(jpgs()).containsExactly(store.current.value!!.file)
     }
+
+    @Test fun discardingAnOvertakenPickKeepsTheNextWritersDirectory() = runTest {
+        val store = DrawerWallpaperStore(context)
+        val old = store.stagedPick(1)
+        assertThat(store.set(picture(Color.RED), old)).isTrue()
+        val next = store.stagedPick(1)
+        // A writer has made the destination directory but has not opened its file yet.
+        dir.mkdirs()
+        store.discardPrepared(old)
+        assertThat(dir.isDirectory).isTrue()
+
+        assertThat(store.set(picture(Color.BLUE), next)).isTrue()
+        assertThat(store.publishPrepared(next)).isTrue()
+        assertThat(dir.listFiles()!!.toList()).containsExactly(store.current.value!!.file)
+        assertThat(context.filesDir.walk().none { it.extension == "part" }).isTrue()
+    }
 }

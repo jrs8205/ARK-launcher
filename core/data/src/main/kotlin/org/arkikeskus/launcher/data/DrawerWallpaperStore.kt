@@ -238,9 +238,6 @@ class DrawerWallpaperStore internal constructor(
         synchronized(publishLock) {
             pick.prepared?.file?.delete()
             pick.prepared = null
-            // A deleted profile's slow writer can have recreated its folder. Only an empty folder can go.
-            dirOf(pick.profile).delete()
-            Unit
         }
     }
 
@@ -353,7 +350,7 @@ class DrawerWallpaperStore internal constructor(
     }
 
     /**
-     * Encodes [picture] into a part-file in the [pick]'s profile folder (not a picture yet: [load] never takes
+     * Encodes [picture] into its own part-file in the staging folder (not a picture yet: [load] never takes
      * one), then -- if the ticket is still that profile's latest action -- renames it under the lock to its final name,
      * which carries its lightness ([pictureFileName]), and shows it when its profile is the one that shows. The rename
      * is atomic, so a start can only ever load a picture that was published whole, with its own lightness; a process
@@ -364,7 +361,9 @@ class DrawerWallpaperStore internal constructor(
      * launcher down).
      */
     private fun save(picture: Bitmap, pick: Pick): Boolean {
-        val folder = dirOf(pick.profile)
+        // Staging outside the profile lets deletion remove its folder even while an encoder is running.
+        // The startup sweep also covers this folder and its abandoned part-files.
+        val folder = File(context.filesDir, "${FIRST_DIR}_pending")
         folder.mkdirs()
         val part = File(folder, "${UUID.randomUUID()}$PART_SUFFIX")
         val lightness = runCatching {
@@ -389,9 +388,13 @@ class DrawerWallpaperStore internal constructor(
         val ready = pick.prepared ?: return false
         pick.prepared = null
         val folder = dirOf(pick.profile)
+        if (pick.ticket != ticketsOf(pick.profile).get() || (!folder.isDirectory && !folder.mkdirs())) {
+            ready.file.delete()
+            return false
+        }
         val replaced = publishedPictures(folder)
         val target = File(folder, pictureFileName(ready.luminance))
-        if (pick.ticket != ticketsOf(pick.profile).get() || !ready.file.renameTo(target)) {
+        if (!ready.file.renameTo(target)) {
             ready.file.delete()
             return false
         }
@@ -401,8 +404,8 @@ class DrawerWallpaperStore internal constructor(
     }
 
     /**
-     * What a start comes up with: the first home profile's picture, after the part-files a dead process left in ANY
-     * profile's folder are swept. Only here, where no save of this process can be under way: a later [load] (the
+     * What a start comes up with: the first home profile's picture, after the part-files a dead process left in
+     * the staging folder or any profile folder are swept. Only here, where no save of this process can be under way: a later [load] (the
      * store turning to a profile) may run while a pick for that very profile is being written.
      */
     private fun atStart(): DrawerWallpaper? {
