@@ -317,6 +317,7 @@
     <string name="settings_profile_explain">En profil är en vy i den här startskärmsappen, inte Androids jobbprofil. Appar som en profil utelämnar fortsätter att köras och skicka aviseringar.</string>
     <string name="settings_profile_limit">Gränsen på 8 profiler är nådd</string>
     <string name="settings_profile_create_failed">Profilen kunde inte skapas. Ingenting ändrades.</string>
+    <string name="settings_grid_reflowed">Rutnätets storlek kunde inte sparas. Objekt på startskärmen kan ha flyttats.</string>
     <string name="settings_profile_change_failed">Ändringen kunde inte sparas. Ingenting ändrades.</string>
     <string name="settings_profile_delete_failed">Profilen kunde inte raderas. Ingenting togs bort.</string>
     <string name="settings_profile_left_empty">Profilens startskärm togs bort, men profilen finns kvar i listan. Radera den igen.</string>

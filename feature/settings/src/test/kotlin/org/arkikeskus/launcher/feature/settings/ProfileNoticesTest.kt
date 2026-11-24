@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository.Deleted
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository.GridChange
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -40,5 +41,12 @@ class ProfileNoticesTest {
                 assertWithMessage("$notice in $language").that(res.getString(settingsNoticeText(notice))).isNotEqualTo(text)
             }
         }
+    }
+
+    @Test fun aFailedGridWriteAfterReflowHasItsOwnNotice() {
+        assertThat(gridNotice(GridChange.Refused)).isNull()
+        assertThat(gridNotice(GridChange.Saved)).isNull()
+        assertThat(gridNotice(GridChange.Failed)).isEqualTo(SettingsNotice.PROFILE_NOT_CHANGED)
+        assertThat(gridNotice(GridChange.ReflowedButNotSaved)).isEqualTo(SettingsNotice.GRID_REFLOWED)
     }
 }

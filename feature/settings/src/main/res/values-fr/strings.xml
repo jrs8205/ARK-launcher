@@ -321,6 +321,7 @@
     <string name="settings_profile_explain">Un profil est une vue de ce lanceur, pas le profil professionnel d\'Android. Les applications qu\'un profil laisse de côté continuent de fonctionner et d\'envoyer des notifications.</string>
     <string name="settings_profile_limit">La limite de 8 profils est atteinte</string>
     <string name="settings_profile_create_failed">Le profil n\'a pas pu être créé. Rien n\'a été modifié.</string>
+    <string name="settings_grid_reflowed">Impossible d’enregistrer la taille de la grille. Des éléments de l’écran d’accueil ont peut-être été déplacés.</string>
     <string name="settings_profile_change_failed">La modification n\'a pas pu être enregistrée. Rien n\'a été modifié.</string>
     <string name="settings_profile_delete_failed">Le profil n\'a pas pu être supprimé. Rien n\'a été retiré.</string>
     <string name="settings_profile_left_empty">L\'écran d\'accueil du profil a été supprimé, mais le profil est toujours dans la liste. Supprimez-le de nouveau.</string>

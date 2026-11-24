@@ -321,6 +321,7 @@
     <string name="settings_profile_explain">Um perfil é uma visão deste launcher, não o perfil de trabalho do Android. Os apps que um perfil deixa de fora continuam funcionando e enviando notificações.</string>
     <string name="settings_profile_limit">O limite de 8 perfis foi atingido</string>
     <string name="settings_profile_create_failed">Não foi possível criar o perfil. Nada foi alterado.</string>
+    <string name="settings_grid_reflowed">Não foi possível salvar o tamanho da grade. Os itens na tela inicial podem ter mudado de lugar.</string>
     <string name="settings_profile_change_failed">Não foi possível salvar a alteração. Nada foi alterado.</string>
     <string name="settings_profile_delete_failed">Não foi possível excluir o perfil. Nada foi removido.</string>
     <string name="settings_profile_left_empty">A tela inicial do perfil foi removida, mas o perfil ainda está na lista. Exclua-o novamente.</string>

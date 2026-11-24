@@ -34,7 +34,7 @@ import javax.inject.Inject
 import org.arkikeskus.launcher.model.IconShape
 
 /** Something Settings tells the user once, when what was asked for did not happen. */
-internal enum class SettingsNotice { PROFILE_NOT_MADE, PROFILE_NOT_CHANGED, PROFILE_NOT_DELETED, PROFILE_LEFT_EMPTY }
+internal enum class SettingsNotice { PROFILE_NOT_MADE, PROFILE_NOT_CHANGED, PROFILE_NOT_DELETED, PROFILE_LEFT_EMPTY, GRID_REFLOWED }
 
 /** The text of [notice]. */
 internal fun settingsNoticeText(notice: SettingsNotice): Int = when (notice) {
@@ -42,6 +42,7 @@ internal fun settingsNoticeText(notice: SettingsNotice): Int = when (notice) {
     SettingsNotice.PROFILE_NOT_CHANGED -> R.string.settings_profile_change_failed
     SettingsNotice.PROFILE_NOT_DELETED -> R.string.settings_profile_delete_failed
     SettingsNotice.PROFILE_LEFT_EMPTY -> R.string.settings_profile_left_empty
+    SettingsNotice.GRID_REFLOWED -> R.string.settings_grid_reflowed
 }
 
 /**
@@ -54,6 +55,12 @@ internal fun deletionNotice(result: HomeProfileRepository.Deleted): SettingsNoti
     HomeProfileRepository.Deleted.Failed -> SettingsNotice.PROFILE_NOT_DELETED
     HomeProfileRepository.Deleted.LeftEmpty -> SettingsNotice.PROFILE_LEFT_EMPTY
     HomeProfileRepository.Deleted.Done, HomeProfileRepository.Deleted.Refused -> null
+}
+
+internal fun gridNotice(result: HomeProfileRepository.GridChange): SettingsNotice? = when (result) {
+    HomeProfileRepository.GridChange.Saved, HomeProfileRepository.GridChange.Refused -> null
+    HomeProfileRepository.GridChange.Failed -> SettingsNotice.PROFILE_NOT_CHANGED
+    HomeProfileRepository.GridChange.ReflowedButNotSaved -> SettingsNotice.GRID_REFLOWED
 }
 
 @HiltViewModel
@@ -192,9 +199,13 @@ internal class SettingsViewModel @Inject constructor(
     // Shrinking the grid can leave shortcuts at an out-of-range cell; they are packed back on-screen before
     // the new (smaller) size reaches the home screen, so nothing draws off-grid. The packing and the new size
     // are one home profile's, the one whose grid the page showed (HomeProfileRepository.setHomeColumns).
-    override fun setHomeColumns(value: Int, profile: Long) = update { homeProfileRepository.setHomeColumns(value, profile) }
+    override fun setHomeColumns(value: Int, profile: Long) = update {
+        gridNotice(homeProfileRepository.setHomeColumns(value, profile))?.let(_notices::trySend)
+    }
 
-    override fun setHomeRows(value: Int, profile: Long) = update { homeProfileRepository.setHomeRows(value, profile) }
+    override fun setHomeRows(value: Int, profile: Long) = update {
+        gridNotice(homeProfileRepository.setHomeRows(value, profile))?.let(_notices::trySend)
+    }
     override fun setShowDockLabels(value: Boolean) = update { repository.setShowDockLabels(value) }
     override fun setShowHomeLabels(value: Boolean) = update { repository.setShowHomeLabels(value) }
     override fun setShowDrawerLabels(value: Boolean) = update { repository.setShowDrawerLabels(value) }

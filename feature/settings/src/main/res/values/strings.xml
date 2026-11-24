@@ -317,6 +317,7 @@
     <string name="settings_profile_explain">A profile is a view of this launcher, not Android\'s work profile. Apps a profile leaves out keep running and notifying.</string>
     <string name="settings_profile_limit">The limit of 8 profiles is reached</string>
     <string name="settings_profile_create_failed">The profile could not be made. Nothing was changed.</string>
+    <string name="settings_grid_reflowed">The grid size could not be saved. Items on the home screen may have moved.</string>
     <string name="settings_profile_change_failed">The change could not be saved. Nothing was changed.</string>
     <string name="settings_profile_delete_failed">The profile could not be deleted. Nothing was removed.</string>
     <string name="settings_profile_left_empty">The profile\'s home screen was removed, but the profile is still in the list. Delete it again.</string>

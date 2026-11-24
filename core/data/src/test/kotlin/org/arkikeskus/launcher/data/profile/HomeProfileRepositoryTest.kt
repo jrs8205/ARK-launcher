@@ -352,7 +352,7 @@ class HomeProfileRepositoryTest {
             }
         }
 
-        assertThat(repositoryOver(tapped).setHomeColumns(4, profileId = 1)).isTrue()
+        assertThat(repositoryOver(tapped).setHomeColumns(4, profileId = 1)).isEqualTo(HomeProfileRepository.GridChange.Saved)
 
         // The profile that was on: four columns, and its icon inside them.
         assertThat(view.profileValues(1)[columns]).isEqualTo(4)
@@ -378,8 +378,8 @@ class HomeProfileRepositoryTest {
         // The switch the user asked for first is made before the steppers' changes get their turn.
         store.setActive(work.id)
 
-        assertThat(profiles.setHomeColumns(4, profileId = 1)).isFalse()
-        assertThat(profiles.setHomeRows(3, profileId = 1)).isFalse()
+        assertThat(profiles.setHomeColumns(4, profileId = 1)).isEqualTo(HomeProfileRepository.GridChange.Refused)
+        assertThat(profiles.setHomeRows(3, profileId = 1)).isEqualTo(HomeProfileRepository.GridChange.Refused)
 
         for (profile in listOf(1L, work.id)) {
             assertThat(view.profileValues(profile)[columns]).isEqualTo(5)
@@ -387,7 +387,7 @@ class HomeProfileRepositoryTest {
             assertThat(rowsOf(profile).single().cellX).isEqualTo(4)
         }
         // Asked for the profile that is on, it is made, for that one alone.
-        assertThat(profiles.setHomeColumns(4, profileId = work.id)).isTrue()
+        assertThat(profiles.setHomeColumns(4, profileId = work.id)).isEqualTo(HomeProfileRepository.GridChange.Saved)
         assertThat(view.profileValues(work.id)[columns]).isEqualTo(4)
         assertThat(rowsOf(work.id).single().cellX).isLessThan(4)
         assertThat(rowsOf(1).single().cellX).isEqualTo(4)
@@ -1081,12 +1081,12 @@ class HomeProfileRepositoryTest {
         assertGridReadFails { profiles.setHomeRows(5, 1L) }
     }
 
-    private suspend fun assertGridReadFails(change: suspend () -> Boolean) {
+    private suspend fun assertGridReadFails(change: suspend () -> HomeProfileRepository.GridChange) {
         dao.insert(app("com.edge", 3))
         val before = settings.settings.first()
         val rows = rowsOf(1)
         main.failReads = java.io.IOException("cannot open profile")
-        assertThat(change()).isFalse()
+        assertThat(change()).isEqualTo(HomeProfileRepository.GridChange.Refused)
         main.failReads = null
         assertThat(settings.settings.first()).isEqualTo(before)
         assertThat(rowsOf(1)).isEqualTo(rows)
@@ -1137,6 +1137,28 @@ class HomeProfileRepositoryTest {
         assertThat(old.exists()).isFalse()
         assertThat(drawerPictures.current.value!!.file.isFile).isTrue()
         assertThat(context.filesDir.walk().none { it.extension == "part" }).isTrue()
+    }
+
+    @Test fun aFailedColumnWriteAfterReflowReportsTheMovedItems() = runTest {
+        settings.setHomeColumns(5)
+        dao.insert(app("com.edge", 4))
+        val before = rowsOf(1)
+        main.failWrites = java.io.IOException("disk full")
+        assertThat(profiles.setHomeColumns(4, 1)).isEqualTo(HomeProfileRepository.GridChange.ReflowedButNotSaved)
+        main.failWrites = null
+        assertThat(rowsOf(1)).isNotEqualTo(before)
+        assertThat(settings.settings.first().homeColumns).isEqualTo(5)
+    }
+
+    @Test fun aFailedRowWriteAfterReflowReportsTheMovedItems() = runTest {
+        settings.setHomeRows(6)
+        dao.insert(app("com.edge", 0).copy(cellY = 5))
+        val before = rowsOf(1)
+        main.failWrites = java.io.IOException("disk full")
+        assertThat(profiles.setHomeRows(5, 1)).isEqualTo(HomeProfileRepository.GridChange.ReflowedButNotSaved)
+        main.failWrites = null
+        assertThat(rowsOf(1)).isNotEqualTo(before)
+        assertThat(settings.settings.first().homeRows).isEqualTo(6)
     }
 
     @Test fun cancellationAsThePreparedFileReturnsFromTheWriterStillFinishesThePick() = runBlocking<Unit> {

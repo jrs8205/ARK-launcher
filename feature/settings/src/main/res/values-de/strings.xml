@@ -317,6 +317,7 @@
     <string name="settings_profile_explain">Ein Profil ist eine Ansicht dieses Launchers, nicht das Arbeitsprofil von Android. Apps, die ein Profil auslässt, laufen weiter und senden Benachrichtigungen.</string>
     <string name="settings_profile_limit">Die Höchstzahl von 8 Profilen ist erreicht</string>
     <string name="settings_profile_create_failed">Das Profil konnte nicht erstellt werden. Es wurde nichts geändert.</string>
+    <string name="settings_grid_reflowed">Die Rastergröße konnte nicht gespeichert werden. Elemente auf dem Startbildschirm wurden möglicherweise verschoben.</string>
     <string name="settings_profile_change_failed">Die Änderung konnte nicht gespeichert werden. Es wurde nichts geändert.</string>
     <string name="settings_profile_delete_failed">Das Profil konnte nicht gelöscht werden. Es wurde nichts entfernt.</string>
     <string name="settings_profile_left_empty">Der Startbildschirm des Profils wurde entfernt, das Profil steht aber noch in der Liste. Lösche es erneut.</string>

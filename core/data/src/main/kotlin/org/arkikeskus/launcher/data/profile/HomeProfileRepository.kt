@@ -227,33 +227,44 @@ class HomeProfileRepository @Inject constructor(
         }
     }
 
+    enum class GridChange { Saved, Refused, Failed, ReflowedButNotSaved }
+
     /**
      * The number of columns of the home grid of the home profile [profileId]: the one whose grid the Settings
      * page showed when the user changed it. A smaller grid can leave icons past its edge, so the rows are
      * packed into it before the new size is stored. Both are one profile's: with a tap on another profile
      * between them, one profile's icons moved and the other's grid shrank over icons nobody moved.
      *
-     * False, with nothing changed, when [profileId] is not the profile that is on once the hold is had. The
-     * hold only keeps a switch from happening in the middle: a change asked for one profile's grid can wait
-     * behind a switch, and it then packed the icons of the profile that came on, and could shrink its widgets,
-     * for a size the user had chosen while looking at the other one.
+     * A changed or unreadable profile refuses the request before any rows move. If the settings
+     * write fails after a reflow, the screen tells the user the positions may already have changed.
      */
-    suspend fun setHomeColumns(value: Int, profileId: Long): Boolean = withReadableProfile(false) { active ->
-        if (active != profileId) return@withReadableProfile false
-        val now = settings.settings.first()
-        if (value < now.homeColumns) layout.reflow(value, now.homeRows)
-        settings.setHomeColumns(value)
-        true
-    }
+    suspend fun setHomeColumns(value: Int, profileId: Long): GridChange = resizeGrid(profileId, columns = value)
 
     /** As [setHomeColumns], for the rows. */
-    suspend fun setHomeRows(value: Int, profileId: Long): Boolean = withReadableProfile(false) { active ->
-        if (active != profileId) return@withReadableProfile false
-        val now = settings.settings.first()
-        if (value < now.homeRows) layout.reflow(now.homeColumns, value)
-        settings.setHomeRows(value)
-        true
-    }
+    suspend fun setHomeRows(value: Int, profileId: Long): GridChange = resizeGrid(profileId, rows = value)
+
+    private suspend fun resizeGrid(profileId: Long, columns: Int? = null, rows: Int? = null): GridChange =
+        withReadableProfile(GridChange.Refused) { active ->
+            if (active != profileId) return@withReadableProfile GridChange.Refused
+            val now = settings.settings.first()
+            val width = columns ?: now.homeColumns
+            val height = rows ?: now.homeRows
+            withContext(NonCancellable) {
+                var reflowed = false
+                try {
+                    if (width < now.homeColumns || height < now.homeRows) {
+                        layout.reflow(width, height)
+                        reflowed = true
+                    }
+                    if (columns != null) settings.setHomeColumns(width) else settings.setHomeRows(height)
+                    GridChange.Saved
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    if (reflowed) GridChange.ReflowedButNotSaved else GridChange.Failed
+                }
+            }
+        }
 
     /** Names [id] anew. False when the storage did not take the change: the name is as it was ([switchTo]). */
     suspend fun rename(id: Long, name: String): Boolean = written { store.rename(id, name) }
