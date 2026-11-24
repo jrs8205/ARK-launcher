@@ -109,7 +109,9 @@ internal fun MacrobenchmarkScope.openSettingsAndBack() {
     // stretch at the page's top edge, and a tap that lands while the page is still settling there only
     // stops it, as a finger's would: the scroll container takes the touch and the row sees no click.
     // waitForIdle does not wait the stretch out, so the tap is repeated until the page opens.
-    val category = By.textStartsWith(appString(packageName, "settings_home"))
+    // The whole text, not its beginning: the Profiles row above it has a summary that begins with the
+    // same words ("Home screens of their own"), and a tap there opens the Profiles page.
+    val category = By.text(appString(packageName, "settings_home"))
     check(device.wait(Until.hasObject(category), WAIT_MS)) { "the Home screen category is not on the main page" }
     val firstRow = By.text(appString(packageName, "settings_columns"))
     var opened = false
