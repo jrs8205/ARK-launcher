@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
@@ -294,7 +295,9 @@ fun AppDrawerScreen(
     // other app launches. True when the tap was handled (the drawer closed behind a launch); a failed
     // launch keeps the drawer, and the surface the tap came from, open with the ViewModel's notice.
     val openApp: (AppItem) -> Boolean = { app ->
-        if (app.packageName == context.packageName) {
+        if (!drawerOpen) {
+            false
+        } else if (app.packageName == context.packageName) {
             onOpenSettings()
             true
         } else if (viewModel.onAppClick(app, launchSources?.take(app))) {
@@ -387,7 +390,7 @@ fun AppDrawerScreen(
         privateSpace = uiState.privateSpace,
         privateApps = uiState.privateApps,
         onSetPrivateLocked = viewModel::setPrivateLocked,
-        onPrivateAppClick = { app -> if (viewModel.onPrivateAppClick(app, launchSources?.take(app))) onClose() },
+        onPrivateAppClick = { app -> if (drawerOpen && viewModel.onPrivateAppClick(app, launchSources?.take(app))) onClose() },
         onPrivateAppLongClick = { app, bounds -> if (drawerOpen) privateMenu = app to bounds },
         onPrivateInstall = { viewModel.privateInstallSender()?.let { startSystemSender(context, it) } },
         onPrivateSettings = { openPrivateSettings(context, viewModel.privateSettingsTarget()) },
@@ -399,7 +402,9 @@ fun AppDrawerScreen(
             focusManager.clearFocus()
             viewModel.openPrivateSpace()
         },
-        modifier = modifier,
+        modifier = modifier.focusProperties {
+            onEnter = { if (!drawerOpen) cancelFocusChange() }
+        }.focusGroup(),
     )
 
     val privateTarget = privateMenu
@@ -1769,6 +1774,8 @@ private fun DrawerAppCell(
     // and must act on the app as it is NOW: with the first touch's item, Edit opened a second
     // time showed the old icon and saving a name wiped a picture picked a moment earlier.
     val currentApp by rememberUpdatedState(app)
+    val currentClick by rememberUpdatedState(onAppClick)
+    val currentLongClick by rememberUpdatedState(onAppLongClick)
     // [bounds] anchors the popup and is clipped by the grid; [origin] is the cell's real top-left,
     // which a cell half scrolled under the grid's top edge still needs for the finger's position.
     var bounds by remember { mutableStateOf(Rect.Zero) }
@@ -1785,12 +1792,12 @@ private fun DrawerAppCell(
         privateMark = if (privateMark) stringResource(R.string.private_space_entry) else null,
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInRoot(); origin = it.positionInRoot() }
-            .keyClickable(onClick = { onAppClick(currentApp) }, onLongClick = { onAppLongClick(currentApp, bounds) })
+            .keyClickable(onClick = { currentClick(currentApp) }, onLongClick = { currentLongClick(currentApp, bounds) })
             // The tap and the menu as actions too, for whoever cannot make the pointer gesture: a screen
             // reader lists them, and nothing else told it that the app has a menu.
             .semantics(mergeDescendants = true) {
-                onClick { onAppClick(currentApp); true }
-                onLongClick { onAppLongClick(currentApp, bounds); true }
+                onClick { currentClick(currentApp); true }
+                onLongClick { currentLongClick(currentApp, bounds); true }
             }
             // One unified gesture (like Workspace/Dock) but non-consuming until the
             // long-press fires, so a quick drag still scrolls the grid: quick tap
@@ -1841,7 +1848,7 @@ private fun DrawerAppCell(
                     }
                     when (outcome) {
                         1 -> {
-                            onAppClick(currentApp)
+                            currentClick(currentApp)
                             return@awaitEachGesture
                         }
                         2 -> return@awaitEachGesture
@@ -1851,7 +1858,7 @@ private fun DrawerAppCell(
                     // desktop, issue #30, a follow-up).
                     if (locked || !liftable) {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onAppLongClick(currentApp, bounds)
+                        currentLongClick(currentApp, bounds)
                         // The finger that opened the menu is still down: its moves are taken until it
                         // rises, or the grid scrolled under the menu, away from where the menu points.
                         awaitHoldRelease(down.id)
@@ -1870,7 +1877,7 @@ private fun DrawerAppCell(
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     // The menu opens now, by the icon, under the still-held finger (issue #12);
                     // pulling the icon on closes it (DismissWhenDragMoves) and the drag goes on.
-                    onAppLongClick(currentApp, bounds)
+                    currentLongClick(currentApp, bounds)
                     val dragStartPx = IconPress.DragStartThreshold.toPx()
                     try {
                         val completed = drag(down.id) { change ->

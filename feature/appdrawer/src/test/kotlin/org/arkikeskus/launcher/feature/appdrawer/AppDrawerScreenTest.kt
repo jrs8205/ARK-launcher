@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.core.graphics.createBitmap
 import android.graphics.Bitmap
 import android.os.Looper
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.mutableStateOf
@@ -103,10 +105,14 @@ class AppDrawerScreenTest {
     private var closeCalls = 0
 
     /** [height] constrains the drawer for split-screen and resize tests. */
-    private fun show(height: Dp? = null) {
+    private fun show(height: Dp? = null, homeFocusStops: Boolean = false) {
         windowHeight.value = height
         compose.setContent {
             Box(modifier = windowHeight.value?.let { Modifier.height(it) } ?: Modifier) {
+            if (homeFocusStops) {
+                Box(Modifier.testTag("home-first").height(24.dp).focusable())
+                Box(Modifier.testTag("home-last").height(24.dp).focusable())
+            }
             // An app's menu asks Android for its shortcuts and widgets before it shows. Asked on another
             // thread, the answer comes back on that thread under the rule the tests had then and the screen is then worked on
             // from two threads at once (the home screen's menu test failed so once). Here it asks at once.
@@ -1288,6 +1294,47 @@ class AppDrawerScreenTest {
                 androidx.compose.ui.test.hasAnyAncestor(androidx.compose.ui.test.hasScrollAction())).assertExists()
         }
         compose.onRoot().performKeyInput { pressKey(Key.Enter) }
+        settle()
+        assertThat(closeCalls).isEqualTo(1)
+    }
+
+    @Test fun aClosedDrawerCannotTakeKeyboardFocusOrLaunchAnApp() {
+        show(homeFocusStops = true)
+        awaitText(mailApp)
+        drawerOpen.value = false
+        settle()
+        compose.onNodeWithTag("home-last").requestFocus()
+        repeat(4) { step ->
+            compose.onRoot().performKeyInput { pressKey(Key.Tab) }
+            settle()
+            compose.onNodeWithTag(if (step % 2 == 0) "home-first" else "home-last").assertIsFocused()
+        }
+        compose.onRoot().performKeyInput { pressKey(Key.Enter) }
+        compose.onNodeWithText(mailApp).performClick()
+        settle()
+        assertThat(closeCalls).isEqualTo(0)
+
+        drawerOpen.value = true
+        settle()
+        compose.onNodeWithText(mailApp).requestFocus()
+        compose.onRoot().performKeyInput { pressKey(Key.Enter) }
+        settle()
+        assertThat(closeCalls).isEqualTo(1)
+    }
+
+    @Test fun aPressFinishingAfterTheDrawerClosesDoesNotLaunchButTheNextTapDoes() {
+        showWithApp()
+        val tile = compose.onNodeWithText(mailApp)
+        tile.performTouchInput { down(center) }
+        drawerOpen.value = false
+        settle()
+        tile.performTouchInput { up() }
+        settle()
+        assertThat(closeCalls).isEqualTo(0)
+
+        drawerOpen.value = true
+        settle()
+        tile.performTouchInput { click() }
         settle()
         assertThat(closeCalls).isEqualTo(1)
     }
