@@ -6,7 +6,6 @@ import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.arkikeskus.launcher.data.LastBackup
 import org.arkikeskus.launcher.data.backup.ExportProfileChangedException
-import org.arkikeskus.launcher.model.HomeProfile
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -30,25 +29,12 @@ class ExportTextsTest {
         return context.createConfigurationContext(config).resources
     }
 
-    private val oneProfile = profilesARestoreDeletes(listOf(HomeProfile(1, "")), activeId = 1)
-    private val workIsOn = profilesARestoreDeletes(listOf(HomeProfile(1, ""), HomeProfile(2, "Work")), activeId = 2)
-    private val unnamedIsOn = profilesARestoreDeletes(listOf(HomeProfile(1, ""), HomeProfile(2, "Work")), activeId = 1)
+    private val oneProfile = LastBackup(1, 1L, null)
+    private val workIsOn = LastBackup(2, 1L, "Work")
+    private val unnamedIsOn = LastBackup(1, 1L, "")
 
-    /** The line of the last export for [profiles], when the stored time ([text] once formatted) is the profile [of]'s. */
-    private fun lastLine(res: Resources, profiles: RestoreProfiles?, of: Long, text: String): String? =
-        lastBackupText(res, profiles, LastBackup(homeProfileId = of, timeMs = 1L)) { text }
-
-    /**
-     * The name and the time come from two readings. In the moment of a switch the name is already the new
-     * profile's while the time is still the old one's: the line is not shown then, or a profile that was never
-     * exported would read as exported. Nor is it shown for a profile never exported, or before the time is read.
-     */
-    @Test fun theTimeOfAnotherProfileIsNeverShownBesideThisOnesName() {
-        assertThat(lastLine(res, workIsOn, of = 1, "3:04")).isNull()
-        assertThat(lastLine(res, unnamedIsOn, of = 2, "3:04")).isNull()
-        assertThat(lastLine(res, oneProfile, of = 2, "3:04")).isNull()
-        assertThat(lastBackupText(res, workIsOn, LastBackup(homeProfileId = 2, timeMs = 0L)) { "never" }).isNull()
-        assertThat(lastBackupText(res, workIsOn, null) { "3:04" }).isNull()
+    @Test fun aProfileNeverExportedHasNoTimeToShow() {
+        assertThat(lastBackupText(res, workIsOn.copy(timeMs = 0)) { "never" }).isNull()
     }
 
     /** With another profile on than the one the button named, nothing is exported, and the screen says so and
@@ -65,15 +51,10 @@ class ExportTextsTest {
         }
     }
 
-    @Test fun theProfilesCarryTheNameOfTheOneThatIsOn() {
-        assertThat(workIsOn.activeName).isEqualTo("Work")
-        assertThat(unnamedIsOn.activeName).isEmpty()
-    }
-
     @Test fun withOneProfileTheTextsAreWhatTheyAlwaysWere() {
         assertThat(exportedProfileName(res, oneProfile)).isNull()
         assertThat(exportButtonText(res, oneProfile)).isEqualTo("Export to file")
-        assertThat(lastLine(res, oneProfile, of = 1, "1/2/26, 3:04 PM")).isEqualTo("Last: 1/2/26, 3:04 PM")
+        assertThat(lastBackupText(res, oneProfile) { "1/2/26, 3:04 PM" }).isEqualTo("Last: 1/2/26, 3:04 PM")
         assertThat(backupEventMessage(res, BackupEvent.Exported("b.json"))).isEqualTo("Backup saved")
     }
 
@@ -81,13 +62,13 @@ class ExportTextsTest {
     @Test fun beforeTheProfilesAreReadNoProfileIsNamed() {
         assertThat(exportedProfileName(res, null)).isNull()
         assertThat(exportButtonText(res, null)).isEqualTo("Export to file")
-        assertThat(lastLine(res, null, of = 1, "now")).isNull()
+        assertThat(lastBackupText(res, null) { "now" }).isNull()
     }
 
     @Test fun withSeveralProfilesTheButtonTheResultAndTheTimeNameTheOneThatIsExported() {
         assertThat(exportedProfileName(res, workIsOn)).isEqualTo("Work")
         assertThat(exportButtonText(res, workIsOn)).isEqualTo("Export profile “Work” to file")
-        assertThat(lastLine(res, workIsOn, of = 2, "1/2/26, 3:04 PM")).isEqualTo("Last backup of “Work”: 1/2/26, 3:04 PM")
+        assertThat(lastBackupText(res, workIsOn) { "1/2/26, 3:04 PM" }).isEqualTo("Last backup of “Work”: 1/2/26, 3:04 PM")
         assertThat(backupEventMessage(res, BackupEvent.Exported("b.json", profile = "Work")))
             .isEqualTo("Backup of profile “Work” saved")
     }
@@ -96,7 +77,7 @@ class ExportTextsTest {
     @Test fun anUnnamedProfileIsNamedAsItIsShownEverywhere() {
         assertThat(exportedProfileName(res, unnamedIsOn)).isEqualTo("Home")
         assertThat(exportButtonText(res, unnamedIsOn)).isEqualTo("Export profile “Home” to file")
-        assertThat(lastLine(res, unnamedIsOn, of = 1, "now")).isEqualTo("Last backup of “Home”: now")
+        assertThat(lastBackupText(res, unnamedIsOn) { "now" }).isEqualTo("Last backup of “Home”: now")
         assertThat(backupEventMessage(res, BackupEvent.Exported("b.json", profile = "")))
             .isEqualTo("Backup of profile “Home” saved")
         assertThat(exportButtonText(resourcesIn("fi"), unnamedIsOn)).isEqualTo("Vie profiili ”Koti” tiedostoon")
@@ -109,7 +90,7 @@ class ExportTextsTest {
             assertWithMessage(language).that(exportButtonText(translated, workIsOn)).contains("Work")
             assertWithMessage(language).that(backupEventMessage(translated, BackupEvent.Exported("b.json", profile = "Work")))
                 .contains("Work")
-            val last = lastLine(translated, workIsOn, of = 2, "3:04")
+            val last = lastBackupText(translated, workIsOn) { "3:04" }
             assertWithMessage(language).that(last).contains("Work")
             assertWithMessage(language).that(last).contains("3:04")
             for (text in listOf(R.string.backup_export_profile, R.string.backup_exported_profile, R.string.backup_last_time_profile)) {

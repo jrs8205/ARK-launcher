@@ -13,11 +13,20 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.core.app.ActivityOptionsCompat
 import com.google.common.truth.Truth.assertThat
-import org.arkikeskus.launcher.model.HomeProfile
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import org.arkikeskus.launcher.data.LastBackup
+import java.io.IOException
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,8 +54,7 @@ class ExportButtonTest {
         override val activityResultRegistry: ActivityResultRegistry = registry
     }
 
-    private val list = listOf(HomeProfile(1, ""), HomeProfile(2, "Work"))
-    private var profiles by mutableStateOf<RestoreProfiles?>(profilesARestoreDeletes(list, activeId = 2))
+    private var profiles by mutableStateOf<LastBackup?>(LastBackup(2, 0, "Work"))
     private val exports = mutableListOf<Pair<Uri, Long>>()
     private val file: Uri = Uri.parse("content://documents/backup.json")
 
@@ -71,7 +79,7 @@ class ExportButtonTest {
         assertThat(launched).hasSize(1)
 
         // The profile is switched while the picker is open: the button now names the first profile.
-        profiles = profilesARestoreDeletes(list, activeId = 1)
+        profiles = LastBackup(1, 0, "")
         compose.waitForIdle()
         thePickerAnswers()
 
@@ -83,7 +91,7 @@ class ExportButtonTest {
         compose.onNodeWithTag(EXPORT_BUTTON_TAG).performClick()
         compose.waitForIdle()
 
-        profiles = profilesARestoreDeletes(list, activeId = 1)
+        profiles = LastBackup(1, 0, "")
         tester.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
         thePickerAnswers()
@@ -97,8 +105,85 @@ class ExportButtonTest {
         show()
         compose.onNodeWithTag(EXPORT_BUTTON_TAG).assertIsNotEnabled()
 
-        profiles = profilesARestoreDeletes(list, activeId = 1)
+        profiles = LastBackup(1, 0, "")
         compose.waitForIdle()
         compose.onNodeWithTag(EXPORT_BUTTON_TAG).assertIsEnabled()
+    }
+
+    @Test fun exportStaysAvailableAndARefusedRestoreKeepsItsFileForRetry() {
+        val reading = CompletableDeferred<Unit>()
+        val fail = CompletableDeferred<Unit>()
+        val restored = mutableListOf<Uri>()
+        val shown = RestoreProfiles(2, emptyList(), unlisted = setOf(9))
+        var attempt = 0
+        val vm = BackupViewModel(
+            flowOf(LastBackup(2, 1_000L, "Work")),
+            export = { _, _ -> error("no export requested") },
+            restorer = BackupRestorer { uri, confirmed, _ ->
+                assertThat(confirmed).isEqualTo(shown.confirmed)
+                restored += uri
+                BackupEvent.Restored(1, 0)
+            },
+            lost = ProfilesLostInRestore { flow {
+                when (++attempt) {
+                    1 -> throw IOException("cannot list pictures")
+                    2 -> {
+                        reading.await()
+                        emit(shown)
+                        fail.await()
+                        throw IOException("lost before the tap")
+                    }
+                    else -> emit(shown)
+                }
+            } },
+        )
+        fun assertExport() {
+            compose.onNodeWithText("Export profile “Work” to file").assertIsEnabled()
+            compose.onNode(hasText("Last backup of “Work”", substring = true)).assertExists()
+        }
+        try {
+            tester.setContent {
+                CompositionLocalProvider(LocalActivityResultRegistryOwner provides registryOwner) {
+                    BackupScreen(onBack = {}, viewModel = vm)
+                }
+            }
+            compose.waitForIdle()
+            assertThat(vm.profileReader.state.value).isEqualTo(RestoreProfileRead.Failed)
+            assertExport()
+            compose.onNodeWithText("Import from file").performClick()
+            thePickerAnswers()
+            compose.onNodeWithText("Restore").assertIsNotEnabled()
+            assertExport()
+
+            reading.complete(Unit)
+            val tap = checkNotNull(compose.onNodeWithText("Restore").assertIsEnabled()
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+            // Deliver the storage failure between composition and the dispatch of this frame's tap.
+            compose.mainClock.autoAdvance = false
+            try {
+                compose.runOnUiThread { fail.complete(Unit) }
+                org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+                compose.runOnUiThread {
+                    assertThat(vm.profileReader.state.value).isEqualTo(RestoreProfileRead.Failed)
+                    tap()
+                }
+            } finally {
+                compose.mainClock.autoAdvance = true
+            }
+            compose.onNodeWithText("Try again").performClick()
+            assertThat(restored).isEmpty()
+            val retryTap = checkNotNull(compose.onNodeWithText("Restore").assertIsEnabled()
+                .fetchSemanticsNode().config[SemanticsActions.OnClick].action)
+            compose.runOnUiThread {
+                retryTap()
+                retryTap()
+            }
+            compose.waitForIdle()
+            assertThat(restored).containsExactly(file)
+            assertThat(launched).hasSize(1)
+            compose.onNodeWithText("Restore backup?").assertDoesNotExist()
+        } finally {
+            vm.viewModelScope.cancel()
+        }
     }
 }

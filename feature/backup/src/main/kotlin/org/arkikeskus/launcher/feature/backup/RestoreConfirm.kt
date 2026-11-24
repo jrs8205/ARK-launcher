@@ -31,8 +31,7 @@ import javax.inject.Inject
 /**
  * The home profiles as a restore meets them: the one that is on ([activeId]), which it fills with the
  * backup, and the others ([deleted]), which it deletes: a backup file holds one profile. The one that is on
- * is also the one an export writes, under its stored name [activeName] (empty until the user names it): with
- * other profiles beside it the backup screen says which profile its file is of ([exportedProfileName]).
+ * is also the one an export writes.
  *
  * [unlisted] are the ids something is still kept under though the list does not name them (a home screen's
  * rows, a profile's own values or picture; the list was lost with a damaged settings file, or a copy or a
@@ -41,7 +40,6 @@ import javax.inject.Inject
 data class RestoreProfiles(
     val activeId: Long,
     val deleted: List<HomeProfile>,
-    val activeName: String = "",
     val unlisted: Set<Long> = emptySet(),
 ) {
     /** The names the question shows (an unnamed one is empty here; [restoreConfirmText] names it). */
@@ -124,7 +122,6 @@ internal fun profilesARestoreDeletes(profiles: List<HomeProfile>, activeId: Long
     RestoreProfiles(
         activeId,
         profiles.filter { it.id != activeId },
-        profiles.firstOrNull { it.id == activeId }?.name.orEmpty(),
         unlisted - activeId - profiles.mapTo(HashSet()) { it.id },
     )
 

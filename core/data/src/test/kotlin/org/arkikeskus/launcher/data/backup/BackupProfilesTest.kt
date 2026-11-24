@@ -531,9 +531,9 @@ class BackupProfilesTest {
         twoProfiles()
         repo().export(createdAt = { 77L }, appVersion = "test") {}
 
-        assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 2, timeMs = 77L))
+        assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 2, timeMs = 77L, profileName = "Work"))
         store.setActive(1)
-        assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 1, timeMs = 0L))
+        assertThat(settings.localLastBackup.first()).isEqualTo(LastBackup(homeProfileId = 1, timeMs = 0L, profileName = ""))
     }
 
     /** A file that could not be written is no export: no time is noted. */

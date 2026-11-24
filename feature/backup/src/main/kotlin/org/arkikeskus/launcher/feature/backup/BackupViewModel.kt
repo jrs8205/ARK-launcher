@@ -6,9 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import java.io.IOException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -60,13 +61,26 @@ sealed interface BackupEvent {
 }
 
 @HiltViewModel
-class BackupViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val backupRepository: BackupRepository,
+class BackupViewModel internal constructor(
+    lastExport: Flow<LastBackup>,
+    private val export: suspend (Uri, Long) -> BackupEvent,
     restorer: BackupRestorer,
-    private val settings: SettingsRepository,
     lost: ProfilesLostInRestore,
 ) : ViewModel() {
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        backupRepository: BackupRepository,
+        restorer: BackupRestorer,
+        settings: SettingsRepository,
+        lost: ProfilesLostInRestore,
+    ) : this(settings.localLastBackup, { uri, shownProfile ->
+        exportToDocument(context.contentResolver, uri) { write ->
+            val appVersion = runCatching {
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            }.getOrNull() ?: "?"
+            backupRepository.export(System::currentTimeMillis, appVersion, expectedProfile = shownProfile, target = uri, write = write)
+        }
+    }, restorer, lost)
 
     private val _events = MutableSharedFlow<BackupEvent>(extraBufferCapacity = 4)
     val events = _events.asSharedFlow()
@@ -81,20 +95,13 @@ class BackupViewModel @Inject constructor(
 
     /** When the home profile that is on was last exported to a file, WITH that profile (one value: the
      *  screen shows the time only beside the profile it is of); null until it has been read. */
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val lastBackup: StateFlow<LastBackup?> =
-        profileReader.state.flatMapLatest { read ->
-            if (read !is RestoreProfileRead.Ready) flowOf(null)
-            else settings.localLastBackup.catch<LastBackup?> { failure ->
-                if (failure !is java.io.IOException) throw failure
-                emit(null)
-            }
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-    private val appVersion: String
-        get() = runCatching {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        }.getOrNull() ?: "?"
+        lastExport.retryWhen<LastBackup?> { failure, _ ->
+            if (failure !is IOException) return@retryWhen false
+            emit(null)
+            delay(1_000)
+            true
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
      * Writes the home profile [shownProfile] to [uri]: the one the export's button named when it was tapped.
@@ -103,17 +110,14 @@ class BackupViewModel @Inject constructor(
      * the file is of when there are several.
      */
     fun exportTo(uri: Uri, shownProfile: Long) = viewModelScope.launch {
-        _events.emit(
-            exportToDocument(context.contentResolver, uri) { write ->
-                // The document is the export's place: two exports to one file go one after the other.
-                backupRepository.export(System::currentTimeMillis, appVersion, expectedProfile = shownProfile, target = uri, write = write)
-            },
-        )
+        _events.emit(export(uri, shownProfile))
     }
 
     /** Restores [uri], held to the profiles its question showed ([asked]). */
-    fun importFrom(uri: Uri, asked: RestoreProfiles) = viewModelScope.launch {
-        if (profileReader.state.value is RestoreProfileRead.Ready) _events.emit(question.restore(uri, asked))
+    fun importFrom(uri: Uri, asked: RestoreProfiles): Boolean {
+        if (profileReader.state.value !is RestoreProfileRead.Ready) return false
+        viewModelScope.launch { _events.emit(question.restore(uri, asked)) }
+        return true
     }
 
     internal companion object {

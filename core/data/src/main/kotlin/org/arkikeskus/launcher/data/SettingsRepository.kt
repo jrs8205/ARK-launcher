@@ -61,8 +61,9 @@ data class HomeFolderIcons(
     val drawerFolders: List<DrawerFolder> = emptyList(),
 )
 
-/** When the home profile [homeProfileId] was last exported to a file ([timeMs], epoch ms; 0 = never). */
-data class LastBackup(val homeProfileId: Long, val timeMs: Long)
+/** The profile an export will write and its last file export (epoch ms, 0 = never).
+ * [profileName] is null for a single profile, or the stored name (possibly empty) with several. */
+data class LastBackup(val homeProfileId: Long, val timeMs: Long, val profileName: String?)
 
 /** The grid of one home profile: its home screen's columns and rows and its dock's columns. */
 data class HomeProfileGrid(val homeColumns: Int, val homeRows: Int, val dockColumns: Int)
@@ -839,7 +840,12 @@ class SettingsRepository @Inject constructor(
      * another's name in the moment of a switch.
      */
     val localLastBackup: Flow<LastBackup> = dataStore.data
-        .map { LastBackup(ProfiledPreferences.activeId(it), it[Keys.LOCAL_LAST_BACKUP] ?: 0L) }
+        .map { prefs ->
+            val active = ProfiledPreferences.activeId(prefs)
+            val listed = ProfiledPreferences.listed(prefs)
+            val name = if (listed.size > 1) listed.first { it.id == active }.name else null
+            LastBackup(active, prefs[Keys.LOCAL_LAST_BACKUP] ?: 0L, name)
+        }
         .distinctUntilChanged()
 
     /**

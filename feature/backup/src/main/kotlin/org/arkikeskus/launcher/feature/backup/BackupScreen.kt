@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.backup
 
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.data.LastBackup
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -105,16 +106,14 @@ fun BackupScreen(
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             // A file holds the one profile that is on: with several profiles the button and the time below
             // say which (ExportTexts).
-            val reading by viewModel.profileReader.state.collectAsStateWithLifecycle()
-            val exportProfiles = reading.profiles
-            ExportButton(exportProfiles, guarded = ::guarded, onExport = viewModel::exportTo)
+            ExportButton(lastBackup, guarded = ::guarded, onExport = viewModel::exportTo)
             OutlinedButton(
                 onClick = { guarded { openDoc.launch(arrayOf("application/json")) } },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.backup_import)) }
             // The time and the profile it is of are one value; the line shows only while that profile is the
             // one the button names (ExportTexts).
-            lastBackupText(resources, exportProfiles, lastBackup) { timeMs ->
+            lastBackupText(resources, lastBackup) { timeMs ->
                 java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
                     .format(java.util.Date(timeMs))
             }?.let { line -> Text(line, style = MaterialTheme.typography.bodySmall) }
@@ -128,7 +127,9 @@ fun BackupScreen(
             profiles = reading.profiles,
             retry = if (reading == RestoreProfileRead.Failed) viewModel.profileReader::retry else null,
             // The profiles the question names are the ones the restore is held to: the dialog hands them over.
-            onConfirm = { shown -> viewModel.importFrom(uri, shown); pendingImport = null },
+            onConfirm = { shown ->
+                if (pendingImport == uri && viewModel.importFrom(uri, shown)) pendingImport = null
+            },
             onDismiss = { pendingImport = null },
         )
     }
@@ -141,14 +142,14 @@ internal fun backupFileName(base: String, now: LocalDateTime): String =
 
 /**
  * The export button with the system's "create a file" picker behind it. An export is for the profile the
- * button NAMES WHEN IT IS TAPPED ([profiles]' active one): that id is kept across the picker, and across a
+ * button NAMES WHEN IT IS TAPPED ([lastBackup]'s profile): that id is kept across the picker, and across a
  * recreation of the screen under it, and goes to [onExport] with the file, whatever profile is on when the
  * picker answers. The export itself refuses to write another profile than this one. Not enabled before the
  * profiles are read: there would be no profile to hold the export to. [guarded] runs the launch of the
  * picker (a phone without one must not take the screen down).
  */
 @Composable
-internal fun ExportButton(profiles: RestoreProfiles?, guarded: (() -> Unit) -> Unit, onExport: (android.net.Uri, Long) -> Unit) {
+internal fun ExportButton(lastBackup: LastBackup?, guarded: (() -> Unit) -> Unit, onExport: (android.net.Uri, Long) -> Unit) {
     var exportFor by rememberSaveable { mutableStateOf<Long?>(null) }
     val createDoc = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
@@ -156,12 +157,12 @@ internal fun ExportButton(profiles: RestoreProfiles?, guarded: (() -> Unit) -> U
     val defaultName = stringResource(R.string.backup_default_name)
     Button(
         onClick = {
-            exportFor = profiles?.activeId
+            exportFor = lastBackup?.homeProfileId
             guarded { createDoc.launch(backupFileName(defaultName, LocalDateTime.now())) }
         },
-        enabled = profiles != null,
+        enabled = lastBackup != null,
         modifier = Modifier.fillMaxWidth().testTag(EXPORT_BUTTON_TAG),
-    ) { Text(exportButtonText(LocalResources.current, profiles)) }
+    ) { Text(exportButtonText(LocalResources.current, lastBackup)) }
 }
 
 /** The export button, for tests. */
