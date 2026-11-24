@@ -98,4 +98,12 @@ class ExportTextsTest {
             }
         }
     }
+
+    @Test fun unreadableProfilesEndsWithAFullStopInEveryLanguage() {
+        val languages = listOf("en", "de", "es", "fi", "fr", "pl", "pt", "ru", "sv", "tr")
+        val missingFullStop = languages.filterNot { language ->
+            resourcesIn(language).getString(R.string.backup_profiles_unreadable).endsWith(".")
+        }
+        assertWithMessage("Languages missing a full stop").that(missingFullStop).isEmpty()
+    }
 }
