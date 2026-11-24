@@ -89,12 +89,16 @@ class HomeLayoutRepository @Inject constructor(
 
     /**
      * Runs [work] while the home profile [profileId] is the one that is on, and stays on: null, with nothing
-     * run, when another one is. For what a screen asks of the layout it SHOWS: a screen can ask a moment after
+     * run, when another one is on or the check cannot read the profile. For what a screen asks of the layout it SHOWS: a screen can ask a moment after
      * the profile was switched behind it, and what it decided from its own profile's rows (that a page is
      * empty, that a cell is free) is not true of the profile its call would then reach. Not for a caller that
      * already holds the profile ([ActiveHomeProfile.whileActiveStays] does not nest).
      */
-    suspend fun <T> whileProfileIsOn(profileId: Long, work: suspend () -> T): T? {
+    suspend fun <T> whileProfileIsOn(profileId: Long, work: suspend () -> T): T? =
+        whileProfileIsOn(profileId, onReadFailure = { null }, work = work)
+
+    /** A caller that reports storage errors can distinguish a failed check from a switched profile. */
+    suspend fun <T> whileProfileIsOn(profileId: Long, onReadFailure: () -> T?, work: suspend () -> T): T? {
         var started = false
         return try {
             dao.whileActiveStays { active ->
@@ -105,7 +109,7 @@ class HomeLayoutRepository @Inject constructor(
         } catch (failure: java.io.IOException) {
             // Only a failed profile check means the request was refused without changing the layout.
             if (started) throw failure
-            null
+            onReadFailure()
         }
     }
 

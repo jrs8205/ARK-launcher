@@ -724,7 +724,7 @@ class HomeViewModel @Inject constructor(
         insertRows = homeLayoutRepository::insertPage,
         removeRows = homeLayoutRepository::removeEmptyPage,
         save = settingsRepository::setHomePages,
-        inProfile = { shown, work -> homeLayoutRepository.whileProfileIsOn(shown, work) },
+        inProfile = { shown, work -> homeLayoutRepository.whileProfileIsOn(shown, onReadFailure = { PAGE_FAILED }, work = work) },
     )
 
     /*

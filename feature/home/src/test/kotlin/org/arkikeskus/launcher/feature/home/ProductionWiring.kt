@@ -304,6 +304,10 @@ internal class HeldRead {
         mayRead.complete(Unit)
     }
 
+    fun fail() {
+        mayRead.completeExceptionally(java.io.IOException("settings unavailable"))
+    }
+
     internal suspend fun hold() {
         waiting.complete(Unit)
         mayRead.await()

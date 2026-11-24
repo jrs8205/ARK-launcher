@@ -263,6 +263,8 @@ class HomeProfileSwitchTest {
             // The menu of the first profile's screen, handled after the state turned to Work.
             assertThat(viewModel.removeEmptyPage(2, profile = 1)).isEqualTo(PAGE_NOT_SHOWN)
             assertThat(viewModel.insertPage(0, profile = 1)).isEqualTo(PAGE_NOT_SHOWN)
+            wiring.holdTheNextReadOfTheSettings().fail()
+            assertThat(viewModel.insertPage(0, profile = work)).isEqualTo(PAGE_FAILED)
             val setHome = viewModel.setHomePage(0, profile = 1)
             awaitUntil("the home page's answer") { setHome.isCompleted }
 
