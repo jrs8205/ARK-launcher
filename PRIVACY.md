@@ -1,6 +1,6 @@
 # ARK-Launcher Privacy Policy
 
-*Last updated: 2026-11-15 · applies to ARK-Launcher v1.2.0 and later
+*Last updated: 2026-11-24 · applies to ARK-Launcher v1.3.0 and later
 ([v0.9.2 policy](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.md))*
 
 *Tämä seloste suomeksi: [PRIVACY.fi.md](PRIVACY.fi.md)*
@@ -66,7 +66,7 @@ public, so every claim here can be verified:
    geocoder backend (some models don't), the app asks the keyless
    [BigDataCloud](https://www.bigdatacloud.com) reverse-geocoding API instead,
    sending the same ~1 km rounded coordinates plus the device's interface
-   language — at most once per 30-minute weather refresh, and only when the
+   language — at most once in 30 minutes, and only when the
    local geocoder failed. With the setting off, no request is ever made to
    BigDataCloud; on such devices the weather then shows without a place name.
 

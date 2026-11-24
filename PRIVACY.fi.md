@@ -1,6 +1,6 @@
 # ARK-Launcherin tietosuojaseloste
 
-*Päivitetty: 15.11.2026 · koskee ARK-Launcherin versiota 1.2.0 ja uudempia
+*Päivitetty: 24.11.2026 · koskee ARK-Launcherin versiota 1.3.0 ja uudempia
 ([version 0.9.2 seloste](https://github.com/jrs8205/ARK-launcher/blob/v0.9.2/PRIVACY.fi.md))*
 
 *This policy in English: [PRIVACY.md](PRIVACY.md)*
@@ -74,8 +74,8 @@ julkinen, joten jokaisen väitteen voi tarkistaa itse:
    sijaan avaimetonta
    [BigDataCloud](https://www.bigdatacloud.com)-käänteisgeokoodausrajapintaa
    ja lähettää sinne samat ~1 km:n tarkkuuteen pyöristetyt koordinaatit sekä
-   laitteen käyttöliittymäkielen — enintään kerran 30 minuutin säähakua
-   kohden, ja vain kun paikallinen geokooderi epäonnistui. Kun asetus on pois,
+   laitteen käyttöliittymäkielen — enintään kerran 30 minuutissa,
+   ja vain kun paikallinen geokooderi epäonnistui. Kun asetus on pois,
    BigDataCloudiin ei lähetetä mitään; tällaisissa laitteissa sää näkyy silloin
    ilman paikkakunnan nimeä.
 

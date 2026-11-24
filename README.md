@@ -76,13 +76,21 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   page, across pages, and between the home grid and the dock. Drag an app from the drawer straight
   onto any page.
 - **Dock** of favorite apps and folders (reorder, drag in/out; drop an app onto a dock app to make a folder).
+- **Profiles** — up to eight home screens of your own (Settings ▸ Profiles), each with its own pages, dock,
+  widgets and folders, its own grid and look (base colour, font, icons, labels, the app drawer's background
+  and picture) and its own desktop lock. A new profile starts empty or as a copy of the current one. A
+  profile is a view of this launcher, not Android's work profile: gestures, notification settings, hidden
+  apps and your own app names and icons are the same in every profile.
 - **Swipe up from the dock** to open the app drawer, as from anywhere on the home screen.
 - **App drawer with universal search** — one search box finds:
   - installed **apps**,
   - common **system settings** pages (type "wifi", "battery", …),
   - **contacts** (opt-in; gated by a setting + the `READ_CONTACTS` permission),
   - a **calculator / unit converter** (type `12*7` or `100 cm to in`).
-  - plus an optional **most-used apps** row.
+  - plus an optional **most-used apps** row. With **Count apps opened elsewhere** (off by default; needs
+    Android's usage access) an app opened from a notification, a widget or another app counts too.
+  - The search field can sit **at the bottom**, within reach of the thumb, and the search can **find
+    hidden apps** by name when you ask it to.
 - **Home-screen widgets** — browse large previews, tap Add or drag a preview onto the home screen.
   Long-press and continue dragging to move a widget; hold at a screen edge to change pages.
   Resize handles show the footprint and respect the widget's size limits; compatible widgets can
@@ -91,7 +99,8 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   widgets adapt to their size and offer translucent or themed backgrounds in Settings ▸ Widgets.
 - **Folders** on the home screen and inside the drawer: a tap opens a folder in a card by its icon, the same
   card in both places; on the home screen a pencil opens its editor, in the drawer a hold on the folder does.
-  A drawer folder can be dragged to the home screen, where a copy of it is made.
+  A drawer folder can be dragged to the home screen, where a copy of it is made. The apps of a folder can be
+  sorted A–Z in its editor, on the home screen and in the drawer.
 - **Notification dots / badges** (via a notification-listener service; dot or Nova-style count).
 - **People widget**: messages, missed calls and mail grouped by person as tiles, with optional
   batch delivery that holds others' messages in the launcher's widgets, badges and status bar until
@@ -109,7 +118,7 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   **left-edge swipe** that launches an app of your choice, an opt-in **swipe up on a home folder**
   that opens the folder's first app, and per-icon **"Swipe up opens"** and **"Swipe down opens"**
   choices (Edit) that open another app from a home or dock icon. An **icon swipe distance** slider
-  sets how far such a swipe must travel before it fires.
+  (100–1000 %) sets how far such a swipe must travel before it fires.
 - **Customizable look** — a **font** for everything the launcher draws (six families Android ships),
   adjustable app-label **text size** and **colour**, **one- or two-line
   labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
@@ -121,9 +130,10 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   edges aligned with the icons, hiding home-screen apps from the drawer, grid columns, **folder
   columns**, page indicator, and more. App drawer folders can lead the list or sit among the apps
   A–Z.
-- **One base colour for the whole launcher** — eight colours, **Black** for a look without colour, or
-  **Chameleon**, which follows the wallpaper (Settings ▸ Appearance). Everything is coloured from it, in
-  the light and the dark theme, with softer shapes, grouped lists and pill-shaped controls throughout.
+- **One base colour for the whole launcher** — eight colours, **Classic** (the greys and the warm orange
+  of the look before 1.1.0), **Black** for a look without colour, or **Chameleon**, which follows the
+  wallpaper (Settings ▸ Appearance). Everything is coloured from it, in the light and the dark theme, with
+  softer shapes, grouped lists and pill-shaped controls throughout.
 - **Wallpaper scrolling** — the wallpaper moves with the home pages (Settings ▸ Home screen; on by
   default, can be turned off).
 - **Private space** (Android 15 and later, as the default launcher) — once a private space is set up in
@@ -143,7 +153,8 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   like: app names, icon size, row spacing, and a background colour and opacity of your own (the text
   turns dark or light to match).
 - **Clock and weather widget look** — background colour and opacity, text size, and a weather icon
-  that is standard, colourful or animated, in two sizes.
+  that is standard, colourful or animated, in three sizes, with a moon by night. The temperature is in
+  Fahrenheit where the region uses it.
 - **Hide the system navigation bar** on the home screen and the app drawer (swipe up from the bottom
   edge to show it for a moment).
 - **Screensaver** — ARK-Launcher can be chosen as Android's screensaver (Settings ▸ Display ▸ Screen
@@ -153,7 +164,8 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   its options: what is shown, an accent colour, dimming by hand or by night hours, a brightness of its
   own, burn-in protection, an optional start as soon as charging begins, and an optional notification
   when the battery is full.
-- **Backup & restore** — export/import your layout and settings to a file (widgets included).
+- **Backup & restore** — export/import your layout and settings to a file (widgets included). A file holds
+  one profile, the one in use; restoring it replaces that profile and removes the others, and asks first.
 - **Double-tap to lock** — double-tap empty home-screen space to lock the screen (opt-in; uses a
   minimal accessibility service that reads nothing).
 - **Lock desktop** — a toggle that prevents accidental moving, removing, or adding of items.

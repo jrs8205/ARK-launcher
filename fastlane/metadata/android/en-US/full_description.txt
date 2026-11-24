@@ -4,7 +4,8 @@ Features:
 
 * Paged home screen with free icon placement and smooth drag-and-drop — move icons within a page, across pages, and between the home grid and the dock.
 * Dock of favourite apps.
-* App drawer with universal search: apps, system settings pages, contacts (opt-in), and a calculator / unit converter, plus an optional most-used apps row.
+* Profiles: up to eight home screens of your own, each with its own apps, dock, widgets and look.
+* App drawer with universal search: apps, system settings pages, contacts (opt-in), and a calculator / unit converter, plus an optional most-used apps row (it can also count apps opened elsewhere, with Android's usage access; off by default).
 * Home-screen widgets — add, resize, move, reconfigure, and stretch a widget to full width. Collection widgets (chat lists, calendars) scroll in place.
 * Built-in widgets: a clock with the date, your next event, the next alarm and optional weather; battery; notifications; and people (conversations grouped by person).
 * Folders on the home screen and inside the app drawer.
