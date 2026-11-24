@@ -1,0 +1,9 @@
+New
+- Profiles: several home screens, each with its own apps, dock, widgets and look (Settings > Profiles).
+- A Classic base colour, the look before 1.1.0 (#28).
+- The search field can sit at the bottom of the app drawer.
+- Search can find hidden apps; a drawer folder sorts A–Z (#32).
+- Icon swipe distance up to 1000 % (#37).
+
+Changed
+- One new optional permission: usage access, only for "Count apps opened elsewhere" (off by default).
