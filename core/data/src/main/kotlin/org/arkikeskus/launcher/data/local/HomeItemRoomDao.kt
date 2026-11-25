@@ -61,6 +61,9 @@ interface HomeItemRoomDao {
     @Query("DELETE FROM home_items WHERE homeProfileId = :profile")
     suspend fun clear(profile: Long)
 
+    @Query("DELETE FROM home_items WHERE builtinType = :type")
+    suspend fun deleteBuiltinsOfType(type: String)
+
     @Query(
         "SELECT COUNT(*) FROM home_items WHERE homeProfileId = :profile AND containerId = :containerId " +
             "AND packageName = :pkg AND className = :cls AND userSerial = :user",

@@ -106,6 +106,8 @@ interface HomeItemDao {
     /** Removes every row of [profile], whichever profile is resolved. */
     suspend fun deleteProfile(profile: Long)
 
+    suspend fun deleteBuiltinsOfType(type: String)
+
     /**
      * Atomically replaces the rows of EVERY home profile with [items], which become the resolved
      * profile's: what a restore does. In one transaction, because the rows come with the ids their

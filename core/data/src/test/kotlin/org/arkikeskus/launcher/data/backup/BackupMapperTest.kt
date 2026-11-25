@@ -94,6 +94,31 @@ class BackupMapperTest {
         assertThat(mapping.entities.all { it.appWidgetId == null }).isTrue()
     }
 
+    @Test fun onlyCanonicalPositiveProfileSwitchTypesHaveATarget() {
+        for (id in listOf(1L, 12L, Long.MAX_VALUE)) {
+            assertThat(HomeItemEntity.profileSwitchTarget(HomeItemEntity.profileSwitchType(id))).isEqualTo(id)
+        }
+        for (other in listOf(null, "smartspace", "battery", "notifications", "people", "profile_switch",
+            "profile_switch:", "profile_switch:0", "profile_switch:-2", "profile_switch:+2",
+            "profile_switch:02", "profile_switch:9223372036854775808", "2", "anything:2")) {
+            assertThat(HomeItemEntity.profileSwitchTarget(other)).isNull()
+        }
+    }
+
+    @Test fun switchTargetsDoNotTravelInABackup() {
+        val clock = HomeItemEntity(id = 1, page = 0, cellX = 0, cellY = 0, builtinType = "smartspace")
+        val link = clock.copy(id = 2, cellX = 1, builtinType = "profile_switch:2")
+        val exported = BackupMapper.toBackupItems(listOf(clock, link), 0L)
+        assertThat(exported.map { it.id }).containsExactly(1L)
+        assertThat(toEntities(exported).entities.map { it.builtinType }).containsExactly("smartspace")
+    }
+
+    @Test fun aFileWithASwitchTargetRestoresItsOtherRows() {
+        val clock = BackupItem(1, -1, null, "", "", true, null, 0, 0, 0, builtinType = "smartspace")
+        val link = clock.copy(id = 2, cellX = 1, builtinType = "profile_switch:2")
+        assertThat(toEntities(listOf(link, clock)).entities.map { it.id }).containsExactly(1L)
+    }
+
     @Test
     fun toBackupItems_includes_builtin_type() {
         val entities = listOf(

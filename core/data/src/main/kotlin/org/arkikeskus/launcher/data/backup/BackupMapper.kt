@@ -12,7 +12,7 @@ data class ProfileApps(val appKeys: Set<String>, val packages: Set<String>)
 object BackupMapper {
 
     fun toBackupItems(entities: List<HomeItemEntity>, mainUserSerial: Long): List<BackupItem> =
-        entities.map { e ->
+        entities.filterNot { HomeItemEntity.profileSwitchTarget(it.builtinType) != null }.map { e ->
             BackupItem(
                 id = e.id,
                 containerId = e.containerId,

@@ -948,6 +948,7 @@ class HomeLayoutRepository @Inject constructor(
         // A configuration result may be redelivered after process recreation.
         if (appWidgetId != null && items.any { it.appWidgetId == appWidgetId }) return@tx true
         val p = placement
+        if (!validBuiltinSize(builtinType, p.spanX, p.spanY)) return@tx false
         if (!isShownPage(p.page)) return@tx false
         val plan = ReorderPlanner.planFit(
             items.map { ReorderPlanner.Rect(it.id, it.page, it.cellX, it.cellY, it.spanX, it.spanY) },
@@ -1023,11 +1024,16 @@ class HomeLayoutRepository @Inject constructor(
         true
     }
 
+    private fun validBuiltinSize(type: String?, width: Int, height: Int): Boolean =
+        type?.startsWith(HomeItemEntity.BUILTIN_PROFILE_SWITCH) != true ||
+            (HomeItemEntity.profileSwitchTarget(type) != null && width == 1 && height == 1)
+
     /** Places a built-in widget (e.g. [HomeItemEntity.BUILTIN_SMARTSPACE]) at the first rectangle,
      *  pushing overlapping icons aside before spilling onto a fresh page (see [firstRectWithPush]).
      *  False — nothing stored, nothing moved — when every page the pager shows is full. */
     suspend fun addBuiltin(type: String, spanX: Int, spanY: Int, columns: Int, rows: Int): Boolean =
         tx {
+            if (!validBuiltinSize(type, spanX, spanY)) return@tx false
             val placement = firstRectWithPush(dao.getContainer(HOME), columns, spanX, spanY, rows)
             if (!isShownPage(placement.page)) return@tx false
             applyPush(placement)
@@ -1109,12 +1115,13 @@ class HomeLayoutRepository @Inject constructor(
      * ([DeletedProfileRows]): the caller pins the shortcuts' packages again ([homeShortcutIds]) and frees
      * the widget ids, which no home screen is showing and so no home screen would free.
      */
-    suspend fun deleteProfile(profile: Long): DeletedProfileRows = db.withTransaction {
+    suspend fun deleteProfile(profile: Long, removeSwitchTargets: Boolean = false): DeletedProfileRows = db.withTransaction {
         val rows = inHomeProfile(profile) { dao.getAll() }
         val pinned = rows.filter { it.containerId == HOME && it.isShortcut }
         val owners = pinned.map { it.packageName to it.userSerial }.toSet()
         val widgets = rows.mapNotNull { it.appWidgetId }.toSet()
         dao.deleteProfile(profile)
+        if (removeSwitchTargets) dao.deleteBuiltinsOfType(HomeItemEntity.profileSwitchType(profile))
         DeletedProfileRows(owners, widgets, pinned.mapTo(HashSet()) { Triple(it.packageName, it.shortcutId!!, it.userSerial) })
     }
 
@@ -1127,6 +1134,7 @@ class HomeLayoutRepository @Inject constructor(
     ): Boolean = tx {
         val row = dao.getById(rowId) ?: return@tx false
         if (!row.isWidget && !row.isBuiltin) return@tx false
+        if (!validBuiltinSize(row.builtinType, spanX, spanY)) return@tx false
         if (!isShownPage(page)) return@tx false
         val sx = spanX.coerceAtLeast(1)
         val sy = spanY.coerceAtLeast(1)

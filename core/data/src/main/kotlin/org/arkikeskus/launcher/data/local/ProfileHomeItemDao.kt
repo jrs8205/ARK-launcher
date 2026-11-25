@@ -113,6 +113,8 @@ class ProfileHomeItemDao(
 
     override fun observeProfileIds() = rows.observeProfileIds()
 
+    override suspend fun deleteBuiltinsOfType(type: String) = rows.deleteBuiltinsOfType(type)
+
     override suspend fun deleteProfile(profile: Long) = rows.clear(profile)
 
     override suspend fun replaceEveryProfile(items: List<HomeItemEntity>) = rows.replaceEveryProfile(resolvedProfile(), items)

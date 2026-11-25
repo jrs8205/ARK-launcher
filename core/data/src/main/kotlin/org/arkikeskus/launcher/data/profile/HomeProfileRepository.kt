@@ -152,8 +152,8 @@ class HomeProfileRepository @Inject constructor(
      * goes with the shortcut's LAST copy, here as when one shortcut is removed from a home screen. Left behind,
      * the same shortcut pinned again later wore the old icon, and a gallery picture stayed in use for ever.
      */
-    private suspend fun dropRows(id: Long): DeletedProfileRows = ShortcutPinLock.withLock {
-        val gone = layout.deleteProfile(id)
+    private suspend fun dropRows(id: Long, removeSwitchTargets: Boolean = false): DeletedProfileRows = ShortcutPinLock.withLock {
+        val gone = layout.deleteProfile(id, removeSwitchTargets)
         withContext(Dispatchers.IO) {
             for ((packageName, userSerial) in gone.shortcutOwners) {
                 try {
@@ -185,6 +185,24 @@ class HomeProfileRepository @Inject constructor(
      *  on is still on. Said as a result, not thrown: Settings asks without catching, and an exception there
      *  took the launcher down. */
     suspend fun switchTo(id: Long): Boolean = written { store.setActive(id) }
+
+    enum class Switch { Done, Missing, Failed, Stale }
+
+    /** Two taps on the still-visible source may queue behind the same write. The second is also
+     * valid after the first has switched, but a tap from a screen otherwise left does nothing. */
+    suspend fun switchFromHome(source: Long, target: Long, preceding: Long?): Switch = try {
+        store.whileActiveStays { active ->
+            when {
+                active != source && active != preceding -> Switch.Stale
+                store.setActiveLocked(target) -> Switch.Done
+                else -> Switch.Missing
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        Switch.Failed
+    }
 
     /** Whether [write], a change to the stored profiles, was taken by the storage. */
     private suspend fun written(write: suspend () -> Unit): Boolean = try {
@@ -306,7 +324,7 @@ class HomeProfileRepository @Inject constructor(
                 if (active == id) store.setActiveLocked((list.getOrNull(index + 1) ?: list[index - 1]).id)
                 // The rows first: from here on the profile shows nothing, and what is left of it can be deleted
                 // again ([dropRows] pins its shortcuts again as the other profiles still have them).
-                gone = dropRows(id)
+                gone = dropRows(id, removeSwitchTargets = true)
                 // Its picture next, and whether it went: one that is still on the disk is still the
                 // profile's, so the profile stays listed and is deleted again ([Deleted.LeftEmpty]).
                 check(drawerPictures.delete(id)) { "the drawer's picture could not be removed" }

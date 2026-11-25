@@ -248,14 +248,18 @@ class HomeProfileStore(
      * reader of the settings reads from, at the next start too: said to be on unread, a profile whose store
      * failed stopped the home screen from coming up, and Settings with it, where the switch is taken back.
      */
-    suspend fun setActive(id: Long) = steady.withLock { setActiveLocked(id) }
+    suspend fun setActive(id: Long) {
+        steady.withLock { setActiveLocked(id) }
+    }
 
     /** [setActive] for a caller inside [whileActiveStays]. */
-    internal suspend fun setActiveLocked(id: Long) = view.mutex.withLock {
+    internal suspend fun setActiveLocked(id: Long): Boolean = view.mutex.withLock {
         val now = main.data.first()
-        if (profilesIn(now).none { it.id == id } || ProfiledPreferences.activeId(now) == id) return@withLock
+        if (profilesIn(now).none { it.id == id }) return@withLock false
+        if (ProfiledPreferences.activeId(now) == id) return@withLock true
         view.profileValues(id)
         view.switchActive(from = ProfiledPreferences.activeId(now), to = id)
+        true
     }
 
     /**

@@ -77,6 +77,18 @@ data class HomeItemEntity(
         /** [containerId] sentinel meaning "in the dock" (Launcher3's hotseat): [cellX] is the slot. */
         const val DOCK = -2L
 
+        const val BUILTIN_PROFILE_SWITCH = "profile_switch"
+
+        fun profileSwitchType(target: Long): String {
+            require(target > 0)
+            return "$BUILTIN_PROFILE_SWITCH:$target"
+        }
+
+        fun profileSwitchTarget(type: String?): Long? {
+            val id = type?.substringAfter(':', "")?.toLongOrNull() ?: return null
+            return id.takeIf { it > 0 && profileSwitchType(it) == type }
+        }
+
         /** [builtinType] of the clock + date + next-calendar-event widget. */
         const val BUILTIN_SMARTSPACE = "smartspace"
 
