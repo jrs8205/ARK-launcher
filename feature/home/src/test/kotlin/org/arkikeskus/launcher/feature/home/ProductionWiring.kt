@@ -237,7 +237,7 @@ internal class ProductionWiring(
      *  was not seen, so its first-run work is still to do. */
     fun firstStartHomeViewModel(): HomeViewModel = HomeViewModel(
         context, settingsRepository, appRepository, homeLayoutRepository, NotificationBadgeRepository(), SignalMonitor(context),
-        CustomIconStore(settingsRepository, CustomIconSource(context, IconPackRepository(context))),
+        CustomIconStore(settingsRepository, CustomIconSource(context, IconPackRepository(context))), homeProfiles,
     )
 
     fun clear(viewModel: HomeViewModel) {

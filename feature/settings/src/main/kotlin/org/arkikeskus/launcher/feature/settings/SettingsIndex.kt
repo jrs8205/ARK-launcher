@@ -46,6 +46,8 @@ internal enum class SettingsCategory(
     }
 }
 
+val SETTINGS_PAGE_PROFILES: String get() = SettingsCategory.PROFILES.key
+
 /** The tag a category's row carries on the main page. */
 internal fun categoryTag(key: String): String = "category-$key"
 

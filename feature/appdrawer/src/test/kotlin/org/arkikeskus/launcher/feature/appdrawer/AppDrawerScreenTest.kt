@@ -107,6 +107,24 @@ class AppDrawerScreenTest {
     private val windowHeight = mutableStateOf<Dp?>(null)
     private var closeCalls = 0
 
+    @Test fun theFullSizeDrawerSurvivesWhileTheHomeAndDrawerHaveDifferentProfiles() {
+        val shown = mutableStateOf<Long?>(2)
+        compose.setContent {
+            AppDrawerScreen(onClose = {}, onOpenSettings = {}, modifier = Modifier.testTag("drawer root"),
+                shownHomeProfile = shown.value, viewModel = viewModel)
+        }
+        val root = compose.onNodeWithTag("drawer root")
+        val bounds = root.getBoundsInRoot()
+        assertThat((bounds.right - bounds.left).value).isGreaterThan(100f)
+        val id = root.fetchSemanticsNode().id
+        shown.value = 1
+        awaitText(mailApp)
+        assertThat(root.fetchSemanticsNode().id).isEqualTo(id)
+        shown.value = 2
+        assertThat(root.getBoundsInRoot()).isEqualTo(bounds)
+        compose.onNodeWithText(mailApp).assertIsNotDisplayed()
+    }
+
     /** [height] constrains the drawer for split-screen and resize tests. */
     private fun show(height: Dp? = null, homeFocusStops: Boolean = false) {
         windowHeight.value = height

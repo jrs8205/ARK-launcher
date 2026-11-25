@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.data.DrawerWallpaperStore
@@ -48,12 +46,8 @@ data class IconStyle(
     val shape: IconShape = IconShape.SYSTEM,
 )
 
-/**
- * Exposes just the icon-style settings to [LauncherShell] so the single floating drag icon — drawn
- * above the home and drawer, outside their own CompositionLocal scopes — renders with the selected
- * icon pack / themed icons instead of the default system icon. Also relays the icon re-fetch epochs
- * (see [org.arkikeskus.launcher.model.IconEpochs]) that the shell provides to every icon surface.
- */
+/** System signals and the profile-tagged drawer picture. The shell takes its visual settings
+ * from the same loaded frame that supplies the home grid. */
 @HiltViewModel
 class LauncherShellViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
@@ -66,26 +60,11 @@ class LauncherShellViewModel @Inject constructor(
     val headsUpActive: StateFlow<Boolean> = notificationBadgeRepository.headsUpActive
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val iconStyle: StateFlow<IconStyle> = settingsRepository.settings
-        .map { IconStyle(it.iconPackPackage, it.useThemedIcons, it.iconScale, it.themeAllIcons, it.iconShape) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), IconStyle())
-
     val iconEpochs: StateFlow<IconEpochs> = launcherAppsSource.iconEpochs
 
-    /** The status-bar settings the system bars' glyph colour depends on (see SystemBarContrast). */
-    val statusBars: StateFlow<StatusBarSettings> = settingsRepository.settings
-        .combine(drawerWallpaper.shown, ::statusBarSettings)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), StatusBarSettings())
-
-    /** The long-press delay setting, applied once at the shell root for every press site under it. */
-    val longPressScale: StateFlow<Float> = settingsRepository.settings
-        .map { it.longPressScale }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1f)
-
-    /** The wallpaper blurs behind the rising drawer (Settings > App drawer, opt-in), at the chosen strength. */
-    val drawerBlur: StateFlow<DrawerBlur> = settingsRepository.settings
-        .map { DrawerBlur(enabled = it.blurBehindDrawer, strength = it.drawerBlurStrength) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DrawerBlur())
+    /** The theme and bars can start as soon as preferences arrive, before Room has supplied home. */
+    val settings = settingsRepository.settings
+    val drawerPicture = drawerWallpaper.shown
 }
 
 /**

@@ -23,6 +23,9 @@ import org.arkikeskus.launcher.feature.home.APPWIDGET_HOST_ID
 import org.arkikeskus.launcher.feature.home.LocalAppWidgetHost
 import org.arkikeskus.launcher.feature.home.LocalOrphanWidgetConfigResult
 import org.arkikeskus.launcher.feature.home.LocalWidgetConfigLauncher
+import org.arkikeskus.launcher.feature.home.HomeViewModel
+import org.arkikeskus.launcher.feature.home.VisibleHomeFrame
+import org.arkikeskus.launcher.feature.settings.SETTINGS_PAGE_PROFILES
 import org.arkikeskus.launcher.data.WorkProfileRepository
 import org.arkikeskus.launcher.model.IconChoices
 import org.arkikeskus.launcher.ui.AppLaunchSources
@@ -32,6 +35,8 @@ import org.arkikeskus.launcher.ui.LocalAppLaunchSources
 import org.arkikeskus.launcher.ui.LocalIconChoices
 import org.arkikeskus.launcher.ui.WorkProfileMarks
 import org.arkikeskus.launcher.ui.component.LocalIconEpochs
+import org.arkikeskus.launcher.ui.ThemeChoice
+import org.arkikeskus.launcher.ui.ThemeViewModel
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -71,32 +76,47 @@ class LauncherActivity : ComponentActivity() {
         enableEdgeToEdge()
         keepHomeOnBack()
         setContent {
-            LauncherAppTheme {
-                // Icon re-fetch epochs above EVERY icon surface (home, dock, drawer, folder sheets):
-                // a package update bumps its epoch, which re-keys and re-fetches that icon everywhere
-                // — including AsyncImages already on screen, which only re-load on a model change.
-                val iconEpochs by hiltViewModel<LauncherShellViewModel>().iconEpochs.collectAsStateWithLifecycle()
-                // The icon a tap landed on, so the app opens with a zoom from it.
-                val launchSources = remember { AppLaunchSources() }
-                CompositionLocalProvider(
-                    LocalAppWidgetHost provides appWidgetHost,
-                    LocalWidgetConfigLauncher provides ::startWidgetConfig,
-                    LocalWidgetReconfigureLauncher provides { id ->
-                        startWidgetReconfigure(id) { widgetId, requestCode, options ->
-                            appWidgetHost.startAppWidgetConfigureActivityForResult(this, widgetId, 0, requestCode, options)
+            val home = hiltViewModel<HomeViewModel>()
+            val theme = hiltViewModel<ThemeViewModel>()
+            val shell = hiltViewModel<LauncherShellViewModel>()
+            val stored by shell.settings.collectAsStateWithLifecycle(initialValue = null)
+            VisibleHomeFrame(home) { frame, homeLayout ->
+                val settings = frame?.settings ?: stored ?: return@VisibleHomeFrame
+                LauncherAppTheme(ThemeChoice(settings.fontFamily, settings.baseColour, settings.chameleonLastArgb),
+                    onChameleonColour = theme::rememberChameleon) {
+                    // Icon re-fetch epochs above EVERY icon surface (home, dock, drawer, folder sheets):
+                    // a package update bumps its epoch, which re-keys and re-fetches that icon everywhere
+                    // — including AsyncImages already on screen, which only re-load on a model change.
+                    val iconEpochs by shell.iconEpochs.collectAsStateWithLifecycle()
+                    // The icon a tap landed on, so the app opens with a zoom from it.
+                    val launchSources = remember { AppLaunchSources() }
+                    CompositionLocalProvider(
+                        LocalAppWidgetHost provides appWidgetHost,
+                        LocalWidgetConfigLauncher provides ::startWidgetConfig,
+                        LocalWidgetReconfigureLauncher provides { id ->
+                            startWidgetReconfigure(id) { widgetId, requestCode, options ->
+                                appWidgetHost.startAppWidgetConfigureActivityForResult(this, widgetId, 0, requestCode, options)
+                            }
+                        },
+                        LocalOrphanWidgetConfigResult provides orphanConfigResult,
+                        LocalIconEpochs provides iconEpochs,
+                        LocalAppLaunchSources provides launchSources,
+                        LocalIconChoices provides iconChoices,
+                    ) {
+                        // Above every icon surface too: a work app says its profile to a screen reader.
+                        WorkProfileMarks(workProfileRepository.workProfile) {
+                            LauncherShell(
+                                frame = frame,
+                                homeLayout = homeLayout,
+                                settings = settings,
+                                homeSignals = homeSignals,
+                                onManageProfiles = {
+                                    startActivity(Intent(this, SettingsActivity::class.java)
+                                        .putExtra(SettingsActivity.EXTRA_PAGE, SETTINGS_PAGE_PROFILES))
+                                },
+                                onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+                            )
                         }
-                    },
-                    LocalOrphanWidgetConfigResult provides orphanConfigResult,
-                    LocalIconEpochs provides iconEpochs,
-                    LocalAppLaunchSources provides launchSources,
-                    LocalIconChoices provides iconChoices,
-                ) {
-                    // Above every icon surface too: a work app says its profile to a screen reader.
-                    WorkProfileMarks(workProfileRepository.workProfile) {
-                        LauncherShell(
-                            homeSignals = homeSignals,
-                            onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
-                        )
                     }
                 }
             }

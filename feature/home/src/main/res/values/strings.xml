@@ -163,4 +163,12 @@
     <string name="pin_request_close">Close</string>
     <string name="pin_request_work_profile">Work profile widgets can\'t be added yet.</string>
     <string name="pin_request_too_big">This widget is too big for the home screen.</string>
+    <string name="profile_switch_name">Switch profile</string>
+    <string name="profile_switch_question">Switch to which profile?</string>
+    <string name="profile_switch_to">Switch to profile %1$s</string>
+    <string name="home_profiles">Profiles</string>
+    <string name="home_profile_in_use">In use</string>
+    <string name="home_manage_profiles">Manage profiles</string>
+    <string name="profile_switch_refused">The profile could not be switched.</string>
+    <string name="profile_switch_missing">This profile no longer exists.</string>
 </resources>

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import org.arkikeskus.launcher.data.backup.ConfirmedProfiles
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.HomeProfile
+import org.arkikeskus.launcher.ui.shownProfileName
 import javax.inject.Inject
 
 /**
@@ -135,7 +136,7 @@ internal fun restoreConfirmText(resources: Resources, deletedProfiles: List<Stri
     var question = resources.getString(R.string.backup_restore_confirm_msg)
     if (deletedProfiles.isNotEmpty()) {
         val names = deletedProfiles.joinToString(", ") { name ->
-            name.ifBlank { resources.getString(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
+            shownProfileName(resources, name)
         }
         question += "\n\n" + resources.getString(R.string.backup_restore_confirm_profiles, names)
     }

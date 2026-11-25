@@ -163,4 +163,12 @@
     <string name="pin_request_close">Zamknij</string>
     <string name="pin_request_work_profile">Widżetów z profilu służbowego nie można jeszcze dodawać.</string>
     <string name="pin_request_too_big">Ten widżet jest za duży na ekran główny.</string>
+    <string name="profile_switch_name">Przełącz profil</string>
+    <string name="profile_switch_question">Na który profil przełączyć?</string>
+    <string name="profile_switch_to">Przełącz na profil %1$s</string>
+    <string name="home_profiles">Profile</string>
+    <string name="home_profile_in_use">W użyciu</string>
+    <string name="home_manage_profiles">Zarządzaj profilami</string>
+    <string name="profile_switch_refused">Nie udało się przełączyć profilu.</string>
+    <string name="profile_switch_missing">Ten profil już nie istnieje.</string>
 </resources>

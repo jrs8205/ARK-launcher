@@ -89,6 +89,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import org.arkikeskus.launcher.data.PendingWidgetIds
 import org.arkikeskus.launcher.data.sweepHostIds
+import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -165,8 +166,10 @@ internal fun Modifier.homeDockPadding(bottomSpacing: Dp = 0.dp): Modifier =
  */
 @Composable
 fun HomeScreen(
+    uiState: HomeUiState?,
     onOpenDrawer: () -> Unit,
     onOpenSettings: () -> Unit,
+    onManageProfiles: () -> Unit,
     modifier: Modifier = Modifier,
     homeSignals: Flow<Boolean> = emptyFlow(),
     onDrawerDrag: (Float) -> Unit = {},
@@ -181,21 +184,20 @@ fun HomeScreen(
     showWidgetsFor: String? = null,
     onShowWidgetsHandled: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
+    chargeGlow: ChargeGlowViewModel = hiltViewModel(),
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     // The system (and the startup benchmarks) learn when home is really up: its rows loaded.
-    HomeDrawnReporter(loaded = uiState.loaded)
-    // One home profile at a time: nothing of a profile that is not on is drawn, and what the screen has
-    // open or remembers does not pass from one profile to the next.
-    val activeProfile by viewModel.activeHomeProfileId.collectAsStateWithLifecycle()
+    HomeDrawnReporter(loaded = uiState?.loaded == true)
+    if (uiState == null) return
     // Under the launcher's own app drawer nothing on the home screen needs to move (the weather icon rests).
     CompositionLocalProvider(LocalHomeScreenShown provides !drawerOpen) {
-    HomeOfActiveProfile(active = activeProfile, uiState = uiState) { profile, shown ->
+    HomeOfActiveProfile(active = uiState.homeProfileId, uiState = uiState) { profile, shown ->
         HomeScreenOfProfile(
             profile = profile,
             uiState = shown,
             onOpenDrawer = onOpenDrawer,
             onOpenSettings = onOpenSettings,
+            onManageProfiles = onManageProfiles,
             modifier = modifier,
             homeSignals = homeSignals,
             onDrawerDrag = onDrawerDrag,
@@ -206,6 +208,7 @@ fun HomeScreen(
             showWidgetsFor = showWidgetsFor,
             onShowWidgetsHandled = onShowWidgetsHandled,
             viewModel = viewModel,
+            chargeGlow = chargeGlow,
         )
     }
     }
@@ -227,6 +230,7 @@ private fun HomeScreenOfProfile(
     uiState: HomeUiState,
     onOpenDrawer: () -> Unit,
     onOpenSettings: () -> Unit,
+    onManageProfiles: () -> Unit,
     modifier: Modifier,
     homeSignals: Flow<Boolean>,
     onDrawerDrag: (Float) -> Unit,
@@ -237,6 +241,7 @@ private fun HomeScreenOfProfile(
     showWidgetsFor: String?,
     onShowWidgetsHandled: () -> Unit,
     viewModel: HomeViewModel,
+    chargeGlow: ChargeGlowViewModel,
 ) {
     val settings = uiState.settings
     // True briefly after a heads-up notification, while the system transiently shows its own status bar
@@ -352,6 +357,9 @@ private fun HomeScreenOfProfile(
         (widgetHost as? LauncherWidgetHost)?.providerGeneration ?: remember { MutableStateFlow(0) }
         ).collectAsStateWithLifecycle()
     val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
+    val profiles = uiState.profiles
+    var switchPlacement by remember { mutableStateOf<WidgetPlacement?>(null) }
+    var profileMenu by remember { mutableStateOf(false) }
     var showWidgetPicker by remember { mutableStateOf(false) }
     // The package an icon's Widgets row opened the picker on; null for the full gallery.
     var widgetPickerPackage by remember { mutableStateOf<String?>(null) }
@@ -368,6 +376,9 @@ private fun HomeScreenOfProfile(
         android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
     }
     // What the ViewModel could not do for the user (e.g. the home screen is full), shown once each.
+    LaunchedEffect(viewModel) {
+        viewModel.homeSwitchMessages.collect { widgetMessage(it) }
+    }
     LaunchedEffect(viewModel) {
         viewModel.notices.collect { widgetMessage(it.message) }
     }
@@ -566,7 +577,9 @@ private fun HomeScreenOfProfile(
         showWidgetPicker = false
         when (choice) {
             is WidgetChoice.App -> startBind(choice.provider, restoreRowId = null, placement = placement)
-            is WidgetChoice.Builtin -> widgetScope.launch {
+            is WidgetChoice.Builtin -> if (choice.type == HomeItemEntity.BUILTIN_PROFILE_SWITCH) {
+                switchPlacement = placement
+            } else widgetScope.launch {
                 val ok = runCatching { viewModel.addWidgetAt(null, null, choice.type, placement, profile) }.getOrDefault(false)
                 if (!ok) widgetMessage(R.string.widget_add_failed)
             }
@@ -602,6 +615,16 @@ private fun HomeScreenOfProfile(
     // Shared drag state spanning the workspace, dock and drawer (Launcher3-style drag layer/controller).
     // Created by LauncherShell and passed in so the app drawer can drag onto home; falls back to a
     // local one when HomeScreen is used standalone (previews/tests).
+    // The shell outlives the home it shares this controller with. A lifted item and its drop
+    // zones belong to the departing home, including the interval before the next layout is ready.
+    DisposableEffect(dragController) {
+        onDispose {
+            dragController.cancel()
+            dragController.gridBounds = Rect.Zero
+            dragController.removeBounds = Rect.Zero
+            dragController.dockHasSpace = false
+        }
+    }
     SideEffect {
         dragController.dockItemCount = uiState.dockEntries.size
         dragController.dockHasSpace = settings.dockEnabled && uiState.dockEntries.size < settings.dockColumns
@@ -617,6 +640,8 @@ private fun HomeScreenOfProfile(
     // page 0, but only on an alreadyOnHome press; a SharedFlow feeds both collectors.)
     LaunchedEffect(homeSignals) {
         homeSignals.collect {
+            profileMenu = false
+            switchPlacement = null
             menuTarget = null
             homeOptions = null
             renameTarget = null
@@ -762,6 +787,9 @@ private fun HomeScreenOfProfile(
             }
             val lockNeedsServiceMsg = stringResource(R.string.double_tap_lock_needs_service)
             Workspace(
+                profiles = profiles,
+                onSwitchProfile = { viewModel.switchFromHome(profile, it) },
+                onMissingProfile = { widgetMessage(R.string.profile_switch_missing) },
                 pageCount = uiState.pageCount,
                 columns = settings.homeColumns,
                 rows = settings.homeRows,
@@ -921,7 +949,7 @@ private fun HomeScreenOfProfile(
         }
 
         // The charging animation's glow: over the home surfaces, under the open folder's card.
-        ChargeGlowLayer(enabled = settings.chargingAnimation)
+        ChargeGlowLayer(enabled = settings.chargingAnimation, viewModel = chargeGlow)
 
         // The open folder: a card in this window (so a drag can leave it for the home surfaces),
         // composed before the remove pill so the pill draws over the fading card.
@@ -1079,12 +1107,10 @@ private fun HomeScreenOfProfile(
             anchor = anchor,
             preferAbove = above,
             items = buildList {
-                if (!settings.desktopLocked) {
-                    add(IconMenuItem(LauncherIcons.Widgets, stringResource(R.string.home_options_widgets)) {
-                        widgetPickerPackage = null
-                        showWidgetPicker = true
-                    })
-                }
+                addAll(homeWidgetAndProfileOptions(settings.desktopLocked, profiles.size, onWidgets = {
+                    widgetPickerPackage = null
+                    showWidgetPicker = true
+                }, onProfiles = { profileMenu = true }))
                 add(IconMenuItem(R.drawable.ic_home_settings, stringResource(R.string.home_options_settings)) {
                     onOpenSettings()
                 })
@@ -1140,6 +1166,22 @@ private fun HomeScreenOfProfile(
         )
     }
 
+    val placement = switchPlacement
+    if (placement != null || profileMenu) {
+        fun dismissProfiles() {
+            profileMenu = false
+            switchPlacement = null
+        }
+        if (profiles.size < 2 || (placement != null && settings.desktopLocked)) {
+            LaunchedEffect(Unit) { dismissProfiles() }
+        } else ProfileChoices(profiles, profile, adding = placement != null, onPick = { target ->
+            dismissProfiles()
+            if (placement == null) viewModel.switchFromHome(profile, target) else {
+                addWidget(WidgetChoice.Builtin(HomeItemEntity.profileSwitchType(target)), placement)
+            }
+        }, onManage = { dismissProfiles(); onManageProfiles() }, onDismiss = ::dismissProfiles)
+    }
+
     if (showWidgetPicker) {
         CompositionLocalProvider(LocalTonalWidgets provides settings.widgetTonalBackground) {
         WidgetPickerScreen(
@@ -1153,6 +1195,7 @@ private fun HomeScreenOfProfile(
             onDismiss = { widgetDrag.cancel(); showWidgetPicker = false; widgetPickerPackage = null },
             modifier = Modifier.fillMaxSize(),
             onlyPackage = widgetPickerPackage,
+            offerProfileSwitch = profiles.size >= 2,
         )
         }
     }

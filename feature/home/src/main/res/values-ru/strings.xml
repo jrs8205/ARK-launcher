@@ -163,4 +163,12 @@
     <string name="pin_request_close">Закрыть</string>
     <string name="pin_request_work_profile">Виджеты рабочего профиля пока нельзя добавить.</string>
     <string name="pin_request_too_big">Этот виджет слишком велик для главного экрана.</string>
+    <string name="profile_switch_name">Сменить профиль</string>
+    <string name="profile_switch_question">На какой профиль переключаться?</string>
+    <string name="profile_switch_to">Переключиться на профиль %1$s</string>
+    <string name="home_profiles">Профили</string>
+    <string name="home_profile_in_use">Используется</string>
+    <string name="home_manage_profiles">Управление профилями</string>
+    <string name="profile_switch_refused">Не удалось сменить профиль.</string>
+    <string name="profile_switch_missing">Этого профиля больше нет.</string>
 </resources>

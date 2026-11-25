@@ -28,10 +28,14 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.IOException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.arkikeskus.launcher.data.AppRepository
 import org.arkikeskus.launcher.data.CustomIconStore
 import org.arkikeskus.launcher.data.FolderIconKey
@@ -45,6 +49,7 @@ import org.arkikeskus.launcher.data.ShortcutPinLock
 import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.profile.homeProfileContent
+import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
 import org.arkikeskus.launcher.model.HomeProfile
@@ -222,6 +227,7 @@ data class HomeUiState(
     val loaded: Boolean = false,
     /** The home profile everything above is of: the settings, the rows and the folders' icons alike. */
     val homeProfileId: Long = HomeProfile.FIRST_ID,
+    val profiles: List<HomeProfile> = emptyList(),
 )
 
 /** The apps the editor's "Add apps" list offers for [folder]: every app it does not hold yet, by name. */
@@ -243,7 +249,44 @@ class HomeViewModel @Inject constructor(
     notificationBadgeRepository: NotificationBadgeRepository,
     private val signalMonitor: org.arkikeskus.launcher.launcher.system.SignalMonitor,
     private val customIcons: CustomIconStore,
+    private val homeProfiles: HomeProfileRepository,
 ) : ViewModel() {
+
+    private val switchingFrom = MutableStateFlow<Long?>(null)
+    val homeSwitchSource: StateFlow<Long?> = switchingFrom
+    private val completedSwitch = MutableStateFlow<Long?>(null)
+    val homeSwitchFinishedAt: StateFlow<Long?> = completedSwitch
+    private class HomeSwitches(val source: Long, var accepted: Long = source, var queued: Int = 0)
+    private var switches: HomeSwitches? = null
+    private val switchOrder = Mutex()
+    private val switchMessages = Channel<Int>(Channel.BUFFERED)
+    val homeSwitchMessages = switchMessages.receiveAsFlow()
+
+    fun switchFromHome(source: Long, target: Long): Job {
+        val sequence = switches?.takeIf { it.source == source } ?: HomeSwitches(source).also { switches = it }
+        sequence.queued++
+        switchingFrom.value = source
+        completedSwitch.value = null
+        return viewModelScope.launch {
+            switchOrder.withLock {
+                when (homeProfiles.switchFromHome(source, target, sequence.accepted)) {
+                    HomeProfileRepository.Switch.Done -> sequence.accepted = target
+                    HomeProfileRepository.Switch.Missing -> switchMessages.send(R.string.profile_switch_missing)
+                    HomeProfileRepository.Switch.Failed -> switchMessages.send(R.string.profile_switch_refused)
+                    HomeProfileRepository.Switch.Stale -> if (switches === sequence) endHomeSwitch()
+                }
+                sequence.queued--
+                if (sequence === switches && sequence.queued == 0) completedSwitch.value = sequence.accepted
+            }
+        }
+    }
+
+    /** A screen that left must not lend its previous frame to a later switch made in Settings. */
+    fun endHomeSwitch() {
+        switches = null
+        completedSwitch.value = null
+        switchingFrom.value = null
+    }
 
     private val _notices = Channel<HomeNotice>(Channel.BUFFERED)
 
@@ -588,7 +631,7 @@ class HomeViewModel @Inject constructor(
             loaded = true,
             homeProfileId = content.homeProfileId,
         )
-    }.stateIn(
+    }.combine(homeProfiles.profiles) { home, profiles -> home.copy(profiles = profiles) }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState(),
@@ -726,6 +769,10 @@ class HomeViewModel @Inject constructor(
         placement: org.arkikeskus.launcher.model.WidgetPlacement,
         profile: Long,
     ): Boolean = onHomeOf(profile) { s ->
+        val target = HomeItemEntity.profileSwitchTarget(builtinType)
+        if (target != null && (s.desktopLocked || target == profile || homeProfiles.profiles.first().none { it.id == target })) {
+            return@onHomeOf false
+        }
         homeLayoutRepository.addWidgetAt(appWidgetId, provider, builtinType, placement, s.homeColumns, s.homeRows)
     } ?: false
 

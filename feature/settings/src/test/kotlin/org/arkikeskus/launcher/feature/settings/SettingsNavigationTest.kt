@@ -142,6 +142,11 @@ class SettingsNavigationTest {
         assertThat(compose.activity.isFinishing).isFalse()
     }
 
+    @Test fun managingProfilesFromHomeOpensTheProfilesPage() {
+        show(openPage = SETTINGS_PAGE_PROFILES)
+        assertOnPageNamed(R.string.settings_cat_profiles)
+    }
+
     @Test fun anUnknownPageToOpenCountsAsTheMainPage() {
         show(openPage = "no-such-page")
         assertOnMainPage()

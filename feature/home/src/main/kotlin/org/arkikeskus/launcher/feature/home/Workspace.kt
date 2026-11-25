@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -65,8 +66,8 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.node.Ref
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -107,6 +108,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.ReorderPlanner
 import org.arkikeskus.launcher.data.local.HomeItemEntity
@@ -131,6 +133,8 @@ import org.arkikeskus.launcher.ui.component.labelFontFactor
 import org.arkikeskus.launcher.ui.rememberAppLaunchOrigin
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlin.math.roundToInt
+
+private data class WorkspaceCells(val widthPx: Float, val heightPx: Float, val iconSize: Dp, val insets: WidgetInsets)
 
 /**
  * The paged home workspace: a [HorizontalPager] of cell grids with a floating drag overlay.
@@ -158,6 +162,9 @@ internal fun Workspace(
     badgeShowCount: Boolean,
     badgeScale: Float,
     showLabels: Boolean,
+    profiles: List<HomeProfile> = emptyList(),
+    onSwitchProfile: (Long) -> Unit = {},
+    onMissingProfile: () -> Unit = {},
     /** The name under a folder's tile (issue #17); [showLabels] off hides it too. */
     showFolderNames: Boolean = true,
     labelColor: Color = Color.White,
@@ -410,11 +417,6 @@ internal fun Workspace(
     val currentEmptyAreaDoubleTap by rememberUpdatedState(onEmptyAreaDoubleTap)
     val currentWidgetDrag by rememberUpdatedState(widgetDragController)
 
-    val cellW = if (columns > 0 && gridSize.width > 0) gridSize.width.toFloat() / columns else 1f
-    val cellH = if (rows > 0 && gridSize.height > 0) gridSize.height.toFloat() / rows else 1f
-    // Icon/folder/shortcut size derived from the cell so 6–7 columns fit a narrow screen (a fixed
-    // 52dp icon bled into neighbouring cells there) AND so a whole label line fits under it in a
-    // short cell (7–8 rows on an enlarged display size). 52dp until the grid reports its real size.
     val labelBlock = labelBlockHeight(
         showLabel = showLabels,
         labelScale = LocalAppLabelScale.current,
@@ -424,13 +426,17 @@ internal fun Workspace(
     // The user's icon-size setting scales the nominal 52dp BEFORE the cell clamp, so a dense grid still
     // caps the icon and the label keeps its room.
     val nominalIconSize = 52.dp * LocalIconScale.current
-    val cellIconSize = if (gridSize.width > 0 && gridSize.height > 0) {
-        iconSizeForCell(with(density) { cellW.toDp() }, nominalIconSize, with(density) { cellH.toDp() }, labelBlock)
-    } else {
-        nominalIconSize
+    fun cells(width: Int, height: Int): WorkspaceCells = with(density) {
+        val w = if (width > 0 && columns > 0) width.toFloat() / columns else 1f
+        val h = if (height > 0 && rows > 0) height.toFloat() / rows else 1f
+        val icon = if (width > 0 && height > 0) iconSizeForCell(w.toDp(), nominalIconSize, h.toDp(), labelBlock)
+            else nominalIconSize
+        WorkspaceCells(w, h, icon, widgetInsets(w.toDp(), h.toDp(), icon, widgetEdgesAlignWithIcons))
     }
-    // A widget's margin inside its cells when it is to line up with the icons (a Telegram request).
-    val widgetInsets = widgetInsets(with(density) { cellW.toDp() }, with(density) { cellH.toDp() }, cellIconSize, widgetEdgesAlignWithIcons)
+    val (cellW, cellH, cellIconSize, widgetInsets) = cells(gridSize.width, gridSize.height)
+    val drawBuiltin: @Composable (String, Modifier, Dp) -> Unit = { type, modifier, iconSize ->
+        BuiltinWidget(type, modifier, iconSize, showLabels, labelColor, profiles, onSwitchProfile, onMissingProfile)
+    }
     val moveThresholdPx = with(density) { 16.dp.toPx() }
     // A dragged item held this near an edge of the grid flips the page (after the dwell). Read as state: the
     // effects that watch for it outlive the composition that started them, and the first one runs before the
@@ -1000,7 +1006,7 @@ internal fun Workspace(
                 val page = if (isTailCopy) 0 else pagerPage
                 val pageLocked = locked || isTailCopy
                 val onTailCopy by rememberUpdatedState(isTailCopy)
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
                         // Drop placeholder, drawn (not composed) so moving it across cells during a
@@ -1116,6 +1122,9 @@ internal fun Workspace(
                             }
                         },
                 ) {
+                    // The page already has its final size in this measure pass. Its first frame
+                    // must not wait for the pager's onSizeChanged to recompose the drag machinery.
+                    val (cellW, cellH, cellIconSize, widgetInsets) = cells(constraints.maxWidth, constraints.maxHeight)
                     effectiveEntries.asSequence()
                         .filter { it.page == page }
                         .forEach { entry ->
@@ -1577,17 +1586,7 @@ internal fun Workspace(
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     } else if (info == null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Text(
-                                                stringResource(R.string.widget_unavailable),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
+                                        UnavailableWidget(Modifier.fillMaxSize())
                                     }
                                     // else: the host view is still being created (brief) — render nothing.
                                 }
@@ -1682,15 +1681,7 @@ internal fun Workspace(
                                         },
                                 ) {
                                     CompositionLocalProvider(LocalWidgetDragController provides widgetDragController) {
-                                        when (space.type) {
-                                            HomeItemEntity.BUILTIN_NOTIFICATIONS ->
-                                                NotificationsWidget(modifier = Modifier.fillMaxSize())
-                                            HomeItemEntity.BUILTIN_BATTERY ->
-                                                BatteryWidget(modifier = Modifier.fillMaxSize())
-                                            HomeItemEntity.BUILTIN_PEOPLE ->
-                                                PeopleWidget(modifier = Modifier.fillMaxSize())
-                                            else -> SmartspaceWidget(modifier = Modifier.fillMaxSize())
-                                        }
+                                        drawBuiltin(space.type, Modifier.fillMaxSize(), cellIconSize)
                                     }
                                 }
                             }
@@ -1711,12 +1702,13 @@ internal fun Workspace(
                             if (ew.appWidgetId == null) builtins.firstOrNull { it.rowId == ew.rowId }?.type else null
                         }
                         val range = remember(ew.rowId, columns, rows, cellW, cellH) {
-                            if (ew.appWidgetId == null) {
+                            if (HomeItemEntity.profileSwitchTarget(builtinType) != null) null else if (ew.appWidgetId == null) {
                                 val minSpanX = when (builtinType) {
                                     HomeItemEntity.BUILTIN_NOTIFICATIONS -> NOTIFICATIONS_MIN_SPAN_X
                                     HomeItemEntity.BUILTIN_BATTERY -> BATTERY_SPAN
                                     HomeItemEntity.BUILTIN_PEOPLE -> PEOPLE_MIN_SPAN_X
-                                    else -> SMARTSPACE_MIN_SPAN_X
+                                    HomeItemEntity.BUILTIN_SMARTSPACE -> SMARTSPACE_MIN_SPAN_X
+                                    else -> 1
                                 }
                                 WidgetResizeRange(
                                     minX = minSpanX.coerceAtMost(columns), minY = 1,
@@ -1807,7 +1799,9 @@ internal fun Workspace(
             bounces = { pageEndBounces },
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp),
         )
-        WidgetDragLayer(widgetDragController, dragController, cellW, cellH)
+        WidgetDragLayer(widgetDragController, dragController, cellW, cellH) { type, layer ->
+            drawBuiltin(type, layer, cellIconSize)
+        }
         // The floating dragged *app icon* is drawn by LauncherShell (above the workspace, dock and the
         // drawer) so it can travel across surfaces. A dragged folder/shortcut never leaves the grid, so
         // its floating preview is drawn here locally, following the finger ([localDragPos], grid coords).

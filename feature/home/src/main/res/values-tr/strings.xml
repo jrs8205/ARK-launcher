@@ -163,4 +163,12 @@
     <string name="pin_request_close">Kapat</string>
     <string name="pin_request_work_profile">İş profili widget\'ları henüz eklenemiyor.</string>
     <string name="pin_request_too_big">Bu widget ana ekran için çok büyük.</string>
+    <string name="profile_switch_name">Profil değiştir</string>
+    <string name="profile_switch_question">Hangi profile geçilsin?</string>
+    <string name="profile_switch_to">%1$s profiline geç</string>
+    <string name="home_profiles">Profiller</string>
+    <string name="home_profile_in_use">Kullanımda</string>
+    <string name="home_manage_profiles">Profilleri yönet</string>
+    <string name="profile_switch_refused">Profil değiştirilemedi.</string>
+    <string name="profile_switch_missing">Bu profil artık yok.</string>
 </resources>

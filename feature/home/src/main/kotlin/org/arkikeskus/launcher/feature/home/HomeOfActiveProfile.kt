@@ -2,7 +2,62 @@ package org.arkikeskus.launcher.feature.home
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+/** A foreground home switch keeps its last complete frame until the destination arrives. */
+internal fun homeSwitchFrame(active: Long?, next: HomeUiState, source: Long?, previous: HomeUiState?): HomeUiState? =
+    next.takeIf { it.loaded && it.homeProfileId == active }
+        ?: previous?.takeIf { source != null && active != null }
+
+/** Keep the shell composed even without rows. Apply the supplied modifier to the home itself so
+ * a switch is acknowledged only after that profile's home and its children have been laid out. */
+@Composable
+fun VisibleHomeFrame(viewModel: HomeViewModel, content: @Composable (HomeUiState?, Modifier) -> Unit) {
+    // Keep the small, eagerly shared profile ID current behind Settings; the heavier rows may replay.
+    val active by viewModel.activeHomeProfileId.collectAsState()
+    val next by viewModel.uiState.collectAsStateWithLifecycle()
+    val source by viewModel.homeSwitchSource.collectAsState()
+    val finishedAt by viewModel.homeSwitchFinishedAt.collectAsState()
+    VisibleHomeFrame(active, next, source, finishedAt, viewModel::endHomeSwitch, content)
+}
+
+@Composable
+internal fun VisibleHomeFrame(
+    active: Long?, next: HomeUiState, source: Long?, finishedAt: Long?,
+    endSwitch: () -> Unit, content: @Composable (HomeUiState?, Modifier) -> Unit,
+) {
+    var previous by remember { mutableStateOf<HomeUiState?>(null) }
+    LifecycleStartEffect(Unit) {
+        onStopOrDispose {
+            previous = null
+            endSwitch()
+        }
+    }
+    val frame = homeSwitchFrame(active, next, source, previous)
+    val profile = frame?.homeProfileId
+    var placed by remember(profile) { mutableStateOf(false) }
+    val homeLayout = if (frame != null && !placed) Modifier.onGloballyPositioned {
+        previous = frame
+        placed = true
+    } else Modifier
+    if (frame == null || placed) {
+        SideEffect {
+            previous = frame
+            if (finishedAt != null && finishedAt == profile && finishedAt == active) endSwitch()
+        }
+    }
+    content(frame, homeLayout)
+}
 
 /**
  * Draws the home screen ([content]) of the home profile that is on, and nothing of any other.

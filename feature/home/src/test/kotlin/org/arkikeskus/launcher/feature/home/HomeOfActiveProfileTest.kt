@@ -5,27 +5,53 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.test.TestScope
+import org.arkikeskus.launcher.launcher.system.BatteryMonitor
+import org.arkikeskus.launcher.model.HomeProfile
+import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.WidgetPlacement
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
 /**
@@ -39,6 +65,147 @@ class HomeOfActiveProfileTest {
     @get:Rule val compose = createComposeRule()
 
     private fun loaded(profile: Long) = HomeUiState(loaded = true, homeProfileId = profile)
+
+    @Test fun onlyAnInPlaceSwitchKeepsThePreviousWholeFrameWhileTheTargetLoads() {
+        val first = loaded(1)
+        val second = loaded(2)
+        assertThat(homeSwitchFrame(2, first, 1, first)).isSameInstanceAs(first)
+        assertThat(homeSwitchFrame(1, second, 1, first)).isSameInstanceAs(first)
+        assertThat(homeSwitchFrame(2, second, 1, first)).isSameInstanceAs(second)
+        assertThat(homeSwitchFrame(2, first, null, first)).isNull()
+    }
+
+    @Test fun theShellKeepsItsRememberedObjectBeforeRowsAndAcrossBothKindsOfSwitch() {
+        val next = mutableStateOf(HomeUiState())
+        val source = mutableStateOf<Long?>(null)
+        val finished = mutableStateOf<Long?>(null)
+        val layOutTarget = mutableStateOf(false)
+        val shells = mutableListOf<Any>()
+        val ended = mutableListOf<Long?>()
+        compose.setContent {
+            VisibleHomeFrame(active.value, next.value, source.value, finished.value, {
+                ended += finished.value
+                source.value = null
+                finished.value = null
+            }) { frame, layout ->
+                val shell = remember { Any().also { shells += it } }
+                Text("shell ${shells.indexOf(shell)}, home ${frame?.homeProfileId}",
+                    if (frame?.homeProfileId != 2L || layOutTarget.value) layout else Modifier)
+            }
+        }
+        compose.onNodeWithText("shell 0, home null").assertIsDisplayed()
+        next.value = loaded(1)
+        compose.onNodeWithText("shell 0, home 1").assertIsDisplayed()
+        compose.runOnIdle { source.value = 1; active.value = 2; finished.value = 2 }
+        compose.onNodeWithText("shell 0, home 1").assertIsDisplayed()
+        assertThat(ended).isEmpty()
+        next.value = loaded(2)
+        compose.onNodeWithText("shell 0, home 2").assertIsDisplayed()
+        assertThat(ended).isEmpty() // Rows have arrived, but the destination has not been laid out yet.
+        layOutTarget.value = true
+        compose.waitForIdle()
+        assertThat(ended).containsExactly(2L)
+        active.value = 1 // Settings, while the rows still belong to profile 2.
+        compose.onNodeWithText("shell 0, home null").assertIsDisplayed()
+        next.value = loaded(1)
+        compose.onNodeWithText("shell 0, home 1").assertIsDisplayed()
+        assertThat(shells).hasSize(1)
+    }
+
+    @Test fun stoppingDuringAnInPlaceSwitchDropsTheHeldHomeBeforeSettingsReturns() {
+        val owner = object : LifecycleOwner {
+            val registry = LifecycleRegistry.createUnsafe(this)
+            override val lifecycle: Lifecycle get() = registry
+        }
+        owner.registry.currentState = Lifecycle.State.RESUMED
+        val source = mutableStateOf<Long?>(1)
+        var stops = 0
+        compose.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                VisibleHomeFrame(active.value, state.value, source.value, null, { stops++ }) { frame, layout ->
+                    Text("home ${frame?.homeProfileId}", layout)
+                }
+            }
+        }
+        compose.onNodeWithText("home 1").assertIsDisplayed()
+        active.value = 2
+        compose.onNodeWithText("home 1").assertIsDisplayed()
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.CREATED }
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.RESUMED }
+        assertThat(stops).isEqualTo(1)
+        compose.onNodeWithText("home null").assertIsDisplayed()
+        state.value = loaded(2)
+        compose.onNodeWithText("home 2").assertIsDisplayed()
+    }
+
+    @OptIn(InternalComposeUiApi::class)
+    @Test fun theFirstFrameWithTheNewDockAlreadyHasTheNewGridAtItsFullSize() {
+        val context: Application = RuntimeEnvironment.getApplication()
+        val chargeGlow = ChargeGlowViewModel(BatteryMonitor(context))
+        val wiring = ProductionWiring(context, TestScope(), inMemorySettings = true)
+        val vm = whileTheMainLooperTurns { wiring.homeViewModel() }
+        fun screen(id: Long): HomeUiState {
+            val grid = PlacedFolder(10, "Grid $id", emptyList(), 0, 2, 2)
+            val dock = grid.copy(id = 11, name = "Dock $id", page = DOCK_PAGE, cellX = 0, cellY = 0)
+            return loaded(id).copy(
+                settings = LauncherSettings(homeProfileId = id,
+                    homeColumns = if (id == 1L) 4 else 5, dockColumns = 7, showDockLabels = true,
+                    defaultReminderDismissed = true),
+                dockEntries = if (id == 1L) listOf(DockFolder(dock)) else List(7) { slot ->
+                    DockFolder(dock.copy(id = 20L + slot, name = if (slot == 0) dock.name else "Slot $slot", cellX = slot))
+                },
+                entries = listOf(grid, PlacedBuiltin(12, "profile_switch:99", 0, 1, 0, 1, 1)),
+            )
+        }
+        val present = mutableStateOf(true)
+        val next = mutableStateOf(screen(1))
+        val layouts = mutableListOf<Map<String, Rect>>()
+        fun labels(root: SemanticsNode): Map<String, Rect> = buildMap {
+            fun visit(node: SemanticsNode) {
+                node.config.getOrNull(SemanticsProperties.Text)?.forEach { put(it.text, node.boundsInRoot) }
+                node.children.forEach(::visit)
+            }
+            visit(root)
+        }
+        try {
+            compose.setContent {
+                val root = LocalView.current as ViewRootForTest
+                if (present.value) VisibleHomeFrame(active.value, next.value, 1, null, {}) { frame, layout ->
+                    if (frame != null) HomeScreen(uiState = frame, onOpenDrawer = {}, onOpenSettings = {},
+                        onManageProfiles = {}, modifier = layout.size(350.dp, 600.dp).onGloballyPositioned {
+                            layouts += labels(root.semanticsOwner.unmergedRootSemanticsNode)
+                        }, viewModel = vm, chargeGlow = chargeGlow)
+                }
+            }
+            compose.onNodeWithText("Grid 1").assertIsDisplayed()
+            val oldGrid = compose.onNodeWithText("Grid 1").fetchSemanticsNode().boundsInRoot
+            assertThat(oldGrid.width).isGreaterThan(1f)
+            active.value = 2
+            compose.onNodeWithText("Grid 1").assertIsDisplayed()
+            compose.onNodeWithText("Dock 1").assertIsDisplayed()
+            compose.onNodeWithText("Switch profile", useUnmergedTree = true).assertIsDisplayed()
+            layouts.clear()
+            next.value = screen(2)
+            compose.onNodeWithText("Dock 2").assertIsDisplayed()
+            val first = layouts.first()
+            val newDock = compose.onNodeWithText("Dock 2", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertThat(newDock.width).isGreaterThan(1f)
+            assertThat(first["Dock 2"]).isEqualTo(newDock)
+            val newGrid = compose.onNodeWithText("Grid 2").fetchSemanticsNode().boundsInRoot
+            assertThat(newGrid.left).isLessThan(oldGrid.left)
+            assertThat(newGrid.width).isGreaterThan(1f)
+            assertThat(first["Grid 2"]).isEqualTo(newGrid)
+            val newWidget = compose.onNodeWithText("Switch profile", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            assertThat(newWidget.width).isGreaterThan(1f)
+            assertThat(first["Switch profile"]).isEqualTo(newWidget)
+            assertThat(first.keys).containsNoneOf("Dock 1", "Grid 1")
+            present.value = false
+            compose.waitForIdle()
+        } finally {
+            wiring.clear(vm)
+            wiring.close()
+        }
+    }
 
     private val active = mutableStateOf<Long?>(1L)
     private val state = mutableStateOf(loaded(1))
@@ -70,9 +237,9 @@ class HomeOfActiveProfileTest {
      * nothing, or its widgets would be made again for every change.
      */
     @Test fun theHostLetsGoOfAProfilesWidgetViewsWhenItsScreenLeaves() {
-        val host = CountingHost(org.robolectric.RuntimeEnvironment.getApplication())
+        val host = CountingHost(RuntimeEnvironment.getApplication())
         compose.setContent {
-            androidx.compose.runtime.CompositionLocalProvider(LocalAppWidgetHost provides host) {
+            CompositionLocalProvider(LocalAppWidgetHost provides host) {
                 HomeOfActiveProfile(active = active.value, uiState = state.value) { _, shown -> Text("home of ${shown.homeProfileId}") }
             }
         }
@@ -203,6 +370,72 @@ class HomeOfActiveProfileTest {
 
         compose.onNodeWithText("home of 2").assertIsDisplayed()
         compose.onNodeWithText("folder open").assertIsDisplayed()
+    }
+
+    @Test fun aLockedGridSwitchIsAButtonAndAnUnlockedPickerDropKeepsItsCell() {
+        val drag = HomeDragController()
+        val controller = WidgetDragController(drag)
+        val locked = mutableStateOf(true)
+        var chosen = 0L
+        var dropped: Pair<WidgetChoice, WidgetPlacement>? = null
+        var removed: Long? = null
+        compose.setContent {
+            Workspace(
+                pageCount = 1,
+                columns = 4,
+                rows = 6,
+                entries = listOf(PlacedBuiltin(11, "profile_switch:2", 0, 0, 0, 1, 1),
+                    PlacedBuiltin(12, "unknown", 0, 1, 0, 1, 1)),
+                profiles = listOf(HomeProfile(2, "Work")),
+                onSwitchProfile = { chosen = it },
+                badges = emptyMap(),
+                badgeShowCount = false,
+                badgeScale = 1f,
+                showLabels = true,
+                showPageIndicator = true,
+                locked = locked.value,
+                homeSignals = emptyFlow(),
+                homePage = 0,
+                dragController = drag,
+                widgetDragController = controller,
+                onAddWidget = { choice, placement -> dropped = choice to placement },
+                onRemoveWidget = { id, _ -> removed = id },
+                onAppClick = {},
+                onAppMenu = { _, _, _ -> },
+                onMove = { _, _, _, _ -> true },
+                onMoveFolder = { _, _, _, _ -> true },
+                onDropOnDock = { _, _ -> },
+                onRemoveFromHome = {},
+                onOpenFolder = { _, _ -> },
+                onLaunchShortcut = {},
+                onRemoveShortcut = {},
+                onCreateFolder = { _, _ -> },
+                onAddToFolder = { _, _ -> },
+                onEmptyAreaMenu = { _, _ -> },
+                modifier = Modifier.size(300.dp, 500.dp),
+            )
+        }
+        compose.onNodeWithContentDescription("Switch to profile Work")
+            .assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp).performTouchInput { click() }
+        assertThat(chosen).isEqualTo(2L)
+        compose.onNodeWithText("Widget unavailable").assertIsDisplayed()
+        locked.value = false
+        val placeholder = compose.onNodeWithText("Widget unavailable")
+        val destination = placeholder.fetchSemanticsNode().boundsInRoot.center + Offset(40f, 40f)
+        compose.runOnIdle { drag.removeBounds = Rect(destination, 12f) }
+        placeholder.performTouchInput {
+            down(center)
+            advanceEventTime(1_000)
+            moveBy(Offset(40f, 40f))
+            up()
+        }
+        assertThat(removed).isEqualTo(12L)
+        val spot = WidgetPlacement(0, 2, 3, 1, 1)
+        val choice = WidgetChoice.Builtin("profile_switch")
+        compose.runOnIdle {
+            controller.onDrop!!.invoke(WidgetDrag(null, choice, 1, 1, Offset.Zero, null), spot)
+        }
+        assertThat(dropped).isEqualTo(choice to spot)
     }
 
     @Test fun aSwitchLandsOnTheNewProfilesStartPage() {

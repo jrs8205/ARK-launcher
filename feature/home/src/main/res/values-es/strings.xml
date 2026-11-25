@@ -163,4 +163,12 @@
     <string name="pin_request_close">Cerrar</string>
     <string name="pin_request_work_profile">Los widgets del perfil de trabajo aún no se pueden añadir.</string>
     <string name="pin_request_too_big">Este widget es demasiado grande para la pantalla de inicio.</string>
+    <string name="profile_switch_name">Cambiar de perfil</string>
+    <string name="profile_switch_question">¿A qué perfil cambiar?</string>
+    <string name="profile_switch_to">Cambiar al perfil %1$s</string>
+    <string name="home_profiles">Perfiles</string>
+    <string name="home_profile_in_use">En uso</string>
+    <string name="home_manage_profiles">Gestionar perfiles</string>
+    <string name="profile_switch_refused">No se pudo cambiar de perfil.</string>
+    <string name="profile_switch_missing">Este perfil ya no existe.</string>
 </resources>

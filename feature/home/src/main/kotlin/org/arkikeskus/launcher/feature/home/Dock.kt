@@ -5,8 +5,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,9 +41,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.node.Ref
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
@@ -109,7 +109,6 @@ fun Dock(
     /** A dock app dropped onto ANOTHER dock tile's middle: folds with that app or joins that folder. */
     onDropOnTile: (AppItem, DockTarget.Onto) -> Unit = { _, _ -> },
 ) {
-    var rowWidthPx by remember { mutableIntStateOf(0) }
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     // The lift [draggingIndex]/[dragOffsetX] belong to. After HOME cancels a lift, a still-held old
@@ -120,7 +119,6 @@ fun Dock(
     val itemRoots = remember { mutableStateMapOf<Int, Offset>() }
     val slotBounds = remember { mutableStateMapOf<Int, Rect>() }
     val haptics = LocalHapticFeedback.current
-    val density = LocalDensity.current
     // The per-slot pointerInput block outlives recomposition (its keys don't include the order), so a
     // reorder must build on the *latest* list: a slot that stayed put kept the list captured before
     // its neighbours moved, and dragging it afterwards silently undid that earlier reorder.
@@ -137,12 +135,6 @@ fun Dock(
     // Icon size derived from the slot so 6–7 dock icons fit a narrow screen (fixed 52dp overlapped).
     // The user's icon-size setting scales the nominal size before the slot clamp.
     val nominalIconSize = DOCK_ICON_SIZE * LocalIconScale.current
-    val dockIconSize = if (rowWidthPx > 0 && entries.isNotEmpty()) {
-        iconSizeForCell(with(density) { (rowWidthPx.toFloat() / entries.size).toDp() }, nominalIconSize)
-    } else {
-        nominalIconSize
-    }
-
     val shape = RoundedCornerShape(30.dp)
     // Live drop feedback: the bar lights up while an item from another surface hovers it and has
     // somewhere to land (Launcher3's onDragEnter/acceptDrop); the tile a drop would fold into or
@@ -193,15 +185,7 @@ fun Dock(
         color = Color.Black.copy(alpha = backgroundAlpha),
         shape = shape,
     ) {
-        Row(
-            // Keep a full-height bar even when empty (no entries yet) so apps can be dragged in.
-            modifier = Modifier
-                .heightIn(min = DOCK_ROW_MIN_HEIGHT)
-                .padding(horizontal = 8.dp, vertical = DOCK_ROW_VERTICAL_PADDING)
-                .onSizeChanged { rowWidthPx = it.width },
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        DockRow(entries.size, nominalIconSize) { rowWidthPx, dockIconSize ->
             entries.forEachIndexed { index, entry ->
                 val isDragging = index == draggingIndex
                 val slot = Modifier
@@ -284,6 +268,24 @@ fun Dock(
                 }
             }
         }
+    }
+}
+
+/** Size the slots using this row's padded width in its first layout, including a newly switched dock. */
+@Composable
+private fun DockRow(count: Int, nominalIconSize: Dp, content: @Composable RowScope.(Int, Dp) -> Unit) {
+    BoxWithConstraints(
+        modifier = Modifier.heightIn(min = DOCK_ROW_MIN_HEIGHT)
+            .padding(horizontal = 8.dp, vertical = DOCK_ROW_VERTICAL_PADDING),
+        propagateMinConstraints = true,
+    ) {
+        val widthPx = constraints.maxWidth
+        val iconSize = if (count == 0) nominalIconSize else iconSizeForCell(maxWidth / count, nominalIconSize)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) { content(widthPx, iconSize) }
     }
 }
 

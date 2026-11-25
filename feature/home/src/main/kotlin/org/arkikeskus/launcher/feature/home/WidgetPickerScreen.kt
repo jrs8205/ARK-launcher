@@ -67,6 +67,7 @@ fun WidgetPickerScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onlyPackage: String? = null,
+    offerProfileSwitch: Boolean = false,
 ) {
     BackHandler(onBack = onDismiss)
     val context = LocalContext.current
@@ -97,7 +98,10 @@ fun WidgetPickerScreen(
         WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_NOTIFICATIONS), stringResource(R.string.notifications_widget_name)),
         WidgetOption(WidgetChoice.Builtin(HomeItemEntity.BUILTIN_PEOPLE), stringResource(R.string.people_widget_name)),
     )
-    val all = listOf(WidgetGroup("builtin", builtinTitle, builtins)) + groups.orEmpty()
+    val switch = if (offerProfileSwitch) listOf(WidgetOption(
+        WidgetChoice.Builtin(HomeItemEntity.BUILTIN_PROFILE_SWITCH), stringResource(R.string.profile_switch_name),
+    )) else emptyList()
+    val all = listOf(WidgetGroup("builtin", builtinTitle, builtins + switch)) + groups.orEmpty()
     val visible = visibleWidgetGroups(all, query, onlyPackage)
     val dragging = dragController.moving
     // Edge to edge, behind both system bars: their glyphs follow this surface, not the hidden wallpaper.
@@ -169,10 +173,11 @@ private fun WidgetCard(
             controller.widgetInsetXDp, controller.widgetInsetYDp,
         )
         is WidgetChoice.Builtin -> when (choice.type) {
-            HomeItemEntity.BUILTIN_BATTERY -> 1 to 1
+            HomeItemEntity.BUILTIN_BATTERY, HomeItemEntity.BUILTIN_PROFILE_SWITCH -> 1 to 1
             HomeItemEntity.BUILTIN_NOTIFICATIONS -> columns to 1
             HomeItemEntity.BUILTIN_PEOPLE -> columns to PEOPLE_DEFAULT_SPAN_Y
-            else -> columns to 2
+            HomeItemEntity.BUILTIN_SMARTSPACE -> columns to 2
+            else -> 1 to 1
         }
     }
     // A default larger than the grid shrinks to it, as the old add path and Launcher3 do
@@ -291,6 +296,10 @@ internal fun WidgetPreview(
 /** Static samples share the real widget surface; previewing never starts data collectors or actions. */
 @Composable
 private fun BuiltinWidgetPreview(type: String, modifier: Modifier) {
+    if (type == HomeItemEntity.BUILTIN_PROFILE_SWITCH) {
+        ProfileMonogram(stringResource(R.string.profile_switch_name), 52.dp, false, MaterialTheme.colorScheme.onSurface, modifier)
+        return
+    }
     WidgetSurface(modifier) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center) {
@@ -308,7 +317,7 @@ private fun BuiltinWidgetPreview(type: String, modifier: Modifier) {
                     Text(stringResource(R.string.people_widget_name), style = MaterialTheme.typography.labelMedium)
                     Text(stringResource(R.string.people_widget_desc), style = MaterialTheme.typography.bodySmall)
                 }
-                else -> {
+                HomeItemEntity.BUILTIN_SMARTSPACE -> {
                     Text("9.41", style = MaterialTheme.typography.displayMedium)
                     Text(stringResource(R.string.smartspace_widget_name), style = MaterialTheme.typography.labelMedium)
                 }

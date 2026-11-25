@@ -3,10 +3,7 @@ package org.arkikeskus.launcher.feature.backup
 import android.content.res.Resources
 import org.arkikeskus.launcher.data.LastBackup
 import org.arkikeskus.launcher.data.backup.ExportProfileChangedException
-
-/** [name] as a profile is shown everywhere: one the user never named has an empty stored name. */
-internal fun shownProfileName(res: Resources, name: String): String =
-    name.ifBlank { res.getString(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
+import org.arkikeskus.launcher.ui.shownProfileName
 
 /** With several profiles the button and the time both name the profile from the same settings reading. */
 internal fun exportedProfileName(res: Resources, last: LastBackup?): String? =

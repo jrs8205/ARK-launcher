@@ -163,4 +163,12 @@
     <string name="pin_request_close">Stäng</string>
     <string name="pin_request_work_profile">Widgetar från jobbprofilen kan inte läggas till ännu.</string>
     <string name="pin_request_too_big">Den här widgeten är för stor för startskärmen.</string>
+    <string name="profile_switch_name">Byt profil</string>
+    <string name="profile_switch_question">Vilken profil ska den byta till?</string>
+    <string name="profile_switch_to">Byt till profilen %1$s</string>
+    <string name="home_profiles">Profiler</string>
+    <string name="home_profile_in_use">Används</string>
+    <string name="home_manage_profiles">Hantera profiler</string>
+    <string name="profile_switch_refused">Det gick inte att byta profil.</string>
+    <string name="profile_switch_missing">Den här profilen finns inte längre.</string>
 </resources>

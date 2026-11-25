@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -44,6 +45,7 @@ import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.expressive.expressiveCardGap
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShadow
 import org.arkikeskus.launcher.ui.expressive.expressiveCardShape
+import org.arkikeskus.launcher.ui.shownProfileName
 
 /** The tag of the row of the home profile [id] on the Profiles page. */
 internal fun profileRowTag(id: Long): String = "profile-row-$id"
@@ -64,7 +66,7 @@ internal val LocalHomeProfileRowMarks = compositionLocalOf { false }
 /** The name [profile] goes by: its own, or for a first profile nobody has named yet, the default one. */
 @Composable
 internal fun homeProfileName(profile: HomeProfile): String =
-    profile.name.ifBlank { stringResource(org.arkikeskus.launcher.ui.R.string.profile_default_name) }
+    shownProfileName(LocalResources.current, profile.name)
 
 /**
  * The Profiles page: the home profiles in their order, the one in use marked; a tap on another switches to it

@@ -69,6 +69,95 @@ class HomeProfileSwitchTest {
             restarted.closeAndLetGoOfTheFiles()
         }
     }
+    @Test fun deletingATargetDropsOnlyItsLinksIncludingThoseInACopy() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val profiles = wiring.homeProfiles
+            val target = (profiles.create("Work", null) as HomeProfileRepository.Created.Done).profile.id
+            fun link(id: Long, x: Int) = HomeItemEntity(page = 0, cellX = x, cellY = 0, builtinType = "profile_switch:$id")
+            wiring.dao.insert(link(target, 0))
+            wiring.dao.insert(link(1, 1))
+            val copy = (profiles.create("Copy", 1) as HomeProfileRepository.Created.Done).profile.id
+            assertThat(wiring.rowsOfProfile(copy).map { it.builtinType })
+                .containsExactly("profile_switch:$target", "profile_switch:1")
+            profiles.switchTo(target)
+            wiring.beforeSettingsFileWrite = { throw java.io.IOException("disk full") }
+            assertThat(profiles.delete(target)).isEqualTo(HomeProfileRepository.Deleted.Failed)
+            for (id in listOf(1L, copy)) assertThat(wiring.rowsOfProfile(id)).hasSize(2)
+            wiring.beforeSettingsFileWrite = null
+            assertThat(profiles.delete(target)).isEqualTo(HomeProfileRepository.Deleted.Done)
+            for (id in listOf(1L, copy)) {
+                assertThat(wiring.rowsOfProfile(id).map { it.builtinType }).containsExactly("profile_switch:1")
+            }
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
+    @Test fun twoHomeTapsFromTheSameScreenFinishOnTheLastRequestedProfile() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = (wiring.homeProfiles.create("Work", null) as HomeProfileRepository.Created.Done).profile.id
+            val own = (wiring.homeProfiles.create("Own", null) as HomeProfileRepository.Created.Done).profile.id
+            val vm = wiring.homeViewModel()
+            try {
+                val first = vm.switchFromHome(1, work)
+                val last = vm.switchFromHome(1, own)
+                whileTheMainLooperTurns { first.join(); last.join() }
+                assertThat(whileTheMainLooperTurns { wiring.homeProfiles.activeId.first() }).isEqualTo(own)
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
+    @Test fun homeReportsARefusedSwitchAndCanRetry() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = (wiring.homeProfiles.create("Work", null) as HomeProfileRepository.Created.Done).profile.id
+            val vm = wiring.homeViewModel()
+            try {
+                wiring.beforeSettingsFileWrite = { throw java.io.IOException("disk full") }
+                val refused = vm.switchFromHome(1, work)
+                whileTheMainLooperTurns { refused.join() }
+                assertThat(whileTheMainLooperTurns {
+                    kotlinx.coroutines.withTimeoutOrNull(1000) { vm.homeSwitchMessages.first() }
+                }).isEqualTo(R.string.profile_switch_refused)
+                wiring.beforeSettingsFileWrite = null
+                val retry = vm.switchFromHome(1, work)
+                whileTheMainLooperTurns { retry.join() }
+                assertThat(whileTheMainLooperTurns { wiring.homeProfiles.activeId.first() }).isEqualTo(work)
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
+    @Test fun addingASwitchUsesTheChosenCellAndRejectsATargetThatHasGone() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val work = (wiring.homeProfiles.create("Work", null) as HomeProfileRepository.Created.Done).profile.id
+            val vm = wiring.homeViewModel()
+            try {
+                val spot = org.arkikeskus.launcher.model.WidgetPlacement(0, 2, 3, 1, 1)
+                assertThat(whileTheMainLooperTurns { vm.addWidgetAt(null, null, "profile_switch:$work", spot, 1) }).isTrue()
+                val row = whileTheMainLooperTurns { wiring.rowsOfProfile(1).single { it.builtinType == "profile_switch:$work" } }
+                assertThat(listOf(row.cellX, row.cellY, row.spanX, row.spanY)).containsExactly(2, 3, 1, 1).inOrder()
+                assertThat(whileTheMainLooperTurns {
+                    vm.addWidgetAt(null, null, "profile_switch:999", spot.copy(cellX = 3), 1)
+                }).isFalse()
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
     private val user = Process.myUserHandle()
 
     private fun app(pkg: String, label: String) = AppItem(pkg, "$pkg.Main", user, 0L, label)

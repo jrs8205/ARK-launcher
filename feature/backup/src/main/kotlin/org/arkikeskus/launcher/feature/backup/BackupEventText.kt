@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.backup
 
 import android.content.res.Resources
 import org.arkikeskus.launcher.data.backup.RestoreResult
+import org.arkikeskus.launcher.ui.shownProfileName
 
 /** What the screen is told of a restore that went through: everything [result] says. */
 internal fun restoredEvent(result: RestoreResult): BackupEvent.Restored =

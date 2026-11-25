@@ -23,8 +23,11 @@ class SettingsActivity : ComponentActivity() {
         // Started through the alias the screensaver names as its settings (the gear in Android's
         // screensaver choice): straight to the Screensaver page. A recreated activity keeps the page
         // it was on instead.
-        val openPage = SETTINGS_PAGE_SCREENSAVER.takeIf {
-            savedInstanceState == null && intent?.component?.className?.endsWith(SCREENSAVER_ALIAS) == true
+        val openPage = when {
+            savedInstanceState != null -> null
+            intent?.component?.className?.endsWith(SCREENSAVER_ALIAS) == true -> SETTINGS_PAGE_SCREENSAVER
+            intent?.component?.className == SettingsActivity::class.java.name -> intent.getStringExtra(EXTRA_PAGE)
+            else -> null
         }
         setContent {
             LauncherAppTheme {
@@ -37,8 +40,10 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
-    private companion object {
+    internal companion object {
+        const val EXTRA_PAGE = "org.arkikeskus.launcher.SETTINGS_PAGE"
+
         /** The activity-alias of the manifest, as the last part of its class name. */
-        const val SCREENSAVER_ALIAS = ".ScreensaverSettingsAlias"
+        private const val SCREENSAVER_ALIAS = ".ScreensaverSettingsAlias"
     }
 }

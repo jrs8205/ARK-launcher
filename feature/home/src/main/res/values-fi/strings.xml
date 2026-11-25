@@ -163,4 +163,12 @@
     <string name="pin_request_close">Sulje</string>
     <string name="pin_request_work_profile">Työprofiilin widgettejä ei voi vielä lisätä.</string>
     <string name="pin_request_too_big">Widget on liian suuri aloitusnäytölle.</string>
+    <string name="profile_switch_name">Vaihda profiilia</string>
+    <string name="profile_switch_question">Mihin profiiliin vaihdetaan?</string>
+    <string name="profile_switch_to">Vaihda profiiliin %1$s</string>
+    <string name="home_profiles">Profiilit</string>
+    <string name="home_profile_in_use">Käytössä</string>
+    <string name="home_manage_profiles">Hallitse profiileja</string>
+    <string name="profile_switch_refused">Profiilia ei voitu vaihtaa.</string>
+    <string name="profile_switch_missing">Tätä profiilia ei enää ole.</string>
 </resources>

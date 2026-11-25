@@ -78,6 +78,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -100,6 +101,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.onClick
@@ -189,9 +191,12 @@ fun AppDrawerScreen(
     behindLuminance: Float = 0f,
     /** The popup's Widgets row: the home screen shows the app's widgets (the drawer closes first). */
     onShowWidgets: ((AppItem) -> Unit)? = null,
+    shownHomeProfile: Long? = null,
     viewModel: AppDrawerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val profileMatches = shownHomeProfile == null || uiState.homeProfileId == shownHomeProfile
+    val canInteract = drawerOpen && profileMatches
     val context = LocalContext.current
     val defaultFolderName = stringResource(UiR.string.folder_default_name)
     // What the ViewModel could not do for the user (e.g. the home screen is full), shown once each.
@@ -213,7 +218,7 @@ fun AppDrawerScreen(
     val launchSources = LocalAppLaunchSources.current
     // An icon's menu opens as the icon lifts; pulling the icon on closes it (issue #12).
     DismissWhenDragMoves(dragController) { menuTarget = null }
-    var renameTarget by remember { mutableStateOf<AppItem?>(null) }
+    var renameTarget by remember(uiState.homeProfileId, shownHomeProfile) { mutableStateOf<AppItem?>(null) }
     // A tapped folder shows its apps in a card by the tile (id + the tile's root bounds); a
     // long-pressed one opens its editor. Two surfaces, so a tap can never change the folder.
     var folderCard by remember { mutableStateOf<OpenedOn<Pair<Long, Rect>>?>(null) }
@@ -235,7 +240,7 @@ fun AppDrawerScreen(
     val workGridState = rememberLazyGridState()
     val privateGridState = rememberLazyGridState()
     // A private app's own one-item menu: the app and where its icon is.
-    var privateMenu by remember { mutableStateOf<Pair<AppItem, Rect>?>(null) }
+    var privateMenu by remember(uiState.homeProfileId, shownHomeProfile) { mutableStateOf<Pair<AppItem, Rect>?>(null) }
     // The menu goes with the drawer, and with the space when it locks or leaves.
     LaunchedEffect(drawerOpen, uiState.privateSpace?.locked) { privateMenu = null }
     // Android's own "hide when locked" has no broadcast: the view model reads it again at every opening, and
@@ -258,8 +263,8 @@ fun AppDrawerScreen(
     // Also every window of the drawer's own (the app menu, the Edit dialog, a folder's card and
     // editor): a press while the drawer was still sliding away ([drawerOpen] holds until the slide
     // ends) would otherwise leave the window standing over the home screen.
-    LaunchedEffect(drawerOpen) {
-        if (!drawerOpen) {
+    LaunchedEffect(canInteract) {
+        if (!canInteract) {
             viewModel.onDrawerClosed()
             focusManager.clearFocus()
             viewModel.onQueryChange("")
@@ -298,7 +303,7 @@ fun AppDrawerScreen(
     // other app launches. True when the tap was handled (the drawer closed behind a launch); a failed
     // launch keeps the drawer, and the surface the tap came from, open with the ViewModel's notice.
     val openApp: (AppItem) -> Boolean = { app ->
-        if (!drawerOpen) {
+        if (!canInteract) {
             false
         } else if (app.packageName == context.packageName) {
             onOpenSettings()
@@ -357,10 +362,10 @@ fun AppDrawerScreen(
         showSearch = uiState.showSearch,
         searchAtBottom = uiState.searchAtBottom,
         onQueryChange = viewModel::onQueryChange,
-        onFolderClick = { folder, bounds -> if (drawerOpen) folderCard = OpenedOn(drawnProfile, folder.id to bounds) },
-        onFolderLongClick = { if (drawerOpen) editFolder = OpenedOn(drawnProfile, it.id) },
+        onFolderClick = { folder, bounds -> if (canInteract) folderCard = OpenedOn(drawnProfile, folder.id to bounds) },
+        onFolderLongClick = { if (canInteract) editFolder = OpenedOn(drawnProfile, it.id) },
         onAppClick = { openApp(it) },
-        onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = OpenedOn(drawnProfile, app to bounds) },
+        onAppLongClick = { app, bounds -> if (canInteract) menuTarget = OpenedOn(drawnProfile, app to bounds) },
         onDrawerDrag = onDrawerDrag,
         onDrawerSettle = onDrawerSettle,
         dragController = dragController,
@@ -393,8 +398,8 @@ fun AppDrawerScreen(
         privateSpace = uiState.privateSpace,
         privateApps = uiState.privateApps,
         onSetPrivateLocked = viewModel::setPrivateLocked,
-        onPrivateAppClick = { app -> if (drawerOpen && viewModel.onPrivateAppClick(app, launchSources?.take(app))) onClose() },
-        onPrivateAppLongClick = { app, bounds -> if (drawerOpen) privateMenu = app to bounds },
+        onPrivateAppClick = { app -> if (canInteract && viewModel.onPrivateAppClick(app, launchSources?.take(app))) onClose() },
+        onPrivateAppLongClick = { app, bounds -> if (canInteract) privateMenu = app to bounds },
         onPrivateInstall = { viewModel.privateInstallSender()?.let { startSystemSender(context, it) } },
         onPrivateSettings = { openPrivateSettings(context, viewModel.privateSettingsTarget()) },
         privateGridState = privateGridState,
@@ -405,12 +410,15 @@ fun AppDrawerScreen(
             focusManager.clearFocus()
             viewModel.openPrivateSpace()
         },
-        modifier = modifier.focusProperties {
-            onEnter = { if (!drawerOpen) cancelFocusChange() }
+        // Keep the measured grid and its scroll state while its profile catches up. Moving its
+        // layer out of reach also gates touch; the separate popup windows are gated below.
+        modifier = modifier.then(if (profileMatches) Modifier else Modifier.clearAndSetSemantics {}
+            .graphicsLayer { translationY = size.height }).focusProperties {
+            onEnter = { if (!canInteract) cancelFocusChange() }
         }.focusGroup(),
     )
 
-    val privateTarget = privateMenu
+    val privateTarget = privateMenu.takeIf { profileMatches }
     if (privateTarget != null) {
         val (app, bounds) = privateTarget
         val preferAbove = bounds.center.y > windowHeightPx / 2
@@ -428,7 +436,7 @@ fun AppDrawerScreen(
         )
     }
 
-    val menu = menuTarget?.takeIf { it.profile == uiState.homeProfileId }?.what
+    val menu = menuTarget?.takeIf { profileMatches && it.profile == uiState.homeProfileId }?.what
     if (menu != null) {
         val (app, bounds) = menu
         // The ONE state this menu is drawn from: its rows say what the menu offers ("Remove from home" for an
@@ -499,7 +507,7 @@ fun AppDrawerScreen(
     }
 
     // A window of its own, opaque: the text its surface calls for, not the see-through drawer's (OpaqueDrawerSurface).
-    renameTarget?.let { app -> OpaqueDrawerSurface {
+    renameTarget?.takeIf { profileMatches }?.let { app -> OpaqueDrawerSurface {
         EditAppDialog(
             app = app,
             onSave = { name, icon -> viewModel.editApp(app, name, icon) },
@@ -513,7 +521,7 @@ fun AppDrawerScreen(
         if (editFolder != null && uiState.folders.none { it.id == editFolder?.what }) editFolder = null
         if (folderCard != null && uiState.folders.none { it.id == folderCard?.what?.first }) folderCard = null
     }
-    val card = folderCard?.takeIf { it.profile == uiState.homeProfileId }?.what
+    val card = folderCard?.takeIf { profileMatches && it.profile == uiState.homeProfileId }?.what
     val cardFolder = card?.let { (id, _) -> uiState.folders.firstOrNull { it.id == id } }
     if (card != null && cardFolder != null) {
         DrawerFolderCard(
@@ -527,7 +535,7 @@ fun AppDrawerScreen(
             onAppClick = { if (openApp(it)) folderCard = null },
             // The menu asks the desktop's lock itself (AppActionPopup): locked, it puts no app on the home
             // screen or the dock from here either.
-            onAppLongClick = { app, bounds -> if (drawerOpen) menuTarget = OpenedOn(drawnProfile, app to bounds) },
+            onAppLongClick = { app, bounds -> if (canInteract) menuTarget = OpenedOn(drawnProfile, app to bounds) },
             onDismiss = { folderCard = null },
         )
     }
@@ -535,7 +543,7 @@ fun AppDrawerScreen(
     // on: the folder it shows is that profile's folder, and every change below is asked for that profile. A
     // folder's id alone does not say which folder is meant: a profile made as a copy has folders with the same ids.
     val edited = uiState
-    val editing = editFolder?.takeIf { it.profile == edited.homeProfileId }
+    val editing = editFolder?.takeIf { profileMatches && it.profile == edited.homeProfileId }
     val editedProfile = edited.homeProfileId
     val openFolder = editing?.let { opened -> edited.folders.firstOrNull { it.id == opened.what } }
     if (openFolder != null) OpaqueDrawerSurface {

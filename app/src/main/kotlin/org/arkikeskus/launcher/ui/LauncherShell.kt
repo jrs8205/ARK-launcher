@@ -43,7 +43,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import org.arkikeskus.launcher.feature.appdrawer.AppDrawerScreen
 import org.arkikeskus.launcher.feature.home.FolderIcon
+import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.feature.home.HomeScreen
+import org.arkikeskus.launcher.feature.home.HomeUiState
 import org.arkikeskus.launcher.ui.component.AppIcon
 import org.arkikeskus.launcher.ui.component.LocalIconPack
 import org.arkikeskus.launcher.ui.component.LocalIconShape
@@ -65,17 +67,22 @@ import kotlin.math.roundToInt
  */
 @Composable
 fun LauncherShell(
+    frame: HomeUiState?,
+    settings: LauncherSettings,
+    onManageProfiles: () -> Unit,
     homeSignals: Flow<Boolean>,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    homeLayout: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val shellViewModel = hiltViewModel<LauncherShellViewModel>()
-    val iconStyle by shellViewModel.iconStyle.collectAsStateWithLifecycle()
-    val longPressScale by shellViewModel.longPressScale.collectAsStateWithLifecycle()
-    val drawerBlur by shellViewModel.drawerBlur.collectAsStateWithLifecycle()
-    val statusBars by shellViewModel.statusBars.collectAsStateWithLifecycle()
+    val iconStyle = IconStyle(settings.iconPackPackage, settings.useThemedIcons, settings.iconScale, settings.themeAllIcons, settings.iconShape)
+    val longPressScale = settings.longPressScale
+    val drawerBlur = DrawerBlur(settings.blurBehindDrawer, settings.drawerBlurStrength)
+    val picture by shellViewModel.drawerPicture.collectAsStateWithLifecycle()
+    val statusBars = statusBarSettings(settings, picture)
     val headsUpActive by shellViewModel.headsUpActive.collectAsStateWithLifecycle()
     val wallpaper = rememberWallpaperLook()
     val wallpaperDarkText = wallpaper.state
@@ -118,7 +125,7 @@ fun LauncherShell(
     // animateTo jobs that make the drawer lag behind the finger.
     var dragJob by remember { mutableStateOf<Job?>(null) }
     // A drawer icon's Widgets row: the home screen opens its picker on this package once the drawer is away.
-    var showWidgetsFor by remember { mutableStateOf<String?>(null) }
+    var showWidgetsFor by remember(settings.homeProfileId) { mutableStateOf<String?>(null) }
 
     fun animateProgress(target: Float) {
         isDraggingDrawer = false
@@ -193,6 +200,8 @@ fun LauncherShell(
         ) {
             CompositionLocalProvider(LocalSystemBarCovers provides barCovers) {
                 HomeScreen(
+                    uiState = frame,
+                    onManageProfiles = onManageProfiles,
                     onOpenDrawer = { animateProgress(1f) },
                     onDrawerDrag = { dragDrawer(it) },
                     onDrawerSettle = { settleDrawer(it) },
@@ -208,7 +217,7 @@ fun LauncherShell(
                     // leaves pointer input alone: home's gestures keep working under it. ModulateAlpha fades
                     // each draw call in place instead of rendering the whole of home into an offscreen buffer
                     // on every frame of the rise (that buffer made the drag stutter on a Pixel 8a).
-                    modifier = Modifier
+                    modifier = homeLayout
                         .fillMaxSize()
                         .graphicsLayer {
                             alpha = homeContentAlpha(currentProgress)
@@ -253,6 +262,7 @@ fun LauncherShell(
             // When closed, it is translated completely off-screen (translationY = size.height).
             // Compose's pointer input system respects the graphicsLayer transform, so it will not block pointer events for the HomeScreen.
             AppDrawerScreen(
+                shownHomeProfile = settings.homeProfileId,
                 onClose = { animateProgress(0f) },
                 onDrawerDrag = { dragDrawer(it) },
                 onDrawerSettle = { settleDrawer(it) },
