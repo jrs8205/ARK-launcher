@@ -167,6 +167,8 @@ class ExportButtonTest {
             compose.waitForIdle()
             assertThat(vm.profileReader.state.value).isEqualTo(RestoreProfileRead.Failed)
             assertExport()
+            // The settings host draws the heading once, above this content.
+            compose.onNodeWithText("Backup").assertDoesNotExist()
             compose.onNodeWithText("Import from file").performClick()
             thePickerAnswers()
             compose.onNodeWithText("Restore").assertIsNotEnabled()

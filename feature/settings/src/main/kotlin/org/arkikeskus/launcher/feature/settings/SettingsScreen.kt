@@ -7,6 +7,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -289,7 +291,11 @@ internal fun SettingsContent(
                 // open picker left nobody registered for its answer (what a page keeps comes back only under
                 // the same key), and the new backup file stayed empty with no word of it.
                 if (shown == SettingsCategory.BACKUP.key) {
-                    backupScreen { pageKey = null }
+                    val goBack = { pageKey = null }
+                    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+                        SettingsPageHeader(stringResource(SettingsCategory.BACKUP.title), onBack = goBack)
+                        backupScreen(goBack)
+                    }
                 } else key(pagesOf) {
                 when (shown) {
                     SCREEN_MAIN -> SettingsMainPage(

@@ -175,6 +175,16 @@ class SettingsNavigationTest {
         assertThat(compose.activity.isFinishing).isTrue()
     }
 
+    @Test fun theBackupPageHasOneHeadingAndItsArrowReturnsToSettings() {
+        show()
+        open(SettingsCategory.BACKUP)
+        val title = res.getString(SettingsCategory.BACKUP.title)
+        val heading = hasText(title) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)
+        compose.onNode(heading).assertIsDisplayed()
+        compose.onNodeWithContentDescription(res.getString(R.string.settings_back)).performClick()
+        assertOnMainPage()
+    }
+
     @Test fun theBackupCategoryOpensTheBackupScreenItselfAndBackReturns() {
         show()
         open(SettingsCategory.BACKUP)

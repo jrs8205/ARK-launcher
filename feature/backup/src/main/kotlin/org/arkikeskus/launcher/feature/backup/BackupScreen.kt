@@ -101,8 +101,6 @@ fun BackupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.backup_title), style = MaterialTheme.typography.headlineMedium)
-
             // --- File section ---
             Text(stringResource(R.string.backup_file_section), style = MaterialTheme.typography.titleMedium)
             // A file holds the one profile that is on: with several profiles the button and the time below
