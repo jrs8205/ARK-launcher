@@ -18,6 +18,18 @@ import org.junit.Test
  */
 class SettingsRepositoryTest {
 
+    @Test fun movingAPinToAnAlreadyLinkedTileKeepsTheNameTheUserChose() = runTest {
+        val repo = newRepository()
+        val source = PinnedPerson("person:1", "Sari", number = "123")
+        repo.pinPerson(source)
+        repo.linkPerson("chat:2", "contact:3", "Sara Aaltonen")
+
+        repo.linkPerson(source.key, "chat:2", "Sara A.")
+
+        assertThat(repo.peopleAliases.first()).containsExactly("chat:2", "contact:3", source.key, "contact:3")
+        assertThat(repo.pinnedPeople.first()).containsExactly(source.copy(key = "contact:3", name = "Sara A."))
+    }
+
     @Test fun linkingTwoPinnedPeopleMovesTheContactAndAliasInOneWrite() = runTest {
         val disk = org.arkikeskus.launcher.data.profile.CountingStore()
         val repo = SettingsRepository(disk)
@@ -27,7 +39,7 @@ class SettingsRepositoryTest {
         listOf(source, target, third).forEach { repo.pinPerson(it) }
         val before = disk.writes
 
-        repo.linkPerson(source.key, target.key)
+        repo.linkPerson(source.key, target.key, target.name)
         assertThat(repo.peopleAliases.first()).containsExactly(source.key, target.key)
         assertThat(repo.pinnedPeople.first()).containsExactly(target.copy(lookupUri = source.lookupUri), third).inOrder()
         assertThat(disk.writes - before).isEqualTo(1)

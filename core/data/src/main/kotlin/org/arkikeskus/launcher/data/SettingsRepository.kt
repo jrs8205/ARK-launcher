@@ -276,7 +276,7 @@ class SettingsRepository @Inject constructor(
 
     /** Links [alias] to [target]: an existing link on [alias] is replaced, links that pointed at
      *  [alias] follow it to the new target, and a target that is itself an alias resolves first. */
-    suspend fun linkPerson(alias: String, target: String, targetName: String = target, contact: RawContact? = null) = edit { p ->
+    suspend fun linkPerson(alias: String, target: String, targetName: String, contact: RawContact? = null) = edit { p ->
         val current = parseAliases(p[Keys.PEOPLE_ALIASES])
         val resolved = current[target] ?: target
         if (alias == target || resolved == alias) return@edit
@@ -291,7 +291,8 @@ class SettingsRepository @Inject constructor(
         val to = pins.find { it.key == resolved }
         val lookup = contact?.lookupUri ?: from?.lookupUri.orEmpty()
         if (from == null && (to == null || to.lookupUri.isNotEmpty() || lookup.isEmpty())) return@edit
-        val pin = to ?: PinnedPerson(resolved, if (resolved == target) targetName else resolved)
+        // The tile may have been linked again since it was shown. Keep the name the user picked.
+        val pin = to ?: PinnedPerson(resolved, targetName)
         val merged = pin.copy(
             lookupUri = pin.lookupUri.ifEmpty { lookup },
             number = pin.number.ifEmpty { contact?.number ?: from?.number.orEmpty() },
