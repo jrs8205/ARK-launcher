@@ -44,9 +44,11 @@ class ExportButtonTest {
     @get:Rule val compose = createComposeRule()
 
     private val tester = StateRestorationTester(compose)
+    private val suggestedNames = mutableListOf<String>()
     private val launched = mutableListOf<Int>()
     private val registry = object : ActivityResultRegistry() {
         override fun <I, O> onLaunch(requestCode: Int, contract: ActivityResultContract<I, O>, input: I, options: ActivityOptionsCompat?) {
+            if (input is String) suggestedNames += input
             launched += requestCode
         }
     }
@@ -77,6 +79,7 @@ class ExportButtonTest {
         compose.onNodeWithTag(EXPORT_BUTTON_TAG).performClick()
         compose.waitForIdle()
         assertThat(launched).hasSize(1)
+        assertThat(suggestedNames.single()).startsWith("ARK-Launcher-backup-Work-")
 
         // The profile is switched while the picker is open: the button now names the first profile.
         profiles = LastBackup(1, 0, "")
@@ -84,6 +87,20 @@ class ExportButtonTest {
         thePickerAnswers()
 
         assertThat(exports).containsExactly(file to 2L)
+    }
+
+    @Test fun thePickerUsesTheDisplayedDefaultNameAndOmitsASoleProfilesName() {
+        val res = org.robolectric.RuntimeEnvironment.getApplication().resources
+        val defaultProfile = res.getString(org.arkikeskus.launcher.ui.R.string.profile_default_name)
+        profiles = LastBackup(1, 0, "")
+        show()
+        compose.onNodeWithTag(EXPORT_BUTTON_TAG).performClick()
+        assertThat(suggestedNames.single()).startsWith("ARK-Launcher-backup-$defaultProfile-")
+        thePickerAnswers()
+        profiles = LastBackup(1, 0, null)
+        compose.waitForIdle()
+        compose.onNodeWithTag(EXPORT_BUTTON_TAG).performClick()
+        assertThat(suggestedNames.last()).matches("""ARK-Launcher-backup-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.json""")
     }
 
     @Test fun theProfileOfTheTapSurvivesARecreationUnderThePicker() {
@@ -99,7 +116,7 @@ class ExportButtonTest {
         assertThat(exports).containsExactly(file to 2L)
     }
 
-    /** Before the profiles are read there is no profile to hold the export to. */
+    /** The last-backup reading supplies the export target even when no backup has been made. */
     @Test fun theButtonWaitsUntilTheProfilesAreKnown() {
         profiles = null
         show()

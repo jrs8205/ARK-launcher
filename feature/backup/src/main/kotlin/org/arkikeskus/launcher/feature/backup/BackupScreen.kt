@@ -2,6 +2,7 @@ package org.arkikeskus.launcher.feature.backup
 
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.data.LastBackup
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -137,15 +138,20 @@ fun BackupScreen(
 
 /** The suggested export name: [base] plus when the backup was made, so a new export never offers
  *  the previous one's name. ASCII digits in every locale, and no characters a file system rejects. */
-internal fun backupFileName(base: String, now: LocalDateTime): String =
-    "$base-${now.format(BACKUP_NAME_TIME)}.json"
+internal fun backupFileName(base: String, now: LocalDateTime, profile: String? = null): String {
+    val clean = profile.orEmpty().filterNot { it.isISOControl() || it in "\\/:*?\"<>|" }
+        .trim { it.isWhitespace() || it == '.' }
+    val part = HomeProfile.fitName(clean).trimEnd { it.isWhitespace() || it == '.' }
+    val prefix = if (part.isEmpty()) base else "$base-$part"
+    return "$prefix-${now.format(BACKUP_NAME_TIME)}.json"
+}
 
 /**
  * The export button with the system's "create a file" picker behind it. An export is for the profile the
  * button NAMES WHEN IT IS TAPPED ([lastBackup]'s profile): that id is kept across the picker, and across a
  * recreation of the screen under it, and goes to [onExport] with the file, whatever profile is on when the
- * picker answers. The export itself refuses to write another profile than this one. Not enabled before the
- * profiles are read: there would be no profile to hold the export to. [guarded] runs the launch of the
+ * picker answers. The export itself refuses to write another profile than this one. The button waits for the
+ * last-backup reading, which supplies the profile id and the name to show together. [guarded] runs the launch of the
  * picker (a phone without one must not take the screen down).
  */
 @Composable
@@ -155,10 +161,11 @@ internal fun ExportButton(lastBackup: LastBackup?, guarded: (() -> Unit) -> Unit
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri -> exportFor?.let { profile -> if (uri != null) onExport(uri, profile) } }
     val defaultName = stringResource(R.string.backup_default_name)
+    val profileName = exportedProfileName(LocalResources.current, lastBackup)
     Button(
         onClick = {
             exportFor = lastBackup?.homeProfileId
-            guarded { createDoc.launch(backupFileName(defaultName, LocalDateTime.now())) }
+            guarded { createDoc.launch(backupFileName(defaultName, LocalDateTime.now(), profileName)) }
         },
         enabled = lastBackup != null,
         modifier = Modifier.fillMaxWidth().testTag(EXPORT_BUTTON_TAG),

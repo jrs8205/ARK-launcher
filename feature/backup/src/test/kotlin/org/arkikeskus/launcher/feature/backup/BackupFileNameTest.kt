@@ -12,6 +12,14 @@ class BackupFileNameTest {
             .isEqualTo("launcher-backup-2026-10-01_07-06.json")
     }
 
+    @Test fun theProfilePartIsSafeAndKeepsWholeLetters() {
+        val now = LocalDateTime.of(2026, 10, 1, 7, 6)
+        fun name(profile: String) = backupFileName("launcher-backup", now, profile)
+        assertThat(name(" ..Ä/ö:*?\"<>|\\Ж\u0007.. ")).isEqualTo("launcher-backup-ÄöЖ-2026-10-01_07-06.json")
+        assertThat(name(" .|.. ")).isEqualTo(backupFileName("launcher-backup", now))
+        assertThat(name("x".repeat(23) + "😀y")).isEqualTo("launcher-backup-${"x".repeat(23)}-2026-10-01_07-06.json")
+    }
+
     @Test fun digitsStayAsciiInEveryLocale() {
         val previous = Locale.getDefault()
         Locale.setDefault(Locale.forLanguageTag("ar-EG"))
