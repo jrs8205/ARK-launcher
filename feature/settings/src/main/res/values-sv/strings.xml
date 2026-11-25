@@ -326,6 +326,6 @@
     <string name="settings_profile_delete">Ta bort profil</string>
     <string name="settings_profile_delete_confirm">Ta bort %1$s? Dess startskärm, dock och widgetar tas bort.</string>
     <string name="settings_profile_active">Används</string>
-    <string name="settings_profile_editing">Redigerar: %1$s</string>
+    <string name="settings_profile_editing">Redigerar profilen: %1$s</string>
     <string name="settings_profile_row_mark">Ställs in separat för varje profil</string>
 </resources>

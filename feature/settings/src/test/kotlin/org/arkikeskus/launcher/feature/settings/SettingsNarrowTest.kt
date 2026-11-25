@@ -10,6 +10,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertWithMessage
+import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.junit.Before
 import org.junit.Rule
@@ -44,14 +46,14 @@ class SettingsNarrowTest {
     @Before fun nothingRemembered() = SettingsScrollMemory.clear()
     private val res get() = RuntimeEnvironment.getApplication().resources
 
-    private fun show() {
+    private fun show(profiles: List<HomeProfile> = SettingsLists().homeProfiles) {
         compose.setContent {
             val base = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale = 2f)) {
                 Box(Modifier.width(320.dp)) {
                     SettingsContent(
                         s = LauncherSettings(),
-                        lists = SettingsLists(),
+                        lists = SettingsLists(homeProfiles = profiles),
                         actions = RecordedActions().actions,
                         blurAvailability = BlurAvailability.AVAILABLE,
                         backupScreen = {},
@@ -61,6 +63,19 @@ class SettingsNarrowTest {
         }
         compose.waitForIdle()
     }
+
+    private fun checkEditingLine(prefix: String) {
+        val name = "Mökkiviikonloppu merellä"
+        show(listOf(HomeProfile(1, name), HomeProfile(2, "Work")))
+        val line = compose.onNode(hasText(prefix + name)).fetchSemanticsNode()
+        assertNoTextIsCut(line, "editing profile")
+    }
+
+    @Test @Config(sdk = [35], qualifiers = "fi")
+    fun theFinnishProfileLineFits() = checkEditingLine("Muokataan profiilia: ")
+
+    @Test @Config(sdk = [35], qualifiers = "en")
+    fun theEnglishProfileLineFits() = checkEditingLine("Editing profile: ")
 
     private val hasTextLayout = SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult)
 

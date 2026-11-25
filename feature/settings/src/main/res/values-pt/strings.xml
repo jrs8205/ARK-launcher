@@ -330,6 +330,6 @@
     <string name="settings_profile_delete">Excluir perfil</string>
     <string name="settings_profile_delete_confirm">Excluir %1$s? A tela inicial, o dock e os widgets dele serão removidos.</string>
     <string name="settings_profile_active">Em uso</string>
-    <string name="settings_profile_editing">Editando: %1$s</string>
+    <string name="settings_profile_editing">Editando o perfil: %1$s</string>
     <string name="settings_profile_row_mark">Definido separadamente para cada perfil</string>
 </resources>

@@ -334,6 +334,6 @@
     <string name="settings_profile_delete">Удалить профиль</string>
     <string name="settings_profile_delete_confirm">Удалить «%1$s»? Его главный экран, док-панель и виджеты будут удалены.</string>
     <string name="settings_profile_active">Используется</string>
-    <string name="settings_profile_editing">Редактируется: %1$s</string>
+    <string name="settings_profile_editing">Редактируется профиль: %1$s</string>
     <string name="settings_profile_row_mark">Задаётся отдельно для каждого профиля</string>
 </resources>

@@ -326,6 +326,6 @@
     <string name="settings_profile_delete">Delete profile</string>
     <string name="settings_profile_delete_confirm">Delete %1$s? Its home screen, dock and widgets are removed.</string>
     <string name="settings_profile_active">In use</string>
-    <string name="settings_profile_editing">Editing: %1$s</string>
+    <string name="settings_profile_editing">Editing profile: %1$s</string>
     <string name="settings_profile_row_mark">Set separately for each profile</string>
 </resources>

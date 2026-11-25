@@ -326,6 +326,6 @@
     <string name="settings_profile_delete">Profili sil</string>
     <string name="settings_profile_delete_confirm">%1$s silinsin mi? Ana ekranı, dock\'u ve widget\'ları kaldırılır.</string>
     <string name="settings_profile_active">Kullanımda</string>
-    <string name="settings_profile_editing">Düzenlenen: %1$s</string>
+    <string name="settings_profile_editing">Düzenlenen profil: %1$s</string>
     <string name="settings_profile_row_mark">Her profil için ayrı ayarlanır</string>
 </resources>

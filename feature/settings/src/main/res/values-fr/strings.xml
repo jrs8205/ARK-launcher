@@ -330,6 +330,6 @@
     <string name="settings_profile_delete">Supprimer le profil</string>
     <string name="settings_profile_delete_confirm">Supprimer %1$s ? Son écran d\'accueil, son dock et ses widgets seront supprimés.</string>
     <string name="settings_profile_active">Utilisé</string>
-    <string name="settings_profile_editing">Modification : %1$s</string>
+    <string name="settings_profile_editing">Modification du profil : %1$s</string>
     <string name="settings_profile_row_mark">Réglé séparément pour chaque profil</string>
 </resources>

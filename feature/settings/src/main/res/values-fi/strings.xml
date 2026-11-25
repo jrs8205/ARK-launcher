@@ -326,6 +326,6 @@
     <string name="settings_profile_delete">Poista profiili</string>
     <string name="settings_profile_delete_confirm">Poistetaanko %1$s? Sen etusivu, dockki ja widgetit poistetaan.</string>
     <string name="settings_profile_active">Käytössä</string>
-    <string name="settings_profile_editing">Muokataan: %1$s</string>
+    <string name="settings_profile_editing">Muokataan profiilia: %1$s</string>
     <string name="settings_profile_row_mark">Asetetaan erikseen joka profiilille</string>
 </resources>

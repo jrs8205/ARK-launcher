@@ -326,6 +326,6 @@
     <string name="settings_profile_delete">Profil löschen</string>
     <string name="settings_profile_delete_confirm">%1$s löschen? Startbildschirm, Dock und Widgets des Profils werden entfernt.</string>
     <string name="settings_profile_active">In Verwendung</string>
-    <string name="settings_profile_editing">Wird bearbeitet: %1$s</string>
+    <string name="settings_profile_editing">Profil wird bearbeitet: %1$s</string>
     <string name="settings_profile_row_mark">Für jedes Profil einzeln festgelegt</string>
 </resources>
