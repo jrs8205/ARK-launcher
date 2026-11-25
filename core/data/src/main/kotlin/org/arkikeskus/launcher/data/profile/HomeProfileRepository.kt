@@ -244,7 +244,7 @@ class HomeProfileRepository @Inject constructor(
     suspend fun setHomeRows(value: Int, profileId: Long): GridChange = resizeGrid(profileId, rows = value)
 
     private suspend fun resizeGrid(profileId: Long, columns: Int? = null, rows: Int? = null): GridChange =
-        withReadableProfile(GridChange.Refused) { active ->
+        withReadableProfile(GridChange.Failed) { active ->
             if (active != profileId) return@withReadableProfile GridChange.Refused
             val now = settings.settings.first()
             val width = columns ?: now.homeColumns

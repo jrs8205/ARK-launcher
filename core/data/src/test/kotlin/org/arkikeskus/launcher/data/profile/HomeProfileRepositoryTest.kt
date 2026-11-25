@@ -1073,6 +1073,24 @@ class HomeProfileRepositoryTest {
         assertThat(layout.isProfileOn(1L)).isTrue()
     }
 
+    @Test fun anUnreadablePreferencesFileReportsAFailedGridChange() = runTest {
+        val file = File.createTempFile("grid", ".preferences_pb", context.cacheDir)
+        check(file.delete() && file.mkdir())
+        val owner = kotlinx.coroutines.SupervisorJob()
+        try {
+            val disk = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+                scope = kotlinx.coroutines.CoroutineScope(owner + kotlinx.coroutines.Dispatchers.IO),
+            ) { file }
+            val diskFiles = DiskHomeProfileFiles(context, kotlinx.coroutines.CoroutineScope(owner + kotlinx.coroutines.Dispatchers.IO))
+            val view = ProfiledPreferences(disk, diskFiles)
+            val diskStore = HomeProfileStore(disk, view, diskFiles)
+            val repository = HomeProfileRepository(diskStore, layout, SettingsRepository(view, view), resolver, drawerPictures) {}
+            assertThat(repository.setHomeColumns(3, 1)).isEqualTo(HomeProfileRepository.GridChange.Failed)
+        } finally {
+            owner.cancel()
+        }
+    }
+
     @Test fun unreadableProfileLeavesTheGridColumnsUntouched() = runTest {
         assertGridReadFails { profiles.setHomeColumns(3, 1L) }
     }
@@ -1086,7 +1104,7 @@ class HomeProfileRepositoryTest {
         val before = settings.settings.first()
         val rows = rowsOf(1)
         main.failReads = java.io.IOException("cannot open profile")
-        assertThat(change()).isEqualTo(HomeProfileRepository.GridChange.Refused)
+        assertThat(change()).isEqualTo(HomeProfileRepository.GridChange.Failed)
         main.failReads = null
         assertThat(settings.settings.first()).isEqualTo(before)
         assertThat(rowsOf(1)).isEqualTo(rows)
