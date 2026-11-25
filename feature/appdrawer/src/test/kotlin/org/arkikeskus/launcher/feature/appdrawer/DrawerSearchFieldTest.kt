@@ -6,6 +6,8 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performClick
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
@@ -22,6 +24,22 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class, qualifiers = "en")
 class DrawerSearchFieldTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun theDrawerSearchRequestsSentenceCapitalisation() {
+        compose.setContent {
+            DrawerSearchField("", {}, SearchFieldColors(Color.Black, Color.White, Color.White, Color.Gray))
+        }
+        val field = compose.onNode(hasSetTextAction())
+        field.performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val host = android.view.inspector.WindowInspector.getGlobalWindowViews()
+                .mapNotNull { it.findFocus() }.last { it.onCheckIsTextEditor() }
+            val info = android.view.inputmethod.EditorInfo()
+            assertThat(host.onCreateInputConnection(info)).isNotNull()
+            assertThat(info.inputType and android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES).isNotEqualTo(0)
+        }
+    }
 
     @Test fun theFieldsTextSelectionTakesTheFieldsOwnColours() {
         val colors = SearchFieldColors(

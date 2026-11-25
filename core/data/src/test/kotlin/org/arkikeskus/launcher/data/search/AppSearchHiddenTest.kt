@@ -27,6 +27,7 @@ class AppSearchHiddenTest {
         assertThat(matchingApps(apps, "ma", hidden, findHidden = false)).containsExactly(mail)
 
         assertThat(matchingApps(apps, "ba", hidden, findHidden = true)).containsExactly(bank)
+        assertThat(matchingApps(apps, "Ba", hidden, findHidden = true)).containsExactly(bank)
         assertThat(matchingApps(apps, "ma", hidden, findHidden = true)).containsExactly(mail, maps).inOrder()
     }
 

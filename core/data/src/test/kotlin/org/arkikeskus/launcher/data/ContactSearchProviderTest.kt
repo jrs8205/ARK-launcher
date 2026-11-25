@@ -44,6 +44,22 @@ class ContactSearchProviderTest {
         assertThat(provider(searchContacts = true, granted = true).isEnabled()).isTrue()
     }
 
+    @Test fun thePlatformMatchesTheSpellingTheUserTyped() = runTest {
+        val queries = mutableListOf<String>()
+        val contact = ContactSearchProvider(SettingsRepository(InMemoryDataStore()), PermissionChecker { true },
+            object : ContactDataSource {
+                override suspend fun search(query: String, limit: Int): List<RawContact> {
+                    queries += query
+                    return sample.filter { it.name.contains(query, ignoreCase = true) }
+                }
+            },
+        )
+        val lower = contact.query("li")
+        assertThat(lower).hasSize(1)
+        assertThat(contact.query("Li")).isEqualTo(lower)
+        assertThat(queries).containsExactly("li", "Li").inOrder()
+    }
+
     @Test fun `maps raw contacts to results`() = runTest {
         val r = provider(searchContacts = true, granted = true).query("li")
             .filterIsInstance<SearchResult.Contact>().single()

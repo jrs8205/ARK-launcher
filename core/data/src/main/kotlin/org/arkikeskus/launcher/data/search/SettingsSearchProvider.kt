@@ -16,10 +16,10 @@ data class SettingItem(
 
 /** Pure matcher: a [SettingItem] matches when the trimmed query is a substring of its label or any alias. */
 fun matchSettings(items: List<SettingItem>, query: String): List<SearchResult.Setting> {
-    val q = query.trim().lowercase()
+    val q = query.trim()
     if (q.isEmpty()) return emptyList()
     return items.filter { item ->
-        item.label.lowercase().contains(q) || item.aliases.any { it.lowercase().contains(q) }
+        item.label.contains(q, ignoreCase = true) || item.aliases.any { it.contains(q, ignoreCase = true) }
     }.map { SearchResult.Setting(it.label, it.action, it.key) }
 }
 

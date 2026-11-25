@@ -26,7 +26,9 @@ class CalculatorSearchProvider @Inject constructor() : SearchProvider {
 
     // --- unit conversion: "<number> <unit> to <unit>" -------------------------------------------
     private fun evalUnit(q: String): Double? {
-        val m = UNIT_PATTERN.matchEntire(q.lowercase()) ?: return null
+        // Single-character casing also turns Turkish capital İ into the unit letter i.
+        val units = buildString(q.length) { q.forEach { append(it.lowercaseChar()) } }
+        val m = UNIT_PATTERN.matchEntire(units) ?: return null
         val amount = m.groupValues[1].toDoubleOrNull() ?: return null
         val from = m.groupValues[2]
         val to = m.groupValues[3]

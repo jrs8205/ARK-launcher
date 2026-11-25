@@ -7,6 +7,12 @@ import org.arkikeskus.launcher.model.SearchResult
 import org.junit.Test
 
 class CalculatorSearchProviderTest {
+    @Test fun capitalisedUnitsAndMultiplicationKeepTheirValue() = runTest {
+        suspend fun value(query: String) = provider.query(query).filterIsInstance<SearchResult.Calculation>().singleOrNull()?.result
+        assertThat(value("12 X 7")).isEqualTo("84")
+        assertThat(value("1 İN TO CM")).isEqualTo("2.54")
+    }
+
     private val provider = CalculatorSearchProvider()
 
     @Test fun `evaluates precedence and parentheses`() = runTest {
