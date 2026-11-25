@@ -8,10 +8,9 @@ data class PlaceName(val name: String, val fromNetwork: Boolean)
 
 /**
  * The weather's place name: the device's own geocoder first, then (only when the user opted in) the
- * network fallback. The last name is kept for its rounded area so a transient geocoder failure does
- * not blank a name the user was already seeing — but a clearly different area must not keep the
- * previous town, a dead geocoder must not pin a stale name forever, and a name that came from the
- * network is dropped as soon as the fallback is turned off. The area key carries the UI language
+ * network fallback. In the same rounded area a cached name lives for [maxAgeMs]. On the move it
+ * stands in for at most [networkIntervalMs] from the original reading. Turning off the fallback
+ * drops a network name. The area key carries the UI language
  * ([placeAreaKey]): a name resolved in one language is never shown after the user switches the
  * app or system language. Not thread-safe: the weather refresh is its single caller.
  */
@@ -37,6 +36,7 @@ internal class PlaceNameCache(
 
     /** [network] is null while the network fallback is turned off; it is never called then. */
     fun resolve(areaKey: String, local: () -> String?, network: (() -> String?)?): PlaceName? {
+        if (fromNetwork && network == null) name = null
         local()?.let { return remember(it, areaKey, fromNetwork = false) }
         // By its own half hour, not the weather's quarter: the privacy statement promises the network is asked
         // at most once in thirty minutes. In between the last name stands (below).
@@ -44,10 +44,11 @@ internal class PlaceNameCache(
             networkAskedAtMs = now()
             network()?.let { return remember(it, areaKey, fromNetwork = true) }
         }
-        val alive = now() - atMs < maxAgeMs
-        val allowed = network != null || !fromNetwork
-        val cached = name
-        return if (cached != null && areaKey == this.areaKey && alive && allowed) PlaceName(cached, fromNetwork) else null
+        val cached = name ?: return null
+        val previous = this.areaKey ?: return null
+        if (previous.substringAfter('@') != areaKey.substringAfter('@')) return null
+        val lifetime = if (areaKey == previous) maxAgeMs else minOf(maxAgeMs, networkIntervalMs)
+        return if (now() - atMs < lifetime) PlaceName(cached, fromNetwork) else null
     }
 
     private fun networkDue(): Boolean {

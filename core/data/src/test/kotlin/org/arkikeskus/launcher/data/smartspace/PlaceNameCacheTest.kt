@@ -43,10 +43,24 @@ class PlaceNameCacheTest {
         assertThat(cache.resolve("60.21,24.87", local = { null }, network = null)?.name).isEqualTo("Vantaa")
     }
 
-    @Test fun anotherAreaDoesNotKeepThePreviousName() {
-        cache.resolve("60.21,24.87", local = { "Vantaa" }, network = null)
+    @Test fun aLocalNameTravelsForOneIntervalFromItsResolution() {
+        val moving = PlaceNameCache(maxAgeMs = 1_000, networkIntervalMs = 100) { now }
+        moving.resolve("60,24@fi", { "Vantaa" }, null)
+        now = 99
+        assertThat(moving.resolve("61,25@fi", { null }, network(null))).isEqualTo(PlaceName("Vantaa", false))
+        now = 100
+        assertThat(moving.resolve("62,25@fi", { null }, network(null))).isNull()
+        assertThat(moving.resolve("60,24@fi", { null }, null)).isEqualTo(PlaceName("Vantaa", false))
+    }
 
-        assertThat(cache.resolve("61.50,23.76", local = { null }, network = null)).isNull()
+    @Test fun theNetworkNameTravelsBetweenQuestionsInItsOwnLanguageWhileAllowed() {
+        cache.resolve("60,24@fi", { null }, network("Vantaa"))
+        now = 100
+        assertThat(cache.resolve("61,25@sv", { null }, network("Ny stad"))).isNull()
+        assertThat(cache.resolve("61,25@fi", { null }, network("Uusi kaupunki"))).isEqualTo(PlaceName("Vantaa", true))
+        assertThat(networkCalls).isEqualTo(1)
+        assertThat(cache.resolve("61,25@fi", { null }, null)).isNull()
+        assertThat(cache.resolve("60,24@fi", { null }, network(null))).isNull()
     }
 
     @Test fun aNameResolvedInAnotherLanguageIsNotReused() {
