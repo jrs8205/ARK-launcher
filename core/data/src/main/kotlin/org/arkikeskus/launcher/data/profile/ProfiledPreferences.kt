@@ -80,7 +80,9 @@ class ProfiledPreferences(
     /** Which profile to show when the store's cached pointer differs from the accepted one. */
     private val unsaved = MutableStateFlow<Unsaved?>(null)
 
-    private class Unsaved(val left: Long, val on: Long)
+    /** [leaveHeld] leaves a file naming the unreadable profile; [switchActive] may have a cache
+     * naming the uncommitted target. [saying] shows [shown] whenever those values still name [named]. */
+    private class Unsaved(val named: Long, val shown: Long)
 
     /**
      * The settings file as this process knows it ([pointing]), read in the settings' own types
@@ -123,7 +125,7 @@ class ProfiledPreferences(
         // Repair a previous discrepancy first. Otherwise a retry of the same switch could match the
         // cached value and report success without writing anything to disk.
         if (unsaved.value != null) main.updateData { it }
-        unsaved.value = Unsaved(left = to, on = from)
+        unsaved.value = Unsaved(named = to, shown = from)
         main.edit { it[ACTIVE] = to }
     }
 
@@ -135,13 +137,12 @@ class ProfiledPreferences(
             held.updateData { transform(saying(it, unsaved.value)) }.also { unsaved.value = null }
     }
 
-    /** [values] of the settings file with the profile that is on as [leave] has it, while the file still
-     *  names the profile that was left and still lists the one that came on. */
-    private fun saying(values: Preferences, leave: Unsaved?): Preferences =
-        if (leave == null || activeId(values) != leave.left || listed(values).none { it.id == leave.on }) {
+    /** Uses the accepted pointer while the stored values name the uncommitted one and still list its replacement. */
+    private fun saying(values: Preferences, pending: Unsaved?): Preferences =
+        if (pending == null || activeId(values) != pending.named || listed(values).none { it.id == pending.shown }) {
             values
         } else {
-            values.toMutablePreferences().apply { this[ACTIVE] = leave.on }.toPreferences()
+            values.toMutablePreferences().apply { this[ACTIVE] = pending.shown }.toPreferences()
         }
 
     /**
@@ -239,7 +240,7 @@ class ProfiledPreferences(
                 file.updateData { held -> held.toMutablePreferences().apply { this[ACTIVE] = on }.toPreferences() }
                 unsaved.value = null
             } catch (failed: IOException) {
-                unsaved.value = Unsaved(left = unreadable, on = on)
+                unsaved.value = Unsaved(named = unreadable, shown = on)
             }
             leftProfile.value = unreadable
         }
