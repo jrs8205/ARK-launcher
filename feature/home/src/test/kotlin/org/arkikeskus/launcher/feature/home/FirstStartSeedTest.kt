@@ -5,19 +5,22 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.ResolveInfo
-import android.os.Looper
 import android.provider.Settings
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
+import java.io.IOException
 
 /**
  * What the home screen's first start puts on a fresh install: the default clock (and dock), once for the
@@ -37,7 +40,7 @@ class FirstStartSeedTest {
     @Test fun theFirstStartSeedsTheFirstProfileAlsoWhenAnotherOneIsOn() = runTest {
         // The seed waits for the app list, so there is an app.
         installFakeApp(context, "com.mail", "Mail")
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val empty = (wiring.homeProfiles.create("Empty", copyOf = null) as HomeProfileRepository.Created.Done).profile
             assertThat(wiring.homeProfiles.switchTo(empty.id)).isTrue()
@@ -59,7 +62,7 @@ class FirstStartSeedTest {
      *  to seed: the profiles there are were made by the user, as they are, and none of them is filled. */
     @Test fun aFirstStartWithoutTheFirstProfileSeedsNoProfile() = runTest {
         installFakeApp(context, "com.mail", "Mail")
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
             assertThat(wiring.homeProfiles.switchTo(own.id)).isTrue()
@@ -84,7 +87,7 @@ class FirstStartSeedTest {
      */
     @Test fun aFirstStartWithoutTheFirstProfileDoesNotWaitForTheAppList() = runTest {
         // No app: the app list stays empty.
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
             assertThat(wiring.homeProfiles.switchTo(own.id)).isTrue()
@@ -116,7 +119,7 @@ class FirstStartSeedTest {
     @Test fun theFirstStartSeedsTheDockOfTheFirstProfileToo() = runTest {
         installFakeApp(context, "com.mail", "Mail")
         isTheDefaultSettingsApp("com.mail")
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val empty = (wiring.homeProfiles.create("Empty", copyOf = null) as HomeProfileRepository.Created.Done).profile
             assertThat(wiring.homeProfiles.switchTo(empty.id)).isTrue()
@@ -142,7 +145,7 @@ class FirstStartSeedTest {
      */
     @Test fun aFirstProfileDeletedWhileTheSeedWaitsForTheAppListGetsNoRows() = runTest {
         // No app yet: the seed will wait for the app list.
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
             val viewModel = wiring.firstStartHomeViewModel()
@@ -178,7 +181,7 @@ class FirstStartSeedTest {
      */
     @Test fun aFirstProfileDeletedWhileTheSeedWaitsEndsTheWaitThoughNoAppEverComes() = runTest {
         // No app, now or later.
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
             val viewModel = wiring.firstStartHomeViewModel()
@@ -206,7 +209,7 @@ class FirstStartSeedTest {
      */
     @Test fun anOlderVersionsDockIsNotTurnedIntoRowsOfAFirstProfileThatIsGone() = runTest {
         installFakeApp(context, "com.mail", "Mail")
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             wiring.settingsRepository.importRaw(mapOf("dock_favorites" to "com.mail/com.mail.Main/0"))
             val own = (wiring.homeProfiles.create("Mine", copyOf = null) as HomeProfileRepository.Created.Done).profile
@@ -243,9 +246,12 @@ class FirstStartSeedTest {
             val blocked = wiring.firstStartHomeViewModel()
             try {
                 whileTheMainLooperTurns { blocked.uiState.first { it.loaded } }
-                awaitUntil("the failed first-start write") {
-                    org.robolectric.shadows.ShadowLog.getLogsForTag("HomeViewModel").any { it.throwable is java.io.IOException }
+                val stopped = assertThrows(AssertionError::class.java) {
+                    awaitUntil("the seed") { wiring.settingsRepository.defaultLayoutSeededOnce() }
                 }
+                val refused = checkNotNull(firstStartFailure())
+                assertThat(stopped.cause).isSameInstanceAs(refused)
+                acknowledgedFailure = refused
                 assertThat(wiring.settingsRepository.firstRunFreshOnce()).isNull()
                 assertThat(wiring.rowsOfProfile(1)).isEqualTo(before)
             } finally {
@@ -259,7 +265,7 @@ class FirstStartSeedTest {
                     assertThat(next.showOnboarding.value).isFalse()
                     assertThat(wiring.rowsOfProfile(1)).isEqualTo(before)
                 } else {
-                    whileTheMainLooperTurns { next.showOnboarding.first { it } }
+                    awaitUntil("the intro on retry") { next.showOnboarding.value }
                     val rows = wiring.rowsOfProfile(1)
                     assertThat(rows.filter { it.containerId == HomeItemEntity.DOCK }.map { it.packageName }).containsExactly("com.mail")
                     assertThat(rows.filter { it.containerId == HomeItemEntity.HOME }.map { it.builtinType }).containsExactly(HomeItemEntity.BUILTIN_SMARTSPACE)
@@ -277,7 +283,7 @@ class FirstStartSeedTest {
     /** The launcher as it always was, with its one profile: the first start seeds that profile. */
     @Test fun theFirstStartOfALauncherWithOneProfileSeedsIt() = runTest {
         installFakeApp(context, "com.mail", "Mail")
-        val wiring = ProductionWiring(context, this)
+        val wiring = ProductionWiring(context, this, inMemorySettings = true)
         try {
             val viewModel = wiring.firstStartHomeViewModel()
             awaitUntil("the seed") { wiring.settingsRepository.defaultLayoutSeededOnce() }
@@ -289,13 +295,19 @@ class FirstStartSeedTest {
         }
     }
 
-    /** The ViewModel's work resumes on the main looper after each storage read, so idle it until [done]. */
-    private suspend fun awaitUntil(what: String, done: suspend () -> Boolean) {
-        val deadline = System.currentTimeMillis() + 10_000
+    private var acknowledgedFailure: IOException? = null
+
+    private fun firstStartFailure(): IOException? = ShadowLog.getLogsForTag("HomeViewModel")
+        .lastOrNull { it.msg == "First-start setup will resume on the next start" }?.throwable as? IOException
+
+    /** A storage read in [done] may itself need the main looper to release the profile. */
+    private fun awaitUntil(what: String, done: suspend () -> Boolean) = whileTheMainLooperTurns(what) {
         while (!done()) {
-            check(System.currentTimeMillis() < deadline) { "Timed out waiting for $what" }
-            shadowOf(Looper.getMainLooper()).idle()
-            Thread.sleep(10)
+            val refused = firstStartFailure()
+            if (refused != null && refused !== acknowledgedFailure) {
+                throw AssertionError("First-start storage failed while waiting for $what", refused)
+            }
+            delay(10)
         }
     }
 }

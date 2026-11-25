@@ -255,7 +255,7 @@ class HomeProfileStore(
         val now = main.data.first()
         if (profilesIn(now).none { it.id == id } || ProfiledPreferences.activeId(now) == id) return@withLock
         view.profileValues(id)
-        main.edit { it[ACTIVE] = id }
+        view.switchActive(from = ProfiledPreferences.activeId(now), to = id)
     }
 
     /**

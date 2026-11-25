@@ -5,6 +5,7 @@ plugins {
 
 android {
     namespace = "org.arkikeskus.launcher.data"
+    testFixtures.enable = true
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -21,6 +22,7 @@ ksp {
 // androidComponents/onVariants or copying schemas into androidTest assets via a Copy task.
 
 dependencies {
+    testFixturesApi(libs.androidx.datastore.preferences)
     implementation(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)

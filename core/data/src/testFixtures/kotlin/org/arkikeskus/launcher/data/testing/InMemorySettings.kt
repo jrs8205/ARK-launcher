@@ -1,4 +1,4 @@
-package org.arkikeskus.launcher.feature.appdrawer
+package org.arkikeskus.launcher.data.testing
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
  * and then when it follows another write or a read closely: a test that only asks "which profile's folder
  * changed" then failed for the file system's reasons. One write at a time, as the real store.
  */
-internal class InMemoryPreferences : DataStore<Preferences> {
+class InMemoryPreferences : DataStore<Preferences> {
     private val state = MutableStateFlow(emptyPreferences())
     private val writes = Mutex()
 
@@ -33,7 +33,7 @@ internal class InMemoryPreferences : DataStore<Preferences> {
 }
 
 /** The further home profiles' own stores, in memory: one per id. */
-internal class InMemoryHomeProfileFiles : HomeProfileFiles {
+class InMemoryHomeProfileFiles : HomeProfileFiles {
     private val stores = ConcurrentHashMap<Long, InMemoryPreferences>()
 
     override fun store(profileId: Long): DataStore<Preferences> = stores.getOrPut(profileId) { InMemoryPreferences() }

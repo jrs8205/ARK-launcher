@@ -45,6 +45,8 @@ import org.arkikeskus.launcher.data.local.LauncherDatabase
 import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
 import org.arkikeskus.launcher.data.profile.DiskHomeProfileFiles
 import org.arkikeskus.launcher.data.profile.HomeProfileFiles
+import org.arkikeskus.launcher.data.testing.InMemoryHomeProfileFiles
+import org.arkikeskus.launcher.data.testing.InMemoryPreferences
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.data.profile.HomeProfileStore
 import org.arkikeskus.launcher.data.search.AppSearchProvider

@@ -35,6 +35,40 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class)
 class HomeProfileSwitchTest {
     private val context: Application = RuntimeEnvironment.getApplication()
+
+    @Test fun aRefusedProfileFileReplacementKeepsTheOldProfileAndTheRetrySurvivesRestart() = runTest {
+        val wiring = ProductionWiring(context, this)
+        val file = wiring.settingsOnDisk
+        val work = try {
+            val profile = (wiring.homeProfiles.create("Work", null) as HomeProfileRepository.Created.Done).profile
+            // The scratch file can be written, but it cannot replace a nonempty directory.
+            val saved = file.readBytes()
+            val child = java.io.File(file, "occupied")
+            wiring.beforeSettingsFileWrite = {
+                check(file.delete() && file.mkdir() && child.createNewFile())
+            }
+            try {
+                assertThat(wiring.homeProfiles.switchTo(profile.id)).isFalse()
+            } finally {
+                wiring.beforeSettingsFileWrite = null
+                check(child.delete() && file.delete())
+                file.writeBytes(saved)
+            }
+            assertThat(wiring.homeProfiles.activeId.first()).isEqualTo(1L)
+            assertThat(wiring.settingsRepository.settings.first().homeProfileId).isEqualTo(1L)
+            assertThat(wiring.homeProfiles.switchTo(profile.id)).isTrue()
+            profile
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+
+        val restarted = ProductionWiring(context, this, settingsOn = file)
+        try {
+            assertThat(restarted.homeProfiles.activeId.first()).isEqualTo(work.id)
+        } finally {
+            restarted.closeAndLetGoOfTheFiles()
+        }
+    }
     private val user = Process.myUserHandle()
 
     private fun app(pkg: String, label: String) = AppItem(pkg, "$pkg.Main", user, 0L, label)

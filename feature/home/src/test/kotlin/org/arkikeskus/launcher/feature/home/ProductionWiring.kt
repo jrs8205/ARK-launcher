@@ -12,6 +12,9 @@ import android.os.Looper
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModelStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -60,21 +63,21 @@ import org.arkikeskus.launcher.data.profile.ActiveHomeProfile
 import org.arkikeskus.launcher.data.profile.DiskHomeProfileFiles
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.data.profile.HomeProfileStore
+import org.arkikeskus.launcher.data.profile.ProfiledPreferences
+import org.arkikeskus.launcher.data.testing.InMemoryHomeProfileFiles
+import org.arkikeskus.launcher.data.testing.InMemoryPreferences
 import org.arkikeskus.launcher.launcher.system.SignalMonitor
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.util.ReflectionHelpers
 import org.robolectric.util.ReflectionHelpers.ClassParameter.from
 import java.io.File
-import java.lang.reflect.InvocationTargetException
-import java.lang.reflect.Proxy
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Provider
-import kotlin.jvm.functions.Function0
 
 /**
  * The ViewModel's real collaborators, wired as DataModule wires them but without Hilt: an
- * in-memory Room database, a DataStore on a temp file and the real LauncherApps callback path.
- * Room, DataStore and Coil are implementation details of core/data and not on this module's
+ * in-memory Room database, settings on disk or in memory, and the real LauncherApps callback path.
+ * Room and Coil are implementation details of core/data and not on this module's
  * test compile classpath (they are on its runtime classpath), so the few calls that would name
  * their types go through reflection.
  */
@@ -84,12 +87,14 @@ internal class ProductionWiring(
     /** The settings file a wiring before this one wrote and let go of ([closeAndLetGoOfTheFiles]): this one
      *  is then a later start of the same launcher. None: a launcher that starts for the first time. */
     settingsOn: File? = null,
+    inMemorySettings: Boolean = false,
 ) {
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Where the settings file is on the disk. */
-    val settingsOnDisk: File =
+    val settingsOnDisk: File by lazy {
         settingsOn ?: File.createTempFile("launcher_settings", ".preferences_pb", context.cacheDir).also { it.delete() }
+    }
 
     val db: LauncherDatabase = Class.forName("androidx.room.Room")
         .getMethod("inMemoryDatabaseBuilder", Context::class.java, Class::class.java)
@@ -108,58 +113,41 @@ internal class ProductionWiring(
      */
     fun holdTheNextReadOfTheSettings(): HeldRead = HeldRead().also { nextRead.set(it) }
 
-    /** The settings file itself. Everything but the profile list reads and writes it through [dataStore]. */
-    private val settingsFile: Any = Class.forName("androidx.datastore.preferences.core.PreferenceDataStoreFactory").let { factory ->
-        val produceFile: () -> File = { settingsOnDisk }
-        factory.methods
-            .single { it.name == "create" && it.parameterCount == 4 && it.parameterTypes.last() == Function0::class.java }
-            .invoke(factory.getField("INSTANCE").get(null), null, emptyList<Any>(), dataStoreScope, produceFile)
-    }.let { file -> readThroughAGate(file) }
-
-    /**
-     * [file], with its reads going through [nextRead] first. The store's type is not on this module's test
-     * compile classpath, so it is stood in for by name: what is read (`data`) is the file's own flow behind
-     * the gate, and everything else (a change) goes to the file as it is.
-     */
-    private fun readThroughAGate(file: Any): Any {
-        val store = Class.forName("androidx.datastore.core.DataStore")
-        @Suppress("UNCHECKED_CAST")
-        val read = store.getMethod("getData").invoke(file) as Flow<Any?>
-        val gated: Flow<Any?> = flow {
-            nextRead.getAndSet(null)?.hold()
-            emitAll(read)
-        }
-        return Proxy.newProxyInstance(store.classLoader, arrayOf(store)) { _, method, args ->
-            if (method.name == "getData") {
-                gated
-            } else {
-                try {
-                    method.invoke(file, *(args ?: emptyArray()))
-                } catch (thrown: InvocationTargetException) {
-                    throw thrown.targetException
-                }
-            }
-        }
+    private val preferences = if (inMemorySettings) {
+        InMemoryPreferences()
+    } else {
+        PreferenceDataStoreFactory.create(scope = dataStoreScope) { settingsOnDisk }
     }
-    private val profileFiles = DiskHomeProfileFiles(context, dataStoreScope)
 
-    /** The settings as the launcher sees them: what the home profiles share, with the own values of the one
-     *  that is on. With one profile this is the settings file itself. */
-    private val dataStore: Any = Class.forName("org.arkikeskus.launcher.data.profile.ProfiledPreferences")
-        .constructors.single().newInstance(settingsFile, profileFiles)
+    /** Runs after a settings change is calculated, before DataStore writes its scratch file. */
+    var beforeSettingsFileWrite: (() -> Unit)? = null
+
+    private val settingsFile = object : DataStore<Preferences> by preferences {
+        override val data: Flow<Preferences> = flow {
+            nextRead.getAndSet(null)?.hold()
+            emitAll(preferences.data)
+        }
+
+        override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
+            preferences.updateData { old ->
+                val next = transform(old)
+                if (next != old) beforeSettingsFileWrite?.invoke()
+                next
+            }
+    }
+    private val profileFiles = if (inMemorySettings) InMemoryHomeProfileFiles() else DiskHomeProfileFiles(context, dataStoreScope)
+    private val dataStore = ProfiledPreferences(settingsFile, profileFiles)
 
     /** Whether somebody has the home profile's hold right now (a switch, or work that keeps the profile on):
      *  how a test sees that a switch it asked for has got as far as standing in line. */
     val profileHoldIsTaken: Boolean
         get() = (dataStore.javaClass.methods.single { it.name.startsWith("getHold") }.invoke(dataStore) as Mutex).isLocked
-    private val profileStore =
-        HomeProfileStore::class.java.constructors.single().newInstance(settingsFile, dataStore, profileFiles) as HomeProfileStore
+    private val profileStore = HomeProfileStore(settingsFile, dataStore, profileFiles)
 
     /** The rows of the home profile that is on. */
     val dao = LauncherDatabase::class.java.getMethod("homeItemDao", ActiveHomeProfile::class.java).invoke(db, profileStore) as HomeItemDao
-    val settingsRepository =
-        SettingsRepository::class.java.constructors.first { it.parameterCount == 2 }.newInstance(dataStore, dataStore) as SettingsRepository
-    private val appUsageRepository = AppUsageRepository::class.java.constructors.single().newInstance(dataStore) as AppUsageRepository
+    val settingsRepository = SettingsRepository(dataStore, dataStore)
+    private val appUsageRepository = AppUsageRepository(dataStore)
 
     /** The image loader is only used for icons; its type (Coil) is what keeps this reflective. */
     /** The app labels persist in the same in-memory database, as in the app. */

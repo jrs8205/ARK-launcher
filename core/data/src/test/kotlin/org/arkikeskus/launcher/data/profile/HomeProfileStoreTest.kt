@@ -1,5 +1,6 @@
 package org.arkikeskus.launcher.data.profile
 
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -25,6 +26,40 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeProfileStoreTest {
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test fun aSwitchBecomesVisibleOnlyAfterStorageAcceptsIt() = runTest {
+        val cached = CompletableDeferred<Unit>()
+        val finish = CompletableDeferred<Unit>()
+        var refuse = false
+        val disk = object : DataStore<Preferences> by main {
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                val next = main.updateData(transform)
+                if (refuse) {
+                    cached.complete(Unit)
+                    finish.await()
+                    throw java.io.IOException("replacement refused")
+                }
+                return next
+            }
+        }
+        val view = ProfiledPreferences(disk, files)
+        val profiles = HomeProfileStore(disk, view, files)
+        val work = checkNotNull(profiles.create("Work", null))
+        val shown = mutableListOf<Long>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { profiles.id.collect { shown.add(it) } }
+        refuse = true
+        val switch = async { runCatching { profiles.setActive(work.id) }.exceptionOrNull() }
+        cached.await()
+        try {
+            assertThat(profiles.current()).isEqualTo(1L)
+        } finally {
+            finish.complete(Unit)
+        }
+        assertThat(switch.await()).isInstanceOf(java.io.IOException::class.java)
+        assertThat(profiles.current()).isEqualTo(1L)
+        assertThat(shown).containsExactly(1L)
+    }
     private val main = CountingStore()
     private val files = FakeHomeProfileFiles()
     private val view = ProfiledPreferences(main, files)

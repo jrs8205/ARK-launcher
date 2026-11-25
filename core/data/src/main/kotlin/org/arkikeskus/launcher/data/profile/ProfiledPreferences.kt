@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import java.io.IOException
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -76,8 +77,7 @@ class ProfiledPreferences(
     /** The settings file itself: where the pointer to the profile that is on is written ([leaveHeld]). */
     private val file: DataStore<Preferences> = settingsFile
 
-    /** A profile that was left and the one that came on in its place, while the settings file has not taken
-     *  the word of it ([leaveHeld]): null but for that. Before [main], which is built over it. */
+    /** Which profile to show when the store's cached pointer differs from the accepted one. */
     private val unsaved = MutableStateFlow<Unsaved?>(null)
 
     private class Unsaved(val left: Long, val on: Long)
@@ -111,21 +111,25 @@ class ProfiledPreferences(
     internal val hold = Mutex()
 
     /**
-     * [settingsFile] with the profile that is on as this process knows it. That is what the file says, but
-     * for one case: a profile was left because its store could not be read, and the file, which can be read
-     * and not written (a full disk), did not take the word of it ([unsaved]). The file then still names the
-     * profile that was left, and whoever asked it which profile is on was sent to the store that fails, or
-     * showed that profile's home screen under another one's settings. Everything that asks goes through
-     * this: the view here, and the list of profiles ([HomeProfileStore]), whose answer the rows and the
-     * pictures go by.
-     *
-     * A change is worked out from the same, so the first write the file takes says which profile is on, and
-     * from then on the file is right by itself.
+     * Readers and writers use the same active profile while a switch is being saved ([switchActive])
+     * and after a switch away from an unreadable profile could not be saved ([leaveHeld]). The accepted
+     * profile supplies both the settings here and the rows and pictures selected by [HomeProfileStore].
      */
     internal fun pointing(settingsFile: DataStore<Preferences>): DataStore<Preferences> = Pointed(settingsFile)
 
+    /** Called under the profile locks, after the target was read. DataStore publishes its new value before
+     *  the scratch file replaces the old file. Until the edit returns, readers must still use [from]. */
+    internal suspend fun switchActive(from: Long, to: Long) = withContext<Unit>(NonCancellable) {
+        // Repair a previous discrepancy first. Otherwise a retry of the same switch could match the
+        // cached value and report success without writing anything to disk.
+        if (unsaved.value != null) main.updateData { it }
+        unsaved.value = Unsaved(left = to, on = from)
+        main.edit { it[ACTIVE] = to }
+    }
+
     private inner class Pointed(private val held: DataStore<Preferences>) : DataStore<Preferences> {
-        override val data: Flow<Preferences> = held.data.combine(unsaved) { values, leave -> saying(values, leave) }
+        // A file emission can reach combine before the notification of a switch already in progress.
+        override val data: Flow<Preferences> = held.data.combine(unsaved) { values, _ -> saying(values, unsaved.value) }
 
         override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
             held.updateData { transform(saying(it, unsaved.value)) }.also { unsaved.value = null }

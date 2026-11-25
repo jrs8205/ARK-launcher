@@ -92,7 +92,7 @@ class AppDrawerScreenTest {
     private val mapsApp = "com.maps".also { installFakeApp(context, it, "Maps") }
     private val notesApp = "com.notes".also { installFakeApp(context, it, "Notes") }
     private val docsApp = "com.docs".also { installFakeApp(context, it, "Docs") }
-    private val wiring by lazy { DrawerWiring(context, testScope) }
+    private val wiring by lazy { DrawerWiring(context, testScope, settingsOnDisk = false) }
     private val viewModel by lazy { wiring.viewModel() }
     private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     private val drawerOpen = mutableStateOf(true)
