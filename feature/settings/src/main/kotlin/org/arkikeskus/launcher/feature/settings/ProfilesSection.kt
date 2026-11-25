@@ -20,6 +20,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -293,6 +295,7 @@ private fun EditProfileDialog(
 private fun ProfileNameField(name: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = name,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
         // On one line and no longer than a name is kept, cut where a character ends as the kept name is
         // (HomeProfile.fitName): never half an emoji in the field.
         onValueChange = { onChange(HomeProfile.fitName(it.replace('\n', ' '))) },

@@ -107,6 +107,21 @@ class ProfilesSectionTest {
         assertThat(recorded.calls).isEmpty()
     }
 
+    @Test fun theProfileNameRequestsSentenceCapitalisation() {
+        show(listOf(home))
+        compose.onNodeWithText(text(R.string.settings_profile_new)).performClick()
+        val field = compose.onNode(hasSetTextAction())
+        field.performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            val host = android.view.inspector.WindowInspector.getGlobalWindowViews()
+                .mapNotNull { it.findFocus() }.last { it.onCheckIsTextEditor() }
+            val info = android.view.inputmethod.EditorInfo()
+            assertThat(host.onCreateInputConnection(info)).isNotNull()
+            assertThat(info.inputType and android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES).isNotEqualTo(0)
+        }
+    }
+
     @Test fun aNewProfileIsACopyOfTheCurrentOneUnlessEmptyIsChosen() {
         show(listOf(home))
         compose.onNodeWithText(text(R.string.settings_profile_new)).performClick()
