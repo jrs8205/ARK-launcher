@@ -8,6 +8,7 @@ import android.content.pm.ResolveInfo
 import android.os.Looper
 import android.provider.Settings
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
@@ -219,6 +220,55 @@ class FirstStartSeedTest {
             assertThat(wiring.rowsOfProfile(own.id)).isEmpty()
             assertThat(wiring.settingsRepository.legacyDockFavorites()).isEmpty()
             wiring.clear(viewModel)
+        } finally {
+            wiring.close()
+        }
+    }
+
+    @Test fun theFirstStartSurvivesARefusedWriteAndCompletesOnRetry() = firstStartAfterWriteFailure(existingLayout = false)
+
+    @Test fun anUpdateWithARefusedWriteKeepsTheExistingLayoutOnRetry() = firstStartAfterWriteFailure(existingLayout = true)
+
+    private fun firstStartAfterWriteFailure(existingLayout: Boolean) = runTest {
+        installFakeApp(context, "com.mail", "Mail")
+        isTheDefaultSettingsApp("com.mail")
+        val wiring = ProductionWiring(context, this)
+        try {
+            // Open the real preferences file, then make its atomic replacement fail.
+            wiring.settingsRepository.setBaseColour("blue")
+            if (existingLayout) wiring.homeLayoutRepository.addBuiltin(HomeItemEntity.BUILTIN_SMARTSPACE, 1, 1, 4, 6)
+            val before = wiring.rowsOfProfile(1)
+            val scratch = java.io.File(wiring.settingsOnDisk.path + ".tmp")
+            check(scratch.mkdir())
+            val blocked = wiring.firstStartHomeViewModel()
+            try {
+                whileTheMainLooperTurns { blocked.uiState.first { it.loaded } }
+                awaitUntil("the failed first-start write") {
+                    org.robolectric.shadows.ShadowLog.getLogsForTag("HomeViewModel").any { it.throwable is java.io.IOException }
+                }
+                assertThat(wiring.settingsRepository.firstRunFreshOnce()).isNull()
+                assertThat(wiring.rowsOfProfile(1)).isEqualTo(before)
+            } finally {
+                wiring.clear(blocked)
+            }
+            if (scratch.exists()) check(scratch.delete())
+            val next = wiring.firstStartHomeViewModel()
+            try {
+                if (existingLayout) {
+                    awaitUntil("the upgrade marks") { wiring.settingsRepository.onboardingDoneOnce() }
+                    assertThat(next.showOnboarding.value).isFalse()
+                    assertThat(wiring.rowsOfProfile(1)).isEqualTo(before)
+                } else {
+                    whileTheMainLooperTurns { next.showOnboarding.first { it } }
+                    val rows = wiring.rowsOfProfile(1)
+                    assertThat(rows.filter { it.containerId == HomeItemEntity.DOCK }.map { it.packageName }).containsExactly("com.mail")
+                    assertThat(rows.filter { it.containerId == HomeItemEntity.HOME }.map { it.builtinType }).containsExactly(HomeItemEntity.BUILTIN_SMARTSPACE)
+                }
+                assertThat(wiring.settingsRepository.defaultLayoutSeededOnce()).isTrue()
+                assertThat(wiring.settingsRepository.firstRunFreshOnce()).isEqualTo(!existingLayout)
+            } finally {
+                wiring.clear(next)
+            }
         } finally {
             wiring.close()
         }

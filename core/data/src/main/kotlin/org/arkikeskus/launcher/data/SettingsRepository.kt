@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.onStart
 import org.arkikeskus.launcher.data.profile.HomeProfileKeys
 import org.arkikeskus.launcher.data.profile.ProfiledPreferences
 import org.arkikeskus.launcher.model.CustomIcon
+import org.arkikeskus.launcher.data.search.RawContact
 import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.model.LauncherSettings
@@ -275,14 +276,28 @@ class SettingsRepository @Inject constructor(
 
     /** Links [alias] to [target]: an existing link on [alias] is replaced, links that pointed at
      *  [alias] follow it to the new target, and a target that is itself an alias resolves first. */
-    suspend fun linkPerson(alias: String, target: String) = edit { p ->
+    suspend fun linkPerson(alias: String, target: String, targetName: String = target, contact: RawContact? = null) = edit { p ->
         val current = parseAliases(p[Keys.PEOPLE_ALIASES])
         val resolved = current[target] ?: target
-        if (resolved == alias) return@edit
+        if (alias == target || resolved == alias) return@edit
         val next = current
             .mapValues { (_, t) -> if (t == alias) resolved else t }
             .filterKeys { it != alias && it != resolved } + (alias to resolved)
         p[Keys.PEOPLE_ALIASES] = serializeAliases(next.filter { (a, t) -> a != t })
+
+        // Move the pin with the link in this edit, using the pins still stored when it runs.
+        val pins = parsePinned(p[Keys.PINNED_PEOPLE])
+        val from = pins.find { it.key == alias }
+        val to = pins.find { it.key == resolved }
+        val lookup = contact?.lookupUri ?: from?.lookupUri.orEmpty()
+        if (from == null && (to == null || to.lookupUri.isNotEmpty() || lookup.isEmpty())) return@edit
+        val pin = to ?: PinnedPerson(resolved, if (resolved == target) targetName else resolved)
+        val merged = pin.copy(
+            lookupUri = pin.lookupUri.ifEmpty { lookup },
+            number = pin.number.ifEmpty { contact?.number ?: from?.number.orEmpty() },
+            photoUri = pin.photoUri.ifEmpty { contact?.photoUri ?: from?.photoUri.orEmpty() },
+        )
+        p[Keys.PINNED_PEOPLE] = serializePinned(pins.filterNot { it.key == alias }.withPin(merged))
     }
 
     /** Removes every link that merges into [target]. */
@@ -311,11 +326,11 @@ class SettingsRepository @Inject constructor(
 
     /** Pins [person] (replacing an earlier pin with the same key, keeping its position). */
     suspend fun pinPerson(person: PinnedPerson) = edit { p ->
-        val current = parsePinned(p[Keys.PINNED_PEOPLE])
-        val next = if (current.any { it.key == person.key }) current.map { if (it.key == person.key) person else it }
-            else current + person
-        p[Keys.PINNED_PEOPLE] = serializePinned(next)
+        p[Keys.PINNED_PEOPLE] = serializePinned(parsePinned(p[Keys.PINNED_PEOPLE]).withPin(person))
     }
+
+    private fun List<PinnedPerson>.withPin(person: PinnedPerson): List<PinnedPerson> =
+        if (any { it.key == person.key }) map { if (it.key == person.key) person else it } else this + person
 
     suspend fun unpinPerson(key: String) = edit { p ->
         p[Keys.PINNED_PEOPLE] = serializePinned(parsePinned(p[Keys.PINNED_PEOPLE]).filterNot { it.key == key })
@@ -360,11 +375,13 @@ class SettingsRepository @Inject constructor(
     val customLabels: Flow<Map<String, String>> = dataStore.data.map { p -> parseLabels(p[Keys.CUSTOM_LABELS]) }
 
     /** Sets (or, for a blank [label], clears) the custom label for [key]. */
-    suspend fun setCustomLabel(key: String, label: String?) = edit { p ->
-        val current = parseLabels(p[Keys.CUSTOM_LABELS]).toMutableMap()
+    suspend fun setCustomLabel(key: String, label: String?) = edit { it.putAppLabel(key, label) }
+
+    private fun MutablePreferences.putAppLabel(key: String, label: String?) {
+        val current = parseLabels(this[Keys.CUSTOM_LABELS]).toMutableMap()
         val trimmed = label?.trim().orEmpty()
         if (trimmed.isEmpty()) current.remove(key) else current[key] = trimmed
-        p[Keys.CUSTOM_LABELS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
+        this[Keys.CUSTOM_LABELS] = current.entries.joinToString("\n") { "${it.key}\t${it.value}" }
     }
 
     /** "Swipe up opens": the app a swipe up on an app's icon opens, on home and in the dock
@@ -392,10 +409,21 @@ class SettingsRepository @Inject constructor(
     val customIcons: Flow<Map<String, CustomIcon>> = dataStore.data.map { p -> parseIcons(p[Keys.CUSTOM_ICONS]) }
 
     /** Sets (or, for null, clears) the icon picked for the app [key]. */
-    suspend fun setCustomIcon(key: String, icon: CustomIcon?) = edit { p ->
-        p[Keys.CUSTOM_ICONS] = serializeIcons(parseIcons(p[Keys.CUSTOM_ICONS]).toMutableMap().apply {
-            if (icon == null) remove(key) else put(key, icon)
-        })
+    suspend fun setCustomIcon(key: String, icon: CustomIcon?) {
+        setAppAppearance(key, null, icon)
+    }
+
+    /** Save both parts of an app edit together. A null label keeps the old name, a blank one clears it.
+     *  The icon replaced by this write can then be checked for an unused image file. */
+    internal suspend fun setAppAppearance(key: String, label: String?, icon: CustomIcon?): CustomIcon? {
+        var previous: CustomIcon? = null
+        edit { p ->
+            if (label != null) p.putAppLabel(key, label)
+            val icons = parseIcons(p[Keys.CUSTOM_ICONS]).toMutableMap()
+            previous = if (icon == null) icons.remove(key) else icons.put(key, icon)
+            p[Keys.CUSTOM_ICONS] = serializeIcons(icons)
+        }
+        return previous
     }
 
     /** Icons the user picked for folders ([FolderIconKey] -> icon), shown in place of the preview. */

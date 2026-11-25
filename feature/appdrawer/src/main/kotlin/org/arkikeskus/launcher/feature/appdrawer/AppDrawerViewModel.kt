@@ -55,6 +55,7 @@ import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.DockTarget
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.arkikeskus.launcher.ui.HomeNotice
+import org.arkikeskus.launcher.ui.launchSettingsWrite
 import org.arkikeskus.launcher.model.IconEpochs
 import org.arkikeskus.launcher.data.search.privateSpaceEntryOffered
 import android.content.IntentSender
@@ -433,7 +434,7 @@ class AppDrawerViewModel @Inject constructor(
         query.value = value
     }
 
-    fun hideApp(appItem: AppItem) = viewModelScope.launch { settingsRepository.setAppHidden(appItem.key, true) }
+    fun hideApp(appItem: AppItem) = viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setAppHidden(appItem.key, true) }
 
     fun selectTab(tab: DrawerTab) {
         selectedTabFlow.value = tab
@@ -611,7 +612,14 @@ class AppDrawerViewModel @Inject constructor(
                 notify(HomeNotice.HomeFull)
                 return@onHomeOf
             }
-            (folder.icon as? CustomIcon.FromPack)?.let { customIcons.setFolderIcon(FolderIconKey.home(id), it) }
+            (folder.icon as? CustomIcon.FromPack)?.let { icon ->
+                try {
+                    customIcons.setFolderIcon(FolderIconKey.home(id), icon)
+                } catch (_: IOException) {
+                    // The copy already exists and shows its apps as the folder preview.
+                    notify(HomeNotice.IconUnavailable)
+                }
+            }
         }
     }
 
@@ -640,19 +648,15 @@ class AppDrawerViewModel @Inject constructor(
 
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */
     fun setCustomLabel(key: String, label: String?) =
-        viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setCustomLabel(key, label) }
 
     /** "Edit" saved for [app]: its name (null = left as it was) and its icon (null = the app's own). */
-    fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launch {
-        if (name != null) settingsRepository.setCustomLabel(app.key, name)
-        customIcons.setAppIcon(app.key, icon)
+    fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launchSettingsWrite(::notify) {
+        customIcons.setAppIcon(app.key, icon, label = name)
     }
 
     /** "Reset to default" in Edit: the app's own name and icon again. */
-    fun resetApp(app: AppItem) = viewModelScope.launch {
-        settingsRepository.setCustomLabel(app.key, null)
-        customIcons.setAppIcon(app.key, null)
-    }
+    fun resetApp(app: AppItem) = editApp(app, name = "", icon = null)
 
     /**
      * What the folder editor asks of the drawer folder it shows, a folder of the home profile [profile]. A
@@ -662,16 +666,7 @@ class AppDrawerViewModel @Inject constructor(
      * A change the storage refuses is told to the user ([HomeNotice.ChangeNotSaved]) and changes nothing.
      */
     private fun onFolderOf(profile: Long, work: suspend () -> Unit) =
-        viewModelScope.launch {
-            try {
-                onLayoutOf(profile, work)
-            } catch (e: IOException) {
-                // The storage refused the write (a full disk). A write of the settings changes nothing when it
-                // fails, so the folder is as it was; the user is told. Let go from here, the refusal ended the
-                // home process: nothing handles an exception of this scope.
-                notify(HomeNotice.ChangeNotSaved)
-            }
-        }
+        viewModelScope.launchSettingsWrite(::notify) { onLayoutOf(profile, work) }
 
     /** The icon picked for a drawer folder (null = back to its preview). */
     fun setDrawerFolderIcon(id: Long, icon: CustomIcon?, profile: Long) =

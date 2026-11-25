@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import java.io.IOException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.AppRepository
@@ -51,6 +53,7 @@ import org.arkikeskus.launcher.ui.AppLaunch
 import org.arkikeskus.launcher.ui.AppShortcuts
 import org.arkikeskus.launcher.ui.DragSource
 import org.arkikeskus.launcher.ui.HomeNotice
+import org.arkikeskus.launcher.ui.launchSettingsWrite
 import javax.inject.Inject
 
 /** How long the themed status bar stays blanked after a heads-up post; SystemUI auto-dismisses a
@@ -277,86 +280,11 @@ class HomeViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     init {
-        // First-run experience, decided ONCE per install: on an empty home surface, seed the
-        // smartspace widget + the default dock (phone/messages/Settings/browser/camera) and show
-        // the intro. Device-local flags so removing items never re-seeds, and updating users
-        // (non-empty home) get the flags silently without any of it.
-        //
-        // All of it is the ORIGINAL home screen's: the first profile's, named around every layout call
-        // and every setting below, whichever profile is on. Settings can be opened before the home screen
-        // ever starts (Android's screensaver settings lead there), and a profile made and switched to in
-        // it was "the home" this ran for: the profile the user had made as an empty one got the clock,
-        // the first profile stayed empty, and the seed was marked done for the install.
-        //
-        // And whether there IS a first profile is looked at in the step that writes its rows, under the hold
-        // a deletion takes ([inTheOriginalHome]). Looked at once, before the wait for the app list, a first
-        // profile deleted in Settings during that wait still got the dock's rows: rows under an id the list
-        // no longer had, shown by no profile and found by the next restore as a home screen nobody is
-        // listed for. The old dock's rows were written without the look at all.
         viewModelScope.launch {
-            val original = HomeProfile.FIRST_ID
-            // Versions before 0.9.7 kept the dock as a favourites key list: rows first, the key
-            // only once they exist (a death in between re-runs this, and the rows are skipped). With
-            // the first profile gone there is no home screen for that dock: the key goes, no rows.
-            val legacyDock = settingsRepository.legacyDockFavorites()
-            if (legacyDock.isNotEmpty()) {
-                inTheOriginalHome(original) { homeLayoutRepository.migrateDockFavorites(legacyDock) }
-                settingsRepository.clearLegacyDockFavorites()
-            }
-            val seeded = settingsRepository.defaultLayoutSeededOnce()
-            val onboarded = settingsRepository.onboardingDoneOnce()
-            if (seeded && onboarded) return@launch
-            // Decide freshness ONCE and persist the decision BEFORE any seeding writes: a death
-            // mid-seed leaves the home non-empty, which must not flip a fresh install into an
-            // "updating user" on the retry (dock never seeded, intro never shown).
-            val fresh = settingsRepository.firstRunFreshOnce() ?: run {
-                val decided = homeLayoutRepository.inProfile(original) { homeLayoutRepository.isHomeEmpty() }
-                settingsRepository.setFirstRunFresh(decided)
-                decided
-            }
-            if (!seeded) {
-                if (fresh) {
-                    // Idempotent on a retry: the widget only while home is still empty, the dock
-                    // only while the favorites are still empty. Two steps, each with its own look at
-                    // the first profile: the clock is there at once, and the dock when the app list is.
-                    inTheOriginalHome(original) { grid ->
-                        if (homeLayoutRepository.isHomeEmpty()) {
-                            // Full width so the centered clock sits in the middle of the screen.
-                            homeLayoutRepository.addBuiltin(
-                                HomeItemEntity.BUILTIN_SMARTSPACE,
-                                grid.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, grid.homeColumns, grid.homeRows,
-                            )
-                        }
-                    }
-                    // The app list needs a beat on a cold start; a fresh device always has apps. Waited
-                    // for with nothing held: everything that needs the profile would wait with it. And
-                    // waited for only while there is a first profile to seed a dock for: with no such
-                    // profile, now or at any moment of the wait, it ends with no apps (null). It would
-                    // otherwise end only when Android lists an app, and with an app list that stays
-                    // empty the seed's mark and the intro would wait for good.
-                    val apps = merge<List<AppItem>?>(
-                        appRepository.apps.filter { it.isNotEmpty() },
-                        settingsRepository.homeProfileListed(original).filter { listed -> !listed }.map { null },
-                    ).first()
-                    if (apps != null) {
-                        val dockKeys = resolveDefaultDockKeys(context, apps)
-                        // Looked for again, under the hold: the profile can have been deleted since.
-                        inTheOriginalHome(original) { grid ->
-                            if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
-                                val byKey = apps.associateBy { it.key }
-                                homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
-                                // The seed is 5 apps but the dock defaults to 4 columns — widen to fit.
-                                if (dockKeys.size > grid.dockColumns) {
-                                    settingsRepository.setDockColumnsOf(original, dockKeys.size)
-                                }
-                            }
-                        }
-                    }
-                }
-                settingsRepository.setDefaultLayoutSeeded()
-            }
-            if (!onboarded) {
-                if (fresh) _showOnboarding.value = true else settingsRepository.setOnboardingDone()
+            try {
+                finishFirstStart()
+            } catch (failure: IOException) {
+                Log.w("HomeViewModel", "First-start setup will resume on the next start", failure)
             }
         }
         // A package update can change a pinned shortcut's label/icon; drop its cached resolutions
@@ -404,15 +332,98 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    // First-run experience, decided ONCE per install: on an empty home surface, seed the
+    // smartspace widget + the default dock (phone/messages/Settings/browser/camera) and show
+    // the intro. Device-local flags so removing items never re-seeds, and updating users
+    // (non-empty home) get the flags silently without any of it.
+    //
+    // All of it is the ORIGINAL home screen's: the first profile's, named around every layout call
+    // and every setting below, whichever profile is on. Settings can be opened before the home screen
+    // ever starts (Android's screensaver settings lead there), and a profile made and switched to in
+    // it was "the home" this ran for: the profile the user had made as an empty one got the clock,
+    // the first profile stayed empty, and the seed was marked done for the install.
+    //
+    // And whether there IS a first profile is looked at in the step that writes its rows, under the hold
+    // a deletion takes ([inTheOriginalHome]). Looked at once, before the wait for the app list, a first
+    // profile deleted in Settings during that wait still got the dock's rows: rows under an id the list
+    // no longer had, shown by no profile and found by the next restore as a home screen nobody is
+    // listed for. The old dock's rows were written without the look at all.
+    private suspend fun finishFirstStart() {
+        val original = HomeProfile.FIRST_ID
+        // Versions before 0.9.7 kept the dock as a favourites key list: rows first, the key
+        // only once they exist (a death in between re-runs this, and the rows are skipped). With
+        // the first profile gone there is no home screen for that dock: the key goes, no rows.
+        val legacyDock = settingsRepository.legacyDockFavorites()
+        if (legacyDock.isNotEmpty()) {
+            inTheOriginalHome(original) { homeLayoutRepository.migrateDockFavorites(legacyDock) }
+            settingsRepository.clearLegacyDockFavorites()
+        }
+        val seeded = settingsRepository.defaultLayoutSeededOnce()
+        val onboarded = settingsRepository.onboardingDoneOnce()
+        if (seeded && onboarded) return
+        // Decide freshness ONCE and persist the decision BEFORE any seeding writes: a death
+        // mid-seed leaves the home non-empty, which must not flip a fresh install into an
+        // "updating user" on the retry (dock never seeded, intro never shown).
+        val fresh = settingsRepository.firstRunFreshOnce() ?: run {
+            val decided = homeLayoutRepository.inProfile(original) { homeLayoutRepository.isHomeEmpty() }
+            settingsRepository.setFirstRunFresh(decided)
+            decided
+        }
+        if (!seeded) {
+            if (fresh) {
+                // Idempotent on a retry: the widget only while home is still empty, the dock
+                // only while the favorites are still empty. Two steps, each with its own look at
+                // the first profile: the clock is there at once, and the dock when the app list is.
+                inTheOriginalHome(original) { grid ->
+                    if (homeLayoutRepository.isHomeEmpty()) {
+                        // Full width so the centered clock sits in the middle of the screen.
+                        homeLayoutRepository.addBuiltin(
+                            HomeItemEntity.BUILTIN_SMARTSPACE,
+                            grid.homeColumns, SMARTSPACE_DEFAULT_SPAN_Y, grid.homeColumns, grid.homeRows,
+                        )
+                    }
+                }
+                // The app list needs a beat on a cold start; a fresh device always has apps. Waited
+                // for with nothing held: everything that needs the profile would wait with it. And
+                // waited for only while there is a first profile to seed a dock for: with no such
+                // profile, now or at any moment of the wait, it ends with no apps (null). It would
+                // otherwise end only when Android lists an app, and with an app list that stays
+                // empty the seed's mark and the intro would wait for good.
+                val apps = merge<List<AppItem>?>(
+                    appRepository.apps.filter { it.isNotEmpty() },
+                    settingsRepository.homeProfileListed(original).filter { listed -> !listed }.map { null },
+                ).first()
+                if (apps != null) {
+                    val dockKeys = resolveDefaultDockKeys(context, apps)
+                    // Looked for again, under the hold: the profile can have been deleted since.
+                    inTheOriginalHome(original) { grid ->
+                        if (dockKeys.isNotEmpty() && homeLayoutRepository.isDockEmpty()) {
+                            val byKey = apps.associateBy { it.key }
+                            // Size first: if storage refuses the change, the empty dock can be retried.
+                            if (dockKeys.size > grid.dockColumns) {
+                                settingsRepository.setDockColumnsOf(original, dockKeys.size)
+                            }
+                            homeLayoutRepository.seedDock(dockKeys.mapNotNull { byKey[it] })
+                        }
+                    }
+                }
+            }
+            settingsRepository.setDefaultLayoutSeeded()
+        }
+        if (!onboarded) {
+            if (fresh) _showOnboarding.value = true else settingsRepository.setOnboardingDone()
+        }
+    }
+
     /** Closes the first-run intro (finished or skipped) and never shows it again. */
     fun finishOnboarding() {
         _showOnboarding.value = false
-        viewModelScope.launch { settingsRepository.setOnboardingDone() }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setOnboardingDone() }
     }
 
     /** Contacts granted in the intro → also enable the drawer's contact search (its whole point). */
     fun onContactsPermissionGranted() =
-        viewModelScope.launch { settingsRepository.setSearchContacts(true) }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setSearchContacts(true) }
 
     /** Phone-state granted in the intro → restart the telephony callbacks so the network
      *  generation label appears without waiting for a process restart. */
@@ -609,7 +620,7 @@ class HomeViewModel @Inject constructor(
 
     /** "Not now" on the set-as-default card: hide it on this device from now on. */
     fun dismissDefaultReminder() {
-        viewModelScope.launch { settingsRepository.dismissDefaultReminder() }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.dismissDefaultReminder() }
     }
 
     /** Launches a pinned deep shortcut placed on the home screen (a disabled one explains itself). */
@@ -669,7 +680,12 @@ class HomeViewModel @Inject constructor(
                 val removed = homeLayoutRepository.removeShortcut(rowId) ?: return@withLock
                 AppShortcuts.setPinned(context, removed.packageName, removed.userSerial, removed.shortcutIds)
                 if (!shortcutIconStaysAfterRemoval(removed.removedShortcutId, removed)) {
-                    customIcons.setShortcutIcon(ShortcutIconKey.of(removed.packageName, removed.removedShortcutId, removed.userSerial), null)
+                    try {
+                        customIcons.setShortcutIcon(ShortcutIconKey.of(removed.packageName, removed.removedShortcutId, removed.userSerial), null)
+                    } catch (failure: IOException) {
+                        // The row and its system pin were already removed.
+                        Log.w("HomeViewModel", "Could not clear the removed shortcut's icon", failure)
+                    }
                 }
             }
         }
@@ -677,7 +693,7 @@ class HomeViewModel @Inject constructor(
 
     /** The icon picked for a pinned shortcut (null = the icon the app pinned it with); issue #23. */
     fun setShortcutIcon(shortcut: PlacedShortcut, icon: CustomIcon?) =
-        viewModelScope.launch { customIcons.setShortcutIcon(shortcut.iconKey, icon) }
+        viewModelScope.launchSettingsWrite(::notify) { customIcons.setShortcutIcon(shortcut.iconKey, icon) }
 
     /** Pins [item] in the system (IO — the Binder round-trips must not run on the main thread) and
      *  places it on the home grid only if the system pin succeeded (else it would be a dead cell).
@@ -741,7 +757,9 @@ class HomeViewModel @Inject constructor(
         pageOperation { pageOperations.insert(at, profile) ?: return PAGE_NOT_SHOWN } ?: PAGE_FAILED
 
     /** HOME returns to [page] from now on. */
-    fun setHomePage(page: Int, profile: Long) = viewModelScope.launch { pageOperations.setHome(page, profile) }
+    fun setHomePage(page: Int, profile: Long) = viewModelScope.async {
+        pageOperation { pageOperations.setHome(page, profile) ?: PAGE_NOT_SHOWN } ?: PAGE_FAILED
+    }
 
 
     /** Removes an empty page, returning its navigation destination, null when rejected (not empty,
@@ -983,12 +1001,11 @@ class HomeViewModel @Inject constructor(
      *  folder's icon is one of its profile's own values, filed by the folder's row: stored with another
      *  profile on, it would be kept among that one's values, for a folder it does not have. */
     fun setFolderIcon(folderId: Long, icon: CustomIcon?, profile: Long) =
-        viewModelScope.launch { onLayoutOf(profile) { customIcons.setFolderIcon(FolderIconKey.home(folderId), icon) } }
+        viewModelScope.launchSettingsWrite(::notify) { onLayoutOf(profile) { customIcons.setFolderIcon(FolderIconKey.home(folderId), icon) } }
 
     /** "Edit" saved for [app]: its name (null = left as it was) and its icon (null = the app's own). */
-    fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launch {
-        if (name != null) settingsRepository.setCustomLabel(app.key, name)
-        customIcons.setAppIcon(app.key, icon)
+    fun editApp(app: AppItem, name: String?, icon: CustomIcon?) = viewModelScope.launchSettingsWrite(::notify) {
+        customIcons.setAppIcon(app.key, icon, label = name)
     }
 
     /** Every launchable app, for the "Swipe up opens" picker in Edit. */
@@ -997,19 +1014,16 @@ class HomeViewModel @Inject constructor(
 
     /** "Swipe up opens" for [app]'s icon: [target], or null for the usual swipe again. */
     fun setSwipeUpApp(app: AppItem, target: AppItem?) =
-        viewModelScope.launch { settingsRepository.setSwipeUpApp(app.key, target?.key) }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setSwipeUpApp(app.key, target?.key) }
 
     /** "Swipe down opens" for [app]'s icon: [target], or null for the usual swipe again. */
     fun setSwipeDownApp(app: AppItem, target: AppItem?) =
-        viewModelScope.launch { settingsRepository.setSwipeDownApp(app.key, target?.key) }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setSwipeDownApp(app.key, target?.key) }
 
     /** "Reset to default" in Edit: the app's own name and icon again. */
-    fun resetApp(app: AppItem) = viewModelScope.launch {
-        settingsRepository.setCustomLabel(app.key, null)
-        customIcons.setAppIcon(app.key, null)
-    }
+    fun resetApp(app: AppItem) = editApp(app, name = "", icon = null)
 
     /** Sets a custom display name for an app (blank/null clears it back to the system label). */
     fun setCustomLabel(key: String, label: String?) =
-        viewModelScope.launch { settingsRepository.setCustomLabel(key, label) }
+        viewModelScope.launchSettingsWrite(::notify) { settingsRepository.setCustomLabel(key, label) }
 }

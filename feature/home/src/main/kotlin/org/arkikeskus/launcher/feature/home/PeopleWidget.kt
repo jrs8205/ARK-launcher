@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.widget.Toast
+import org.arkikeskus.launcher.ui.HomeNotice
+import org.arkikeskus.launcher.ui.launchSettingsWrite
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -296,7 +298,11 @@ class PeopleWidgetViewModel @Inject constructor(
         return runCatching { action.intent.send(context, 0, intent) }.isSuccess
     }
 
-    fun pin(tile: Tile) = viewModelScope.launch {
+    private fun notify(notice: HomeNotice) {
+        Toast.makeText(context, notice.message, Toast.LENGTH_SHORT).show()
+    }
+
+    fun pin(tile: Tile) = viewModelScope.launchSettingsWrite(::notify) {
         settingsRepository.pinPerson(
             PinnedPerson(
                 key = tile.key, name = tile.name,
@@ -305,33 +311,17 @@ class PeopleWidgetViewModel @Inject constructor(
         )
     }
 
-    fun unpin(tile: Tile) = viewModelScope.launch { settingsRepository.unpinPerson(tile.key) }
+    fun unpin(tile: Tile) = viewModelScope.launchSettingsWrite(::notify) { settingsRepository.unpinPerson(tile.key) }
 
     /** Merges [tile] into [target] from now on. The target's tile is where the person lives now, so
      *  a pin on the source moves to the target (creating one there if needed) and the source's
      *  contact match fills in whatever the target's pin lacked. */
-    fun link(tile: Tile, target: Tile) = viewModelScope.launch {
-        if (tile.key == target.key) return@launch
-        settingsRepository.linkPerson(tile.key, target.key)
-        val sourcePin = tile.pinned
-        val targetPin = target.pinned
-        val mergedPin = when {
-            sourcePin != null -> (targetPin ?: PinnedPerson(key = target.key, name = target.name))
-            targetPin != null && targetPin.lookupUri.isEmpty() && tile.lookupUri != null -> targetPin
-            else -> null
-        }?.let { pin ->
-            pin.copy(
-                lookupUri = pin.lookupUri.ifEmpty { tile.lookupUri.orEmpty() },
-                number = pin.number.ifEmpty { tile.number.orEmpty() },
-                photoUri = pin.photoUri.ifEmpty { tile.photoUri.orEmpty() },
-            )
-        }
-        if (mergedPin != null) settingsRepository.pinPerson(mergedPin)
-        if (sourcePin != null) settingsRepository.unpinPerson(tile.key)
+    fun link(tile: Tile, target: Tile) = viewModelScope.launchSettingsWrite(::notify) {
+        settingsRepository.linkPerson(tile.key, target.key, target.name, tile.contact)
     }
 
     /** Splits every alias merged into [tile] back into its own tile. */
-    fun unlink(tile: Tile) = viewModelScope.launch { settingsRepository.unlinkPerson(tile.key) }
+    fun unlink(tile: Tile) = viewModelScope.launchSettingsWrite(::notify) { settingsRepository.unlinkPerson(tile.key) }
 
     private fun start(intent: Intent): Boolean =
         runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess

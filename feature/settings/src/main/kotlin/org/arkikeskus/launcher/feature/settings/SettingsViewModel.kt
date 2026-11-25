@@ -33,6 +33,14 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import javax.inject.Inject
 import org.arkikeskus.launcher.model.IconShape
 
+/** Run the edit for the profile the page showed when it was requested. */
+internal suspend fun settingsChange(profile: Long?, write: suspend () -> Unit): SettingsNotice? = try {
+    if (profile == null) write() else writingForHomeProfile(profile) { write() }
+    null
+} catch (_: java.io.IOException) {
+    SettingsNotice.PROFILE_NOT_CHANGED
+}
+
 /** Something Settings tells the user once, when what was asked for did not happen. */
 internal enum class SettingsNotice { PROFILE_NOT_MADE, PROFILE_NOT_CHANGED, PROFILE_NOT_DELETED, PROFILE_LEFT_EMPTY, GRID_REFLOWED }
 
@@ -297,6 +305,6 @@ internal class SettingsViewModel @Inject constructor(
      */
     private fun update(block: suspend () -> Unit) {
         val profile = shownProfile
-        viewModelScope.launch { if (profile == null) block() else writingForHomeProfile(profile) { block() } }
+        viewModelScope.launch { settingsChange(profile, block)?.let(_notices::trySend) }
     }
 }

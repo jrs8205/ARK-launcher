@@ -37,6 +37,30 @@ class HomeViewModelShortcutIconLockTest {
     private val context: Application = RuntimeEnvironment.getApplication()
     private val pack = CustomIcon.FromPack("com.example.pack", "octocat")
 
+    @Test fun aRefusedIconCleanupKeepsTheShortcutRemoved() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            wiring.publishShortcut("github")
+            val row = wiring.dao.insert(HomeItemEntity(packageName = context.packageName, shortcutId = "github", page = 0, cellX = 0, cellY = 0))
+            val key = ShortcutIconKey.of(context.packageName, "github", 0L)
+            wiring.settingsRepository.setShortcutIcon(key, pack)
+            val vm = wiring.homeViewModel()
+            try {
+                val scratch = java.io.File(wiring.settingsOnDisk.path + ".tmp")
+                check(scratch.mkdir())
+                val removed = vm.removeShortcut(row, profile = 1)
+                awaitUntil("the removal") { removed.isCompleted }
+                assertThat(removed.isCancelled).isFalse()
+                assertThat(wiring.dao.getContainer(HOME)).isEmpty()
+                assertThat(wiring.settingsRepository.shortcutIcons.first()[key]).isEqualTo(pack)
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.close()
+        }
+    }
+
     @Test fun theIconIsClearedBeforeTheNextOneWhoTakesTheHoldAndThePinLockRuns() = runTest {
         val wiring = ProductionWiring(context, this)
         try {

@@ -30,6 +30,25 @@ class CustomIconStoreTest {
 
     private fun image() = source.files.save(Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) })
 
+    @Test fun savingTheAppNameAndIconUsesOneWrite() = runTest {
+        val disk = org.arkikeskus.launcher.data.profile.CountingStore()
+        val repository = SettingsRepository(disk)
+        val icons = CustomIconStore(repository, source)
+        val key = "com.mail/Main/0"
+        val old = image()
+        icons.setAppIcon(key, old)
+        val before = disk.writes
+
+        icons.setAppIcon(key, pack, label = "  Letters  ")
+        assertThat(disk.writes - before).isEqualTo(1)
+        assertThat(repository.customLabels.first()[key]).isEqualTo("Letters")
+        assertThat(repository.customIcons.first()[key]).isEqualTo(pack)
+        assertThat(source.drawable(old)).isNull()
+
+        icons.setAppIcon(key, null)
+        assertThat(repository.customLabels.first()[key]).isEqualTo("Letters")
+    }
+
     @Test fun replacingAnAppsImageDeletesTheOldFile() = runTest {
         val first = image()
         store.setAppIcon("com.mail/Main/0", first)

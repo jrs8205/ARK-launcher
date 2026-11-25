@@ -52,6 +52,62 @@ class DrawerAddsToItsProfileTest {
         }
     }
 
+    @Test fun aCopiedFolderKeepsItsAppsWhenItsIconCannotBeSaved() = runTest {
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
+        try {
+            val vm = wiring.viewModel()
+            try {
+                val icon = CustomIcon.FromPack("com.pack", "tools")
+                val other = mail.copy(packageName = "com.maps", className = "com.maps.Main")
+                val folder = DrawerFolderUi(3, "Tools", listOf(mail, other), icon)
+                checkNotNull(wiring.settingsInMemory).failWrites = java.io.IOException("No space left on device")
+                val copy = vm.addFolderToHomeAt(folder, 0, 1, 1, profile = 1)
+                awaitUntil("the folder copy") { copy.isCompleted }
+                assertThat(copy.isCancelled).isFalse()
+                val rows = wiring.homeLayoutRepository.homeItems.first()
+                val id = rows.single { it.isFolder }.id
+                assertThat(rows.filter { it.containerId == id }.map { it.packageName }).containsExactly("com.mail", "com.maps")
+                assertThat(wiring.settingsRepository.folderIcons.first()[FolderIconKey.home(id)]).isNull()
+                assertThat(vm.notices.first().message).isEqualTo(org.arkikeskus.launcher.ui.R.string.icon_picture_failed)
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.close()
+        }
+    }
+
+    @Test fun aRefusedAppResetKeepsBothOverridesAndTellsTheDrawer() = runTest {
+        val wiring = DrawerWiring(context, this, settingsOnDisk = false)
+        try {
+            val settings = wiring.settingsRepository
+            val icon = CustomIcon.FromPack("com.pack", "mail")
+            settings.setCustomLabel(mail.key, "Letters")
+            settings.setCustomIcon(mail.key, icon)
+            val vm = wiring.viewModel()
+            try {
+                val disk = checkNotNull(wiring.settingsInMemory)
+                disk.failWrites = java.io.IOException("No space left on device")
+                val reset = vm.resetApp(mail)
+                awaitUntil("the reset") { reset.isCompleted }
+                assertThat(reset.isCancelled).isFalse()
+                assertThat(vm.notices.first()).isEqualTo(HomeNotice.ChangeNotSaved)
+                assertThat(settings.customLabels.first()[mail.key]).isEqualTo("Letters")
+                assertThat(settings.customIcons.first()[mail.key]).isEqualTo(icon)
+
+                disk.failWrites = null
+                val retry = vm.resetApp(mail)
+                awaitUntil("the reset after retry") { retry.isCompleted }
+                assertThat(settings.customLabels.first()[mail.key]).isNull()
+                assertThat(settings.customIcons.first()[mail.key]).isNull()
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.close()
+        }
+    }
+
     @Test fun anAppAddedForAProfileThatIsNotOnIsNotAdded() = runTest {
         val wiring = DrawerWiring(context, this, settingsOnDisk = false)
         try {

@@ -242,6 +242,63 @@ class HomeProfileSwitchTest {
         }
     }
 
+    @Test fun aRefusedAppEditKeepsItsNameAndIconAndCanBeRetried() = runTest {
+        installAll()
+        val wiring = ProductionWiring(context, this)
+        try {
+            val settings = wiring.settingsRepository
+            val oldIcon = CustomIcon.FromPack("com.pack", "old_mail")
+            settings.setCustomLabel(mail.key, "Letters")
+            settings.setCustomIcon(mail.key, oldIcon)
+            val vm = wiring.homeViewModel()
+            try {
+                val seen = statesOf(vm)
+                awaitUntil("home is ready") { seen.last().loaded }
+                val scratch = java.io.File(wiring.settingsOnDisk.path + ".tmp")
+                check(scratch.mkdir())
+                val edit = vm.editApp(mail, "Work mail", null)
+                awaitUntil("the edit") { edit.isCompleted }
+                assertThat(edit.isCancelled).isFalse()
+                assertThat(vm.notices.first()).isEqualTo(org.arkikeskus.launcher.ui.HomeNotice.ChangeNotSaved)
+                assertThat(settings.customLabels.first()[mail.key]).isEqualTo("Letters")
+                assertThat(settings.customIcons.first()[mail.key]).isEqualTo(oldIcon)
+
+                if (scratch.exists()) check(scratch.delete())
+                whileTheMainLooperTurns { vm.editApp(mail, "Work mail", null).join() }
+                assertThat(settings.customLabels.first()[mail.key]).isEqualTo("Work mail")
+                assertThat(settings.customIcons.first()[mail.key]).isNull()
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.close()
+        }
+    }
+
+    @Test fun aRefusedHomePageWriteReportsFailureAndLeavesTheOldPage() = runTest {
+        installAll()
+        val wiring = ProductionWiring(context, this)
+        try {
+            wiring.settingsRepository.setHomePages(home = 0, count = 2)
+            val vm = wiring.homeViewModel()
+            try {
+                val seen = statesOf(vm)
+                awaitUntil("home is ready") { seen.last().loaded }
+                val scratch = java.io.File(wiring.settingsOnDisk.path + ".tmp")
+                check(scratch.mkdir())
+                assertThat(whileTheMainLooperTurns { vm.setHomePage(1, 1).await() }).isEqualTo(PAGE_FAILED)
+                assertThat(wiring.settingsRepository.settings.first().homePage).isEqualTo(0)
+                if (scratch.exists()) check(scratch.delete())
+                whileTheMainLooperTurns { vm.setHomePage(1, 1).await() }
+                assertThat(wiring.settingsRepository.settings.first().homePage).isEqualTo(1)
+            } finally {
+                wiring.clear(vm)
+            }
+        } finally {
+            wiring.close()
+        }
+    }
+
     /**
      * Review round 4. A menu is opened on the screen of one profile; when its handler runs, the view model's state
      * can already be the other profile's (the screen has not been composed again yet). A page operation is for the
@@ -265,8 +322,7 @@ class HomeProfileSwitchTest {
             assertThat(viewModel.insertPage(0, profile = 1)).isEqualTo(PAGE_NOT_SHOWN)
             wiring.holdTheNextReadOfTheSettings().fail()
             assertThat(viewModel.insertPage(0, profile = work)).isEqualTo(PAGE_FAILED)
-            val setHome = viewModel.setHomePage(0, profile = 1)
-            awaitUntil("the home page's answer") { setHome.isCompleted }
+            assertThat(whileTheMainLooperTurns { viewModel.setHomePage(0, profile = 1).await() }).isEqualTo(PAGE_NOT_SHOWN)
 
             val now = wiring.settingsRepository.settings.first()
             assertThat(now.homeProfileId).isEqualTo(work)

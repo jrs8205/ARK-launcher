@@ -21,9 +21,8 @@ class CustomIconStore @Inject constructor(
     private val settings: SettingsRepository,
     private val source: CustomIconSource,
 ) {
-    suspend fun setAppIcon(key: String, icon: CustomIcon?) {
-        val old = settings.customIcons.first()[key]
-        settings.setCustomIcon(key, icon)
+    suspend fun setAppIcon(key: String, icon: CustomIcon?, label: String? = null) {
+        val old = settings.setAppAppearance(key, label, icon)
         dropReplaced(old, icon)
     }
 

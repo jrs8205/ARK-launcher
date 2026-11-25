@@ -1,5 +1,7 @@
 package org.arkikeskus.launcher.feature.settings
 
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.first
 import android.app.Application
 import android.content.res.Configuration
 import com.google.common.truth.Truth.assertThat
@@ -41,6 +43,35 @@ class ProfileNoticesTest {
                 assertWithMessage("$notice in $language").that(res.getString(settingsNoticeText(notice))).isNotEqualTo(text)
             }
         }
+    }
+
+    @Test fun aRefusedSettingsWriteReportsFailureAndCanBeRetried() = kotlinx.coroutines.runBlocking {
+        val file = java.io.File.createTempFile("settings", ".preferences_pb", context.cacheDir).also { it.delete() }
+        val owner = kotlinx.coroutines.SupervisorJob()
+        val store = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+            scope = kotlinx.coroutines.CoroutineScope(owner + kotlinx.coroutines.Dispatchers.IO),
+        ) { file }
+        val settings = org.arkikeskus.launcher.data.SettingsRepository(store)
+        try {
+            settings.setShowFrequentApps(false)
+            val scratch = java.io.File(file.path + ".tmp")
+            check(scratch.mkdir())
+            val notice = settingsChange(1) { settings.setShowFrequentApps(true) }
+            assertThat(notice).isEqualTo(SettingsNotice.PROFILE_NOT_CHANGED)
+            assertThat(settings.settings.first().showFrequentApps).isFalse()
+            if (scratch.exists()) check(scratch.delete())
+            assertThat(settingsChange(1) { settings.setShowFrequentApps(true) }).isNull()
+            assertThat(settings.settings.first().showFrequentApps).isTrue()
+        } finally {
+            owner.cancelAndJoin()
+        }
+    }
+
+    @Test fun cancellingASettingsWritePropagates() = kotlinx.coroutines.runBlocking {
+        val cancelled = kotlinx.coroutines.CancellationException("leaving settings")
+        val error = runCatching { settingsChange(1) { throw cancelled } }.exceptionOrNull()
+        assertThat(error).isInstanceOf(kotlinx.coroutines.CancellationException::class.java)
+        assertThat(error).hasMessageThat().isEqualTo(cancelled.message)
     }
 
     @Test fun aFailedGridWriteAfterReflowHasItsOwnNotice() {

@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":feature:backup"))
     implementation(project(":feature:screensaver"))
     implementation(libs.androidx.core.ktx)
+    testImplementation(libs.androidx.datastore.preferences)
     testImplementation(libs.junit)
     testImplementation(libs.google.truth)
     testImplementation(libs.robolectric)

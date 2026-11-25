@@ -18,6 +18,21 @@ import org.junit.Test
  */
 class SettingsRepositoryTest {
 
+    @Test fun linkingTwoPinnedPeopleMovesTheContactAndAliasInOneWrite() = runTest {
+        val disk = org.arkikeskus.launcher.data.profile.CountingStore()
+        val repo = SettingsRepository(disk)
+        val source = PinnedPerson("source", "S", "content://person/1", "123")
+        val target = PinnedPerson("target", "T", number = "456")
+        val third = PinnedPerson("third", "Third")
+        listOf(source, target, third).forEach { repo.pinPerson(it) }
+        val before = disk.writes
+
+        repo.linkPerson(source.key, target.key)
+        assertThat(repo.peopleAliases.first()).containsExactly(source.key, target.key)
+        assertThat(repo.pinnedPeople.first()).containsExactly(target.copy(lookupUri = source.lookupUri), third).inOrder()
+        assertThat(disk.writes - before).isEqualTo(1)
+    }
+
     @Test
     fun `upgrade repairs page counters restored as Long by an older version before reading`() = runTest {
         val store = InMemoryDataStore()

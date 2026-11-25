@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.ui
 
 import androidx.annotation.StringRes
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import java.io.IOException
 
 /**
  * A one-shot notice a screen shows (as a toast) when something the user asked for could not be
@@ -20,8 +23,19 @@ enum class HomeNotice(@StringRes val message: Int) {
     /** The storage refused a change the user made (a full disk): what was there is still there. */
     ChangeNotSaved(R.string.notice_change_not_saved),
 
+    IconUnavailable(R.string.icon_picture_failed),
+
     /** The profile that was on could not be read, and another one came on in its place. The text says what
      *  happened, not which profile is shown: the notice waits for the home screen to be seen, and the user
      *  may have switched back by then. */
     ProfileNotRead(R.string.notice_profile_not_read),
+}
+
+/** A user-requested settings write. A storage failure becomes a notice. Cancellation propagates. */
+fun CoroutineScope.launchSettingsWrite(notify: (HomeNotice) -> Unit, write: suspend () -> Unit) = launch {
+    try {
+        write()
+    } catch (_: IOException) {
+        notify(HomeNotice.ChangeNotSaved)
+    }
 }

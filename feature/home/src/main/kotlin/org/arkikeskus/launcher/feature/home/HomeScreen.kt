@@ -1114,7 +1114,10 @@ private fun HomeScreenOfProfile(
                 }
                 if (page != uiState.homePage) {
                     add(IconMenuItem(R.drawable.ic_home_page, stringResource(R.string.home_options_set_home)) {
-                        viewModel.setHomePage(page, profile)
+                        val change = viewModel.setHomePage(page, profile)
+                        widgetScope.launch {
+                            if (change.await() == PAGE_FAILED) widgetMessage(R.string.home_options_page_failed)
+                        }
                     })
                 }
                 // Offered for a page that shows nothing, by the state this menu is drawn from. A row can still be
