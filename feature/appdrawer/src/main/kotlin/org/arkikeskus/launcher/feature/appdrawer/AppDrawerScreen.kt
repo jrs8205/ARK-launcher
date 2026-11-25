@@ -53,6 +53,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -800,9 +801,18 @@ private fun AppDrawerContent(
                 )
             }
             val entries = remember(folders, apps, mixFolders) { drawerEntries(folders, apps, mixFolders) }
+            val hasTopCard = frequentApps.isNotEmpty() && !fieldAtBottom
+            DisposableEffect(gridState, hasTopCard) {
+                // Keep the absolute top on insertion, before the grid measures with its old app key.
+                // A reader partway down keeps the grid's ordinary keyed scroll anchor.
+                if (hasTopCard && gridState.firstVisibleItemIndex == 0 && gridState.firstVisibleItemScrollOffset == 0) {
+                    gridState.requestScrollToItem(0)
+                }
+                onDispose {}
+            }
             val idleContent: LazyGridScope.() -> Unit = {
                 run {
-                    if (frequentApps.isNotEmpty() && !fieldAtBottom) {
+                    if (hasTopCard) {
                         item(span = { GridItemSpan(maxLineSpan) }, contentType = { "frequent" }) {
                             frequentCard()
                         }

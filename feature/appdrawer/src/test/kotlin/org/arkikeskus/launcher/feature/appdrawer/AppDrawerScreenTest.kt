@@ -21,6 +21,9 @@ import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
@@ -89,8 +92,8 @@ class AppDrawerScreenTest {
     private val mapsApp = "com.maps".also { installFakeApp(context, it, "Maps") }
     private val notesApp = "com.notes".also { installFakeApp(context, it, "Notes") }
     private val docsApp = "com.docs".also { installFakeApp(context, it, "Docs") }
-    private val wiring = DrawerWiring(context, testScope)
-    private val viewModel = wiring.viewModel()
+    private val wiring by lazy { DrawerWiring(context, testScope) }
+    private val viewModel by lazy { wiring.viewModel() }
     private val homeSignals = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
     private val drawerOpen = mutableStateOf(true)
     private val drag = HomeDragController()
@@ -657,6 +660,69 @@ class AppDrawerScreenTest {
         viewModel.onAppClick(mail) // a launch is what puts an app on the card
         awaitState("the card has the app") { s -> s.searchAtBottom == searchAtBottom && s.frequentApps.any { it.key == mail.key } }
         settle()
+    }
+
+    private fun showLongGrid(open: Boolean, opensAtTop: Boolean, frequentEnabled: Boolean = false) {
+        repeat(36) { n -> installFakeApp(context, "com.tile" + n.toString().padStart(2, '0'), "Tile $n") }
+        whileTheMainLooperTurns {
+            wiring.settingsRepository.setDrawerOpensAtTop(opensAtTop)
+            wiring.settingsRepository.setShowFrequentApps(frequentEnabled)
+            wiring.settingsRepository.setDrawerColumns(3)
+        }
+        drawerOpen.value = open
+        show(height = 360.dp)
+        awaitState("long grid") { it.apps.size >= 36 && it.drawerOpensAtTop == opensAtTop }
+    }
+
+    private fun useMail() {
+        viewModel.onAppClick(viewModel.uiState.value.apps.first { it.packageName == mailApp })
+    }
+
+    private fun assertCardAtTop() {
+        compose.onNodeWithTag(DRAWER_FREQUENT_TAG).assertIsDisplayed()
+        val scroll = compose.onNode(hasScrollAction()).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange]
+        assertThat(scroll.value()).isEqualTo(0f)
+    }
+
+    private fun enableFrequentCard() {
+        whileTheMainLooperTurns { wiring.settingsRepository.setShowFrequentApps(true) }
+        awaitState("frequent card") { it.frequentApps.any { app -> app.packageName == mailApp } }
+        settle()
+    }
+
+    @Test fun theFirstOpeningShowsTheNewCardAtTheTop() {
+        showLongGrid(open = false, opensAtTop = true)
+        useMail()
+        enableFrequentCard()
+        drawerOpen.value = true
+        settle()
+        assertCardAtTop()
+    }
+
+    @Test fun theFirstRecordedAppAppearsAtTheTopOfTheOpenDrawer() {
+        showLongGrid(open = true, opensAtTop = true, frequentEnabled = true)
+        useMail()
+        awaitState("the first frequent app") { it.frequentApps.isNotEmpty() }
+        settle()
+        assertCardAtTop()
+    }
+
+    @Test fun anOpenGridAtTheTopShowsTheNewCard() {
+        showLongGrid(open = true, opensAtTop = false)
+        useMail()
+        enableFrequentCard()
+        assertCardAtTop()
+    }
+
+    @Test fun aScrolledGridKeepsTheSameAppInPlaceWhenTheCardArrives() {
+        showLongGrid(open = true, opensAtTop = false)
+        useMail()
+        compose.onNode(hasScrollAction()).performScrollToIndex(18)
+        val label = viewModel.uiState.value.apps[18].label
+        val tile = compose.onNodeWithText(label)
+        val before = tile.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        enableFrequentCard()
+        assertThat(tile.fetchSemanticsNode().boundsInRoot).isEqualTo(before)
     }
 
     private fun boundsOf(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
