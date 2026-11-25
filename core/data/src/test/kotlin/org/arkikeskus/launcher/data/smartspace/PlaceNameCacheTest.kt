@@ -37,6 +37,16 @@ class PlaceNameCacheTest {
         assertThat(cache.resolve("60.21,24.87", local = { null }, network = null)).isNull()
     }
 
+    @Test fun allowingFallbackAgainShowsTheCachedNameWithoutAskingTheNetwork() {
+        val cache = PlaceNameCache(maxAgeMs = 60 * 60_000L) { now }
+        val expected = PlaceName("Vantaa", true)
+        assertThat(cache.resolve("60,24@fi", { null }, network("Vantaa"))).isEqualTo(expected)
+        assertThat(cache.resolve("60,24@fi", { null }, null)).isNull()
+        now = 5 * 60_000L
+        assertThat(cache.resolve("60,24@fi", { null }, network("another name"))).isEqualTo(expected)
+        assertThat(networkCalls).isEqualTo(1)
+    }
+
     @Test fun aLocalNameSurvivesATransientFailureInTheSameArea() {
         cache.resolve("60.21,24.87", local = { "Vantaa" }, network = null)
 
@@ -60,7 +70,7 @@ class PlaceNameCacheTest {
         assertThat(cache.resolve("61,25@fi", { null }, network("Uusi kaupunki"))).isEqualTo(PlaceName("Vantaa", true))
         assertThat(networkCalls).isEqualTo(1)
         assertThat(cache.resolve("61,25@fi", { null }, null)).isNull()
-        assertThat(cache.resolve("60,24@fi", { null }, network(null))).isNull()
+        assertThat(cache.resolve("60,24@fi", { null }, network(null))).isEqualTo(PlaceName("Vantaa", true))
     }
 
     @Test fun aNameResolvedInAnotherLanguageIsNotReused() {

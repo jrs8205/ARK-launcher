@@ -10,7 +10,7 @@ data class PlaceName(val name: String, val fromNetwork: Boolean)
  * The weather's place name: the device's own geocoder first, then (only when the user opted in) the
  * network fallback. In the same rounded area a cached name lives for [maxAgeMs]. On the move it
  * stands in for at most [networkIntervalMs] from the original reading. Turning off the fallback
- * drops a network name. The area key carries the UI language
+ * hides a cached network name until the fallback is allowed again. The area key carries the UI language
  * ([placeAreaKey]): a name resolved in one language is never shown after the user switches the
  * app or system language. Not thread-safe: the weather refresh is its single caller.
  */
@@ -36,7 +36,6 @@ internal class PlaceNameCache(
 
     /** [network] is null while the network fallback is turned off; it is never called then. */
     fun resolve(areaKey: String, local: () -> String?, network: (() -> String?)?): PlaceName? {
-        if (fromNetwork && network == null) name = null
         local()?.let { return remember(it, areaKey, fromNetwork = false) }
         // By its own half hour, not the weather's quarter: the privacy statement promises the network is asked
         // at most once in thirty minutes. In between the last name stands (below).
@@ -44,6 +43,7 @@ internal class PlaceNameCache(
             networkAskedAtMs = now()
             network()?.let { return remember(it, areaKey, fromNetwork = true) }
         }
+        if (fromNetwork && network == null) return null
         val cached = name ?: return null
         val previous = this.areaKey ?: return null
         if (previous.substringAfter('@') != areaKey.substringAfter('@')) return null
