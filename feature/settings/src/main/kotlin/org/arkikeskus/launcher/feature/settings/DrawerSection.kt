@@ -501,29 +501,5 @@ internal fun DrawerColorRow(selected: Int?, locked: Boolean = false, onPick: (In
 /** The drawer's label colour row (the owner's 1.0.1 ask: the choice home's labels have): an "Automatic" chip for the
  *  black or white the drawer picks by its own look, then the label swatches. [selected] null = automatic. */
 @Composable
-internal fun DrawerLabelColorRow(selected: Int?, onPick: (Int?) -> Unit) {
-    val p = LocalExpressivePalette.current
-    Surface(
-        color = p.surfaceHi,
-        shape = expressiveCardShape(),
-        shadowElevation = expressiveCardShadow(),
-        modifier = Modifier.fillMaxWidth().padding(bottom = expressiveCardGap()),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-            RowLabel(stringResource(R.string.settings_label_color))
-            Spacer(Modifier.height(14.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-            ) {
-                FilterChip(
-                    selected = selected == null,
-                    onClick = { onPick(null) },
-                    label = { Text(stringResource(R.string.settings_color_automatic)) },
-                )
-                COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }
-            }
-        }
-    }
-}
+internal fun DrawerLabelColorRow(selected: Int?, onPick: (Int?) -> Unit) =
+    LabelColorRow(selected, explainWallpaper = false, onPick = onPick)

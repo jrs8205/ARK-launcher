@@ -203,7 +203,7 @@ internal object SettingsIndex {
         SettingsCategory.ICONS.let { c ->
             row("I1", c, R.string.settings_label_size)
             row("I2", c, R.string.settings_icon_size)
-            row("I3", c, R.string.settings_label_color)
+            row("I3", c, R.string.settings_label_color, R.string.settings_home_label_automatic_desc)
             row("I4", c, R.string.settings_font, R.string.settings_font_desc)
             row("I5", c, R.string.settings_themed_icons, minSdk = Build.VERSION_CODES.TIRAMISU)
             row(

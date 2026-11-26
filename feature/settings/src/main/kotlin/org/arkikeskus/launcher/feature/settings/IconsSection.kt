@@ -77,7 +77,7 @@ internal fun IconsRows(s: LauncherSettings, iconPacks: List<IconPackInfo>, actio
         )
     }
     SettingRow("I3") {
-        LabelColorRow(selected = s.appLabelColor, onPick = actions::setAppLabelColor)
+        LabelColorRow(selected = s.appLabelColor.takeUnless { s.automaticHomeLabels }, onPick = actions::setAppLabelColor)
     }
     SettingRow("I4") {
         FontRow(selected = s.fontFamily, onPick = actions::setFontFamily)
@@ -262,10 +262,9 @@ internal fun IconPackPicker(
     )
 }
 
-/** Row of preset label-color swatches for the home-surface app labels (home/dock/folders). The
- *  selected swatch gets an accent ring; every swatch has a faint outline so white reads on the card. */
+/** The automatic chip and the fixed swatches, shared by the two label colour rows. */
 @Composable
-private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
+internal fun LabelColorRow(selected: Int?, explainWallpaper: Boolean = true, onPick: (Int?) -> Unit) {
     val p = LocalExpressivePalette.current
     Surface(
         color = p.surfaceHi,
@@ -278,9 +277,18 @@ private fun LabelColorRow(selected: Int, onPick: (Int) -> Unit) {
             Spacer(Modifier.height(14.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
             ) {
+                FilterChip(
+                    selected = selected == null,
+                    onClick = { onPick(null) },
+                    label = { Text(stringResource(R.string.settings_color_automatic)) },
+                )
                 COLOR_SWATCHES.forEach { c -> ColorSwatch(argb = c, selected = c == selected, onClick = { onPick(c) }) }
+            }
+            if (explainWallpaper && selected == null) {
+                Text(stringResource(R.string.settings_home_label_automatic_desc), color = p.dim, fontSize = 12.5.sp)
             }
         }
     }

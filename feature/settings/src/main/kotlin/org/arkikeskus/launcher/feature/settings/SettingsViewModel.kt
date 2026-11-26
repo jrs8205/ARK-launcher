@@ -257,7 +257,7 @@ internal class SettingsViewModel @Inject constructor(
     override fun setAppLabelTextScale(value: Float) = update { repository.setAppLabelTextScale(value) }
     override fun setIconScale(value: Float) = update { repository.setIconScale(value) }
     override fun setDrawerIconScale(value: Float) = update { repository.setDrawerIconScale(value) }
-    override fun setAppLabelColor(argb: Int) = update { repository.setAppLabelColor(argb) }
+    override fun setAppLabelColor(argb: Int?) = update { repository.setAppLabelColor(argb) }
     override fun setTwoLineHomeLabels(value: Boolean) = update { repository.setTwoLineHomeLabels(value) }
     override fun setTwoLineDrawerLabels(value: Boolean) = update { repository.setTwoLineDrawerLabels(value) }
     override fun setShowStatusBar(value: Boolean) = update { repository.setShowStatusBar(value) }

@@ -79,7 +79,7 @@ internal interface SettingsActions {
     fun setAppLabelTextScale(value: Float)
     fun setIconScale(value: Float)
     fun setDrawerIconScale(value: Float)
-    fun setAppLabelColor(argb: Int)
+    fun setAppLabelColor(argb: Int?)
     fun setTwoLineHomeLabels(value: Boolean)
     fun setTwoLineDrawerLabels(value: Boolean)
     fun setShowStatusBar(value: Boolean)
