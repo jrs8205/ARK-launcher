@@ -418,7 +418,7 @@ internal fun SmartspaceContent(
                     if (widthOf(dateText) + alarm + weatherLeast <= roomPx) dateText else dateShortText
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 // The alarm and its dot stand outside this inner row, so they are measured first and are whole
                 // whatever the width (issue #29: measured after the date, the alarm wrapped its time out of
                 // sight). Inside it the date is measured before the weather: the place gives way first (it

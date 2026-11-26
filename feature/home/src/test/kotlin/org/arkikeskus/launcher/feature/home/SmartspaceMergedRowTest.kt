@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
@@ -76,10 +77,12 @@ class SmartspaceMergedRowTest {
     )
     private val weather = CurrentWeather(temperatureC = 1.0, weatherCode = 3, city = "Oulu", fetchedAt = 0L)
 
-    private fun show(width: Int, shown: SmartspaceState = state) {
-        val alarms = context.getSystemService(AlarmManager::class.java)
-        val intent = PendingIntent.getBroadcast(context, 0, Intent("alarm"), PendingIntent.FLAG_IMMUTABLE)
-        alarms.setAlarmClock(AlarmManager.AlarmClockInfo(alarmAt, intent), intent)
+    private fun show(width: Int, shown: SmartspaceState = state, withAlarm: Boolean = true) {
+        if (withAlarm) {
+            val alarms = context.getSystemService(AlarmManager::class.java)
+            val intent = PendingIntent.getBroadcast(context, 0, Intent("alarm"), PendingIntent.FLAG_IMMUTABLE)
+            alarms.setAlarmClock(AlarmManager.AlarmClockInfo(alarmAt, intent), intent)
+        }
         compose.setContent {
             Box(Modifier.size(width.dp, 200.dp)) {
                 SmartspaceContent(shown, onRefresh = {}, onOpenWeatherApp = {}, modifier = Modifier.fillMaxSize(), clock = { now })
@@ -115,6 +118,12 @@ class SmartspaceMergedRowTest {
     @Test fun theTestsDatesDiffer() {
         assertThat(shortDate).isNotEqualTo(fullDate)
         assertThat(shortDate.length).isLessThan(fullDate.length)
+    }
+
+    @Test fun theDateAloneIsCentredUnderTheClockInTheCompactRow() {
+        show(width = 360, shown = state.copy(hasCalendarPermission = false, nextEvent = null), withAlarm = false)
+        val clock = compose.onNodeWithTag(SMARTSPACE_CLOCK_TAG, useUnmergedTree = true).fetchSemanticsNode()
+        assertThat(textNode(fullDate).boundsInRoot.center.x).isWithin(1f).of(clock.boundsInRoot.center.x)
     }
 
     @Test fun aWideWidgetShowsTheFullDateAndTheAlarm() {
