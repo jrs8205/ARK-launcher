@@ -25,8 +25,8 @@
     <string name="settings_home_folder_names">Ana ekranda klasör adları</string>
     <string name="settings_drawer_folder_names">Uygulama çekmecesinde klasör adları</string>
     <string name="settings_folder_columns">Klasör sütunları</string>
-    <string name="settings_glass_panel">Duvar kâğıdının üzerinde cam katman</string>
-    <string name="settings_glass_panel_desc">Duvar kâğıdının tamamını kaplayan buzlu bir levha: ekranın üstünden altına, simgelerin ve çubukların arkasında.</string>
+    <string name="settings_glass_panel">Duvar kağıdının üzerinde cam katman</string>
+    <string name="settings_glass_panel_desc">Duvar kağıdının tamamını kaplayan buzlu bir levha: ekranın üstünden altına, simgelerin ve çubukların arkasında.</string>
     <string name="settings_glass_strength">Cam yoğunluğu</string>
     <string name="settings_folder_appearance">Klasör görünümü</string>
     <string name="settings_folder_app_names">Klasörlerde uygulama adlarını göster</string>
@@ -294,7 +294,7 @@
     <string name="base_colour_classic">Klasik</string>
     <string name="base_colour_classic_desc">Gri yüzeyler ve önceki görünümün sıcak turuncusu</string>
     <string name="base_colour_chameleon">Bukalemun</string>
-    <string name="base_colour_chameleon_desc">Duvar kâğıdınızı takip eder</string>
+    <string name="base_colour_chameleon_desc">Duvar kağıdınızı takip eder</string>
     <string name="settings_cat_screensaver">Ekran koruyucu</string>
     <string name="settings_cat_screensaver_summary">Stiller, gösterilenler, parlaklık ve gece</string>
     <string name="settings_screensaver_start">Başlatma</string>
