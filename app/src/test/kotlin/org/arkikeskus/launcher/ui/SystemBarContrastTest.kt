@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.arkikeskus.launcher.model.DrawerSurface
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.arkikeskus.launcher.model.drawerSurface
 import org.arkikeskus.launcher.model.glassTint
 import org.junit.Test
@@ -703,4 +704,36 @@ class SystemBarContrastTest {
         assertThat(supportsDarkText(WallpaperColors.HINT_SUPPORTS_DARK_THEME)).isFalse()
         assertThat(supportsDarkText(0)).isFalse()
     }
+
+    @Test fun bareStatusAndHomeLabelsAgreeAndTheDockUsesItsPlate() {
+        for (hint in listOf(false, true)) for (primary in listOf(null, -1, 0xff000000.toInt(), 0xff0000ff.toInt())) {
+            val look = WallpaperLook(hint, primary)
+            for (strength in listOf(0f, 0.2f, 0.65f, 1f)) {
+                val tint = glassTint(strength).top
+                val bars = SystemBarGlyphs({ 0f }, { 1000f }, { 45f }, { 30f },
+                    { _, _ -> false }, { _, _ -> false }, { null }, { false }, { hint },
+                    glassTopTint = { tint }, wallpaperColor = { primary })
+                assertThat(look.darkHomeText(tint)).isEqualTo(bars.darkStatus.value)
+            }
+            assertThat(look.darkHomeText(0f)).isEqualTo(hint)
+        }
+        val split = WallpaperLook(false, 0xfff5f5f5.toInt())
+        for (percent in 0..100) {
+            assertThat(split.darkHomeText(0f, percent / 100f)).isFalse()
+        }
+        val bright = WallpaperLook(true, -1)
+        for (opacity in listOf(0f, 0.2f, 0.5f, 0.8f, 1f)) {
+            assertThat(bright.darkHomeText(0f, opacity)).isEqualTo(opacity <= 0.5f)
+        }
+    }
+
+    @Test fun theFirstFrameUsesTheStoredLookAndAnnouncementsReplaceIt() {
+        val state = WallpaperDarkText(WallpaperLook(true, -1))
+        assertThat(state.state.value).isTrue()
+        assertThat(state.color.value).isEqualTo(-1)
+        state.onColorsChanged(WallpaperLook(false, 0xff002288.toInt()))
+        assertThat(state.state.value).isFalse()
+        assertThat(state.color.value).isEqualTo(0xff002288.toInt())
+    }
+
 }

@@ -15,6 +15,7 @@ import org.arkikeskus.launcher.data.ShownDrawerWallpaper
 import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.DrawerSurface
 import org.arkikeskus.launcher.model.IconEpochs
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.arkikeskus.launcher.model.drawerSurface
 import javax.inject.Inject
 import org.arkikeskus.launcher.model.IconShape
@@ -50,7 +51,7 @@ data class IconStyle(
  * from the same loaded frame that supplies the home grid. */
 @HiltViewModel
 class LauncherShellViewModel @Inject constructor(
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     launcherAppsSource: LauncherAppsSource,
     notificationBadgeRepository: NotificationBadgeRepository,
     drawerWallpaper: DrawerWallpaperStore,
@@ -65,6 +66,14 @@ class LauncherShellViewModel @Inject constructor(
     /** The theme and bars can start as soon as preferences arrive, before Room has supplied home. */
     val settings = settingsRepository.settings
     val drawerPicture = drawerWallpaper.shown
+
+    suspend fun rememberWallpaper(look: WallpaperLook) {
+        try {
+            settingsRepository.setLastHomeWallpaper(look)
+        } catch (_: java.io.IOException) {
+            // The current screen already has the live report. Keep the previous result on disk.
+        }
+    }
 }
 
 /**

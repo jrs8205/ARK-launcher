@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -84,7 +85,16 @@ fun LauncherShell(
     val picture by shellViewModel.drawerPicture.collectAsStateWithLifecycle()
     val statusBars = statusBarSettings(settings, picture)
     val headsUpActive by shellViewModel.headsUpActive.collectAsStateWithLifecycle()
-    val wallpaper = rememberWallpaperLook()
+    val wallpaper = rememberWallpaperLook(settings.lastHomeWallpaper)
+    LaunchedEffect(wallpaper) {
+        var saved = settings.lastHomeWallpaper
+        snapshotFlow { wallpaper.look }.collect { look ->
+            if (look != saved) {
+                shellViewModel.rememberWallpaper(look)
+                saved = look
+            }
+        }
+    }
     val wallpaperDarkText = wallpaper.state
     // Full-screen surfaces over home (the widget picker, the first-run intro) report what is behind the bars.
     val barCovers = remember { SystemBarCovers() }
@@ -201,6 +211,7 @@ fun LauncherShell(
             CompositionLocalProvider(LocalSystemBarCovers provides barCovers) {
                 HomeScreen(
                     uiState = frame,
+                    wallpaper = wallpaper.look,
                     onManageProfiles = onManageProfiles,
                     onOpenDrawer = { animateProgress(1f) },
                     onDrawerDrag = { dragDrawer(it) },

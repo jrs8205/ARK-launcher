@@ -40,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.data.DrawerWallpaper
 import org.arkikeskus.launcher.model.DrawerSurface
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.arkikeskus.launcher.model.argbLuminance
 import org.arkikeskus.launcher.model.compositeOver
 import org.arkikeskus.launcher.model.glassTint
@@ -105,7 +106,6 @@ internal fun navigationBarDarkIcons(
 internal fun ownBarVisible(ownBarShown: Boolean, systemBarHidden: Boolean, statusBarPx: Float, headsUpActive: Boolean): Boolean =
     ownBarShown && !(systemBarHidden && (statusBarPx > 0f || headsUpActive))
 
-private const val WHITE = 0xFFFFFFFF.toInt()
 private const val BLACK = 0xFF000000.toInt()
 
 /**
@@ -116,7 +116,7 @@ private const val BLACK = 0xFF000000.toInt()
  * luminance would not do either: white over a saturated blue mixes darker than over the grey as bright.
  */
 internal fun wallpaperOnHomeColor(wallpaperSupportsDarkText: Boolean, glassTint: Float, wallpaperColor: Int? = null): Int =
-    compositeOver(WHITE, glassTint, if (wallpaperSupportsDarkText) WHITE else wallpaperColor ?: BLACK)
+    WallpaperLook(wallpaperSupportsDarkText, wallpaperColor).underGlass(glassTint)
 
 /**
  * The luminance of the wallpaper as home shows it behind a bar. Without the glass layer it is the dark-text
@@ -150,16 +150,13 @@ internal fun homeBackdropSupportsDarkGlyphs(
     homeScrim: Float = 0f,
     /** The shell's dim over the whole screen under the rising drawer ([drawerScrimAlpha]). */
     shellDim: Float = 0f,
-): Boolean =
-    if (glassTint <= 0f) {
-        wallpaperSupportsDarkText
-    } else {
-        // Every layer mixed channel by channel, the luminance taken from the result. The three dims are all
-        // black, one over the other: together they leave (1 - a)(1 - b)(1 - c) of what is under them.
-        val dim = 1f - (1f - ownBarScrim.coerceIn(0f, 1f)) * (1f - homeScrim.coerceIn(0f, 1f)) * (1f - shellDim.coerceIn(0f, 1f))
-        val shown = compositeOver(BLACK, dim, wallpaperOnHomeColor(wallpaperSupportsDarkText, glassTint, wallpaperColor))
-        darkReadsBetter(argbLuminance(shown))
-    }
+): Boolean {
+    // The bars follow the hint without glass, even with a weak scrim. With glass, the three black
+    // layers together leave (1 - a)(1 - b)(1 - c) of what is under them.
+    val dim = if (glassTint <= 0f) 0f else
+        1f - (1f - ownBarScrim.coerceIn(0f, 1f)) * (1f - homeScrim.coerceIn(0f, 1f)) * (1f - shellDim.coerceIn(0f, 1f))
+    return WallpaperLook(wallpaperSupportsDarkText, wallpaperColor).darkHomeText(glassTint, dim)
+}
 
 /**
  * The luminance behind the status bar on home: the wallpaper's dark-text hint taken as white or black,
@@ -531,10 +528,6 @@ internal fun HomeTopScrim(shown: Boolean, progress: () -> Float, heightPx: () ->
     )
 }
 
-/** What the platform tells about the wallpaper: its dark-text hint, and its main colour (ARGB; null when it tells
- *  no colours). The colour itself, not its luminance: layers are mixed over it channel by channel. */
-internal data class WallpaperLook(val supportsDarkText: Boolean, val color: Int? = null)
-
 /** [colors] as a [WallpaperLook] ([wallpaperSupportsDarkText] for the hint). */
 private fun wallpaperLook(colors: WallpaperColors?): WallpaperLook =
     WallpaperLook(wallpaperSupportsDarkText(colors), colors?.primaryColor?.toArgb())
@@ -545,47 +538,43 @@ private fun wallpaperLook(colors: WallpaperColors?): WallpaperLook =
  * report that arrives meanwhile is newer, so the read's answer only lands when no report came during it.
  * Main thread only.
  */
-internal class WallpaperDarkText {
-    val state = mutableStateOf(false)
-    val color = mutableStateOf<Int?>(null)
-    private var reports = 0
+internal class WallpaperDarkText(initial: WallpaperLook = WallpaperLook()) {
+    private val current = mutableStateOf(initial)
+    val look: WallpaperLook get() = current.value
+    val state = derivedStateOf { look.supportsDarkText }
+    val color = derivedStateOf { look.color }
+    private var announced = false
 
     fun onColorsChanged(look: WallpaperLook) {
-        reports++
-        show(look)
+        announced = true
+        current.value = look
     }
 
-    suspend fun readInitial(read: suspend () -> WallpaperLook) {
-        val before = reports
-        val look = read()
-        if (reports == before) show(look)
-    }
-
-    private fun show(look: WallpaperLook) {
-        state.value = look.supportsDarkText
-        color.value = look.color
+    suspend fun readInitial(read: suspend () -> WallpaperLook?) {
+        val result = read()
+        if (!announced && result != null) current.value = result
     }
 }
 
 /** The system wallpaper's dark-text hint and main colour, kept current as the wallpaper (or its colours) change. */
 @Composable
-internal fun rememberWallpaperLook(): WallpaperDarkText {
+internal fun rememberWallpaperLook(initial: WallpaperLook): WallpaperDarkText {
     val context = LocalContext.current
-    val wallpaper = remember { WallpaperDarkText() }
+    val wallpaper = remember { WallpaperDarkText(initial) }
     DisposableEffect(context) {
         val manager = WallpaperManager.getInstance(context)
         val listener = WallpaperManager.OnColorsChangedListener { colors, which ->
             if (which and WallpaperManager.FLAG_SYSTEM != 0) wallpaper.onColorsChanged(wallpaperLook(colors))
         }
-        manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper()))
-        onDispose { manager.removeOnColorsChangedListener(listener) }
+        runCatching { manager.addOnColorsChangedListener(listener, Handler(Looper.getMainLooper())) }
+        onDispose { runCatching { manager.removeOnColorsChangedListener(listener) } }
     }
     LaunchedEffect(context) {
         wallpaper.readInitial {
             // The first read may extract the colours from the image: off the main thread.
             withContext(Dispatchers.IO) {
                 runCatching { wallpaperLook(WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)) }
-                    .getOrDefault(WallpaperLook(supportsDarkText = false))
+                    .getOrNull()
             }
         }
     }
