@@ -141,8 +141,11 @@ data class LauncherSettings(
     /** Let app-drawer labels (apps, folders, the "most used" row) wrap onto a second line — the
      *  drawer's long-standing look, so this defaults on. */
     val twoLineDrawerLabels: Boolean = true,
-    /** ARGB color for app icon labels on the home surfaces (home/dock/folders); default white. The
-     *  app drawer keeps its theme color for readability over its solid background. */
+    /** Missing in older profiles: their fixed swatch (including untouched white) remains in use. */
+    val automaticHomeLabels: Boolean = false,
+    /** This device's most recent system wallpaper colours, available before the first frame. */
+    val lastHomeWallpaper: WallpaperLook = WallpaperLook(),
+    /** The profile's fixed swatch, also remembered while Automatic is selected. */
     val appLabelColor: Int = 0xFFFFFFFF.toInt(),
     /** ARGB colour for the app drawer's grid labels (apps and folders), or null for the automatic black or white
      *  the drawer picks by what it looks like (see [drawerBackgroundColor]); the owner's 1.0.1 ask, the choice

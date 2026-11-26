@@ -87,7 +87,7 @@ class HomeProfileStoreTest {
 
         assertThat(created).isEqualTo(HomeProfile(2, "Work"))
         assertThat(store.list()).containsExactly(HomeProfile(1, ""), HomeProfile(2, "Work")).inOrder()
-        assertThat(view.profileValues(2).names()).isEmpty()
+        assertThat(view.profileValues(2).names()).containsExactly("automatic_home_labels")
         // Making a profile does not switch to it.
         assertThat(store.current()).isEqualTo(1L)
         assertThat(view.data.first()[baseColour]).isEqualTo("blue")
@@ -112,7 +112,7 @@ class HomeProfileStoreTest {
     @Test fun aCopyOfAProfileThatDoesNotExistIsEmpty() = runTest {
         val created = store.create("Work", copyOf = 99)!!
 
-        assertThat(view.profileValues(created.id).names()).isEmpty()
+        assertThat(view.profileValues(created.id).names()).containsExactly("automatic_home_labels")
     }
 
     @Test fun theNinthProfileIsRefused() = runTest {
@@ -303,7 +303,7 @@ class HomeProfileStoreTest {
         val made = store.create("Evening", copyOf = null)!!
 
         assertThat(made.id).isEqualTo(2L)
-        assertThat(view.profileValues(2).asMap()).isEmpty()
+        assertThat(view.profileValues(2).names()).containsExactly("automatic_home_labels")
     }
 
     /**
@@ -332,7 +332,7 @@ class HomeProfileStoreTest {
         val beingMade = androidx.datastore.preferences.core.booleanPreferencesKey(HomeProfileKeys.BEING_MADE)
         val profile = store.prepare("Work", copyOf = null)!!
         assertThat(files.store(profile.id).now[beingMade]).isTrue()
-        assertThat(view.profileValues(profile.id).asMap()).isEmpty()
+        assertThat(view.profileValues(profile.id).names()).containsExactly("automatic_home_labels")
 
         assertThat(store.publish(profile)).isTrue()
 
@@ -387,7 +387,7 @@ class HomeProfileStoreTest {
         assertThat(ProfiledPreferences.mainStoreId(main.now)).isEqualTo(1L)
         assertThat(view.data.first()[baseColour]).isEqualTo("blue")
         assertThat(view.profileValues(1)[baseColour]).isEqualTo("blue")
-        assertThat(view.profileValues(created.id).names()).isEmpty()
+        assertThat(view.profileValues(created.id).names()).containsExactly("automatic_home_labels")
     }
 
     /**

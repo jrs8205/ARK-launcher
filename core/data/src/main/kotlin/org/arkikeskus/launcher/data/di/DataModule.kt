@@ -5,7 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -25,6 +26,7 @@ import org.arkikeskus.launcher.data.CustomIconKeyer
 import org.arkikeskus.launcher.data.CustomIconSource
 import org.arkikeskus.launcher.data.AndroidSystemUsageSource
 import org.arkikeskus.launcher.data.HostWidgetIdReleaser
+import org.arkikeskus.launcher.data.NewInstallPreferences
 import org.arkikeskus.launcher.data.SystemUsageSource
 import org.arkikeskus.launcher.data.WidgetIdReleaser
 import org.arkikeskus.launcher.data.IconChoicesSource
@@ -44,14 +46,6 @@ import org.arkikeskus.launcher.data.profile.ProfiledPreferences
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import org.arkikeskus.launcher.model.IconChoices
-
-private val Context.settingsDataStore by preferencesDataStore(
-    name = "launcher_settings",
-    // A corrupted preferences file (interrupted write, power loss) otherwise throws
-    // CorruptionException on every read — for the HOME app that's an unrecoverable crash loop.
-    // Resetting to defaults loses only settings; the Room-backed home layout is untouched.
-    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
-)
 
 private val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -106,8 +100,19 @@ object DataModule {
     @Provides
     @Singleton
     @MainSettingsFile
-    fun provideMainSettingsFile(@ApplicationContext context: Context): DataStore<Preferences> =
-        context.settingsDataStore
+    fun provideMainSettingsFile(
+        @ApplicationContext context: Context,
+        @ApplicationScope scope: CoroutineScope,
+    ): DataStore<Preferences> {
+        val file = { context.preferencesDataStoreFile("launcher_settings") }
+        return NewInstallPreferences(scope, isFresh = { !file().exists() }) { owner ->
+            PreferenceDataStoreFactory.create(
+                scope = CoroutineScope(owner.coroutineContext + Dispatchers.IO),
+                corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+                produceFile = file,
+            )
+        }
+    }
 
     @Provides
     @Singleton

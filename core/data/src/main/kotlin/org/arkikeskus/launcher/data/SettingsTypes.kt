@@ -34,6 +34,8 @@ internal object SettingsTypes {
         for (name in listOf("default_layout_seeded", "onboarding_done", "default_reminder_dismissed")) put(name, Kind.BOOLEAN)
         for (name in listOf("first_run_fresh", "people_held_notifications", "lock_sound_uri", "unlock_sound_uri")) put(name, Kind.STRING)
         put("chameleon_last_argb", Kind.INT)
+        put("home_wallpaper_argb", Kind.INT)
+        put("home_wallpaper_dark_text", Kind.BOOLEAN)
         put("local_last_backup_time", Kind.LONG)
         // How often each app is opened, and the count of openings from elsewhere.
         put(AppUsageRepository.USAGE_KEY, Kind.STRING)
@@ -50,7 +52,7 @@ internal object SettingsTypes {
     /** Colours: an ARGB value arrives as the signed Int's number or as its unsigned form, and wraps. */
     private val COLOURS = setOf(
         "app_label_color", "drawer_background_color", "drawer_label_color", "folder_background_color",
-        "smartspace_background_color", "chameleon_last_argb",
+        "smartspace_background_color", "chameleon_last_argb", "home_wallpaper_argb", "automatic_home_labels",
     )
 
     /** The type the setting [name] is read in; null for a name that is no setting of this version. */

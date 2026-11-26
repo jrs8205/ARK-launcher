@@ -43,7 +43,7 @@ object HomeProfileKeys {
         "left_swipe_app_key",
         // The look.
         "base_colour", "font_family", "use_themed_icons", "theme_all_icons", "icon_pack_package", "icon_shape",
-        "icon_scale", "drawer_icon_scale", "app_label_scale", "app_label_color", "drawer_label_color",
+        "icon_scale", "drawer_icon_scale", "app_label_scale", "app_label_color", "automatic_home_labels", "drawer_label_color",
         "show_dock_labels", "show_home_labels", "show_drawer_labels", "show_home_folder_names",
         "show_drawer_folder_names", "two_line_home_labels", "two_line_drawer_labels",
         // The surfaces.
@@ -76,7 +76,7 @@ object HomeProfileKeys {
         "lock_sounds_enabled", "lock_sound_uri", "unlock_sound_uri", "charging_animation",
         "hide_private_space_locked",
         // One wallpaper, so one colour followed.
-        "chameleon_last_argb",
+        "chameleon_last_argb", "home_wallpaper_dark_text", "home_wallpaper_argb",
         // Notifications and people.
         "show_notif_dots", "notif_dot_count", "notif_dot_scale", "notif_widget_count_style", "people_privacy",
         "pinned_people", "people_aliases", "people_batch_enabled", "people_batch_times", "people_show_apps",

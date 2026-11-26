@@ -567,7 +567,7 @@ class SettingsAcrossProfilesTest {
         }
 
         assertThat(settings.referencedAppKeys()).containsExactly("com.mail/Main/0")
-        assertThat(view.profileValues(2).asMap().keys.map { it.name }).containsExactly("left_swipe_app_key")
+        assertThat(view.profileValues(2).asMap().keys.map { it.name }).containsExactly("left_swipe_app_key", "automatic_home_labels")
 
         store.setActive(2)
         assertThat(settings.settings.first().drawerSearchAtBottom).isFalse()

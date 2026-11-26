@@ -22,6 +22,7 @@ import org.arkikeskus.launcher.data.search.RawContact
 import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.IconShape
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.WallpaperLook
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -70,8 +71,7 @@ data class LastBackup(val homeProfileId: Long, val timeMs: Long, val profileName
 data class HomeProfileGrid(val homeColumns: Int, val homeRows: Int, val dockColumns: Int)
 
 /**
- * Reads/writes launcher preferences. The [DataStore] is injected (provided from a Context-backed
- * `preferencesDataStore` in DataModule) so the repository's merge logic can be unit-tested on the
+ * Reads/writes launcher preferences. The [DataStore] is injected by DataModule so the repository's merge logic can be unit-tested on the
  * JVM with a temp-file store.
  */
 @Singleton
@@ -169,7 +169,9 @@ class SettingsRepository @Inject constructor(
             iconSwipeDistance = (p[Keys.ICON_SWIPE_DISTANCE] ?: 1.0f).coerceIn(MIN_ICON_SWIPE_DISTANCE, MAX_ICON_SWIPE_DISTANCE),
             twoLineHomeLabels = p[Keys.TWO_LINE_HOME_LABELS] ?: false,
             twoLineDrawerLabels = p[Keys.TWO_LINE_DRAWER_LABELS] ?: true,
-            appLabelColor = p[Keys.APP_LABEL_COLOR] ?: 0xFFFFFFFF.toInt(),
+            automaticHomeLabels = p[AUTOMATIC_HOME_LABELS] != null,
+            lastHomeWallpaper = WallpaperLook(p[Keys.HOME_WALLPAPER_DARK_TEXT] ?: false, p[Keys.HOME_WALLPAPER_ARGB]),
+            appLabelColor = p[Keys.APP_LABEL_COLOR] ?: p[AUTOMATIC_HOME_LABELS] ?: 0xFFFFFFFF.toInt(),
             drawerLabelColor = p[Keys.DRAWER_LABEL_COLOR],
             showStatusBar = p[Keys.SHOW_STATUS_BAR] ?: false,
             showWeather = p[Keys.SHOW_WEATHER] ?: true,
@@ -759,8 +761,22 @@ class SettingsRepository @Inject constructor(
     suspend fun setIconSwipeDistance(value: Float) =
         edit { it[Keys.ICON_SWIPE_DISTANCE] = value.coerceIn(MIN_ICON_SWIPE_DISTANCE, MAX_ICON_SWIPE_DISTANCE) }
 
-    /** ARGB color for the home-surface app icon labels. */
-    suspend fun setAppLabelColor(argb: Int) = edit { it[Keys.APP_LABEL_COLOR] = argb }
+    /** Keep the system wallpaper report for the first home frame of the next start. */
+    suspend fun setLastHomeWallpaper(look: WallpaperLook) = edit {
+        it[Keys.HOME_WALLPAPER_DARK_TEXT] = look.supportsDarkText
+        val color = look.color
+        if (color == null) it.remove(Keys.HOME_WALLPAPER_ARGB) else it[Keys.HOME_WALLPAPER_ARGB] = color
+    }
+
+    /** Home label ARGB, or null to follow the wallpaper and remember the fixed swatch. */
+    suspend fun setAppLabelColor(argb: Int?) = edit {
+        if (argb == null) {
+            it[AUTOMATIC_HOME_LABELS] = it[Keys.APP_LABEL_COLOR] ?: it[AUTOMATIC_HOME_LABELS] ?: -1
+        } else {
+            it[Keys.APP_LABEL_COLOR] = argb
+            it.remove(AUTOMATIC_HOME_LABELS)
+        }
+    }
     /** ARGB colour of the app drawer's grid labels; null clears back to the automatic black or white. */
     suspend fun setDrawerLabelColor(argb: Int?) = edit {
         if (argb == null) it.remove(Keys.DRAWER_LABEL_COLOR) else it[Keys.DRAWER_LABEL_COLOR] = argb
@@ -924,8 +940,11 @@ class SettingsRepository @Inject constructor(
      * exports); the volatile per-launch [AppUsageRepository.USAGE_KEY] is excluded because it is
      * device-local behavioural data, not worth carrying to a new phone.
      */
-    suspend fun exportRaw(): Map<String, Any> =
-        dataStore.data.first().asMap().entries
+    suspend fun exportRaw(): Map<String, Any> {
+        val values = dataStore.data.first()
+        return values.asMap().entries
+            // Automatic carries its remembered swatch itself. 1.3.0 ignores that key and uses opaque white.
+            .filterNot { it.key == Keys.APP_LABEL_COLOR && values[AUTOMATIC_HOME_LABELS] != null }
             .filterNot { it.key.name in DEVICE_LOCAL_KEYS || it.key.name == AppUsageRepository.USAGE_KEY }
             // The list of home profiles and which one is on are this launcher's own bookkeeping: what
             // is exported is the settings of the profile that is on.
@@ -939,6 +958,7 @@ class SettingsRepository @Inject constructor(
                 }
             }
             .toMap()
+    }
 
     /**
      * Replaces all preferences with [values]. Known keys are written only with their registered
@@ -962,6 +982,8 @@ class SettingsRepository @Inject constructor(
             // The picked sounds' file permissions belong to this phone (see DEVICE_LOCAL_KEYS).
             val lockSound = prefs[Keys.LOCK_SOUND_URI]
             val unlockSound = prefs[Keys.UNLOCK_SOUND_URI]
+            val wallpaperHint = prefs[Keys.HOME_WALLPAPER_DARK_TEXT]
+            val wallpaperArgb = prefs[Keys.HOME_WALLPAPER_ARGB]
             val chameleonLastArgb = prefs[Keys.CHAMELEON_LAST_ARGB]
             // Device-local usage stats aren't in the backup (see exportRaw) — preserve this device's.
             val appUsage = prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)]
@@ -1016,6 +1038,8 @@ class SettingsRepository @Inject constructor(
             if (heldNotifications != null) prefs[Keys.PEOPLE_HELD] = heldNotifications
             if (lockSound != null) prefs[Keys.LOCK_SOUND_URI] = lockSound
             if (unlockSound != null) prefs[Keys.UNLOCK_SOUND_URI] = unlockSound
+            if (wallpaperHint != null) prefs[Keys.HOME_WALLPAPER_DARK_TEXT] = wallpaperHint
+            if (wallpaperArgb != null) prefs[Keys.HOME_WALLPAPER_ARGB] = wallpaperArgb
             if (chameleonLastArgb != null) prefs[Keys.CHAMELEON_LAST_ARGB] = chameleonLastArgb
             if (appUsage != null) prefs[stringPreferencesKey(AppUsageRepository.USAGE_KEY)] = appUsage
             // The count's bookkeeping stays only where the count goes on as it was. A file that turns the
@@ -1140,6 +1164,9 @@ class SettingsRepository @Inject constructor(
         val DRAWER_ICON_SCALE = floatPreferencesKey("drawer_icon_scale")
         val LONG_PRESS_SCALE = floatPreferencesKey("long_press_scale")
         val ICON_SWIPE_DISTANCE = floatPreferencesKey("icon_swipe_distance")
+        val HOME_WALLPAPER_DARK_TEXT = booleanPreferencesKey("home_wallpaper_dark_text")
+        val HOME_WALLPAPER_ARGB = intPreferencesKey("home_wallpaper_argb")
+        val AUTOMATIC_HOME_LABELS = intPreferencesKey("automatic_home_labels")
         val APP_LABEL_COLOR = intPreferencesKey("app_label_color")
         val DRAWER_LABEL_COLOR = intPreferencesKey("drawer_label_color")
         val TWO_LINE_HOME_LABELS = booleanPreferencesKey("two_line_home_labels")
@@ -1179,6 +1206,9 @@ class SettingsRepository @Inject constructor(
     }
 
     companion object {
+        /** Present in Automatic and holds the remembered swatch. An older backup reader uses its ordinary white. */
+        internal val AUTOMATIC_HOME_LABELS get() = Keys.AUTOMATIC_HOME_LABELS
+
         /** Valid range for the home/dock/drawer column counts (mirrors the settings steppers). */
         const val MIN_COLUMNS = 3
         const val MAX_COLUMNS = 7
@@ -1232,6 +1262,7 @@ class SettingsRepository @Inject constructor(
             "smartspace_background_opacity", "smartspace_text_scale", "home_glass_opacity",
         )
         val INT_KEYS = setOf(
+            "automatic_home_labels",
             "dock_columns", "dock_bottom_spacing", "home_columns", "home_rows", "drawer_columns", "app_label_color",
             "home_page", "home_page_count", "folder_columns", "drawer_background_color", "drawer_label_color",
             "folder_background_color", "smartspace_background_color",
@@ -1341,7 +1372,7 @@ class SettingsRepository @Inject constructor(
             // phone could not play it.
             "lock_sound_uri", "unlock_sound_uri",
             // The wallpaper is this phone's; the colour taken from it means nothing on another.
-            "chameleon_last_argb",
+            "chameleon_last_argb", "home_wallpaper_argb", "home_wallpaper_dark_text",
         )
     }
 }

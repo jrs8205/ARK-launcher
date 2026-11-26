@@ -1,9 +1,11 @@
 package org.arkikeskus.launcher.data.profile
 
+import org.arkikeskus.launcher.data.di.DataModule
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
@@ -11,15 +13,19 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.io.IOException
+import org.arkikeskus.launcher.data.SettingsRepository
+import org.arkikeskus.launcher.data.NewInstallPreferences
 import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -221,5 +227,96 @@ class DiskHomeProfileFilesTest {
         files.delete(5)
 
         assertThat(context.preferencesDataStoreFile("home_profile_5").exists()).isFalse()
+    }
+
+    private fun mainSettings() = DataModule.provideMainSettingsFile(context, scope)
+
+    @Test fun anUpgradeOpensTheReleasedMainAndSecondaryFilesWithTheirFixedLabels(): Unit = runBlocking {
+        markPackageUpdated()
+        // Write the 1.3.0 preference names, types and filenames, then release that process's stores.
+        val oldScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val oldMain = PreferenceDataStoreFactory.create(scope = oldScope) { context.preferencesDataStoreFile("launcher_settings") }
+        oldMain.edit {
+            it[stringPreferencesKey(HomeProfileKeys.LIST)] = "1\t\n2\tWork"
+            it[longPreferencesKey(HomeProfileKeys.ACTIVE)] = 2L
+            it[longPreferencesKey(HomeProfileKeys.MAIN_STORE)] = 1L
+        }
+        DiskHomeProfileFiles(context, oldScope).store(2).edit {
+            it[intPreferencesKey("app_label_color")] = 0xff42a5f5.toInt()
+        }
+        oldScope.coroutineContext[Job]!!.cancelAndJoin()
+
+        val main = mainSettings()
+        val view = ProfiledPreferences(main, files)
+        val profiles = HomeProfileStore(main, view, files)
+        val repo = SettingsRepository(view, view)
+        val work = repo.settings.first()
+        assertThat(work.automaticHomeLabels).isFalse()
+        assertThat(work.appLabelColor).isEqualTo(0xff42a5f5.toInt())
+        profiles.setActive(1)
+        val first = repo.settings.first()
+        assertThat(first.automaticHomeLabels).isFalse()
+        assertThat(first.appLabelColor).isEqualTo(-1)
+    }
+
+    @Test fun aNewInstallHasAutomaticEvenWhenSettingsIsTheFirstReader(): Unit = runBlocking {
+        val main = mainSettings()
+        val view = ProfiledPreferences(main, files)
+        val first = SettingsRepository(view, view).settings.first()
+        assertThat(first.automaticHomeLabels).isTrue()
+        assertThat(first.appLabelColor).isEqualTo(-1)
+    }
+
+    private fun markPackageUpdated() {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        info.firstInstallTime = 100L
+        info.lastUpdateTime = 200L
+        org.robolectric.Shadows.shadowOf(context.packageManager).installPackage(info)
+    }
+
+    @Test fun anUpdatedPackageWithoutAPreferencesFileStartsWithAutomatic(): Unit = runBlocking {
+        markPackageUpdated()
+        val main = mainSettings()
+        val view = ProfiledPreferences(main, files)
+        val first = SettingsRepository(view, view).settings.first()
+        assertThat(first.automaticHomeLabels).isTrue()
+        assertThat(first.appLabelColor).isEqualTo(-1)
+    }
+
+    @Test fun aFailedFirstFileReplacementCannotPublishAutomaticFromTheCache(): Unit = runBlocking {
+        val file = context.preferencesDataStoreFile("new_install")
+        val obstacle = java.io.File(file, "occupied")
+        var refuse = true
+        var rejected = false
+        val main = NewInstallPreferences(scope, { true }) { owner ->
+            val disk = PreferenceDataStoreFactory.create(scope = owner) { file }
+            object : DataStore<Preferences> by disk {
+                override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                    if (!refuse) return disk.updateData(transform)
+                    refuse = false
+                    return try {
+                        disk.updateData { previous ->
+                            transform(previous).also {
+                                check(file.mkdirs() && obstacle.createNewFile())
+                            }
+                        }
+                    } catch (e: IOException) {
+                        rejected = true
+                        throw e
+                    } finally {
+                        check(obstacle.delete() && file.delete())
+                    }
+                }
+            }
+        }
+        val view = ProfiledPreferences(main, files)
+        val repo = SettingsRepository(view, view)
+        val first = repo.settings.first()
+        assertThat(rejected).isTrue()
+        assertThat(first.automaticHomeLabels).isFalse()
+        assertThat(first.appLabelColor).isEqualTo(-1)
+        repo.setAppLabelColor(null)
+        assertThat(repo.settings.first().automaticHomeLabels).isTrue()
+        assertThat(file.isFile).isTrue()
     }
 }

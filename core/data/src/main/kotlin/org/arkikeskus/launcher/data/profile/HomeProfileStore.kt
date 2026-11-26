@@ -5,7 +5,6 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -18,6 +17,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.arkikeskus.launcher.data.SettingsRepository
 import org.arkikeskus.launcher.data.profile.ProfiledPreferences.Companion.copy
 import org.arkikeskus.launcher.model.HomeProfile
 
@@ -189,12 +189,12 @@ class HomeProfileStore(
         return id in kept || own.asMap().isNotEmpty()
     }
 
-    /** A new profile's own values: [copyOf]'s without its bookkeeping ([HomeProfileKeys.NOT_COPIED]), or none. */
+    /** A new profile's own values: [copyOf]'s without its bookkeeping ([HomeProfileKeys.NOT_COPIED]), or the new empty profile's Automatic label choice. */
     private suspend fun valuesFor(copyOf: Long?, list: List<HomeProfile>): Preferences =
         if (copyOf != null && list.any { it.id == copyOf }) {
             mutablePreferencesOf().apply { copy(view.profileValues(copyOf)) { it !in HomeProfileKeys.NOT_COPIED } }
         } else {
-            emptyPreferences()
+            mutablePreferencesOf(SettingsRepository.AUTOMATIC_HOME_LABELS to -1)
         }
 
     suspend fun rename(id: Long, name: String) = editList { list ->
