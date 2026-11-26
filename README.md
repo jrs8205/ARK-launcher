@@ -78,9 +78,11 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
 - **Dock** of favorite apps and folders (reorder, drag in/out; drop an app onto a dock app to make a folder).
 - **Profiles** — up to eight home screens of your own (Settings ▸ Profiles), each with its own pages, dock,
   widgets and folders, its own grid and look (base colour, font, icons, labels, the app drawer's background
-  and picture) and its own desktop lock. A new profile starts empty or as a copy of the current one. A
-  profile is a view of this launcher, not Android's work profile: gestures, notification settings, hidden
-  apps and your own app names and icons are the same in every profile.
+  and picture) and its own desktop lock. A new profile starts empty or as a copy of the current one. Switch
+  between them in Settings, from the **Profiles** row of the home screen's menu, or with a one-cell
+  **Switch profile** widget on the home screen. A profile is a view of this launcher, not Android's work
+  profile: gestures, notification settings, hidden apps and your own app names and icons are the same in
+  every profile.
 - **Swipe up from the dock** to open the app drawer, as from anywhere on the home screen.
 - **App drawer with universal search** — one search box finds:
   - installed **apps**,
@@ -120,8 +122,10 @@ Discussions, the channel and Reddit are also linked in the app: **Settings ▸ A
   choices (Edit) that open another app from a home or dock icon. An **icon swipe distance** slider
   (100–1000 %) sets how far such a swipe must travel before it fires.
 - **Customizable look** — a **font** for everything the launcher draws (six families Android ships),
-  adjustable app-label **text size** and **colour**, **one- or two-line
-  labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
+  adjustable app-label **text size** and **colour** (a colour of your own, or **Automatic**, which follows
+  the wallpaper: dark text on a light one, light text on a dark one, for the home screen's labels, page dots
+  and the built-in battery, notification and People widgets; a new install starts with it), **one- or
+  two-line labels** (per surface), icon size for home and dock and separately for the app drawer, dock and
   drawer opacity, an **app drawer background colour** or none at all (the text turns black or white to match, or takes a
   **label colour** of your own), a
   **picture of your own behind the app drawer** with a dim for legibility (the colour is off while it is set), an
