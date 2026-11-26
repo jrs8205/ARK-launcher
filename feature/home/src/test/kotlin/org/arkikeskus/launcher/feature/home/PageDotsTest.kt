@@ -82,4 +82,19 @@ class PageDotsTest {
     fun onAWhiteWallpaperTheHouseHasADarkerRingAroundIt() {
         assertThat(luminanceBeside(LauncherSettings.MARKER_HOUSE, PAGE_DOT_HOUSE_TAG, index = 0)).isLessThan(0.9f)
     }
+
+    @Test @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun automaticDarkInkReachesTheDrawnPageDot() {
+        compose.setContent {
+            Box(Modifier.background(Color.White).padding(24.dp)) {
+                PageDots(count = 3, current = 0, home = 1, homeMarker = LauncherSettings.MARKER_RING, ink = Color.Black)
+            }
+        }
+        val bounds = compose.onAllNodesWithTag(PAGE_DOT_TAG)[0].fetchSemanticsNode().boundsInWindow
+        val window = (compose as AndroidComposeTestRule<*, *>).activity.window.decorView
+        val bitmap = Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888)
+        compose.runOnUiThread { window.draw(Canvas(bitmap)) }
+        assertThat(Color(bitmap.getPixel(bounds.center.x.roundToInt(), bounds.center.y.roundToInt()))).isEqualTo(Color.Black)
+    }
+
 }

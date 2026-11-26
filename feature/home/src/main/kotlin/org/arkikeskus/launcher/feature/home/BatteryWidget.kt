@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
@@ -75,7 +74,6 @@ fun BatteryWidget(
     val colors = LocalLauncherColors.current
     val density = LocalDensity.current
     val noIndication = remember { MutableInteractionSource() }
-    val shadow = Shadow(color = Color.Black.copy(alpha = 0.55f), blurRadius = 8f)
 
     BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
         val s = status ?: return@BoxWithConstraints
@@ -134,7 +132,7 @@ fun BatteryWidget(
                     style = themedTextStyle(TextStyle(
                         fontSize = with(density) { (diameter * 0.23f).toSp() },
                         fontWeight = FontWeight.Medium,
-                        shadow = shadow,
+                        shadow = widgetTextShadow(ink),
                     )),
                     maxLines = 1,
                 )

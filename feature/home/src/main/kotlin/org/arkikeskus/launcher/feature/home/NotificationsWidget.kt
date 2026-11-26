@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -160,7 +159,8 @@ fun NotificationsWidget(
         onPauseOrDispose { }
     }
 
-    val shadow = Shadow(color = Color.Black.copy(alpha = 0.55f), blurRadius = 8f)
+    val ink = widgetContentColor()
+    val shadow = widgetTextShadow(ink)
     // Taps must not show a ripple box over the wallpaper (same idiom as the smartspace widget).
     val noIndication = remember { MutableInteractionSource() }
 
@@ -173,7 +173,7 @@ fun NotificationsWidget(
         when {
             !hasAccess -> Text(
                 text = stringResource(R.string.notifications_widget_allow_access),
-                color = widgetContentColor().copy(alpha = 0.85f),
+                color = ink.copy(alpha = 0.85f),
                 style = themedTextStyle(TextStyle(fontSize = (14 * scale).sp, shadow = shadow)),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -207,7 +207,7 @@ fun NotificationsWidget(
                     if (overflow > 0) {
                         Text(
                             text = "+$overflow",
-                            color = widgetContentColor(),
+                            color = ink,
                             style = themedTextStyle(TextStyle(
                                 fontSize = (14 * scale).sp,
                                 fontWeight = FontWeight.Medium,
@@ -255,14 +255,15 @@ private fun NotificationSlot(
             )
         } else {
             // No launcher activity, or the notification prefers its small icon (the Android 17
-            // notification-row rule) — draw that icon, tinted white like the status bar renders it.
+            // notification-row rule). Automatic tints that glyph for the veil it is drawn on.
+            val ink = if (LocalWidgetWallpaper.current != null && !LocalTonalWidgets.current) widgetContentColor() else Color.White
             val bitmap = rememberNotifSmallIcon(slot.notification, iconSize)
             Box(contentAlignment = Alignment.TopEnd) {
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap,
                         contentDescription = slot.notification.packageName,
-                        colorFilter = ColorFilter.tint(Color.White),
+                        colorFilter = ColorFilter.tint(ink),
                         modifier = Modifier.size(iconSize),
                     )
                 } else {
@@ -271,7 +272,7 @@ private fun NotificationSlot(
                     Icon(
                         painter = painterResource(R.drawable.ic_notification_generic),
                         contentDescription = slot.notification.packageName,
-                        tint = Color.White,
+                        tint = ink,
                         modifier = Modifier.size(iconSize),
                     )
                 }

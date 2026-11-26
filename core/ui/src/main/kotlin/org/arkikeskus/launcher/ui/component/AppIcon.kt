@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,6 +46,9 @@ import org.arkikeskus.launcher.ui.LauncherIcons
 import org.arkikeskus.launcher.ui.expressive.LocalExpressivePalette
 import org.arkikeskus.launcher.ui.appLaunchTouch
 import org.arkikeskus.launcher.ui.rememberAppLaunchOrigin
+
+/** A shadow supplied only for labels drawn directly over the wallpaper or its dock plate. */
+val LocalAppLabelShadow = compositionLocalOf<Shadow?> { null }
 
 /**
  * Whether [AppIcon]s under this subtree render as Material You themed (monochrome) icons. Provided per
@@ -302,6 +307,7 @@ fun AppLabel(
     Text(
         text = text,
         color = color,
+        style = LocalTextStyle.current.let { style -> LocalAppLabelShadow.current?.let { style.copy(shadow = it) } ?: style },
         fontSize = with(density) { (11f * scale * factor).dp.toSp() },
         lineHeight = with(density) { line.toSp() },
         minLines = if (reserveLines) maxLines else 1,

@@ -150,8 +150,8 @@ data class HomeBackdrop(
 ) {
     /** The colour behind a card whose centre is [centerY] px down the window (null = not placed yet: the
      *  panel's middle). */
-    fun colorBehind(centerY: Float?): Int =
-        homeBackdropColor(wallpaper, glassOpacity, if (centerY == null || glassOpacity == null) 0.5f else panel.fractionOf(centerY))
+    fun colorBehind(centerY: Float?, baseColor: Int = wallpaper): Int =
+        homeBackdropColor(baseColor, glassOpacity, if (centerY == null || glassOpacity == null) 0.5f else panel.fractionOf(centerY))
 }
 
 val LocalHomeBackdrop = staticCompositionLocalOf { HomeBackdrop() }

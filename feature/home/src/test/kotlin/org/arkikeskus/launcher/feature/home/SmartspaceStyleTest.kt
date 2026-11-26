@@ -37,6 +37,7 @@ import org.arkikeskus.launcher.model.LauncherSettings
 import org.arkikeskus.launcher.model.argbLuminance
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -487,4 +488,24 @@ class SmartspaceStyleTest {
         // Anything else is the standard one.
         assertThat(weatherIconFactor("gigantic")).isEqualTo(1.4f)
     }
+
+    @Test fun automaticWidgetInkLeavesTheClockOnItsShippedVeilUnchanged() {
+        var automatic by mutableStateOf(false)
+        val state = SmartspaceState(hasCalendarPermission = true, nextEvent = null, hasLocationPermission = true,
+            showWeather = true, weather = weather, weatherApp = weatherApp)
+        compose.setContent {
+            val bright = remember { HomeBackdrop(wallpaper = -1) }
+            CompositionLocalProvider(LocalAutomaticWidgetWallpaper provides WallpaperLook(true, -1).takeIf { automatic }, LocalHomeBackdrop provides bright) {
+                Box(Modifier.size(360.dp, 120.dp).background(Color.Gray)) {
+                    SmartspaceContent(state, onRefresh = {}, onOpenWeatherApp = {}, modifier = Modifier.fillMaxSize())
+                }
+            }
+        }
+        val before = brightestClockPixel()
+        assertThat(before).isGreaterThan(0.85f)
+        automatic = true
+        compose.waitForIdle()
+        assertThat(brightestClockPixel()).isWithin(0.01f).of(before)
+    }
+
 }

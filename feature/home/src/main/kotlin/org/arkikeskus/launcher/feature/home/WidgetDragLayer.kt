@@ -47,9 +47,9 @@ internal fun BuiltinWidget(
     onSwitch: (Long) -> Unit, onMissing: () -> Unit,
 ) {
     when (type) {
-        HomeItemEntity.BUILTIN_NOTIFICATIONS -> NotificationsWidget(modifier)
-        HomeItemEntity.BUILTIN_BATTERY -> BatteryWidget(modifier)
-        HomeItemEntity.BUILTIN_PEOPLE -> PeopleWidget(modifier)
+        HomeItemEntity.BUILTIN_NOTIFICATIONS -> WidgetOverWallpaper(modifier) { NotificationsWidget(it) }
+        HomeItemEntity.BUILTIN_BATTERY -> WidgetOverWallpaper(modifier) { BatteryWidget(it) }
+        HomeItemEntity.BUILTIN_PEOPLE -> WidgetOverWallpaper(modifier) { PeopleWidget(it) }
         HomeItemEntity.BUILTIN_SMARTSPACE -> SmartspaceWidget(modifier)
         HomeItemEntity.BUILTIN_PROFILE_SWITCH -> ProfileMonogram(stringResource(R.string.profile_switch_name),
             iconSize, false, labelColor, modifier)

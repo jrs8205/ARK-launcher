@@ -1,6 +1,9 @@
 package org.arkikeskus.launcher.feature.home
 
 import android.app.Application
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
@@ -16,9 +19,11 @@ import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.ViewRootForTest
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -26,13 +31,16 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -41,10 +49,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlin.math.roundToInt
 import kotlinx.coroutines.test.TestScope
 import org.arkikeskus.launcher.launcher.system.BatteryMonitor
+import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.LauncherSettings
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.arkikeskus.launcher.model.WidgetPlacement
 import org.arkikeskus.launcher.ui.HomeDragController
 import org.junit.Rule
@@ -53,6 +64,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * What the home screen draws around a switch of the home profile: nothing of the profile that left, and
@@ -488,4 +500,95 @@ class HomeOfActiveProfileTest {
 
         assertThat(drag.currentPage).isEqualTo(1)
     }
+
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Test fun homePassesAutomaticInkToItsPageDots() {
+        val context: Application = RuntimeEnvironment.getApplication()
+        val wiring = ProductionWiring(context, TestScope(), inMemorySettings = true)
+        val vm = whileTheMainLooperTurns { wiring.homeViewModel() }
+        val glow = ChargeGlowViewModel(BatteryMonitor(context))
+        val present = mutableStateOf(true)
+        val look = mutableStateOf(WallpaperLook(true, -1))
+        fun drawnDot(): Color {
+            val dot = compose.onAllNodesWithTag(PAGE_DOT_TAG, useUnmergedTree = true)[0].fetchSemanticsNode().boundsInWindow.center
+            val window = (compose as AndroidComposeTestRule<*, *>).activity.window.decorView
+            val image = Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888)
+            compose.runOnUiThread { window.draw(Canvas(image)) }
+            return Color(image.getPixel(dot.x.roundToInt(), dot.y.roundToInt()))
+        }
+        try {
+            compose.setContent {
+                val settings = LauncherSettings(automaticHomeLabels = true, homePageMarker = LauncherSettings.MARKER_RING,
+                    defaultReminderDismissed = true)
+                if (present.value) HomeScreen(loaded(1).copy(settings = settings, pageCount = 2), wallpaper = look.value,
+                    onOpenDrawer = {}, onOpenSettings = {}, onManageProfiles = {}, viewModel = vm, chargeGlow = glow,
+                    modifier = Modifier.size(350.dp, 600.dp).background(Color.Gray))
+            }
+            assertThat(drawnDot()).isEqualTo(Color.Black)
+            compose.runOnIdle { look.value = WallpaperLook(false, -1) }
+            assertThat(drawnDot()).isEqualTo(Color.White)
+        } finally {
+            present.value = false
+            compose.waitForIdle()
+            wiring.clear(vm)
+            wiring.close()
+        }
+    }
+
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Test fun gridDockAndFolderLabelsFollowTheWallpaperAndSwitchWithTheirProfile() {
+        val context: Application = RuntimeEnvironment.getApplication()
+        val wiring = ProductionWiring(context, TestScope(), inMemorySettings = true)
+        val vm = whileTheMainLooperTurns { wiring.homeViewModel() }
+        val glow = ChargeGlowViewModel(BatteryMonitor(context))
+        val app = AppItem("test.app", "Main", android.os.Process.myUserHandle(), 0, "Application with a long name that needs two lines on home")
+        val settings = LauncherSettings(automaticHomeLabels = true, appLabelTextScale = 0.8f,
+            twoLineHomeLabels = true, showDockLabels = true, defaultReminderDismissed = true, dockBackgroundOpacity = 0.8f)
+        val frame = mutableStateOf(loaded(1).copy(settings = settings,
+            entries = listOf(PlacedApp(app, 0, 0, 0), PlacedFolder(10, "Grid folder", emptyList(), 0, 1, 0)),
+            dockEntries = listOf(DockApp(21, app.copy(label = "Dock app")),
+                DockFolder(PlacedFolder(22, "Dock folder", emptyList(), DOCK_PAGE, 1, 0)))))
+        val look = mutableStateOf(WallpaperLook(true, -1))
+        val present = mutableStateOf(true)
+        fun label(name: String): TextLayoutResult {
+            val node = compose.onNodeWithText(name, useUnmergedTree = true).fetchSemanticsNode()
+            val layouts = mutableListOf<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action!!.invoke(layouts)
+            return layouts.single()
+        }
+        fun checkInk(name: String, expected: Color, automatic: Boolean) {
+            val style = label(name).layoutInput.style
+            assertThat(style.color).isEqualTo(expected)
+            if (automatic) {
+                val shadow = checkNotNull(style.shadow)
+                assertThat(shadow.color.copy(alpha = 1f)).isEqualTo(if (expected == Color.Black) Color.White else Color.Black)
+                assertThat(shadow.blurRadius).isGreaterThan(0f)
+            } else assertThat(style.shadow).isNull()
+        }
+        try {
+            compose.setContent {
+                if (present.value) HomeScreen(frame.value, wallpaper = look.value, onOpenDrawer = {}, onOpenSettings = {},
+                    onManageProfiles = {}, modifier = Modifier.size(350.dp, 600.dp), viewModel = vm, chargeGlow = glow)
+            }
+            checkInk(app.label, Color.Black, true)
+            assertThat(label(app.label).lineCount).isEqualTo(2)
+            checkInk("Grid folder", Color.Black, true)
+            checkInk("Dock app", Color.White, true)
+            checkInk("Dock folder", Color.White, true)
+            look.value = WallpaperLook(false, 0xfff5f5f5.toInt())
+            frame.value = frame.value.copy(settings = settings.copy(dockBackgroundOpacity = 0.35f))
+            checkInk(app.label, Color.White, true)
+            checkInk("Dock app", Color.White, true)
+            val red = 0xffef5350.toInt()
+            frame.value = frame.value.copy(homeProfileId = 2, settings = settings.copy(homeProfileId = 2,
+                automaticHomeLabels = false, appLabelColor = red))
+            for (name in listOf(app.label, "Grid folder", "Dock app", "Dock folder")) checkInk(name, Color(red), false)
+        } finally {
+            present.value = false
+            compose.waitForIdle()
+            wiring.clear(vm)
+            wiring.close()
+        }
+    }
+
 }

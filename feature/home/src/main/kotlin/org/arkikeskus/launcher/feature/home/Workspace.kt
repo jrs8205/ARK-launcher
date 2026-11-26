@@ -169,6 +169,7 @@ internal fun Workspace(
     showFolderNames: Boolean = true,
     labelColor: Color = Color.White,
     showPageIndicator: Boolean,
+    pageIndicatorInk: Color = Color.White,
     homePageMarker: String = LauncherSettings.MARKER_RING,
     /** Swiping on from the last page continues to the first, and back from the first to the last
      *  (see WorkspaceWrap.kt). Off: the last page bounces back from the empty drop page. */
@@ -1788,6 +1789,7 @@ internal fun Workspace(
                     current = dotForPagerPage(pagerState.currentPage, pageCount, tailCopy),
                     home = homeIndex,
                     homeMarker = homePageMarker,
+                    ink = pageIndicatorInk,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = PAGE_DOTS_PADDING),
@@ -2193,6 +2195,7 @@ internal fun PageDots(
     home: Int,
     homeMarker: String,
     modifier: Modifier = Modifier,
+    ink: Color = Color.White,
 ) {
     Row(
         modifier = modifier,
@@ -2200,20 +2203,21 @@ internal fun PageDots(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         repeat(count) { index ->
-            val color = if (index == current) Color.White else Color.White.copy(alpha = 0.4f)
+            val color = if (index == current) ink else ink.copy(alpha = 0.4f)
+            val halo = if (ink == Color.Black) Color.White else Color.Black
             val isHome = index == home
             if (isHome && homeMarker == LauncherSettings.MARKER_HOUSE) {
                 Icon(
                     painter = painterResource(LauncherIcons.Home),
                     contentDescription = null,
                     tint = color,
-                    modifier = Modifier.size(PAGE_DOT_HOUSE_SIZE).pageDotHalo().testTag(PAGE_DOT_HOUSE_TAG),
+                    modifier = Modifier.size(PAGE_DOT_HOUSE_SIZE).pageDotHalo(halo).testTag(PAGE_DOT_HOUSE_TAG),
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .size(if (isHome) PAGE_DOT_HOME_SIZE else PAGE_DOT_SIZE)
-                        .pageDotHalo()
+                        .pageDotHalo(halo)
                         .then(if (isHome) Modifier.border(1.5.dp, color, CircleShape).padding(2.dp) else Modifier)
                         .background(color = color, shape = CircleShape)
                         .testTag(PAGE_DOT_TAG),
@@ -2223,13 +2227,12 @@ internal fun PageDots(
     }
 }
 
-/** A soft dark halo behind a page dot or the house, so the white markers read on a light wallpaper
- *  too — the page-dot twin of the widgets' text shadow. On a dark wallpaper it melts into it. */
-private fun Modifier.pageDotHalo(): Modifier = drawBehind {
+/** A soft halo opposite the marker's ink so it stays visible across a patchy wallpaper. */
+private fun Modifier.pageDotHalo(halo: Color): Modifier = drawBehind {
     val radius = size.minDimension / 2f + PAGE_DOT_HALO_EXTRA.toPx()
     drawCircle(
         brush = Brush.radialGradient(
-            0f to Color.Black.copy(alpha = PAGE_DOT_HALO_ALPHA),
+            0f to halo.copy(alpha = PAGE_DOT_HALO_ALPHA),
             1f to Color.Transparent,
             center = center,
             radius = radius,

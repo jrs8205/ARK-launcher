@@ -42,6 +42,7 @@ import org.arkikeskus.launcher.data.HomeLayoutRepository
 import org.arkikeskus.launcher.data.IconPackRepository
 import org.arkikeskus.launcher.data.AppLabelCache
 import org.arkikeskus.launcher.data.LauncherAppsSource
+import org.arkikeskus.launcher.data.NewInstallPreferences
 import org.arkikeskus.launcher.data.RoomAppLabelStore
 import org.arkikeskus.launcher.data.local.AppLabelDao
 import org.arkikeskus.launcher.data.NotificationBadgeRepository
@@ -88,6 +89,8 @@ internal class ProductionWiring(
      *  is then a later start of the same launcher. None: a launcher that starts for the first time. */
     settingsOn: File? = null,
     inMemorySettings: Boolean = false,
+    /** Runs before a changed settings value is written, including the first write by an eager reader. */
+    @Volatile var beforeSettingsFileWrite: (() -> Unit)? = null,
 ) {
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -113,16 +116,7 @@ internal class ProductionWiring(
      */
     fun holdTheNextReadOfTheSettings(): HeldRead = HeldRead().also { nextRead.set(it) }
 
-    private val preferences = if (inMemorySettings) {
-        InMemoryPreferences()
-    } else {
-        PreferenceDataStoreFactory.create(scope = dataStoreScope) { settingsOnDisk }
-    }
-
-    /** Runs after a settings change is calculated, before DataStore writes its scratch file. */
-    var beforeSettingsFileWrite: (() -> Unit)? = null
-
-    private val settingsFile = object : DataStore<Preferences> by preferences {
+    private fun observed(preferences: DataStore<Preferences>) = object : DataStore<Preferences> by preferences {
         override val data: Flow<Preferences> = flow {
             nextRead.getAndSet(null)?.hold()
             emitAll(preferences.data)
@@ -134,6 +128,14 @@ internal class ProductionWiring(
                 if (next != old) beforeSettingsFileWrite?.invoke()
                 next
             }
+    }
+
+    private val settingsFile = if (inMemorySettings) {
+        observed(InMemoryPreferences())
+    } else {
+        NewInstallPreferences(dataStoreScope, { !settingsOnDisk.exists() }) { owner ->
+            observed(PreferenceDataStoreFactory.create(scope = owner) { settingsOnDisk })
+        }
     }
     private val profileFiles = if (inMemorySettings) InMemoryHomeProfileFiles() else DiskHomeProfileFiles(context, dataStoreScope)
     private val dataStore = ProfiledPreferences(settingsFile, profileFiles)

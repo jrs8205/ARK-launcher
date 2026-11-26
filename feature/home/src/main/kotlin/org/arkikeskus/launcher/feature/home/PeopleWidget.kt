@@ -538,7 +538,7 @@ private fun freshness(ageMs: Long): Float {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PersonTile(
+internal fun PersonTile(
     tile: PeopleWidgetViewModel.Tile,
     privacy: String,
     now: Long,
@@ -555,8 +555,12 @@ private fun PersonTile(
     val liveFg = MaterialTheme.colorScheme.onPrimaryContainer
     // A tile whose messages wait for the batch stays quiet-colored: nothing is asking for you yet.
     val strength = if (tile.hasContent && !tile.held) freshness(now - tile.postTime) else 0f
-    val bg by animateColorAsState(lerp(quietBg, liveBg, strength), label = "tileBg")
-    val fg by animateColorAsState(lerp(quietFg, liveFg, strength), label = "tileFg")
+    val targetBg = lerp(quietBg, liveBg, strength)
+    val wallpaper = LocalWidgetWallpaper.current
+    val targetFg = if (wallpaper != null && targetBg.alpha < 1f) wallpaper.inkOn(targetBg) else lerp(quietFg, liveFg, strength)
+    val bg by animateColorAsState(targetBg, label = "tileBg")
+    val fg by animateColorAsState(targetFg, label = "tileFg")
+    val avatarInk = if (wallpaper != null) fg else widgetContentColor()
     val shape = RoundedCornerShape(20.dp)
     // An old-but-unread tile keeps a thin border in the full color, so "pale" still reads as "new".
     val outlined = tile.hasContent && strength < 0.6f
@@ -622,7 +626,7 @@ private fun PersonTile(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Box(contentAlignment = Alignment.TopEnd) {
-                    Avatar(tile, hideName, 32.dp)
+                    Avatar(tile, hideName, 32.dp, avatarInk)
                     NotificationBadge(count = tile.count, showCount = true, scale = 0.9f)
                 }
                 Spacer(Modifier.height(6.dp))
@@ -634,7 +638,7 @@ private fun PersonTile(
         } else {
             Column(Modifier.fillMaxSize()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(tile, hideName, 26.dp)
+                    Avatar(tile, hideName, 26.dp, avatarInk)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = shownName, color = fg, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
@@ -672,7 +676,10 @@ private fun PersonTile(
 }
 
 @Composable
-private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: Dp) {
+private fun Avatar(
+    tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: Dp,
+    ink: Color = if (LocalTonalWidgets.current) MaterialTheme.colorScheme.onSurface else Color.White,
+) {
     val app = tile.app
     val isMail = tile.live?.newest?.kind == PersonEventKind.EMAIL
     if (tile.isApp && app != null) {
@@ -680,17 +687,17 @@ private fun Avatar(tile: PeopleWidgetViewModel.Tile, anonymous: Boolean, size: D
     } else if (tile.isApp) {
         Icon(
             painter = painterResource(R.drawable.ic_notification_generic), contentDescription = null,
-            tint = widgetContentColor(), modifier = Modifier.size(size),
+            tint = ink, modifier = Modifier.size(size),
         )
     } else if (isMail && app != null && tile.photoUri == null) {
         // A mail sender is rarely a contact with a photo; the mail app's icon says more than an initial.
         AppIcon(appItem = app, labelColor = Color.White, showLabel = false, iconSize = size, badgeCount = 0, badgeShowCount = false)
     } else if (anonymous) {
         Box(
-            modifier = Modifier.size(size).clip(RoundedCornerShape(50)).background(widgetContentColor().copy(alpha = 0.2f)),
+            modifier = Modifier.size(size).clip(RoundedCornerShape(50)).background(ink.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(painterResource(LauncherIcons.Message), null, Modifier.size(size * 0.55f), tint = widgetContentColor())
+            Icon(painterResource(LauncherIcons.Message), null, Modifier.size(size * 0.55f), tint = ink)
         }
     } else {
         // The person's avatar — the contact photo, else the picture the notification carried

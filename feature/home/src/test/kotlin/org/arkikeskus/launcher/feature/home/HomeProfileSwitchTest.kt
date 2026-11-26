@@ -18,6 +18,7 @@ import org.arkikeskus.launcher.data.local.HomeItemEntity
 import org.arkikeskus.launcher.data.profile.HomeProfileRepository
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.CustomIcon
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -526,4 +527,90 @@ class HomeProfileSwitchTest {
             wiring.close()
         }
     }
+
+    @Test fun firstInstallAndEmptyProfilesUseAutomaticAndCopiesKeepTheSource() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val repo = wiring.settingsRepository
+            suspend fun profile(source: Long?): Long =
+                (wiring.homeProfiles.create("Other", source) as HomeProfileRepository.Created.Done).profile.id
+            assertThat(repo.settings.first().automaticHomeLabels).isTrue()
+            repo.setAppLabelColor(0xff42a5f5.toInt())
+            val fixedCopy = profile(1)
+            val empty = profile(null)
+            wiring.homeProfiles.switchTo(empty)
+            assertThat(repo.settings.first().automaticHomeLabels).isTrue()
+            val automaticCopy = profile(empty)
+            wiring.homeProfiles.switchTo(fixedCopy)
+            assertThat(repo.settings.first().automaticHomeLabels).isFalse()
+            assertThat(repo.settings.first().appLabelColor).isEqualTo(0xff42a5f5.toInt())
+            wiring.homeProfiles.switchTo(automaticCopy)
+            assertThat(repo.settings.first().automaticHomeLabels).isTrue()
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
+    @Test fun aFailedInitialWriteStillShowsTheOriginalOpaqueWhite() = runTest {
+        var refused = 0
+        val wiring = ProductionWiring(context, this, beforeSettingsFileWrite = {
+            refused++
+            throw java.io.IOException("disk full")
+        })
+        try {
+            val shown = wiring.settingsRepository.settings.first()
+            assertThat(shown.automaticHomeLabels).isFalse()
+            assertThat(shown.appLabelColor).isEqualTo(-1)
+            assertThat(refused).isEqualTo(1)
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
+    @Test fun backupsKeepAutomaticAndItsSwatchButGiveAnOldReaderOpaqueWhite() = runTest {
+        val wiring = ProductionWiring(context, this)
+        try {
+            val repo = wiring.settingsRepository
+            repo.setAppLabelColor(0xff000000.toInt())
+            repo.setAppLabelColor(null)
+            assertThat(repo.settings.first().appLabelColor).isEqualTo(0xff000000.toInt())
+            val backup = repo.exportRaw()
+            // 1.3.0 only looks at this integer and reads white in its absence.
+            assertThat((backup["app_label_color"] as? Number)?.toInt() ?: -1).isEqualTo(-1)
+            repo.importRaw(backup)
+            assertThat(repo.settings.first().automaticHomeLabels).isTrue()
+            assertThat(repo.settings.first().appLabelColor).isEqualTo(0xff000000.toInt())
+            for (old in listOf(emptyMap(), mapOf("app_label_color" to 0xff42a5f5.toInt()))) {
+                repo.setAppLabelColor(null)
+                repo.importRaw(old)
+                assertThat(repo.settings.first().automaticHomeLabels).isFalse()
+                assertThat(repo.settings.first().appLabelColor).isEqualTo(old["app_label_color"] ?: -1)
+            }
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+    }
+
+
+    @Test fun theCachedWallpaperSurvivesRestartAndCannotTravelInABackup() = runTest {
+        val wiring = ProductionWiring(context, this)
+        val file = wiring.settingsOnDisk
+        val look = WallpaperLook(true, 0xffeeeecc.toInt())
+        try {
+            val repo = wiring.settingsRepository
+            repo.setLastHomeWallpaper(look)
+            val backup = repo.exportRaw()
+            assertThat(backup.keys).containsNoneOf("home_wallpaper_dark_text", "home_wallpaper_argb")
+            repo.importRaw(backup + mapOf("home_wallpaper_dark_text" to false, "home_wallpaper_argb" to -1))
+        } finally {
+            wiring.closeAndLetGoOfTheFiles()
+        }
+        val restarted = ProductionWiring(context, this, settingsOn = file)
+        try {
+            assertThat(restarted.settingsRepository.settings.first().lastHomeWallpaper).isEqualTo(look)
+        } finally {
+            restarted.closeAndLetGoOfTheFiles()
+        }
+    }
+
 }

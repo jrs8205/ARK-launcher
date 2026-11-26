@@ -90,6 +90,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import org.arkikeskus.launcher.data.PendingWidgetIds
 import org.arkikeskus.launcher.data.sweepHostIds
 import org.arkikeskus.launcher.data.local.HomeItemEntity
+import org.arkikeskus.launcher.model.WallpaperLook
 import org.arkikeskus.launcher.model.WidgetPlacement
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -98,6 +99,7 @@ import kotlinx.coroutines.withContext
 import org.arkikeskus.launcher.model.AppItem
 import org.arkikeskus.launcher.model.HomeProfile
 import org.arkikeskus.launcher.model.folderStyle
+import org.arkikeskus.launcher.model.glassTint
 import org.arkikeskus.launcher.ui.DefaultLauncher
 import org.arkikeskus.launcher.ui.DismissWhenDragMoves
 import org.arkikeskus.launcher.ui.DockTarget
@@ -185,6 +187,7 @@ fun HomeScreen(
     onShowWidgetsHandled: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     chargeGlow: ChargeGlowViewModel = hiltViewModel(),
+    wallpaper: WallpaperLook = WallpaperLook(),
 ) {
     // The system (and the startup benchmarks) learn when home is really up: its rows loaded.
     HomeDrawnReporter(loaded = uiState?.loaded == true)
@@ -195,6 +198,7 @@ fun HomeScreen(
         HomeScreenOfProfile(
             profile = profile,
             uiState = shown,
+            wallpaper = wallpaper,
             onOpenDrawer = onOpenDrawer,
             onOpenSettings = onOpenSettings,
             onManageProfiles = onManageProfiles,
@@ -226,6 +230,7 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreenOfProfile(
+    wallpaper: WallpaperLook,
     profile: Long,
     uiState: HomeUiState,
     onOpenDrawer: () -> Unit,
@@ -664,10 +669,18 @@ private fun HomeScreenOfProfile(
     val glassOpacity = if (settings.homeGlassPanel) settings.homeGlassOpacity else null
     val homeBackdrop = remember(wallpaperColor, glassOpacity) { HomeBackdrop(wallpaperColor, glassOpacity, glassPanelBounds) }
 
+    val auto = settings.automaticHomeLabels
+    val glass = glassOpacity?.let(::glassTint)
+    val gridInk = homeLabelColor(settings, wallpaper, glass?.top ?: 0f)
+    val dockPlate = settings.dockBackgroundOpacity
+    val dockInk = if (dockPlate <= 0f) gridInk else homeLabelColor(settings, wallpaper, glass?.bottom ?: 0f, dockPlate)
+    val widgetWallpaper = wallpaper.takeIf { auto && !settings.widgetTonalBackground }
+
     // All app icons on home (workspace, dock, folders) honour the themed-icons setting and the
     // user's app-label text-size multiplier.
     CompositionLocalProvider(
         LocalTonalWidgets provides settings.widgetTonalBackground,
+        LocalAutomaticWidgetWallpaper provides widgetWallpaper,
         LocalSmartspaceStyle provides settings.smartspaceStyle(),
         LocalHomeBackdrop provides homeBackdrop,
         LocalThemedIcons provides settings.useThemedIcons,
@@ -786,7 +799,7 @@ private fun HomeScreenOfProfile(
                 )
             }
             val lockNeedsServiceMsg = stringResource(R.string.double_tap_lock_needs_service)
-            Workspace(
+            WallpaperLabels(gridInk, auto) { Workspace(
                 profiles = profiles,
                 onSwitchProfile = { viewModel.switchFromHome(profile, it) },
                 onMissingProfile = { widgetMessage(R.string.profile_switch_missing) },
@@ -799,8 +812,9 @@ private fun HomeScreenOfProfile(
                 badgeScale = badgeScale,
                 showLabels = settings.showHomeLabels,
                 showFolderNames = settings.showHomeFolderNames,
-                labelColor = Color(settings.appLabelColor),
+                labelColor = gridInk,
                 showPageIndicator = settings.showPageIndicator,
+                pageIndicatorInk = if (auto) gridInk else Color.White,
                 widgetEdgesAlignWithIcons = settings.widgetEdgesAlignWithIcons,
                 homePageMarker = settings.homePageMarker,
                 infiniteScroll = settings.infiniteScroll,
@@ -886,19 +900,19 @@ private fun HomeScreenOfProfile(
                     .weight(1f)
                     .fillMaxWidth()
                     .homeWorkspacePadding(settings.showStatusBar, dockShown = settings.dockEnabled),
-            )
+            ) }
 
             // Show the dock whenever it's enabled — even with no favorites yet — so a fresh install
             // can be populated by dragging apps onto it (there is no "add to dock" menu item).
             if (settings.dockEnabled) {
-                Dock(
+                WallpaperLabels(dockInk, auto) { Dock(
                     entries = uiState.dockEntries,
                     badges = badges,
                     badgeShowCount = badgeShowCount,
                     badgeScale = badgeScale,
                     showLabels = settings.showDockLabels,
                     showFolderNames = settings.showHomeFolderNames,
-                    labelColor = Color(settings.appLabelColor),
+                    labelColor = dockInk,
                     backgroundAlpha = settings.dockBackgroundOpacity,
                     locked = settings.desktopLocked,
                     dragController = dragController,
@@ -919,7 +933,7 @@ private fun HomeScreenOfProfile(
                     modifier = Modifier
                         .fillMaxWidth()
                         .homeDockPadding(bottomSpacing = settings.dockBottomSpacing.dp),
-                )
+                ) }
             }
         }
 
@@ -935,7 +949,7 @@ private fun HomeScreenOfProfile(
                     ?: uiState.entries.filterIsInstance<PlacedFolder>().firstOrNull { it.id == id }
             }
         if (liftedDockFolder != null) {
-            LiftedFolderImage(
+            WallpaperLabels(gridInk, auto) { LiftedFolderImage(
                 folder = liftedDockFolder,
                 finger = { dragController.rootPosition - homeOrigin },
                 iconScale = settings.iconScale,
@@ -944,8 +958,8 @@ private fun HomeScreenOfProfile(
                 // The copy looks like the tile it left: with its label on home, without in the dock.
                 showLabel = liftedFolderSource == DragSource.Home && settings.showHomeLabels,
                 showName = settings.showHomeFolderNames,
-                labelColor = Color(settings.appLabelColor),
-            )
+                labelColor = gridInk,
+            ) }
         }
 
         // The charging animation's glow: over the home surfaces, under the open folder's card.
