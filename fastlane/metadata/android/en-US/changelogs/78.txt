@@ -1,0 +1,9 @@
+New
+- Automatic label colour: the home screen's texts follow the wallpaper, dark on a light one and light on a dark one (Settings > Icons). A new install starts with it.
+- Switch profile from the home screen: a one-cell "Switch profile" widget, or Profiles in the home menu.
+
+Fixed
+- A setting that cannot be saved (full storage) no longer closes the launcher.
+- The clock widget's date line is centred.
+- A backup file is named after its profile.
+- Small fixes in search, place names and Settings.
