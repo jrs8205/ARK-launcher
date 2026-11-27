@@ -108,7 +108,7 @@ internal fun smartspaceSurface(style: SmartspaceStyle, default: Color, tonal: Bo
  * own solid surface ([tonal]) or the dark veil exactly as it has always been (its shipped opacity): the
  * [default] text it has always had. The veil at an opacity of the user's is a card like any other -- black
  * at that opacity over the wallpaper -- and goes by the same contrast: turned down to nothing over a light
- * wallpaper it needs dark text (the short layout has no text shadow to fall back on).
+ * wallpaper it needs dark text.
  */
 internal fun smartspaceInk(style: SmartspaceStyle, default: Color, wallpaper: Int, tonal: Boolean = false): Color {
     val veilAsShipped = abs(style.backgroundOpacity - LauncherSettings.DEFAULT_SMARTSPACE_BACKGROUND) < 0.005f
@@ -323,7 +323,7 @@ internal fun weatherIconFactor(size: String): Float = when (size) {
 
 /** The emoji as an icon of its own beside the text, as a multiple of the line's font size: the drawn icon's
  *  side less the room an emoji's glyph leaves around itself. */
-private fun weatherEmojiFactor(size: String): Float = weatherIconFactor(size) * 0.85f
+internal fun weatherEmojiFactor(size: String): Float = weatherIconFactor(size) * 0.85f
 
 /**
  * The weather icon beside the temperature whenever it is not the standard emoji in the text: the emoji

@@ -17,19 +17,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.Layout
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.layout.boundsInRoot
@@ -46,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -56,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -256,7 +261,7 @@ internal fun SmartspaceContent(
         color = if (LocalTonalWidgets.current || ink == Color.Black) Color.Transparent else Color.Black.copy(alpha = 0.55f),
         blurRadius = 8f,
     )
-    // Taps must not show a ripple box over the wallpaper — the widget has no background surface.
+    // The widget lines share a ripple-free tap indication over the wallpaper.
     val noIndication = remember { MutableInteractionSource() }
 
     // Centered like the Pixel lock-screen clock — the widget is seeded full-width, so centering
@@ -269,62 +274,50 @@ internal fun SmartspaceContent(
         modifier = if (backdrop.glassOpacity == null) modifier else modifier.onGloballyPositioned { centerY = it.boundsInRoot().center.y },
         contentAlignment = Alignment.Center,
     ) {
-    // A short widget changes layout instead of shrinking every label into unreadable text.
+    val openCalendarDay = {
+        val uri = CalendarContract.CONTENT_URI.buildUpon()
+            .appendPath("time").appendPath(now.toString()).build()
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
+        Unit
+    }
+    val openAlarms = {
+        openClockApp(context)
+        Unit
+    }
+    // At one grid row the clock stays above the date and one optional detail, all centred.
     if (maxHeight < 140.dp) {
-        // Its two lines share the footprint's height left after the card padding; each is a touch
-        // target up to TOUCH_TARGET tall when there is room (see the taller layouts below).
-        val lineMin = ((maxHeight - 24.dp) / 2).coerceIn(0.dp, TOUCH_TARGET)
-        WidgetSurface(Modifier.fillMaxWidth(), color = surface, contentColor = ink) {
-            Row(Modifier.padding(12.dp).height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // The clock's hit area spans both lines.
-                TapTarget(minHeight = 0.dp, fillWidth = false, ripple = true, modifier = Modifier.fillMaxHeight(), onTap = {
-                    openClockApp(context)
-                }) {
-                    Text(timeText, color = ink, style = MaterialTheme.typography.headlineMedium.scaledBy(look.textScale), maxLines = 1,
-                        modifier = Modifier.testTag(SMARTSPACE_CLOCK_TAG))
+        val detail = when {
+            !hasPermission -> stringResource(R.string.smartspace_allow_calendar)
+            nextEvent != null -> nextEvent.title.ifBlank { stringResource(R.string.smartspace_no_title) }
+            else -> null
+        }
+        val detailTap: (() -> Unit)? = when {
+            !hasPermission -> ({ permissionLauncher.launch(Manifest.permission.READ_CALENDAR) })
+            nextEvent != null -> ({
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW,
+                        ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, nextEvent.eventId))
+                        .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, nextEvent.begin)
+                        .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, nextEvent.end))
                 }
-                Column(Modifier.weight(1f)) {
-                    TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = {
-                        val uri = CalendarContract.CONTENT_URI.buildUpon()
-                            .appendPath("time").appendPath(now.toString()).build()
-                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-                    }) {
-                        Text(dateText, color = ink, style = MaterialTheme.typography.bodySmall.scaledBy(look.textScale),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    val event = nextEvent
-                    val detail = when {
-                        !hasPermission -> stringResource(R.string.smartspace_allow_calendar)
-                        event != null -> event.title.ifBlank { stringResource(R.string.smartspace_no_title) }
-                        weather != null -> "" // drawn by WeatherLine below
-                        else -> null
-                    }
-                    // Only a line that does something gets a click action: a disabled clickable
-                    // would still announce itself as a (disabled) control.
-                    val detailTap: (() -> Unit)? = when {
-                        !hasPermission -> ({ permissionLauncher.launch(Manifest.permission.READ_CALENDAR) })
-                        event != null -> ({
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW,
-                                    ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.eventId))
-                                    .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, event.begin)
-                                    .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, event.end))
-                            }
-                        })
-                        weather != null && weatherApp != null -> onOpenWeatherApp
-                        else -> null
-                    }
-                    if (detail != null) TapTarget(minHeight = lineMin, alignment = Alignment.CenterStart, ripple = true, onTap = detailTap) {
-                        val detailStyle = MaterialTheme.typography.bodySmall.scaledBy(look.textScale)
-                        if (hasPermission && event == null && weather != null) {
-                            WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, iconSize = look.weatherIconSize, color = ink.copy(alpha = 0.85f), textStyle = detailStyle)
-                        } else {
-                            Text(detail, color = ink.copy(alpha = 0.85f), style = detailStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
+            })
+            weatherApp != null -> onOpenWeatherApp
+            else -> null
+        }
+        // Each row already owns all the space up to its neighbours. An expanded touch target
+        // can cover the next row's text and remove it from Android's accessibility tree.
+        val inherited = LocalViewConfiguration.current
+        val rowConfiguration = remember(inherited) {
+            object : ViewConfiguration by inherited {
+                override val minimumTouchTargetSize = DpSize.Zero
             }
+        }
+        CompositionLocalProvider(LocalViewConfiguration provides rowConfiguration) {
+            ShortWidgetLines(
+                time = timeText, date = dateText, detail = detail, weather = if (detail == null) weather else null,
+                look = look, ink = ink, surface = surface, shadow = shadow, openAlarms = openAlarms,
+                openDay = openCalendarDay, detailTap = detailTap, noIndication = noIndication,
+            )
         }
         return@BoxWithConstraints
     }
@@ -353,16 +346,6 @@ internal fun SmartspaceContent(
         }
     } else {
         null
-    }
-    val openCalendarDay = {
-        val uri = CalendarContract.CONTENT_URI.buildUpon()
-            .appendPath("time").appendPath(now.toString()).build()
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-        Unit
-    }
-    val openAlarms = {
-        openClockApp(context)
-        Unit
     }
     // The weather line opens the chosen app only while that app resolves; otherwise it is plain text.
     val openWeather: (() -> Unit)? = if (weatherApp != null) onOpenWeatherApp else null
@@ -586,6 +569,9 @@ private const val DATE_FLAGS = DateUtils.FORMAT_SHOW_WEEKDAY or DateUtils.FORMAT
 private fun TextStyle.scaledBy(scale: Float): TextStyle =
     if (scale == 1f) this else copy(fontSize = fontSize * scale, lineHeight = lineHeight * scale)
 
+private fun hasInlineWeatherIcon(style: String, size: String) =
+    style == LauncherSettings.WEATHER_ICON_EMOJI && size == LauncherSettings.WEATHER_SIZE_STANDARD
+
 /**
  * The weather line: the temperature, the weather's icon and, [withCity], the place. With the standard
  * icon at the standard size it is the one text it has always been (the emoji in the text); every other
@@ -597,7 +583,7 @@ private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String,
     val city = if (withCity) w.city else null
     // In the unit the phone's region uses; the degree sign alone, as before.
     val temperature = "${shownTemperature(w.temperatureC, weatherInFahrenheit())}°"
-    if (iconStyle == LauncherSettings.WEATHER_ICON_EMOJI && iconSize == LauncherSettings.WEATHER_SIZE_STANDARD) {
+    if (hasInlineWeatherIcon(iconStyle, iconSize)) {
         Text(
             text = "$temperature ${WeatherCodes.emoji(w.weatherCode, w.isDay)}" + city?.let { " $it" }.orEmpty(),
             color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -611,6 +597,72 @@ private fun WeatherLine(w: CurrentWeather, withCity: Boolean, iconStyle: String,
         if (city != null) {
             Spacer(Modifier.width(4.dp))
             Text(city, color = color, style = textStyle, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        }
+    }
+}
+
+/** Measure before composing the rows: a line left out has neither a touch target nor accessibility text. */
+@Composable
+private fun BoxWithConstraintsScope.ShortWidgetLines(
+    time: String, date: String, detail: String?, weather: CurrentWeather?, look: SmartspaceStyle,
+    ink: Color, surface: Color, shadow: Shadow, openAlarms: () -> Unit, openDay: () -> Unit,
+    detailTap: (() -> Unit)?, noIndication: MutableInteractionSource,
+) {
+    val density = LocalDensity.current
+    val scale = 0.9f * look.textScale
+    val side = (22 * scale).dp
+    val clockStyle = MaterialTheme.typography.headlineMedium.scaledBy(look.textScale).copy(shadow = shadow)
+    val bodyStyle = MaterialTheme.typography.bodySmall.scaledBy(look.textScale).copy(shadow = shadow)
+    val measurer = rememberTextMeasurer()
+    val width = (constraints.maxWidth - 2 * with(density) { side.roundToPx() }).coerceAtLeast(0)
+    fun textHeight(text: String, style: TextStyle) = measurer.measure(
+        text, style, maxLines = 1, overflow = TextOverflow.Ellipsis, constraints = Constraints(maxWidth = width),
+    ).size.height
+    val natural = mutableListOf(textHeight(time, clockStyle), textHeight(date, bodyStyle))
+    if (detail != null) {
+        natural += textHeight(detail, bodyStyle)
+    } else if (weather != null) {
+        val temp = "${shownTemperature(weather.temperatureC, weatherInFahrenheit())}°"
+        val emoji = WeatherCodes.emoji(weather.weatherCode, weather.isDay)
+        val lineHeight = if (hasInlineWeatherIcon(look.weatherIcon, look.weatherIconSize)) {
+            textHeight("$temp $emoji", bodyStyle)
+        } else {
+            val fontSize = bodyStyle.fontSize
+            val iconHeight = if (look.weatherIcon == LauncherSettings.WEATHER_ICON_EMOJI) {
+                val emojiStyle = themedTextStyle(TextStyle(fontSize = fontSize * weatherEmojiFactor(look.weatherIconSize)))
+                measurer.measure(emoji, emojiStyle, maxLines = 1).size.height
+            } else with(density) { (fontSize * weatherIconFactor(look.weatherIconSize)).roundToPx() }
+            maxOf(textHeight(temp, bodyStyle), iconHeight)
+        }
+        natural += lineHeight
+    }
+    // Keep a lone clock even when it needs the padding, down to its very last pixel.
+    val height = constraints.maxHeight
+    if (natural.first() > height) return
+    val leastPadding = with(density) { 4.dp.roundToPx() }
+    while (natural.size > 1 && natural.sum() + 2 * leastPadding > height) natural.removeAt(natural.lastIndex)
+    val pad = minOf(with(density) { (10 * scale).dp.roundToPx() }, (height - natural.sum()) / 2)
+    val heights = budgetedLineHeights(natural, height - 2 * pad, with(density) { TOUCH_TARGET.roundToPx() })
+    Column(
+        Modifier.width(IntrinsicSize.Max).clipToBounds()
+            .background(surface, RoundedCornerShape(24.dp))
+            .padding(horizontal = side, vertical = with(density) { pad.toDp() }),
+    ) {
+        fun row(index: Int) = Modifier.height(with(density) { heights[index].toDp() })
+        TapTarget(openAlarms, row(0), interactionSource = noIndication) {
+            Text(time, color = ink, style = clockStyle, maxLines = 1, modifier = Modifier.testTag(SMARTSPACE_CLOCK_TAG))
+        }
+        if (heights.size >= 2) TapTarget(openDay, row(1), interactionSource = noIndication) {
+            Text(date, color = ink, style = bodyStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (heights.size == 3) TapTarget(detailTap, row(2), interactionSource = noIndication) {
+            val detailInk = ink.copy(alpha = 0.85f)
+            if (weather != null) {
+                WeatherLine(weather, withCity = false, iconStyle = look.weatherIcon, iconSize = look.weatherIconSize,
+                    color = detailInk, textStyle = bodyStyle)
+            } else {
+                Text(detail.orEmpty(), color = detailInk, style = bodyStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -689,39 +741,23 @@ private data class LineGap(val gap: Dp) : ParentDataModifier {
     override fun Density.modifyParentData(parentData: Any?): Any = this@LineGap
 }
 
-/**
- * A tappable line of the widget. Its hit area is at least [minHeight] tall (or, with [fillHeight],
- * as tall as its parent lets it be) with the content centred ([alignment]) in it and, with
- * [fillWidth], as wide as the card, so a small label is as easy to hit as a button. Without
- * [onTap] it is plain content with no click action. [ripple] keeps the default indication (the
- * short layout on its surface); the wallpaper layouts pass their shared no-indication
- * [interactionSource] instead.
- */
+/** A card-wide line by default. Merged items share its width and can fill its height.
+ * Content is centred and has a ripple-free click action only when [onTap] is present. */
 @Composable
 private fun TapTarget(
     onTap: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    minHeight: Dp = 0.dp,
     fillWidth: Boolean = true,
     fillHeight: Boolean = false,
-    alignment: Alignment = Alignment.Center,
-    ripple: Boolean = false,
-    interactionSource: MutableInteractionSource? = null,
+    interactionSource: MutableInteractionSource,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier
             .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
             .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
-            .heightIn(min = minHeight)
-            .then(
-                when {
-                    onTap == null -> Modifier
-                    ripple -> Modifier.clickable(onClick = onTap)
-                    else -> Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onTap)
-                },
-            ),
-        contentAlignment = alignment,
+            .then(if (onTap != null) Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onTap) else Modifier),
+        contentAlignment = Alignment.Center,
     ) { content() }
 }
 

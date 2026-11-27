@@ -206,7 +206,7 @@ class SmartspaceStyleTest {
         assertThat(smartspaceInk(SmartspaceStyle(backgroundOpacity = 0f), onSurface, wallpaper = black, tonal = true)).isEqualTo(onSurface)
     }
 
-    /** The short widget draws its texts without a shadow: with the veil turned down to nothing over a
+    /** With the veil turned down to nothing over a
      *  white wallpaper they must not stay white on white. Read from the clock's own pixels. */
     @Test fun theShortWidgetStaysReadableWithoutItsVeilOnAWhiteWallpaper() {
         style = SmartspaceStyle(backgroundOpacity = 0f)

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasClickAction
@@ -92,19 +93,33 @@ class SmartspaceTouchTargetTest {
         nodes.forEach { assertThat(it.heightDp().value).isAtLeast(44f) }
     }
 
-    @Test fun theShortLayoutsLinesAreAtLeast44dpTallWhenItHasRoom() {
+    @Test fun theShortLayoutsLinesShareTheSpaceUpTo44dp() {
         show(height = 120)
-        val nodes = tappables()
-        // The clock, the date and the detail line (the event).
-        assertThat(nodes).hasSize(3)
-        nodes.forEach { assertThat(it.heightDp().value).isAtLeast(44f) }
+        val lines = tappables().sortedBy { it.boundsInRoot.top }
+        assertThat(lines).hasSize(3)
+        val room = with(density) { 120.dp.roundToPx() - 2 * 9.dp.roundToPx() }
+        val natural = lines.map { line ->
+            val text = line.config[SemanticsProperties.Text].single().text
+            textLayout(text).size.height
+        }
+        val heights = lines.map { it.size.height }
+        heights.zip(natural).forEach { (height, text) ->
+            assertThat(height).isAtLeast(text)
+            assertThat(height).isAtMost(with(density) { TOUCH_TARGET.roundToPx() })
+        }
+        assertThat(heights[1]).isEqualTo(heights[2])
+        assertThat(room - heights.sum()).isIn(0..2)
+        assertThat(lines.map { it.size.width }.distinct()).hasSize(1)
     }
 
-    @Test fun aTightFootprintKeepsTheLinesAtTheirNaturalHeight() {
+    @Test fun aTightFootprintKeepsOnlyTheClockAndTheDate() {
         show(height = 64)
-        val lines = tappables().filterNot { isClock.matches(it) }
-        assertThat(lines).hasSize(2)
-        lines.forEach { assertThat(it.heightDp().value).isLessThan(30f) }
+        val nodes = tappables()
+        assertThat(nodes).hasSize(2)
+        val clock = nodes.single { isClock.matches(it) }
+        val date = nodes.single { it != clock }
+        assertThat(date.boundsInRoot.top).isAtLeast(clock.boundsInRoot.bottom)
+        compose.onNode(hasText(event.title), useUnmergedTree = true).assertDoesNotExist()
     }
 
     /** A bigger system font makes the clock taller than the budget's estimate used to assume; the
