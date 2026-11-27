@@ -1,0 +1,2 @@
+Fixed
+- A clock and weather widget made one row tall keeps its clock on top, in the middle, with the date and the event or the weather under it. Lines that do not fit are left out whole.
