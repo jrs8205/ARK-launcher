@@ -5,7 +5,7 @@
 [![Aptoide](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fws75.aptoide.com%2Fapi%2F7%2Fapp%2FgetMeta%3Fpackage_name%3Dorg.arkikeskus.launcher&query=%24.data.file.vername&label=Aptoide&prefix=v)](https://ark-launcher.en.aptoide.com/app)
 [![APKPure](https://img.shields.io/badge/APKPure-available-blue)](https://apkpure.com/p/org.arkikeskus.launcher)
 [![SourceForge](https://img.shields.io/badge/SourceForge-mirror-blue)](https://sourceforge.net/projects/ark-launcher/)
-[![VirusTotal](https://img.shields.io/badge/VirusTotal-1.3.1%3A%200%20%2F%2067-brightgreen)](https://www.virustotal.com/gui/file/d23f907e81f4587f00ec63f7832f7b0f985a04ffb8838d05931cf5b2ead1be16)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-1.3.2%3A%200%20%2F%2066-brightgreen)](https://www.virustotal.com/gui/file/4fde65c5d29104d8e94e63902d5d7deaed118548eea3fdb72427a7d3b179a3bb)
 [![License: Apache-2.0](https://img.shields.io/github/license/jrs8205/ARK-launcher)](LICENSE)
 [![Downloads](https://img.shields.io/github/downloads/jrs8205/ARK-launcher/total)](https://github.com/jrs8205/ARK-launcher/releases)
 [![Built with Jetpack Compose](https://img.shields.io/badge/Built%20with-Jetpack%20Compose-4285F4)](https://developer.android.com/jetpack/compose)
@@ -42,7 +42,7 @@ your device to install. To update, install the newer APK from the same page (Set
 mirrored on [**SourceForge**](https://sourceforge.net/projects/ark-launcher/).
 
 Every release APK is checked on VirusTotal before it is published:
-[**VirusTotal scan of 1.3.1**](https://www.virustotal.com/gui/file/d23f907e81f4587f00ec63f7832f7b0f985a04ffb8838d05931cf5b2ead1be16)
+[**VirusTotal scan of 1.3.2**](https://www.virustotal.com/gui/file/4fde65c5d29104d8e94e63902d5d7deaed118548eea3fdb72427a7d3b179a3bb)
 (none of 67 engines flags it).
 
 ARK-Launcher is also on [**F-Droid**](https://f-droid.org/packages/org.arkikeskus.launcher/).
