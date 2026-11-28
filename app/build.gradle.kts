@@ -22,8 +22,8 @@ android {
     defaultConfig {
         manifestPlaceholders["appLabel"] = "@string/app_name"
         applicationId = "org.arkikeskus.launcher"
-        versionCode = 78
-        versionName = "1.3.1"
+        versionCode = 79
+        versionName = "1.3.2"
     }
 
     // F-Droid rejects the Play "Dependency metadata" signing block AGP adds by default.
